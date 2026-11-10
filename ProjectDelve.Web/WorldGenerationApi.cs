@@ -56,8 +56,8 @@ public static class WorldGenerationApi
             try
             {
                 var canonical = app.Services.GetRequiredService<CanonicalContent>().Bundle;
-                var original = ScenarioDefinitionJson.FromJson(input.GetRawText(), limits.CheckScenario, canonical);
-                var temporary = WorldQuickPlay.Prepare(original, canonical);
+                var original = ScenarioDefinitionJson.Materialize(input.GetRawText(), limits.CheckScenario, canonical);
+                var temporary = WorldQuickPlay.PrepareValidated(original, canonical);
                 return Results.Ok(new { transport = ScenarioDefinitionTransport.Encode(temporary) });
             }
             catch (Exception error) when (error is ArgumentException or FormatException or InvalidDataException or JsonException)

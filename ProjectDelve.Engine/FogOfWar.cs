@@ -39,11 +39,16 @@ public static class FogOfWar
                 .Select(c => c.ResolvedTypeId).ToHashSet(StringComparer.Ordinal)
             : new HashSet<string>(StringComparer.Ordinal);
         copy.WorldCardDefinitions.RemoveAll(d => !revealedWorldTypes.Contains(d.Id));
-        if (!IsEnabled(state, side)) { FilterEquipment(copy); return copy; }
+        var stats = new ObservationStatContext(state);
+        if (!IsEnabled(state, side))
+        {
+            copy.ObservationValues = state.Units.ToDictionary(u => u.Id, u => stats.Values(u.Id), StringComparer.Ordinal);
+            FilterEquipment(copy);
+            return copy;
+        }
         var visible = state.Units.Where(u => IsUnitObservable(state, side, u.Id)).Select(u => u.Id).ToHashSet();
         var groups = state.Units.Where(u => visible.Contains(u.Id)).Select(u => u.Token).ToHashSet();
-        copy.ObservationValues = visible.ToDictionary(id => id, id =>
-            (state.EffectiveMovOf(id), state.EffectiveRngOf(id), state.EffectiveAtkOf(id), state.EffectiveDefOf(id)));
+        copy.ObservationValues = visible.ToDictionary(id => id, stats.Values, StringComparer.Ordinal);
         var board = copy.Physical.Board;
         var observedTerrain = board.Terrain.Where(t => IsExplored(state, side, t.Position)).ToList();
         var observedTerrainTypes = observedTerrain.Select(t => board.TerrainDefinition(t).Id)

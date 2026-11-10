@@ -121,21 +121,24 @@ public static class BrowserProjection
     }).ToList();
 
     public static BrowserPresentation Create(EngineResult result, IReadOnlyDictionary<string, string>? individualNames = null)
+        => CreateObserved(result, Observe(result, FogOfWar.ViewingSide(result.State)), individualNames);
+
+    internal static BrowserPresentation CreateObserved(EngineResult source, EngineResult result,
+        IReadOnlyDictionary<string, string>? individualNames = null)
     {
-        var side = FogOfWar.ViewingSide(result.State);
+        var side = FogOfWar.ViewingSide(source.State);
         // Observation omits unplaced Unit Types. Keep authoritative geometry
         // available for legal summon previews without exposing those definitions.
-        var placementState = result.State;
+        var placementState = source.State;
         IReadOnlyList<BrowserOutcome> outcomes;
-        if (side is null) outcomes = result.Events.Select(e => Outcome(e, result.State, individualNames)).ToArray();
+        if (side is null) outcomes = source.Events.Select(e => Outcome(e, source.State, individualNames)).ToArray();
         else
         {
-            var snapshots = result.ResolutionSteps.ToDictionary(s => s.EventIndex, s => s.StateAfter);
-            outcomes = result.Events.Select((e, index) => (Event: e, State: snapshots.GetValueOrDefault(index) ?? result.State))
+            var snapshots = source.ResolutionSteps.ToDictionary(s => s.EventIndex, s => s.StateAfter);
+            outcomes = source.Events.Select((e, index) => (Event: e, State: snapshots.GetValueOrDefault(index) ?? source.State))
                 .Select(p => (Event: FogOfWar.ObserveEvent(p.State, side, p.Event), p.State))
                 .Where(p => p.Event is not null).Select(p => Outcome(p.Event!, p.State, individualNames)).ToArray();
         }
-        if (side is not null) result = Observe(result, side);
         return new(
         Cards(result.State, individualNames), Decision(result.NextInput, result.State, individualNames, placementState),
         outcomes,
@@ -146,8 +149,22 @@ public static class BrowserProjection
             Orders = result.State.Orders.ToArray(), ViewingSideId = side, UnknownCells = FogOfWar.UnknownCells(result.State, side) };
     }
 
-    internal static EngineResult Observe(EngineResult result, string side)
+    internal static EngineResult Observe(EngineResult result, string? side)
     {
+        var observations = new Dictionary<GameState, GameState>(ReferenceEqualityComparer.Instance);
+        GameState Observation(GameState source)
+        {
+            if (!observations.TryGetValue(source, out var observed))
+                observations.Add(source, observed = FogOfWar.Observe(source, side));
+            return observed;
+        }
+        if (side is null) return result with
+        {
+            State = Observation(result.State),
+            Events = result.Events.Select(PublicationSnapshot.Event).ToList(),
+            NextInput = PublicationSnapshot.Decision(result.NextInput),
+            ResolutionSteps = result.ResolutionSteps.Select(s => s with { StateAfter = Observation(s.StateAfter) }).ToList()
+        };
         var events = new List<RulesEvent>();
         var steps = new List<ResolutionStep>();
         var snapshots = result.ResolutionSteps.ToDictionary(s => s.EventIndex, s => s.StateAfter);
@@ -157,11 +174,11 @@ public static class BrowserProjection
             // Never use the final explored set to reconsider historical event visibility.
             var atEvent = snapshots.GetValueOrDefault(index) ?? result.State;
             if (FogOfWar.ObserveEvent(atEvent, side, result.Events[index]) is not { } occurrence) continue;
-            steps.Add(new(events.Count, FogOfWar.Observe(atEvent, side)));
-            events.Add(occurrence);
+            steps.Add(new(events.Count, Observation(atEvent)));
+            events.Add(PublicationSnapshot.Event(occurrence));
         }
-        return new(FogOfWar.Observe(result.State, side), events,
-            FogOfWar.ObserveDecision(result.State, side, result.NextInput)) { ResolutionSteps = steps };
+        return new(Observation(result.State), events,
+            PublicationSnapshot.Decision(FogOfWar.ObserveDecision(result.State, side, result.NextInput))) { ResolutionSteps = steps };
     }
 
     public static IReadOnlyList<MachineDisplay> Machines(GameState state) => state.Physical.Board.Machines.Select(m =>

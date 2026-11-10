@@ -552,12 +552,13 @@ public sealed class GameState
     public bool HasOpenDoor(string unitId) => this.AbilitiesOf(unitId).Any(ability =>
         ability.Definition.Mechanic is OpenDoor && this.CanUseAbility(unitId, ability));
 
-    public int EffectiveAtkOf(string unitId)
+    public int EffectiveAtkOf(string unitId) => EffectiveAtkOf(unitId, null);
+    internal int EffectiveAtkOf(string unitId, ObservationStatContext? context)
     {
         if (ObservationValues?.TryGetValue(unitId, out var observed) == true) return observed.Atk;
         var unit = Units.Single(u => u.Id == unitId);
         var type = Types.Single(t => t.Id == unit.TypeId);
-        var attack = type.Atk + this.AbilityModifier(unitId, Stat.Atk) + this.WorldModifier(WorldModifierTarget.Atk) + (CurrentUnitId == unitId
+        var attack = type.Atk + (context?.Modifier(unitId, Stat.Atk) ?? this.AbilityModifier(unitId, Stat.Atk)) + this.WorldModifier(WorldModifierTarget.Atk) + (CurrentUnitId == unitId
             ? ModifiersThisTurn.Where(m => m.Stat == Stat.Atk).Sum(m => m.Amount) : 0);
         var figure = Physical.Figures.SingleOrDefault(f => f.Id == unitId);
         if (unit.CurrentHp <= 0 || figure is null || !IsUpright(unitId)) return Math.Max(0, attack);
@@ -590,22 +591,25 @@ public sealed class GameState
             SpatialRules.AreAdjacent(this, targetId, u.Id));
         return Math.Max(0, attack + (supported ? backstabs.Sum(backstab => backstab.AtkBonus) : 0));
     }
-    public int EffectiveMovOf(string unitId) =>
+    public int EffectiveMovOf(string unitId) => EffectiveMovOf(unitId, null);
+    internal int EffectiveMovOf(string unitId, ObservationStatContext? context) =>
         ObservationValues?.TryGetValue(unitId, out var observed) == true ? observed.Mov :
         Math.Max(0, Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Mov +
-        this.AbilityModifier(unitId, Stat.Mov) +
+        (context?.Modifier(unitId, Stat.Mov) ?? this.AbilityModifier(unitId, Stat.Mov)) +
         this.WorldModifier(WorldModifierTarget.Mov) +
         (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Mov).Sum(m => m.Amount) : 0));
-    public int EffectiveRngOf(string unitId) =>
+    public int EffectiveRngOf(string unitId) => EffectiveRngOf(unitId, null);
+    internal int EffectiveRngOf(string unitId, ObservationStatContext? context) =>
         ObservationValues?.TryGetValue(unitId, out var observed) == true ? observed.Rng :
-        Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Rng + this.AbilityModifier(unitId, Stat.Rng) +
+        Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Rng + (context?.Modifier(unitId, Stat.Rng) ?? this.AbilityModifier(unitId, Stat.Rng)) +
         (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Rng).Sum(m => m.Amount) : 0);
-    public int EffectiveDefOf(string unitId)
+    public int EffectiveDefOf(string unitId) => EffectiveDefOf(unitId, null);
+    internal int EffectiveDefOf(string unitId, ObservationStatContext? context)
     {
         if (ObservationValues?.TryGetValue(unitId, out var observed) == true) return observed.Def;
         var unit = Units.Single(u => u.Id == unitId);
         var type = Types.Single(t => t.Id == unit.TypeId);
-        var defence = type.Def + this.AbilityModifier(unitId, Stat.Def) + this.WorldModifier(WorldModifierTarget.Def) + (CurrentUnitId == unitId
+        var defence = type.Def + (context?.Modifier(unitId, Stat.Def) ?? this.AbilityModifier(unitId, Stat.Def)) + this.WorldModifier(WorldModifierTarget.Def) + (CurrentUnitId == unitId
             ? ModifiersThisTurn.Where(m => m.Stat == Stat.Def).Sum(m => m.Amount) : 0);
         var figure = Physical.Figures.SingleOrDefault(f => f.Id == unitId);
         if (unit.CurrentHp <= 0 || figure is null) return Math.Max(0, defence);
@@ -646,12 +650,16 @@ public sealed class GameState
         Resources.Add(new(type, position));
     }
 
+    /// <summary>Copies mutable state without evaluating derived stats or preparing presentation data.</summary>
+    public GameState DetachedCopy() => Copy();
+
     internal GameState Copy() => new()
     {
         WorldCardDefinitions = [.. WorldCardDefinitions],
         ResourceDefinitions = [.. ResourceDefinitions], ActivationTypeOrder = ActivationTypeOrder is null ? null : [.. ActivationTypeOrder],
         ItemTypes = [.. ItemTypes], LootCardDefinitions = [.. LootCardDefinitions],
         EquipmentTypes = [.. EquipmentTypes],
+        ObservationValues = ObservationValues is null ? null : new(ObservationValues, StringComparer.Ordinal),
         LootDeck = LootDeck?.Copy(), LootMarkers = [.. LootMarkers], GroundObjects = [.. GroundObjects],
         Physical = new PhysicalState(Physical.Board with { Edges = [.. Physical.Board.Edges], Terrain = [.. Physical.Board.Terrain], Machines = [.. Physical.Board.Machines] }, [.. Physical.Figures]),
         Types = [.. Types], Units = [.. Units], CellMarkers = [.. CellMarkers], Resources = [.. Resources], StoredResources = [.. StoredResources], Round = Round, Bag = [.. Bag],
@@ -661,7 +669,9 @@ public sealed class GameState
         ExploredCells = ExploredCells.ToDictionary(p => p.Key, p => new HashSet<Cell>(p.Value), StringComparer.Ordinal),
         ObjectiveStartUnitIds = new(ObjectiveStartUnitIds, StringComparer.Ordinal),
         DefeatedUnitIds = new(DefeatedUnitIds, StringComparer.Ordinal),
-        WorldEffects = WorldEffects, WorldDeck = WorldDeck?.Copy(),
+        WorldEffects = WorldEffects is null ? null : WorldEffects with
+            { Composition = WorldEffects.Composition is null ? null : WorldEffects.Composition.ToArray() },
+        WorldDeck = WorldDeck?.Copy(),
         ActionsUsedThisActivation = ActionsUsedThisActivation,
         ExtraActionsThisActivation = ExtraActionsThisActivation,
         BonusActionUseCountsThisActivation = new(BonusActionUseCountsThisActivation),
@@ -674,7 +684,9 @@ public sealed class GameState
         CurrentUnitId = CurrentUnitId, MoveAfterAttackAllowance = MoveAfterAttackAllowance,
         AdvanceOnKillCells = AdvanceOnKillCells,
         CleavePending = CleavePending, PendingExplosions = [.. PendingExplosions],
-        Pending = Pending, RoundComplete = RoundComplete
+        Pending = Pending is null ? null : Pending with { Candidates = Pending.Candidates.Select(candidate =>
+            candidate with { Path = candidate.Path is null ? null : [.. candidate.Path] }).ToList() },
+        RoundComplete = RoundComplete
     };
 }
 

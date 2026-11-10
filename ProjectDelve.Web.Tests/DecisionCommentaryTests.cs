@@ -57,7 +57,9 @@ public sealed class DecisionCommentaryTests
         Assert.True(comment.Sequence < consequence.Sequence); Assert.Equal(metadata, comment.Commentary);
         Assert.Empty(comment.Snapshot.Result.Events);
         using var replay = game.Subscribe($"{baseline.SessionId}:{baseline.Sequence}");
-        Assert.Equal(comment, await Next(replay, u => u.Kind == "commentary"));
+        var replayed = await Next(replay, u => u.Kind == "commentary");
+        Assert.NotSame(comment.Snapshot.Result.State, replayed.Snapshot.Result.State);
+        Assert.Equal(JsonSerializer.Serialize(comment), JsonSerializer.Serialize(replayed));
         using var fresh = game.Subscribe(null); var refreshed = await Next(fresh, _ => true);
         Assert.Equal("baseline", refreshed.Kind); Assert.Null(refreshed.Commentary); Assert.Empty(refreshed.Snapshot.Commentaries);
         Assert.Empty(game.Snapshot().Commentaries);

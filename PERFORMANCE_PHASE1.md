@@ -4,6 +4,10 @@ Measured on 2026-11-10, .NET 10, Windows, Release unless stated otherwise. This
 implements the bounded-query phase of the performance investigation. It changes
 Engine discovery and lookup work, not game rules, content, transport or state ownership.
 
+The subsequent Web detachment/publication changes and current measurements are
+documented in [PERFORMANCE_PHASE2.md](PERFORMANCE_PHASE2.md). This report retains
+the original Phase 1 measurements.
+
 ## Result
 
 The severe Beastmaster pause was caused by whole-board Summon discovery plus

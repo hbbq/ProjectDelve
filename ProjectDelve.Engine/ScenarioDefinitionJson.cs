@@ -30,6 +30,10 @@ public static class ScenarioDefinitionJson
 
     // A host may reject expensive input before materialization, without changing engine rules.
     public static ScenarioDefinition FromJson(string json, Action<ScenarioDefinition>? beforeCreation, ContentBundle? content = null)
+        => Materialize(json, beforeCreation, content).Definition;
+
+    /// <summary>Parses and validates once, returning the request-owned initial state as well as its definition.</summary>
+    public static ScenarioMaterialization Materialize(string json, Action<ScenarioDefinition>? beforeCreation = null, ContentBundle? content = null)
     {
         ArgumentNullException.ThrowIfNull(json);
         var scenario = JsonSerializer.Deserialize<ScenarioDefinition>(json, Options)
@@ -37,7 +41,11 @@ public static class ScenarioDefinitionJson
         // Pre-preset files omitted Loot to opt out. New exports always name their deck.
         scenario = scenario with { Loot = (scenario.Loot ?? LootSettings.Empty).Normalize() };
         beforeCreation?.Invoke(scenario);
-        _ = content is null ? GameEngine.CreateGame(scenario) : GameEngine.CreateGame(scenario, content);
-        return scenario;
+        var state = content is null ? GameEngine.CreateGame(scenario) : GameEngine.CreateGame(scenario, content);
+        return new(scenario, state);
     }
 }
+
+// Owned results of one parse/validation operation, not a reusable validation token.
+// Both graphs are mutable. A caller that changes either must validate that version again.
+public sealed record ScenarioMaterialization(ScenarioDefinition Definition, GameState State);

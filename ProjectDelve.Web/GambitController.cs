@@ -267,7 +267,7 @@ public sealed partial class PlaytestGame
     }
     private static GameState SanitizeState(GameState source)
     {
-        var copy = FogOfWar.Observe(source, FogOfWar.ViewingSide(source));
+        var copy = source.DetachedCopy();
         var board = copy.Physical.Board;
         var terrain = BrowserProjection.TerrainForPresentation(board);
         var terrainIds = terrain.Select(tile => board.TerrainDefinition(tile).Id).Append("stone-floor").ToHashSet(StringComparer.Ordinal);
@@ -295,17 +295,24 @@ public sealed partial class PlaytestGame
     {
         var result = source.Result;
         var side = FogOfWar.ViewingSide(result.State);
-        var presentation = source.Presentation;
-        if (side is not null) result = BrowserProjection.Observe(result, side);
+        result = BrowserProjection.Observe(result, side);
+        var presentation = source.StoredPresentation is { } stored
+            ? DetachDto(stored) : BrowserProjection.CreateObserved(source.Result, result);
+        var sanitized = new Dictionary<GameState, GameState>(ReferenceEqualityComparer.Instance);
+        GameState Sanitize(GameState observed)
+        {
+            if (!sanitized.TryGetValue(observed, out var copy)) sanitized.Add(observed, copy = SanitizeState(observed));
+            return copy;
+        }
         var snapshots = source.Result.ResolutionSteps.ToDictionary(s => s.EventIndex, s => s.StateAfter);
         int ProjectedIndex(int original) => side is null ? original : source.Result.Events.Take(original).Select((e, index) =>
             FogOfWar.ObserveEvent(snapshots.GetValueOrDefault(index) ?? source.Result.State, side, e)).Count(e => e is not null);
-        return source with { Result = result with { State = SanitizeState(result.State),
-            ResolutionSteps = result.ResolutionSteps.Select(s => s with { StateAfter = SanitizeState(s.StateAfter) }).ToList() },
+        return source with { Result = result with { State = Sanitize(result.State),
+            ResolutionSteps = result.ResolutionSteps.Select(s => s with { StateAfter = Sanitize(s.StateAfter) }).ToList() },
             // Host commentary was observed at decision time, before its first event.
             Commentaries = source.Commentaries.Select(c => c with { EventIndex = ProjectedIndex(c.EventIndex) }).ToArray(),
-            Controllers = side is null ? source.Controllers : source.Controllers.Where(p => p.Key == side).ToDictionary(),
-            ControllerAssignments = side is null ? source.ControllerAssignments : source.ControllerAssignments.Where(c => c.SideId == side).ToArray(),
+            Controllers = source.Controllers.Where(p => side is null || p.Key == side).ToDictionary(),
+            ControllerAssignments = source.ControllerAssignments.Where(c => side is null || c.SideId == side).ToArray(),
             PresentationOverride = presentation };
     }
     internal GameUpdate BrowserUpdate(GameUpdate source) => source with

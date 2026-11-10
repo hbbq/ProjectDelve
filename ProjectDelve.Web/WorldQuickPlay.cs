@@ -11,6 +11,14 @@ public static class WorldQuickPlay
     private static readonly string[] HeroIds = [UnitTypeIds.Barbarian, UnitTypeIds.Rogue, UnitTypeIds.Wizard, UnitTypeIds.Cleric, UnitTypeIds.Beastmaster];
 
     public static ScenarioDefinition Prepare(ScenarioDefinition original, ContentBundle canonical)
+        => PrepareCore(original, canonical, null);
+
+    // Only the HTTP handler passes its just-parsed, unmodified materialization.
+    // The prepared version still crosses final authoritative validation below.
+    internal static ScenarioDefinition PrepareValidated(ScenarioMaterialization source, ContentBundle canonical)
+        => PrepareCore(source.Definition, canonical, source.State.DetachedCopy());
+
+    private static ScenarioDefinition PrepareCore(ScenarioDefinition original, ContentBundle canonical, GameState? materialized)
     {
         ArgumentNullException.ThrowIfNull(original);
         ArgumentNullException.ThrowIfNull(canonical);
@@ -19,7 +27,7 @@ public static class WorldQuickPlay
         var definition = Detach(original);
         var heroes = HeroIds.Select(id => canonical.Units.SingleOrDefault(t => t.Id == id)
             ?? throw new ArgumentException($"Quick Play requires canonical Hero '{id}'.", nameof(canonical))).ToArray();
-        var existing = GameEngine.CreateGame(definition, canonical);
+        var existing = materialized ?? GameEngine.CreateGame(definition, canonical);
         foreach (var hero in heroes)
         {
             var local = definition.UnitTypes?.SingleOrDefault(t => t.Id == hero.Id);

@@ -223,6 +223,7 @@ public sealed record GameResponse(long Revision, EngineResult Result, bool AutoC
     // Typed consumers must retain the received authoritative preview: public state
     // deliberately omits unused definitions and cannot recreate every preview.
     private BrowserPresentation? receivedPresentation;
+    [JsonIgnore] internal BrowserPresentation? StoredPresentation => PresentationOverride ?? receivedPresentation;
     public BrowserPresentation Presentation
     {
         get => PresentationOverride ?? receivedPresentation ?? BrowserProjection.Create(Result);
