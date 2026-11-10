@@ -1,0 +1,10 @@
+{
+  "origin": "http://127.0.0.1:5081",
+  "generationMs": 8095,
+  "quickPlayMs": 26570,
+  "units": 256,
+  "summary": "88 / 160 encounters · 256 / 256 requested Units · 100 Groups · 247 Dormant · 9 awake · 3 initial tokens · 29 Loot markers · 18 quiet regions · 89 attempts · work 36067 · encounter shortfall 72. No party, starts or Objectives are generated.",
+  "designerStatus": "Valid · checked by the engine",
+  "errors": [],
+  "requests": []
+}

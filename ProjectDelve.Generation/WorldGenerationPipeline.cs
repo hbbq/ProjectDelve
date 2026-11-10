@@ -17,6 +17,7 @@ public sealed record WorldGenerationStep(string Id, WorldStepKind Kind, WorldSte
 // Internal typed recipe. UI codes construct this explicit schedule; no runtime registry or executable content.
 public sealed record WorldGenerationPlan(WorldDefinition World, WorldWindow Window, IReadOnlyList<WorldGenerationStep> Steps)
 {
+    public string LootPreset { get; init; } = "Empty";
     public static WorldGenerationPlan FromRecipe(WorldGenerationRecipe recipe)
     {
         recipe.Validate();
@@ -59,12 +60,12 @@ public sealed record WorldGenerationPlan(WorldDefinition World, WorldWindow Wind
         steps.Add(new("current", WorldStepKind.PostEnrichmentAnalysis, new AnalysisStepParameters(), [last]));
         if (recipe.Population is { Density: not PopulationDensity.Off } population)
             steps.Add(new("population", WorldStepKind.Population, new PopulationStepParameters(population), ["current"]));
-        return new(recipe.World, recipe.Window, steps);
+        return new(recipe.World, recipe.Window, steps) { LootPreset = recipe.LootPreset };
     }
 
     public WorldGenerationPlan Validate()
     {
-        World.Validate(); Window.Validate();
+        World.Validate(); Window.Validate(); _ = PopulationLoot.FromPreset(LootPreset);
         if (Steps is null || Steps.Count is < 2 or > 24) throw new ArgumentException("A world plan needs 2..24 steps.");
         HashSet<string> seen = new(StringComparer.Ordinal);
         Dictionary<string, HashSet<WorldStepKind>> ancestry = new(StringComparer.Ordinal);
@@ -157,7 +158,8 @@ public sealed record WorldPreview(IReadOnlyList<string> TerrainPalette, IReadOnl
         f.Entrances.Count * 96L + f.Opportunities.Count * 192L + f.Edges.Count * 32L + f.ChangedEdges.Count * 32L) +
         Frames.SelectMany(f => f.Construction).DistinctBy(o => o.Id).Sum(o => 256L + o.TerrainChanges.Count * 64L + o.EdgeChanges.Count * 32L) +
         Frames.SelectMany(f => f.Sites).DistinctBy(s => s.Id).Sum(s => 512L + s.Footprint.Spans.Count * 12L + s.Exterior.Spans.Count * 12L +
-            s.Buildings.Sum(b => 256L + b.Footprint.Spans.Count * 12L + b.Rooms.Sum(r => 192L + (r.Interior.Spans.Count + r.Usable.Spans.Count) * 12L))) +
+            s.Buildings.Sum(b => 256L + b.Footprint.Spans.Count * 12L + b.Rooms.Sum(r => 192L + (r.Interior.Spans.Count + r.Usable.Spans.Count) * 12L)) +
+            (s.PopulationIntent is { } intent ? 128L + intent.PatrolPath.Count * 4L + intent.Areas.Sum(a => 128L + a.Area.Spans.Count * 12L) : 0)) +
         Frames.SelectMany(f => f.RouteNetwork?.Routes ?? []).DistinctBy(r => r.Id).Sum(r => 512L + r.Corridor.Spans.Count * 12L +
             r.Geometry.Runs.Count * 16L + r.Crossings.Sum(c => c.Footprint.Spans.Count * 12L) + r.TunnelEntrances.Count * 32L) +
         Frames.Sum(f => (f.RouteNetwork?.Junctions.Sum(j => 128L + j.Contact.Spans.Count * 12L) ?? 0) +
@@ -166,7 +168,10 @@ public sealed record WorldPreview(IReadOnlyList<string> TerrainPalette, IReadOnl
             2L * (e.Id.Length + e.Kind.Length + e.SourceId.Length + e.GroupIds.Sum(g => g.Length)) +
             e.Units.Sum(u => 96L + 2L * ((u.UnitId?.Length ?? 0) + (u.GroupId?.Length ?? 0) + u.UnitTypeId.Length + u.SideId.Length)) +
             e.Orders.Count * 128L + e.Agency.Count * 64L + e.Routes.Sum(r => 64L + r.Id.Length * 2L + r.WaypointIds.Sum(id => id.Length * 2L)) +
-            e.Waypoints.Sum(p => 48L + p.Id.Length * 2L)) + f.Population.Failures.Sum(p => 64L + 2L * (p.RequestId.Length + p.Reason.Length + (p.Kind?.Length ?? 0) + (p.SourceId?.Length ?? 0)))) +
+            e.Waypoints.Sum(p => 48L + p.Id.Length * 2L) + e.Roles.Sum(r => 64L + 2L * (r.UnitId.Length + r.Role.Length + (r.AreaId?.Length ?? 0)))) +
+            f.Population.AlertComponents.Sum(c => 32L + c.UnitIds.Sum(id => 24L + id.Length * 2L)) +
+            f.Population.LootMarkers.Sum(m => 48L + m.Id.Length * 2L) +
+            f.Population.Failures.Sum(p => 64L + 2L * (p.RequestId.Length + p.Reason.Length + (p.Kind?.Length ?? 0) + (p.SourceId?.Length ?? 0)))) +
         4L * (FormationLabels.Length + BoundaryCells.Length) + Formations.Count * 256L;
 }
 public sealed record WorldGenerationExecution(WorldGenerationContext Context, WorldPreview Preview, IReadOnlyList<WorldStageMeasurement> Measurements);
@@ -203,7 +208,7 @@ public static class WorldGenerationPipeline
     public static WorldGenerationExecution Execute(WorldGenerationPlan plan, ContentBundle? content = null)
     {
         plan.Validate(); content ??= ContentBundle.Canonical();
-        var context = new WorldGenerationContext(plan.World, plan.Window);
+        var context = new WorldGenerationContext(plan.World, plan.Window) { Loot = PopulationLoot.FromPreset(plan.LootPreset) };
         List<WorldPreviewFrame> frames = []; List<WorldStageMeasurement> measurements = [];
         List<string> palette = ["grass", "dirt", "tree", "solid-rock", "water", "stone-floor"];
         var paletteIndex = palette.Select((id, i) => (id, i)).ToDictionary(p => p.id, p => p.i, StringComparer.Ordinal);

@@ -109,10 +109,7 @@ public sealed record LootSettings
             return new(Cards);
         }
         if (Preset is not null && Composition is not null) throw new ArgumentException("A live Loot preset cannot contain Custom cards.");
-        var normalized = Composition is null ? this with { Preset = Preset ?? LootPresets.Default } : this;
-        if (normalized.Preset is { } preset && normalized.PresetMultiplier is > 1 && (presets ?? LootPresets.All).SingleOrDefault(p => p.Id == preset)?.IsDynamic == true)
-            throw new ArgumentException("A dynamic All Loot preset contains exactly one of each card and cannot be multiplied.");
-        return normalized;
+        return Composition is null ? this with { Preset = Preset ?? LootPresets.Default } : this;
     }
     public IReadOnlyList<LootCardQuantity> ResolveComposition(IReadOnlyList<LootCardDefinition>? cards = null, IReadOnlyList<LootPreset>? presets = null)
     {

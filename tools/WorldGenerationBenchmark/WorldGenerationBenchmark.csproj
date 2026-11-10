@@ -8,5 +8,6 @@
   <ItemGroup>
     <ProjectReference Include="../../ProjectDelve.Generation/ProjectDelve.Generation.csproj" />
     <Compile Include="../../ProjectDelve.Web/BoardAppearance.cs" Link="BoardAppearance.cs" />
+    <Compile Include="../../ProjectDelve.Web/WorldQuickPlay.cs" Link="WorldQuickPlay.cs" />
   </ItemGroup>
 </Project>

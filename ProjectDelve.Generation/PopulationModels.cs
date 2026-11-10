@@ -13,15 +13,35 @@ public sealed record PopulationSettings(PopulationDensity Density = PopulationDe
 }
 public sealed record PopulationStepParameters(PopulationSettings Settings) : WorldStepParameters;
 public sealed record PopulationFailure(string RequestId, string? Kind, string? SourceId, string Reason);
-public sealed record PopulationStatistics(int Target, int AcceptedEncounters, int Units, int Groups, int Attempts, long Work, int Shortfall);
+public sealed record PopulationStatistics(int Target, int AcceptedEncounters, int Units, int Groups, int Attempts, long Work, int Shortfall)
+{
+    public int DormantUnits { get; init; }
+    public int AwakeUnits { get; init; }
+    public int InitialTokens { get; init; }
+    public int RequestedUnits { get; init; }
+    public int UnitShortfall { get; init; }
+    public int LootMarkers { get; init; }
+    public int QuietRegions { get; init; }
+}
+public sealed record PopulationRoleAssignment(string UnitId, string Role, string? AreaId = null);
+public sealed record PopulationAlertComponent(int Index, IReadOnlyList<string> UnitIds);
 public sealed record PopulationEncounter(string Id, string Kind, string SourceId, IReadOnlyList<string> GroupIds,
     IReadOnlyList<UnitPlacement> Units, IReadOnlyList<InitialGroupOrder> Orders, IReadOnlyList<Route> Routes,
     IReadOnlyList<Waypoint> Waypoints)
 {
     public IReadOnlyList<AgencyAssignment> Agency { get; init; } = [];
+    public IReadOnlyList<PopulationRoleAssignment> Roles { get; init; } = [];
+    public int RequestedUnits { get; init; }
+    public string? IntendedAlertTopology { get; init; }
+    public int ActualAlertComponents { get; init; }
 }
 public sealed record PopulationSnapshot(IReadOnlyList<PopulationEncounter> Encounters, PopulationStatistics Statistics,
-    IReadOnlyList<PopulationFailure> Failures);
+    IReadOnlyList<PopulationFailure> Failures)
+{
+    public IReadOnlyList<LootMarker> LootMarkers { get; init; } = [];
+    public LootSettings? Loot { get; init; }
+    public IReadOnlyList<PopulationAlertComponent> AlertComponents { get; init; } = [];
+}
 public sealed partial class WorldGenerationContext
 {
     public PopulationSnapshot? Population { get; internal set; }
@@ -30,17 +50,22 @@ public sealed partial class WorldGenerationContext
     internal ScenarioDefinition AddPopulation(ScenarioDefinition definition)
     {
         if (Population is null) return definition;
-        return PopulationGenerator.Combine(definition, Population.Encounters);
+        return PopulationGenerator.Combine(definition, Population.Encounters) with
+        { LootMarkers = [.. definition.LootMarkers ?? [], .. Population.LootMarkers], Loot = Population.Loot ?? definition.Loot };
     }
 }
 
-internal sealed record PopulationLocation(string Kind, string SourceId, int[] Cells, CellBounds Bounds, int[]? Path = null);
+internal sealed record PopulationLocation(string Kind, string SourceId, int[] Cells, CellBounds Bounds, int[]? Path = null)
+{
+    public SitePopulationIntent? Intent { get; init; }
+}
 internal static partial class GoblinCampPopulationGenerator
 {
     internal static IEnumerable<PopulationLocation> Locations(WorldGenerationContext c)
     {
         foreach (var site in c.Sites.Where(s => s.Kind == GeneratedSiteKind.Campsite).OrderBy(s => s.Id, StringComparer.Ordinal))
-            yield return new("GoblinCamp", site.Id, site.Exterior.Indices(c.Window.Width).ToArray(), site.Exterior.Bounds);
+            yield return new("GoblinCamp", site.Id, site.Exterior.Indices(c.Window.Width).ToArray(), site.Exterior.Bounds)
+            { Intent = site.PopulationIntent };
         foreach (var o in (c.CurrentAnalysis?.Opportunities ?? []).Concat(c.FeatureOpportunities)
             .Where(o => o.Kind == "clearing" && o.UsableArea >= 12 && o.WalkableComponent >= 0)
             .DistinctBy(o => o.Id).OrderBy(o => o.Id, StringComparer.Ordinal))

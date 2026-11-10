@@ -2,12 +2,22 @@
 
 World generation can now construct Campsites and small Settlements after natural
 enrichment. A Settlement composes independent Building and Room Layout generators.
-All generated structures use existing terrain, assemblies and shared Edges. There
-are no inhabitants, scenario Objectives, new movement rules or inter-Site routes.
+All generated structures use existing terrain, assemblies and shared Edges. Civilization
+itself adds no inhabitants or scenario Objectives and introduces no movement rules.
 Natural Terrain sampling and DNG1/DNG2 are unchanged.
 
 The subsequent [Connections milestone](ROUTE_NETWORKS.md) adds route-aware placement,
 exact published access, shared planning ownership and external Site connections.
+
+[Population V2](POPULATION_V2.md) now consumes authoring-only Site Population Intent
+after final geometry analysis. Camps publish sentry, resting, central and supply
+areas, occupation bounds, an optional open patrol path and Connected/Separated Alert
+intent. Clearing-centered and elongated roadside families use existing Campfire and
+Table obstacles. Population may leave a Site vacant or use a compatible different
+occupation; natural encounters do not require Sites. Settlements/buildings retain
+their existing geometry. Construction reservations never become runtime ownership
+or population occupancy. Population validates final placements and protects required
+access, with bounded recorded fallback rather than modifying the Site at runtime.
 
 ## Execution and contracts
 
@@ -274,6 +284,6 @@ four possible lots around a shared street. Variety is procedural rather than
 blueprint-based, but larger/irregular architecture remains future work. Preparation
 does not automatically widen Doorways for large Units or connect isolated Sites.
 Semantic output remains generator-internal/preview-only and is not persisted as
-scenario gameplay state. Later Connections, Population, Objectives and Playability
-must consume these references and validate their own requirements. Fortifications,
+scenario gameplay state. Connections and Population consume these references and
+validate their own requirements; Objectives and Playability remain separate. Fortifications,
 Dungeons, blueprints, generative Designer commands and new mechanics are deferred.

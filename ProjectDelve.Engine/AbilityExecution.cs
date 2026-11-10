@@ -25,6 +25,7 @@ public static partial class GameEngine
 
     private static IEnumerable<Candidate> ActiveAbilityCandidates(GameState state, Unit unit, AbilityTiming timing)
     {
+        PlacementLookup? summonPlacements = null;
         foreach (var ability in state.AbilitiesOf(unit.Id).Where(g => g.Definition.Timing == timing &&
                      IsSharedActiveMechanic(g.Definition.Mechanic) && state.CanUseAbility(unit.Id, g)))
         {
@@ -92,7 +93,8 @@ public static partial class GameEngine
                         yield return Bind(new($"{ability.CandidatePrefix}:{target.Id}", Action: UnitAction.TargetUnitAttack, TargetId: target.Id));
                     break;
                 case AdjacentUnitSummonMechanic:
-                    foreach (var candidate in SummoningRules.Candidates(state, unit, ability)) yield return Bind(candidate);
+                    foreach (var candidate in SummoningRules.Candidates(state, unit, ability,
+                                 summonPlacements ??= new PlacementLookup(state))) yield return Bind(candidate);
                     break;
                 case PickupResource:
                 case GiveResource:

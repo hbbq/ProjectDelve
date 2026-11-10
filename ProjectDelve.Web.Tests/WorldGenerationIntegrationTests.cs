@@ -26,7 +26,7 @@ public sealed class WorldGenerationIntegrationTests
         response.EnsureSuccessStatusCode();
         Assert.Equal("no-store", response.Headers.CacheControl!.ToString());
         var result = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal(Code, result.GetProperty("code").GetString());
+        Assert.Equal(WorldGenerationRecipe.Parse(Code).ToString(), result.GetProperty("code").GetString());
         Assert.Equal("Generated world terrain", result.GetProperty("title").GetString());
         Assert.Equal(-17, result.GetProperty("window").GetProperty("offsetX").GetInt32());
         var json = result.GetProperty("definition").GetRawText();
@@ -256,7 +256,7 @@ public sealed class WorldGenerationIntegrationTests
         Assert.True(imported.IsSuccessStatusCode, await imported.Content.ReadAsStringAsync());
         var state = host.App.Services.GetRequiredService<PlaytestGame>().Snapshot().Result.State;
         Assert.Equal(temporary.Units.Count, state.Units.Count);
-        Assert.Equal(state.LootCardDefinitions.Count, state.LootDeck!.DrawPile.Count);
+        Assert.Equal(state.LootCardDefinitions.Count * (temporary.Loot.PresetMultiplier ?? 1), state.LootDeck!.DrawPile.Count);
         Assert.Contains(HeroesVsMonsters.Heroes, state.FogOfWarSides);
         Assert.All(state.Objectives, objective => Assert.Equal(ScenarioObjective.NoObjective, objective.Objective));
         using var unchanged = await host.Client.PostAsJsonAsync("/api/world-generation", new { code });

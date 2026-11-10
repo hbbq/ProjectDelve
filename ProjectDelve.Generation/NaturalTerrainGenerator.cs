@@ -158,6 +158,7 @@ public sealed partial class WorldGenerationContext
     public WorldDefinition World { get; }
     public WorldWindow Window { get; }
     public NaturalTerrainSample[] Samples { get; }
+    public LootSettings Loot { get; set; } = LootSettings.Empty;
     private bool sampled;
     public WorldGenerationContext(WorldDefinition world, WorldWindow window)
     {
@@ -177,7 +178,7 @@ public sealed partial class WorldGenerationContext
     public ScenarioDefinition Materialize()
     {
         if (!sampled) throw new InvalidOperationException("Sample natural terrain before materializing a board.");
-        if (ConstructionBoard is not null) return AddPopulation(ConstructionBoard.Export());
+        if (ConstructionBoard is not null) return AddPopulation(ConstructionBoard.Export() with { Loot = Loot });
         List<CellDefinition> cells = [];
         for (var y = 0; y < Window.Height; y++)
         for (var x = 0; x < Window.Width; x++)
@@ -188,7 +189,7 @@ public sealed partial class WorldGenerationContext
         return AddPopulation(new ScenarioDefinition
         {
             Board = new() { Width = Window.Width, Height = Window.Height, DefaultTerrain = TerrainKind.Grass, DefaultTerrainTypeId = "grass", Cells = cells },
-            UnitTypeIds = [], Units = [], Agency = [], Loot = LootSettings.Empty
+            UnitTypeIds = [], Units = [], Agency = [], Loot = Loot
         });
     }
 }

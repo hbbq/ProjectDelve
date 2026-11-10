@@ -73,6 +73,7 @@ public sealed class AllLootPresetTests
     [Theory]
     [InlineData(null)]
     [InlineData(1)]
+    [InlineData(2)]
     public void LiveAllReferenceRoundTripsAndDoesNotTreatUnreferencedObjectsAsLootCards(int? multiplier)
     {
         var scenario = Scenario() with
@@ -89,14 +90,14 @@ public sealed class AllLootPresetTests
         var restored = ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(scenario));
         Assert.Equal(multiplier, restored.Loot!.PresetMultiplier);
         var state = GameEngine.CreateGame(restored);
-        Assert.Equal(LootCardCatalog.All.Count + 1, state.LootDeck!.DrawPile.Count);
+        Assert.Equal((LootCardCatalog.All.Count + 1) * (multiplier ?? 1), state.LootDeck!.DrawPile.Count);
+        Assert.All(state.LootCardDefinitions, card => Assert.Equal(multiplier ?? 1, state.LootDeck.DrawPile.Count(o => o.LootCardId == card.Id)));
         Assert.DoesNotContain(state.LootDeck.DrawPile, card => card.EquipmentTypeId == "not-a-loot-card" || card.ItemTypeId == "also-not-a-loot-card");
     }
 
     [Fact]
-    public void AllRejectsScalingDuplicateDefinitionsAndExcessReservations()
+    public void AllRejectsDuplicateDefinitionsAndExcessReservations()
     {
-        Assert.Throws<ArgumentException>(() => new LootSettings { Preset = LootPresets.AllPresetId, PresetMultiplier = 2 }.ResolveComposition());
         var duplicate = new LootCardDefinition("duplicate", "Duplicate") { Immediate = new HealCollectorMechanic(1) };
         Assert.Throws<ArgumentException>(() => LootCardCatalog.Effective([duplicate, duplicate]));
         Assert.Throws<ArgumentException>(() => LootPresets.Resolve(LootPresets.AllPresetId, [duplicate, duplicate]));

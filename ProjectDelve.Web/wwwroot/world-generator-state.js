@@ -35,14 +35,17 @@ export function worldConfigurationCode(config, includeSeed = true, maxBoardSize 
     if (!["Off", "Low", "Medium", "High"].includes(config.populationDensity)) throw new Error("Choose a Population density.");
     population = `-M${config.populationDensity}-D${integer("populationDifficulty", 1, 5)}`;
   }
-  return `WLD1-${width}x${height}-X${x}-Y${y}-F${forest}-W${water}-R${rock}-K${config.scale}-H${config.waterForm}${enrichment}${civilization}${routes}${population}${includeSeed && seed ? `-S${seed.toUpperCase()}` : ""}`;
+  const loot = config.lootPreset ?? "Empty";
+  if (!["Empty", "Classic", "Fun", "Experimental", "FarOut", "All"].includes(loot)) throw new Error("Choose a Loot deck.");
+  return `WLD1-${width}x${height}-X${x}-Y${y}-F${forest}-W${water}-R${rock}-K${config.scale}-H${config.waterForm}${enrichment}${civilization}${routes}${population}-O${loot}${includeSeed && seed ? `-S${seed.toUpperCase()}` : ""}`;
 }
 
 export function worldConfigurationFromCode(input, maxBoardSize = 120) {
-  const match = input.trim().match(/^WLD1-([1-9]\d{0,2})x([1-9]\d{0,2})-X(-?\d+)-Y(-?\d+)-F(\d{1,3})-W(\d{1,3})-R(\d{1,3})-K(Fine|Balanced|Broad)-H(Auto|Lakes|River|Mixed)(?:-E([01])-I([123])-B([01]{4}))?(?:-C([01])-N([0-8])-V([0-4])-P([123]))?(?:-Q([01])-T([0-4])-J(ForestTrail|MinorPath|Road|RockPassage)-L([01])-A([0-3])-U([01])-Z([123]))?(?:-M(Off|Low|Medium|High)-D([1-5]))?(?:-S([0-9a-fA-F]{16}))?$/);
+  const match = input.trim().match(/^WLD1-([1-9]\d{0,2})x([1-9]\d{0,2})-X(-?\d+)-Y(-?\d+)-F(\d{1,3})-W(\d{1,3})-R(\d{1,3})-K(Fine|Balanced|Broad)-H(Auto|Lakes|River|Mixed)(?:-E([01])-I([123])-B([01]{4}))?(?:-C([01])-N([0-8])-V([0-4])-P([123]))?(?:-Q([01])-T([0-4])-J(ForestTrail|MinorPath|Road|RockPassage)-L([01])-A([0-3])-U([01])-Z([123]))?(?:-M(Off|Low|Medium|High)-D([1-5]))?(?:-O(Empty|Classic|Fun|Experimental|FarOut|All))?(?:-S([0-9a-fA-F]{16}))?$/);
   if (!match) throw new Error("Enter an ordered WLD1 recipe or complete code; a seed needs exactly 16 hexadecimal digits.");
   const result = Object.fromEntries(["width", "height", "offsetX", "offsetY", "forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm"].map((key, i) => [key, match[i + 1]]));
-  result.seed = match[26] ?? "";
+  result.lootPreset = match[26] ?? "Empty";
+  result.seed = match[27] ?? "";
   if (match[10] != null) {
     result.enrichmentEnabled = String(match[10] === "1"); result.enrichmentIntensity = match[11];
     ["forestEnrichment", "rockEnrichment", "waterEnrichment", "grasslandEnrichment"].forEach((key, i) => { result[key] = String(match[12][i] === "1"); });

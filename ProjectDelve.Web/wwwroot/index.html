@@ -364,7 +364,8 @@
         <fieldset class="world-generator-enrichment"><legend>Population</legend><div class="world-generator-fields">
           <label>Density <select id="world-generator-populationDensity"><option>Off</option><option>Low</option><option selected>Medium</option><option>High</option></select></label>
           <label>Difficulty <select id="world-generator-populationDifficulty"><option value="1">1 · Easier</option><option value="2">2</option><option value="3" selected>3 · Standard</option><option value="4">4</option><option value="5">5 · Harder</option></select></label>
-        </div><small>Encounters inhabit suitable camps, buildings and roads. Density is a target; some worlds have fewer suitable locations. Difficulty affects encounter size.</small></fieldset>
+          <label>Loot deck <select id="world-generator-lootPreset"><option>Empty</option><option selected>Classic</option><option>Fun</option><option>Experimental</option><option value="FarOut">Far Out</option><option>All</option></select></label>
+        </div><small>Density controls population amount; Difficulty selects Monsters and supporting roles. Camps, small groups and lone Monsters create uneven danger, mostly Dormant. Loot presets repeat at setup to supply caches; Empty creates no Loot markers.</small></fieldset>
         <label>Seed · optional 16 hexadecimal digits <input id="world-generator-seed" maxlength="16" placeholder="Blank = fresh seed on Generate" autocomplete="off" spellcheck="false"></label>
         <div class="generator-actions"><button id="world-generator-preview" class="designer-primary">Generate Preview</button><button id="world-generator-another">Generate Another</button></div>
         <details><summary>World recipe code</summary>

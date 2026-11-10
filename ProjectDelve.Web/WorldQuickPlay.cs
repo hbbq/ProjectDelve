@@ -40,12 +40,18 @@ public static class WorldQuickPlay
             return id;
         }
         var groupId = Reserve("quick-play-heroes");
+        var effective = ScenarioContentReferences.Compose(canonical, definition.ContentReferences).Definitions with
+        { LootCards = [.. existing.LootCardDefinitions] };
+        var expectedDrops = (int)Math.Ceiling((existing.Units.Sum(u => existing.Types.Single(t => t.Id == u.TypeId).LootDropSuccesses) +
+            heroes.Sum(h => definition.LootUnitOverrides?.GetValueOrDefault(h.Id)?.DropSuccesses ?? h.LootDropSuccesses)) / 6.0);
+        var temporaryLoot = PopulationLoot.Provision(new() { Preset = LootPresets.AllPresetId },
+            definition.LootMarkers?.Count ?? 0, expectedDrops, effective);
         definition = definition with
         {
             UnitTypeIds = definition.UnitTypeIds.Concat(HeroIds).Distinct(StringComparer.Ordinal).ToList(),
             UnitTypes = (definition.UnitTypes ?? []).Concat(Detach(heroes).Where(h => !(definition.UnitTypes ?? []).Any(t => t.Id == h.Id))).ToList(),
             Agency = [.. definition.Agency, .. HeroIds.Select(id => new AgencyAssignment(id, HeroesVsMonsters.Heroes, ControllerKind.Human, groupId))],
-            Loot = new() { Preset = LootPresets.AllPresetId },
+            Loot = temporaryLoot,
             FogOfWarSides = (definition.FogOfWarSides ?? []).Append(HeroesVsMonsters.Heroes).Distinct(StringComparer.Ordinal).ToList(),
             Objectives = definition.Units.Select(u => u.SideId).Concat(definition.Agency.Select(a => a.SideId))
                 .Append(HeroesVsMonsters.Heroes).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
@@ -54,7 +60,11 @@ public static class WorldQuickPlay
 
         // Resolve final terrain once, including scenario-local assemblies, and reserve complete
         // existing footprints. A compact open cluster is policy, not a new movement rule.
-        var state = GameEngine.CreateGame(definition, canonical);
+        // Reuse the detached, validated source for geometry/placement preflight.
+        // Temporary deck/agency/FoW configuration is validated once with the
+        // complete party below, rather than rebuilding the dense world midway.
+        var state = existing;
+        foreach (var hero in heroes) if (state.Types.All(t => t.Id != hero.Id)) state.Types.Add(hero);
         var board = state.Physical.Board;
         var occupied = state.Physical.Figures.SelectMany(f => FootprintGeometry.OccupiedCells(state, f.Id))
             .Concat(board.Machines.Select(m => m.Position)).ToHashSet();

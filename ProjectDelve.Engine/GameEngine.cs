@@ -381,11 +381,15 @@ public static partial class GameEngine
         var type = state.Types.Single(t => t.Id == unit.TypeId);
         var candidates = new List<Candidate>();
         if (type.HasAction(UnitAction.NormalAttack))
+        {
+            // Every target is evaluated against the same unchanged actor placement.
+            if (state.Units.Count > 0) HypotheticalPosition.Validate(state, unit.Id, from);
             candidates.AddRange(state.Units
-                .Where(target => AttackRules.EvaluateFrom(state, unit.Id, from, target.Id)
+                .Where(target => AttackRules.EvaluateApproachFrom(state, unit.Id, from, target.Id)
                     == UnitTargetEvaluation.Possible)
                 .Select(target => new Candidate($"attack:{target.Id}",
                     Action: UnitAction.NormalAttack, TargetId: target.Id)));
+        }
         candidates.AddRange(ActiveAbilityCandidates(state, unit, AbilityTiming.Action));
         return candidates;
     }
@@ -851,10 +855,11 @@ public static partial class GameEngine
             figures.Select(f => f.Id).Distinct().Count() != figures.Count ||
             state.Units.Any(u => u.CurrentHp > 0 && !figures.Any(f => f.Id == u.Id)))
             throw new ArgumentException("Invalid figure placement.");
+        var placementLookup = new PlacementLookup(state);
         if (figures.Any(f => !SpatialRules.CanPlaceUnit(state,
-                state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == f.Id).TypeId), f.Position, f.Id)))
+                state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == f.Id).TypeId), f.Position, f.Id, placementLookup)))
             throw new ArgumentException("Invalid figure footprint placement.");
-        if (board.Edges.Any(e => !EdgeReplacementRules.CanReplace(state, e)) ||
+        if (board.Edges.Any(e => !EdgeReplacementRules.CanReplace(state, e, placementLookup)) ||
             board.Edges.Select(e => e.A.Y < e.B.Y || e.A.Y == e.B.Y && e.A.X < e.B.X
                 ? (e.A, e.B) : (e.B, e.A)).Distinct().Count() != board.Edges.Count)
             throw new ArgumentException("Invalid edge features.");

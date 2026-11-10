@@ -1,0 +1,84 @@
+{
+  "date": "2026-11-10",
+  "scenario": "Exact saved 120x120 High world, 442 Monsters, fingerprint C0024607751FBBA312E90AC8F756CC5E84902FA38E482CDA8EC5B745DC4007BF",
+  "configuration": "Debug isolated localhost host; warning-level logging; no Codex test or benchmark jobs during samples",
+  "originalBrowser": {
+    "origin": "http://127.0.0.1:5081",
+    "generationMs": 23104,
+    "quickPlayMs": 124962,
+    "units": 442,
+    "summary": "160 / 160 encounters · 442 / 512 requested Units · 172 Groups · 433 Dormant · 9 awake · 3 initial tokens · 48 Loot markers · 18 quiet regions · 174 attempts · work 38266 · Unit shortfall 70. No party, starts or Objectives are generated.",
+    "designerStatus": "Valid · checked by the engine",
+    "errors": [],
+    "requests": []
+  },
+  "prepareRuns": [
+    {
+      "run": 1,
+      "units": 442,
+      "status": 200,
+      "prepareWallMs": 37369.7,
+      "hostCpuMs": 38656.2,
+      "responseBytes": 34915
+    },
+    {
+      "run": 2,
+      "units": 442,
+      "status": 200,
+      "prepareWallMs": 36640.9,
+      "hostCpuMs": 36828.1,
+      "responseBytes": 34915
+    },
+    {
+      "run": 3,
+      "units": 442,
+      "status": 200,
+      "prepareWallMs": 36803.7,
+      "hostCpuMs": 36859.4,
+      "responseBytes": 34915
+    }
+  ],
+  "importRuns": [
+    {
+      "run": 1,
+      "sourceMonsters": 442,
+      "status": 200,
+      "importWallMs": 84399.2,
+      "hostCpuMs": 84484.4,
+      "responseBytes": 308642
+    },
+    {
+      "run": 2,
+      "sourceMonsters": 442,
+      "status": 200,
+      "importWallMs": 85684.2,
+      "hostCpuMs": 85390.6,
+      "responseBytes": 308642
+    }
+  ],
+  "interpretation": "Separate HTTP phases reproduce approximately 121-123 seconds. Host CPU time is close to wall time; significant application work is confirmed. This does not establish that all external machine contention was absent.",
+  "releaseRecheck": {
+    "configuration": "Release isolated localhost host; warning logging; no concurrent Codex build/test/benchmark/browser jobs",
+    "units": 442,
+    "runs": [
+      {
+        "run": 1,
+        "prepareMs": 14477.2085,
+        "importMs": 30318.223100000003,
+        "responseBytes": 308642
+      },
+      {
+        "run": 2,
+        "prepareMs": 13193.600400000003,
+        "importMs": 30414.646900000007,
+        "responseBytes": 308642
+      },
+      {
+        "run": 3,
+        "prepareMs": 12893.734500000006,
+        "importMs": 29781.120299999995,
+        "responseBytes": 308642
+      }
+    ]
+  }
+}

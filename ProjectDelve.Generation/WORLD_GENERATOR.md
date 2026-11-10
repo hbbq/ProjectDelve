@@ -2,9 +2,10 @@
 
 World Generator is an authoring pipeline separate from DNG1-HVM and DNG2-OS.
 Open **World Generator** in the browser, choose a preset or explicit settings,
-and generate a world. Optional Population adds Goblin Camps, Zombie Houses and
-Road Patrols using ordinary Units, Groups and Orders. No party, starts, Objectives,
-Loot changes or FoW configuration are generated. Export DELVE1 or open in Scenario
+and generate a world. Optional Population adds structured camps, building defenders,
+road patrols, independent small groups and lone Monsters using ordinary Units,
+Groups and Orders. No party, starts or Objectives are generated. Loot uses the
+selected finite deck; no FoW configuration is generated. Export DELVE1 or open in Scenario
 Designer to finish the scenario before play.
 
 **Quick Play** starts a temporary copy through the existing Designer Playtest flow.
@@ -126,108 +127,55 @@ Original samples/formations remain available as provenance. Timings and allocati
 measurements are separate from reproducible diagnostics. There is no plugin
 registry, external recipe DSL, streaming or persistent world runtime.
 
-## Population and Encounters V1
+## Population V2: dense and structured encounters
 
-Population runs last, after construction, Site connections, exploration links and
-final connectivity analysis. It is WindowLocal. Three concrete generators discover
-existing camp/clearing, building and Road locations; a bounded coordinator handles
-placement, selection and atomic publication of ordinary scenario additions.
-Terrain and Edges are unchanged. Both sparse-terrain and construction-backed
-materialization include accepted Units, exact agency, Orders, Routes and Waypoints.
+Population runs last after construction, connections and final geometry analysis.
+It resolves Site Population Intent plus independent natural encounters into ordinary
+Units, exact Groups, automated agency, Orders, Routes/Waypoints and Loot markers.
+No generator metadata is retained in gameplay state. Civilization remains useful
+without Population, and Population works without Civilization.
 
-Selection first chooses uniformly among encounter types with viable locations,
-then chooses a location. Candidate abundance does not supply extra type weight.
-There are no rarity tables or per-encounter probabilities. Stable request-slot
-identities and separate deterministic random streams govern selection, composition
-and layout; failed requests do not rename later requests by accepted-object count.
+See [Population V2](POPULATION_V2.md) for architecture, measured budgets, verification
+and limitations. The same current WLD1 recipe and content reproduce deterministically;
+historical WLD1 layout equivalence is not required.
 
-The encounter target is board area divided by 500/280/160 for Low/Medium/High,
-rounded down and capped at 32. Very small windows may therefore target zero.
-Population adds at most 96 Units and 32 Groups, with at most 128 proposal attempts
-and two million charged work units. Candidate catalogs and diagnostics are also
-bounded. Types receive equal shares of the search allowance so one exhausted
-location family cannot consume another family's entire opportunity to be checked.
-The target may be missed when geography, spacing, access or budgets prevent more
-placements. Current count ranges are 2 Units at difficulty 1, 2–3 at difficulties
-2–3, and 2–4 at difficulties 4–5, further limited by available space and caps.
+Density primarily controls amount; Difficulty selects weighted existing compositions
+and supporting arrangements. Seeded region weights produce rich and quiet patches.
+The mixture includes occupied/vacant Sites, structured camps, small groups and lone
+Monsters. Most figures are Dormant; explicit patrol roles are Awake. Normal lone
+Monsters pursue known reachable enemies using existing behavior, with no new leash,
+target memory or knowledge privilege.
 
-Every accepted encounter owns its own non-default Groups. Complete group identity
-remains Unit Type + Side + GroupId; each receives explicit automated agency and its
-own Order. Independent encounters never share Groups. All encounters use the
-existing Monster Side. Authoring metadata identifies encounters only in generation
-context and preview frames; no EncounterId or encounter runtime enters Units,
-gameplay observations, saves or scenario definitions.
+Structured camps have clearing-centered and elongated roadside families, existing
+Campfire/Table obstacles, shared ground, resting wings, sentries and optional open
+patrols. Connected/separated initial Alert intent is checked using final friendly
+placements. Awake relays count; Groups, Walls and Doors do not isolate Alert.
 
-* Goblin Camps place several canonical Goblins at existing camps or suitable
-  clearings, initially Dormant with GuardArea. Larger variants may have separate
-  local guard Groups.
-* Zombie Houses place canonical Zombies across usable rooms in accessible existing
-  buildings, initially Dormant, with Lying variants and GuardArea. Ordinary Break
-  Door and waking rules apply; entering a house is not a special trigger.
-* Road Patrols place awake Grunts along suitable existing Road segments and author
-  ordinary Routes and Waypoints with FollowRoute/PingPong. Group size, segment and
-  direction vary. Waypoints guide movement; off-road shortcuts and shared group
-  progress retain their existing Engine meaning.
+Limits are 256 generated Units, 192 generated Groups, 160 encounters, 1,024 placement
+attempts and two million charged work units. Density sets area-based targets with
+Low/Medium/High Unit ceilings of 128/192/256.
+These are authoring resource policies, not new Engine rules. Shortfalls and role
+fallbacks appear in previews. Population leaves geometry unchanged, protects explicit
+world access, and permits deliberate combat chokepoint occupation.
 
-Population reservations distinguish occupied footprints, claimed locations,
-encounter spacing and explicit protected areas. Construction ownership is not
-occupancy: existing Sites remain inhabitable. Entrances, portal approaches,
-critical passages and supplied protections are checked against the final board.
-Rejected proposals publish neither Units nor reservations. Density shortfall and
-bounded failures appear in the Population stage alongside work/attempt counters.
+The optional `-OEmpty|Classic|Fun|Experimental|FarOut|All` suffix follows Population
+and precedes the seed. The UI explicitly selects a deck; omitted settings resolve to
+Empty. All presets, including All, use existing setup-only `PresetMultiplier` to
+provision complete copies for every marker plus expected initial drops. Relative
+card quantities are preserved. Empty produces no ordinary markers. Decks remain
+finite, with no runtime refill. Quick Play retains All, expands its temporary supply,
+and preserves all original markers and the retained Designer world.
 
-The preview is omniscient authoring. Only its Population frame displays generated
-Units, Groups, Orders and patrol Waypoints; earlier stages and construction
-checkpoints do not display later Population. Overlay lines show waypoint sequence,
-not a movement corridor. Designer receives the final ordinary scenario regardless
-of the inspected stage. DELVE1 preserves concrete generated content, including
-captured Workspace definitions, through the existing export/import boundary.
+Preview diagnostics show role areas, composition, Groups/Orders, Dormant/Awake,
+initial token count, initial friendly Alert components, requested/placed occupation,
+Loot markers and bounded failures. Earlier stages do not display later population.
+Normal play uses existing FoW observations and event-time filtering.
 
-Population does not guarantee a playable mission or combat victory. The generator
-has no party, starting position or mission model; explicit protections can be
-supplied by authoring callers, and later Designer edits may change access. No
-Objectives are added automatically; the Engine's normal default Objective behavior
-still applies if an unfinished authoring artifact is played. Configure the intended
-Objectives and FoW before play. Dormant waking ignores walls/LOS/FoW and may happen
-before discovery. Universal Alert can cross encounter Group boundaries normally.
-
-Dedicated Engine fixtures cover the generators and their interactions, including
-actual PingPong movement. Web tests cover portable Designer import and restricted
-observations; Node tests cover recipe controls and stage-correct preview rendering.
-Run the detached benchmark for warm median timings, allocation, payload sizes and
-hard-budget checks at 30×24 through 120×120:
+Reproduce the measurement corpus sequentially, without concurrent tests/browser work:
 
 ```powershell
-dotnet run --project tools/WorldGenerationBenchmark --no-restore --artifacts-path .playwright-cli -- --population
+dotnet run --project tools/WorldGenerationBenchmark -c Release --no-restore --artifacts-path .world-benchmark -- --population --fixtures .playwright-cli/population-v2
 ```
-
-Population V1 verification: cached solution build passed; 2,627 Engine tests
-passed; Web had 696 passes and the same 12 pre-existing `knightly-boots`
-content-reference identity failures documented below. All 984 Node and dispatcher
-security tests passed using the installed Pillow-capable Python through
-`PROJECTDELVE_PYTHON`. Focused Population/World/Dormant/Alert/FollowRoute/FoW tests
-passed (144 Engine, 33 Web). Desktop and 390px mobile Edge inspection covered
-Enhanced/Classic previews, zoom, earlier stages, DELVE1, Designer Groups/Routes and
-Engine validation, with no console errors or failed requests.
-
-Detached Debug measurements, one warmup and median of three runs: seed 12345,
-F10/W4/R5, enrichment enabled, four requested camps, one settlement, two Roads,
-High density and difficulty 5. These are measurements, not timing guarantees.
-
-| Window | Total generation ms | Population ms | Encounters / target | Population allocated MiB |
-| --- | ---: | ---: | ---: | ---: |
-| 30×24 | 73 | 15 | 3 / 4 | 6.4 |
-| 60×50 | 702 | 386 | 11 / 18 | 98.6 |
-| 120×100 | 3,479 | 2,675 | 18 / 32 | 475.7 |
-| 120×120 | 2,948 | 2,092 | 16 / 32 | 391.2 |
-
-Every repeated fingerprint matched and every hard limit held. The largest measured
-preview JSON was 1.74 MB. Repeated complete proposal validation and connectivity
-checks remain a significant large-map allocation/time cost; the current bounded
-pass favors validated authoring output over meeting density targets. Runtime
-encounter independence means separate Groups/Orders, not isolation from ordinary
-Alert or later movement. Start/mission access is only protected when supplied or
-already represented in scenario data.
 
 ## Dirt and appearance
 

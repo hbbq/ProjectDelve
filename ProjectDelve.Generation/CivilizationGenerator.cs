@@ -77,7 +77,9 @@ public static class CivilizationGenerator
                 .Where(o => o.Kind is "clearing" or "open-area").OrderByDescending(o => o.UsableArea)
                 .Select(o => o.AnchorIndex).Distinct().Take(16).ToArray();
             var routeAnchors = board.State.RouteCorridors.Keys.Order().ToArray();
-            Accept(CampsiteGenerator.Plan(new(key, area, policy, Preferences: new(OpportunityAnchors: anchors, RouteAnchors: routeAnchors)), scope), draft);
+            var requirements = new CampsiteRequirements(Radius: 2 + scope.Child(key, draft).Random("requirements").Next(3));
+            Accept(CampsiteGenerator.Plan(new(key, area, policy, Requirements: requirements,
+                Preferences: new(OpportunityAnchors: anchors, RouteAnchors: routeAnchors)), scope), draft);
         }
         context.RefreshConstructionAnalysis();
         context.CivilizationStats = new(budget.Attempts, budget.Work, context.Sites.Count,

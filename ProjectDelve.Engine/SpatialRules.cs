@@ -45,14 +45,14 @@ internal static class SpatialRules
 
     internal static bool CanPlaceUnit(GameState state, Cell cell) => CanPlaceUnit(state, Footprint.OneByOne, cell);
 
-    internal static bool CanPlaceUnit(GameState state, UnitType type, Cell anchor, string? excludedId = null) =>
-        CanPlaceUnit(state, type.Footprint, anchor, excludedId, MovementTraversal.OccupancyFor(type));
+    internal static bool CanPlaceUnit(GameState state, UnitType type, Cell anchor, string? excludedId = null,
+        PlacementLookup? lookup = null) =>
+        CanPlaceUnit(state, type.Footprint, anchor, excludedId, MovementTraversal.OccupancyFor(type), lookup);
 
     internal static bool CanPlaceUnit(GameState state, Footprint footprint, Cell anchor, string? excludedId = null,
-        MovementTraversal placement = default) =>
+        MovementTraversal placement = default, PlacementLookup? lookup = null) =>
         Fits(state.Physical.Board, footprint, anchor, placement) &&
-        !state.Physical.Figures.Any(f => f.Id != excludedId &&
-            FootprintGeometry.OccupiedCells(state, f.Id).Intersect(FootprintGeometry.OccupiedCells(footprint, anchor)).Any());
+        !(lookup ?? new PlacementLookup(state)).HasOtherFigure(FootprintGeometry.OccupiedCells(footprint, anchor), excludedId);
 
     // Eight surrounding cells with normal geometric LOS; independent of Side and attack legality.
     internal static bool AreAdjacent(Board board, Cell first, Cell second) =>

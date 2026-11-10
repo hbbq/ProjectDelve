@@ -56,6 +56,7 @@ public sealed record SiteInfo(string Id, GeneratedSiteKind Kind, GeneratedArea F
 {
     public IReadOnlyList<SiteAccessPort> AccessPorts { get; init; } = [];
     public IReadOnlyList<SiteConnectionRequest> ConnectionRequests { get; init; } = [];
+    public SitePopulationIntent? PopulationIntent { get; init; }
 }
 public sealed record ConstructionOperation(string Id, string? ParentId, string Name, string ObjectId, CellBounds Bounds,
     IReadOnlyList<TerrainChange> TerrainChanges, IReadOnlyList<EdgeChange> EdgeChanges);

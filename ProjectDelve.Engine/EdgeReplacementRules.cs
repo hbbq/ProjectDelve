@@ -3,7 +3,10 @@ namespace ProjectDelve.Engine;
 /// <summary>Replaces an explicit set of shared board Edges without changing figures or terrain.</summary>
 public static class EdgeReplacementRules
 {
-    public static bool CanReplace(GameState state, Edge replacement)
+    public static bool CanReplace(GameState state, Edge replacement) =>
+        CanReplace(state, replacement, new PlacementLookup(state));
+
+    internal static bool CanReplace(GameState state, Edge replacement, PlacementLookup lookup)
     {
         var board = state.Physical.Board;
         if (!MovementRules.Inside(board, replacement.A) || !MovementRules.Inside(board, replacement.B) ||
@@ -13,11 +16,7 @@ public static class EdgeReplacementRules
             board.TerrainAt(replacement.A) == TerrainKind.Water && board.TerrainAt(replacement.B) == TerrainKind.Water)
             return false;
         // Figure placement is physical: neither Lying nor Phase bypasses internal-edge restrictions.
-        return replacement.Kind.Passable() || !state.Physical.Figures.Any(f =>
-        {
-            var cells = FootprintGeometry.OccupiedCells(state, f.Id);
-            return cells.Contains(replacement.A) && cells.Contains(replacement.B);
-        });
+        return replacement.Kind.Passable() || !lookup.SpansEdge(replacement.A, replacement.B);
     }
 
     public static void ReplaceEdges(GameState state, IEnumerable<Edge> replacements)
@@ -26,7 +25,8 @@ public static class EdgeReplacementRules
         if (requested.Select(e => Key(e)).Distinct().Count() != requested.Count)
             throw new ArgumentException("An explicit replacement set must specify each Edge once.", nameof(replacements));
         // Evaluate all legality before mutating any feature, then apply in stable board order.
-        var legal = requested.Where(e => CanReplace(state, e)).OrderBy(e => Key(e).A.Y)
+        var lookup = new PlacementLookup(state);
+        var legal = requested.Where(e => CanReplace(state, e, lookup)).OrderBy(e => Key(e).A.Y)
             .ThenBy(e => Key(e).A.X).ThenBy(e => Key(e).B.Y).ThenBy(e => Key(e).B.X).ToList();
         var keys = legal.Select(e => Key(e)).ToHashSet();
         state.Physical.Board.Edges.RemoveAll(e => keys.Contains(Key(e)));

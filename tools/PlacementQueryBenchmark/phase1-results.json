@@ -1,0 +1,2046 @@
+{
+  "date": "2026-11-10",
+  "notes": [
+    "Milliseconds and allocated bytes; allocations are not retained heap. See PERFORMANCE_PHASE1.md for sampling and boundaries.",
+    "Stage summaries use arithmetic median and nearest-rank p95; original 442 activation samples are historical single observations.",
+    "Fresh original binary baseline was preserved before source changes. No concurrent heavy benchmarks.",
+    "Profiler entries are [calls,inclusiveMs,exclusiveMs,inclusiveAllocatedBytes,exclusiveAllocatedBytes]; scopes overlap; temporary instrumentation adds overhead.",
+    "Browser timings are individual traced runs including intentional playback, not Engine CPU or a percentile."
+  ],
+  "stages": {
+    "after-100": {
+      "120x120-100-beast/create": {
+        "n": 1,
+        "p50": 189.1465,
+        "p95": 189.1465,
+        "bytes": 3787168
+      },
+      "120x120-100-beast/round": {
+        "n": 30,
+        "p50": 3.4672,
+        "p95": 6.1015,
+        "bytes": 953224.0
+      },
+      "120x120-100-beast/initialChoices": {
+        "n": 1,
+        "p50": 1.4455,
+        "p95": 1.4455,
+        "bytes": 221000
+      },
+      "120x120-100-beast/engineMove": {
+        "n": 30,
+        "p50": 4.0594,
+        "p95": 4.4365,
+        "bytes": 1160704.0
+      },
+      "120x120-100-beast/copy": {
+        "n": 30,
+        "p50": 0.0056,
+        "p95": 0.1794,
+        "bytes": 8256.0
+      },
+      "120x120-100-beast/observe": {
+        "n": 30,
+        "p50": 0.894,
+        "p95": 0.9687,
+        "bytes": 138152.0
+      },
+      "120x120-100-beast/presentationMove": {
+        "n": 30,
+        "p50": 4.3819,
+        "p95": 8.9211,
+        "bytes": 1543664.0
+      },
+      "120x120-100-beast/engineSummon": {
+        "n": 30,
+        "p50": 3.5454,
+        "p95": 9.4229,
+        "bytes": 1338840.0
+      },
+      "120x120-100-beast/presentationSummon": {
+        "n": 30,
+        "p50": 7.1418,
+        "p95": 11.427,
+        "bytes": 1717392.0
+      }
+    },
+    "after-442": {
+      "120x120-442-beast/create": {
+        "n": 1,
+        "p50": 248.6864,
+        "p95": 248.6864,
+        "bytes": 41381672
+      },
+      "120x120-442-beast/round": {
+        "n": 30,
+        "p50": 25.7261,
+        "p95": 45.7654,
+        "bytes": 3076584.0
+      },
+      "120x120-442-beast/initialChoices": {
+        "n": 1,
+        "p50": 7.1847,
+        "p95": 7.1847,
+        "bytes": 610712
+      },
+      "120x120-442-beast/engineMove": {
+        "n": 30,
+        "p50": 34.2863,
+        "p95": 49.783,
+        "bytes": 4034400.0
+      },
+      "120x120-442-beast/copy": {
+        "n": 30,
+        "p50": 0.004,
+        "p95": 0.1477,
+        "bytes": 13728.0
+      },
+      "120x120-442-beast/observe": {
+        "n": 30,
+        "p50": 6.3299,
+        "p95": 7.2478,
+        "bytes": 321416.0
+      },
+      "120x120-442-beast/presentationMove": {
+        "n": 30,
+        "p50": 15.1549,
+        "p95": 24.5852,
+        "bytes": 2068976.0
+      },
+      "120x120-442-beast/engineSummon": {
+        "n": 30,
+        "p50": 19.7521,
+        "p95": 28.8318,
+        "bytes": 3426744.0
+      },
+      "120x120-442-beast/presentationSummon": {
+        "n": 30,
+        "p50": 37.3092,
+        "p95": 48.2462,
+        "bytes": 2706840.0
+      }
+    },
+    "after-candidates100": {
+      "distant100/summonCandidates": {
+        "n": 30,
+        "p50": 0.1822,
+        "p95": 0.2791,
+        "bytes": 154176.0
+      }
+    },
+    "after-debug100": {
+      "120x120-100-beast/create": {
+        "n": 1,
+        "p50": 220.2981,
+        "p95": 220.2981,
+        "bytes": 3733296
+      },
+      "120x120-100-beast/round": {
+        "n": 30,
+        "p50": 3.6889,
+        "p95": 5.8335,
+        "bytes": 963240.0
+      },
+      "120x120-100-beast/initialChoices": {
+        "n": 1,
+        "p50": 1.519,
+        "p95": 1.519,
+        "bytes": 227656
+      },
+      "120x120-100-beast/engineMove": {
+        "n": 30,
+        "p50": 4.3872,
+        "p95": 6.77,
+        "bytes": 1181832.0
+      },
+      "120x120-100-beast/copy": {
+        "n": 30,
+        "p50": 0.0056,
+        "p95": 0.213,
+        "bytes": 8256.0
+      },
+      "120x120-100-beast/observe": {
+        "n": 30,
+        "p50": 0.9579,
+        "p95": 1.4294,
+        "bytes": 149640.0
+      },
+      "120x120-100-beast/presentationMove": {
+        "n": 30,
+        "p50": 4.7002,
+        "p95": 9.2204,
+        "bytes": 1567440.0
+      },
+      "120x120-100-beast/engineSummon": {
+        "n": 30,
+        "p50": 3.9078,
+        "p95": 6.4232,
+        "bytes": 1353912.0
+      },
+      "120x120-100-beast/presentationSummon": {
+        "n": 30,
+        "p50": 7.6131,
+        "p95": 11.1342,
+        "bytes": 1823080.0
+      }
+    },
+    "after-dormant": {
+      "dormant-0/round": {
+        "n": 30,
+        "p50": 1.0411,
+        "p95": 3.1254,
+        "bytes": 757072.0
+      },
+      "dormant-0/proximity": {
+        "n": 30,
+        "p50": 0.0057,
+        "p95": 0.195,
+        "bytes": 4240.0
+      },
+      "dormant-100/round": {
+        "n": 30,
+        "p50": 4.25,
+        "p95": 6.0651,
+        "bytes": 1910240.0
+      },
+      "dormant-100/proximity": {
+        "n": 30,
+        "p50": 0.0974,
+        "p95": 0.1342,
+        "bytes": 73152.0
+      },
+      "dormant-100/alertChain": {
+        "n": 30,
+        "p50": 0.2441,
+        "p95": 7.3083,
+        "bytes": 144504.0
+      },
+      "dormant-100/roundWithAlert": {
+        "n": 30,
+        "p50": 6.9663,
+        "p95": 10.1728,
+        "bytes": 3381616.0
+      },
+      "dormant-442/round": {
+        "n": 30,
+        "p50": 18.9858,
+        "p95": 120.5015,
+        "bytes": 5476224.0
+      },
+      "dormant-442/proximity": {
+        "n": 30,
+        "p50": 0.4662,
+        "p95": 0.5102,
+        "bytes": 310464.0
+      },
+      "dormant-442/alertChain": {
+        "n": 30,
+        "p50": 1.6553,
+        "p95": 2.0779,
+        "bytes": 626400.0
+      },
+      "dormant-442/roundWithAlert": {
+        "n": 30,
+        "p50": 36.0811,
+        "p95": 43.1956,
+        "bytes": 13447504.0
+      }
+    },
+    "after-quick442": {
+      "saved442/prepare.parseValidate": {
+        "n": 3,
+        "p50": 145.9088,
+        "p95": 212.484,
+        "bytes": 51588360
+      },
+      "saved442/prepare.WorldQuickPlay": {
+        "n": 3,
+        "p50": 339.0962,
+        "p95": 401.5416,
+        "bytes": 110459328
+      },
+      "saved442/prepare.encode": {
+        "n": 3,
+        "p50": 13.5563,
+        "p95": 15.6094,
+        "bytes": 3318744
+      },
+      "saved442/createPrepared": {
+        "n": 3,
+        "p50": 201.2322,
+        "p95": 216.4504,
+        "bytes": 53821056
+      },
+      "saved442/webImport": {
+        "n": 3,
+        "p50": 19457.1376,
+        "p95": 20413.4319,
+        "bytes": 956091888
+      },
+      "saved442/browserImport": {
+        "n": 3,
+        "p50": 96.3789,
+        "p95": 99.5957,
+        "bytes": 3832872
+      },
+      "saved442/serializeImport": {
+        "n": 3,
+        "p50": 1.082,
+        "p95": 39.3448,
+        "bytes": 324248
+      }
+    },
+    "after-small": {
+      "12x12-0-beast/create": {
+        "n": 1,
+        "p50": 166.5138,
+        "p95": 166.5138,
+        "bytes": 1117960
+      },
+      "12x12-0-beast/round": {
+        "n": 30,
+        "p50": 0.5841,
+        "p95": 1.9271,
+        "bytes": 307000.0
+      },
+      "12x12-0-beast/initialChoices": {
+        "n": 1,
+        "p50": 0.4221,
+        "p95": 0.4221,
+        "bytes": 93464
+      },
+      "12x12-0-beast/engineMove": {
+        "n": 30,
+        "p50": 0.3518,
+        "p95": 1.7044,
+        "bytes": 282048.0
+      },
+      "12x12-0-beast/copy": {
+        "n": 30,
+        "p50": 0.0044,
+        "p95": 0.1356,
+        "bytes": 6656.0
+      },
+      "12x12-0-beast/observe": {
+        "n": 30,
+        "p50": 0.0461,
+        "p95": 0.1176,
+        "bytes": 34152.0
+      },
+      "12x12-0-beast/presentationMove": {
+        "n": 30,
+        "p50": 1.0578,
+        "p95": 1.4476,
+        "bytes": 812464.0
+      },
+      "12x12-0-beast/engineSummon": {
+        "n": 30,
+        "p50": 0.3728,
+        "p95": 0.7597,
+        "bytes": 293936.0
+      },
+      "12x12-0-beast/presentationSummon": {
+        "n": 30,
+        "p50": 0.4646,
+        "p95": 1.4985,
+        "bytes": 384592.0
+      }
+    },
+    "after-smallquick": {
+      "small/quick.parseValidate": {
+        "n": 30,
+        "p50": 1.2289,
+        "p95": 2.3805,
+        "bytes": 820616.0
+      },
+      "small/quick.prepare": {
+        "n": 30,
+        "p50": 3.7628,
+        "p95": 5.0278,
+        "bytes": 2133432.0
+      },
+      "small/quick.encode": {
+        "n": 30,
+        "p50": 0.1659,
+        "p95": 0.1946,
+        "bytes": 63752.0
+      },
+      "small/quick.createPrepared": {
+        "n": 30,
+        "p50": 1.5393,
+        "p95": 2.9403,
+        "bytes": 1058728.0
+      },
+      "small/quick.webImport": {
+        "n": 30,
+        "p50": 19.2219,
+        "p95": 22.9482,
+        "bytes": 5284656.0
+      },
+      "small/quick.browserProjection": {
+        "n": 30,
+        "p50": 0.2019,
+        "p95": 0.239,
+        "bytes": 114848.0
+      },
+      "small/quick.serialize": {
+        "n": 30,
+        "p50": 0.5518,
+        "p95": 0.6174,
+        "bytes": 80072.0
+      }
+    },
+    "after-warm-summon": {
+      "small/postStayAdvance": {
+        "n": 30,
+        "p50": 0.4204,
+        "p95": 0.5471,
+        "bytes": 281304.0
+      },
+      "small/summonCandidates": {
+        "n": 30,
+        "p50": 0.0877,
+        "p95": 0.0927,
+        "bytes": 99816.0
+      },
+      "small/summonAdvance": {
+        "n": 30,
+        "p50": 0.3443,
+        "p95": 0.3795,
+        "bytes": 293192.0
+      },
+      "distant100/postStayAdvance": {
+        "n": 30,
+        "p50": 3.9311,
+        "p95": 5.823,
+        "bytes": 1159960.0
+      },
+      "distant100/summonCandidates": {
+        "n": 30,
+        "p50": 0.1652,
+        "p95": 0.1762,
+        "bytes": 154176.0
+      },
+      "distant100/summonAdvance": {
+        "n": 30,
+        "p50": 3.4092,
+        "p95": 3.7648,
+        "bytes": 1338096.0
+      },
+      "distant442/postStayAdvance": {
+        "n": 30,
+        "p50": 22.1535,
+        "p95": 31.4759,
+        "bytes": 3437280.0
+      },
+      "distant442/summonCandidates": {
+        "n": 30,
+        "p50": 0.206,
+        "p95": 0.2324,
+        "bytes": 326864.0
+      },
+      "distant442/summonAdvance": {
+        "n": 30,
+        "p50": 18.3859,
+        "p95": 25.4256,
+        "bytes": 3906416.0
+      }
+    },
+    "before-100": {
+      "120x120-100-beast/create": {
+        "n": 1,
+        "p50": 250.5357,
+        "p95": 250.5357,
+        "bytes": 11471208
+      },
+      "120x120-100-beast/round": {
+        "n": 3,
+        "p50": 64.7203,
+        "p95": 109.1085,
+        "bytes": 7510808
+      },
+      "120x120-100-beast/initialChoices": {
+        "n": 1,
+        "p50": 1.7984,
+        "p95": 1.7984,
+        "bytes": 241184
+      },
+      "120x120-100-beast/engineMove": {
+        "n": 3,
+        "p50": 19269.537,
+        "p95": 19299.6125,
+        "bytes": 4712328256
+      },
+      "120x120-100-beast/copy": {
+        "n": 3,
+        "p50": 0.186,
+        "p95": 0.3031,
+        "bytes": 9088
+      },
+      "120x120-100-beast/observe": {
+        "n": 3,
+        "p50": 0.3963,
+        "p95": 5.8864,
+        "bytes": 92520
+      },
+      "120x120-100-beast/presentationMove": {
+        "n": 3,
+        "p50": 2.5391,
+        "p95": 27.2456,
+        "bytes": 1444896
+      },
+      "120x120-100-beast/engineSummon": {
+        "n": 3,
+        "p50": 18839.3609,
+        "p95": 19090.7128,
+        "bytes": 4767662824
+      },
+      "120x120-100-beast/presentationSummon": {
+        "n": 3,
+        "p50": 3.3717,
+        "p95": 4.6662,
+        "bytes": 1366368
+      }
+    },
+    "before-candidates100": {
+      "distant100/summonCandidates": {
+        "n": 3,
+        "p50": 13183.6626,
+        "p95": 13201.0374,
+        "bytes": 4725442088
+      }
+    },
+    "before-dormant": {
+      "dormant-0/round": {
+        "n": 30,
+        "p50": 1.1265,
+        "p95": 3.4567,
+        "bytes": 751520.0
+      },
+      "dormant-0/proximity": {
+        "n": 30,
+        "p50": 0.0056,
+        "p95": 0.2139,
+        "bytes": 4240.0
+      },
+      "dormant-100/round": {
+        "n": 30,
+        "p50": 13.2538,
+        "p95": 42.1248,
+        "bytes": 7088096.0
+      },
+      "dormant-100/proximity": {
+        "n": 30,
+        "p50": 0.1271,
+        "p95": 0.1374,
+        "bytes": 73152.0
+      },
+      "dormant-100/alertChain": {
+        "n": 30,
+        "p50": 0.2918,
+        "p95": 6.8531,
+        "bytes": 144504.0
+      },
+      "dormant-100/roundWithAlert": {
+        "n": 30,
+        "p50": 15.9804,
+        "p95": 17.2584,
+        "bytes": 8565712.0
+      },
+      "dormant-442/round": {
+        "n": 30,
+        "p50": 801.8056,
+        "p95": 1010.5885,
+        "bytes": 105989672.0
+      },
+      "dormant-442/proximity": {
+        "n": 30,
+        "p50": 0.0945,
+        "p95": 0.1178,
+        "bytes": 310464.0
+      },
+      "dormant-442/alertChain": {
+        "n": 30,
+        "p50": 1.3895,
+        "p95": 1.5615,
+        "bytes": 626400.0
+      },
+      "dormant-442/roundWithAlert": {
+        "n": 30,
+        "p50": 817.2577,
+        "p95": 935.5604,
+        "bytes": 114182404.0
+      }
+    },
+    "before-quick442": {
+      "saved442/prepare.parseValidate": {
+        "n": 3,
+        "p50": 2966.4707,
+        "p95": 3062.2298,
+        "bytes": 171478968
+      },
+      "saved442/prepare.WorldQuickPlay": {
+        "n": 3,
+        "p50": 9040.952,
+        "p95": 9313.2236,
+        "bytes": 345783152
+      },
+      "saved442/prepare.encode": {
+        "n": 3,
+        "p50": 4.323,
+        "p95": 10.4697,
+        "bytes": 3318744
+      },
+      "saved442/createPrepared": {
+        "n": 3,
+        "p50": 6272.0473,
+        "p95": 6615.8814,
+        "bytes": 170435592
+      },
+      "saved442/webImport": {
+        "n": 3,
+        "p50": 31681.5689,
+        "p95": 32132.6329,
+        "bytes": 1089639616
+      },
+      "saved442/browserImport": {
+        "n": 3,
+        "p50": 70.2971,
+        "p95": 82.6277,
+        "bytes": 2926344
+      },
+      "saved442/serializeImport": {
+        "n": 3,
+        "p50": 1.3486,
+        "p95": 39.2362,
+        "bytes": 324248
+      }
+    },
+    "before-small": {
+      "12x12-0-beast/create": {
+        "n": 1,
+        "p50": 230.5487,
+        "p95": 230.5487,
+        "bytes": 1114184
+      },
+      "12x12-0-beast/round": {
+        "n": 30,
+        "p50": 0.7764,
+        "p95": 2.7221,
+        "bytes": 304568.0
+      },
+      "12x12-0-beast/initialChoices": {
+        "n": 1,
+        "p50": 0.456,
+        "p95": 0.456,
+        "bytes": 92008
+      },
+      "12x12-0-beast/engineMove": {
+        "n": 30,
+        "p50": 3.2532,
+        "p95": 5.3096,
+        "bytes": 2151592.0
+      },
+      "12x12-0-beast/copy": {
+        "n": 30,
+        "p50": 0.0075,
+        "p95": 0.1401,
+        "bytes": 6656.0
+      },
+      "12x12-0-beast/observe": {
+        "n": 30,
+        "p50": 0.0479,
+        "p95": 0.1415,
+        "bytes": 34152.0
+      },
+      "12x12-0-beast/presentationMove": {
+        "n": 30,
+        "p50": 0.7953,
+        "p95": 1.3603,
+        "bytes": 812464.0
+      },
+      "12x12-0-beast/engineSummon": {
+        "n": 30,
+        "p50": 2.0673,
+        "p95": 3.3215,
+        "bytes": 2164184.0
+      },
+      "12x12-0-beast/presentationSummon": {
+        "n": 30,
+        "p50": 0.6625,
+        "p95": 1.1607,
+        "bytes": 384592.0
+      }
+    },
+    "before-smallquick": {
+      "small/quick.parseValidate": {
+        "n": 30,
+        "p50": 1.3239,
+        "p95": 2.3835,
+        "bytes": 817184.0
+      },
+      "small/quick.prepare": {
+        "n": 30,
+        "p50": 3.6639,
+        "p95": 5.8743,
+        "bytes": 2141440.0
+      },
+      "small/quick.encode": {
+        "n": 30,
+        "p50": 0.1602,
+        "p95": 0.1879,
+        "bytes": 63752.0
+      },
+      "small/quick.createPrepared": {
+        "n": 30,
+        "p50": 1.5055,
+        "p95": 2.0922,
+        "bytes": 1073568.0
+      },
+      "small/quick.webImport": {
+        "n": 30,
+        "p50": 17.6138,
+        "p95": 22.5177,
+        "bytes": 5332592.0
+      },
+      "small/quick.browserProjection": {
+        "n": 30,
+        "p50": 0.1961,
+        "p95": 0.2149,
+        "bytes": 114848.0
+      },
+      "small/quick.serialize": {
+        "n": 30,
+        "p50": 0.4222,
+        "p95": 0.4517,
+        "bytes": 80072.0
+      }
+    },
+    "previous-actions442-release": {
+      "120x120-442-beast/create": {
+        "n": 1,
+        "p50": 2766.4119,
+        "bytes": 158800840
+      },
+      "120x120-442-beast/round": {
+        "n": 1,
+        "p50": 1844.979,
+        "bytes": 103508488
+      },
+      "120x120-442-beast/initialChoices": {
+        "n": 1,
+        "p50": 8.958,
+        "bytes": 638160
+      },
+      "120x120-442-beast/engineMove": {
+        "n": 1,
+        "p50": 260266.4505,
+        "bytes": 18847456696
+      },
+      "120x120-442-beast/copy": {
+        "n": 1,
+        "p50": 0.362,
+        "bytes": 14560
+      },
+      "120x120-442-beast/observe": {
+        "n": 1,
+        "p50": 10.855,
+        "bytes": 420432
+      },
+      "120x120-442-beast/presentationMove": {
+        "n": 1,
+        "p50": 41.973,
+        "bytes": 2396640
+      },
+      "120x120-442-beast/engineSummon": {
+        "n": 1,
+        "p50": 261528.3865,
+        "bytes": 20171875800
+      },
+      "120x120-442-beast/presentationSummon": {
+        "n": 1,
+        "p50": 40.3399,
+        "bytes": 4385208
+      }
+    },
+    "previous-quick442-debug": {
+      "saved442/prepare.parseValidate": {
+        "n": 1,
+        "p50": 7676.855,
+        "bytes": 217430552
+      },
+      "saved442/prepare.WorldQuickPlay": {
+        "n": 1,
+        "p50": 23199.3355,
+        "bytes": 449055224
+      },
+      "saved442/prepare.encode": {
+        "n": 1,
+        "p50": 9.964,
+        "bytes": 3318984
+      },
+      "saved442/createPrepared": {
+        "n": 1,
+        "p50": 15759.2313,
+        "bytes": 222283992
+      },
+      "saved442/webImport": {
+        "n": 1,
+        "p50": 73398.7757,
+        "bytes": 1423996760
+      },
+      "saved442/browserImport": {
+        "n": 1,
+        "p50": 179.7548,
+        "bytes": 4904960
+      },
+      "saved442/serializeImport": {
+        "n": 1,
+        "p50": 37.2927,
+        "bytes": 7300880
+      }
+    }
+  },
+  "browser": {
+    "before100": {
+      "spec": {
+        "size": 120
+      },
+      "stages": [
+        {
+          "stage": "import",
+          "totalMs": 340.0,
+          "lastFinalUpdateMs": 269.0,
+          "renderFrameTotalMs": 68.90000057220459
+        },
+        {
+          "stage": "round",
+          "totalMs": 1523.5,
+          "lastFinalUpdateMs": 305.8999996185303,
+          "renderFrameTotalMs": 73.89999961853027
+        },
+        {
+          "stage": "move",
+          "totalMs": 28992.400000095367,
+          "lastFinalUpdateMs": 28938.200000286102,
+          "renderFrameTotalMs": 70.69999980926514
+        },
+        {
+          "stage": "summon",
+          "totalMs": 30549.200000286102,
+          "lastFinalUpdateMs": 29090.60000038147,
+          "renderFrameTotalMs": 72.70000076293945
+        }
+      ],
+      "pageErrors": [],
+      "consoleErrors": null,
+      "failedRequests": null
+    },
+    "beforeQuick442": {
+      "spec": {
+        "size": 442
+      },
+      "stages": [
+        {
+          "stage": "quickPlay",
+          "totalMs": 43952.5,
+          "lastFinalUpdateMs": 43835.09999990463,
+          "renderFrameTotalMs": 58.69999980926514
+        }
+      ],
+      "pageErrors": [],
+      "consoleErrors": null,
+      "failedRequests": null
+    },
+    "browser-large-Dire-Bear": {
+      "spec": {
+        "size": 120,
+        "name": "large-Dire-Bear",
+        "summon": "Dire Bear",
+        "mobile": true,
+        "mini": false
+      },
+      "stages": [
+        {
+          "stage": "import-120",
+          "totalMs": 456.30000019073486,
+          "lastFinalUpdateMs": 318.69999980926514,
+          "renderFrameTotalMs": 112.60000038146973
+        },
+        {
+          "stage": "round",
+          "totalMs": 1706.5999999046326,
+          "lastFinalUpdateMs": 439.5,
+          "renderFrameTotalMs": 84.19999980926514
+        },
+        {
+          "stage": "move",
+          "totalMs": 1299.4000000953674,
+          "lastFinalUpdateMs": 494.90000009536743,
+          "renderFrameTotalMs": 61.0
+        },
+        {
+          "stage": "summon-Dire Bear",
+          "totalMs": 1914.3999996185303,
+          "lastFinalUpdateMs": 323.7999997138977,
+          "renderFrameTotalMs": 83.09999990463257
+        }
+      ],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "scenes": [
+        {
+          "disposed": false,
+          "nodes": 26,
+          "unitIds": [
+            "actor",
+            "dire-bear-1"
+          ],
+          "memory": {
+            "geometries": 7,
+            "textures": 12
+          },
+          "representation": "cardboard",
+          "removed": 348
+        }
+      ]
+    },
+    "browser-large-Giant-Toad": {
+      "spec": {
+        "size": 120,
+        "name": "large-Giant-Toad",
+        "summon": "Giant Toad",
+        "mobile": false,
+        "mini": true
+      },
+      "stages": [
+        {
+          "stage": "import-120",
+          "totalMs": 440.30000019073486,
+          "lastFinalUpdateMs": 303.80000019073486,
+          "renderFrameTotalMs": 116.40000009536743
+        },
+        {
+          "stage": "round",
+          "totalMs": 1654.7999997138977,
+          "lastFinalUpdateMs": 359.90000009536743,
+          "renderFrameTotalMs": 80.59999942779541
+        },
+        {
+          "stage": "move",
+          "totalMs": 1117.6000003814697,
+          "lastFinalUpdateMs": 351.80000019073486,
+          "renderFrameTotalMs": 58.200000286102295
+        },
+        {
+          "stage": "summon-Giant Toad",
+          "totalMs": 2035.9000000953674,
+          "lastFinalUpdateMs": 453.40000009536743,
+          "renderFrameTotalMs": 110.20000076293945
+        }
+      ],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "scenes": [
+        {
+          "disposed": false,
+          "nodes": 26,
+          "unitIds": [
+            "actor",
+            "giant-toad-1"
+          ],
+          "memory": {
+            "geometries": 14,
+            "textures": 18
+          },
+          "representation": "miniatures",
+          "removed": 336
+        }
+      ]
+    },
+    "browser-large-Jackalope": {
+      "spec": {
+        "size": 120,
+        "name": "large-Jackalope",
+        "summon": "Jackalope",
+        "mobile": true,
+        "mini": false
+      },
+      "stages": [
+        {
+          "stage": "import-120",
+          "totalMs": 264.2000002861023,
+          "lastFinalUpdateMs": 152,
+          "renderFrameTotalMs": 58.100000858306885
+        },
+        {
+          "stage": "round",
+          "totalMs": 1468.4000000953674,
+          "lastFinalUpdateMs": 305.69999980926514,
+          "renderFrameTotalMs": 73.40000009536743
+        },
+        {
+          "stage": "move",
+          "totalMs": 892.5,
+          "lastFinalUpdateMs": 227.5,
+          "renderFrameTotalMs": 49.200000286102295
+        },
+        {
+          "stage": "summon-Jackalope",
+          "totalMs": 1728.1000003814697,
+          "lastFinalUpdateMs": 275.80000019073486,
+          "renderFrameTotalMs": 76.99999952316284
+        }
+      ],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "scenes": [
+        {
+          "disposed": false,
+          "nodes": 26,
+          "unitIds": [
+            "actor",
+            "jackalope-1"
+          ],
+          "memory": {
+            "geometries": 7,
+            "textures": 11
+          },
+          "representation": "cardboard",
+          "removed": 313
+        }
+      ]
+    },
+    "browser-large-Light-Elemental": {
+      "spec": {
+        "size": 120,
+        "name": "large-Light-Elemental",
+        "summon": "Light Elemental",
+        "mobile": false,
+        "mini": true
+      },
+      "stages": [
+        {
+          "stage": "import-120",
+          "totalMs": 424.19999980926514,
+          "lastFinalUpdateMs": 298.7999997138977,
+          "renderFrameTotalMs": 106.2999997138977
+        },
+        {
+          "stage": "round",
+          "totalMs": 1680.7999997138977,
+          "lastFinalUpdateMs": 381.40000009536743,
+          "renderFrameTotalMs": 74.39999914169312
+        },
+        {
+          "stage": "move",
+          "totalMs": 1111.4000000953674,
+          "lastFinalUpdateMs": 350.80000019073486,
+          "renderFrameTotalMs": 54.69999980926514
+        },
+        {
+          "stage": "summon-Light Elemental",
+          "totalMs": 1976.9000000953674,
+          "lastFinalUpdateMs": 414.59999990463257,
+          "renderFrameTotalMs": 90.10000038146973
+        }
+      ],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "scenes": [
+        {
+          "disposed": false,
+          "nodes": 26,
+          "unitIds": [
+            "actor",
+            "light-elemental-1"
+          ],
+          "memory": {
+            "geometries": 14,
+            "textures": 18
+          },
+          "representation": "miniatures",
+          "removed": 352
+        }
+      ]
+    },
+    "browser-large-Raptor": {
+      "spec": {
+        "size": 120,
+        "name": "large-Raptor",
+        "summon": "Raptor",
+        "mobile": false,
+        "mini": true
+      },
+      "stages": [
+        {
+          "stage": "import-120",
+          "totalMs": 288.59999990463257,
+          "lastFinalUpdateMs": 190.80000019073486,
+          "renderFrameTotalMs": 65.30000019073486
+        },
+        {
+          "stage": "round",
+          "totalMs": 1562.4000000953674,
+          "lastFinalUpdateMs": 351.19999980926514,
+          "renderFrameTotalMs": 66.2000002861023
+        },
+        {
+          "stage": "move",
+          "totalMs": 919.0,
+          "lastFinalUpdateMs": 300.90000009536743,
+          "renderFrameTotalMs": 47.09999895095825
+        },
+        {
+          "stage": "summon-Raptor",
+          "totalMs": 1744.9000000953674,
+          "lastFinalUpdateMs": 270.09999990463257,
+          "renderFrameTotalMs": 69.79999876022339
+        },
+        {
+          "stage": "round-for-cap",
+          "totalMs": 1412.1999998092651,
+          "lastFinalUpdateMs": 233.40000009536743,
+          "renderFrameTotalMs": 55.69999980926514
+        },
+        {
+          "stage": "move-for-cap",
+          "totalMs": 424.80000019073486,
+          "lastFinalUpdateMs": 196.2000002861023,
+          "renderFrameTotalMs": 30.40000009536743
+        },
+        {
+          "stage": "import-12",
+          "totalMs": 45.59999990463257,
+          "lastFinalUpdateMs": 17,
+          "renderFrameTotalMs": 2.700000286102295
+        },
+        {
+          "stage": "import-120",
+          "totalMs": 120.30000019073486,
+          "lastFinalUpdateMs": 74.30000019073486,
+          "renderFrameTotalMs": 21
+        },
+        {
+          "stage": "import-12",
+          "totalMs": 45.19999980926514,
+          "lastFinalUpdateMs": 14.599999904632568,
+          "renderFrameTotalMs": 2.5
+        }
+      ],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "scenes": [
+        {
+          "disposed": false,
+          "nodes": 26,
+          "unitIds": [
+            "actor",
+            "raptor-1"
+          ],
+          "memory": {
+            "geometries": 11,
+            "textures": 14
+          },
+          "representation": "miniatures",
+          "removed": 462
+        },
+        {
+          "disposed": false,
+          "nodes": 10,
+          "unitIds": [
+            "actor"
+          ],
+          "memory": {
+            "geometries": 11,
+            "textures": 14
+          },
+          "representation": "miniatures",
+          "removed": 498
+        },
+        {
+          "disposed": false,
+          "nodes": 25,
+          "unitIds": [
+            "actor"
+          ],
+          "memory": {
+            "geometries": 11,
+            "textures": 14
+          },
+          "representation": "miniatures",
+          "removed": 514
+        },
+        {
+          "disposed": false,
+          "nodes": 10,
+          "unitIds": [
+            "actor"
+          ],
+          "memory": {
+            "geometries": 11,
+            "textures": 14
+          },
+          "representation": "miniatures",
+          "removed": 549
+        },
+        {
+          "disposed": true,
+          "nodes": 0,
+          "unitIds": [],
+          "memory": {
+            "geometries": 0,
+            "textures": 0
+          },
+          "representation": "cardboard",
+          "removed": 563
+        }
+      ]
+    },
+    "browser-medium": {
+      "spec": {
+        "size": 60,
+        "name": "medium",
+        "summon": "Raptor"
+      },
+      "stages": [
+        {
+          "stage": "import-60",
+          "totalMs": 241.19999980926514,
+          "lastFinalUpdateMs": 34.40000009536743,
+          "renderFrameTotalMs": 0
+        },
+        {
+          "stage": "round",
+          "totalMs": 1402.5999999046326,
+          "lastFinalUpdateMs": 125.30000019073486,
+          "renderFrameTotalMs": 21.90000009536743
+        },
+        {
+          "stage": "move",
+          "totalMs": 864.1000003814697,
+          "lastFinalUpdateMs": 165.90000009536743,
+          "renderFrameTotalMs": 18.09999990463257
+        },
+        {
+          "stage": "summon-Raptor",
+          "totalMs": 1642.0999999046326,
+          "lastFinalUpdateMs": 93.2999997138977,
+          "renderFrameTotalMs": 24.100000381469727
+        }
+      ],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "scenes": [
+        {
+          "disposed": false,
+          "nodes": 14,
+          "unitIds": [
+            "actor",
+            "raptor-1"
+          ],
+          "memory": {
+            "geometries": 7,
+            "textures": 11
+          },
+          "representation": "cardboard",
+          "removed": 283
+        }
+      ]
+    },
+    "browser-nearby-attack": {
+      "spec": {
+        "size": 120,
+        "name": "nearby-attack",
+        "summon": "Raptor",
+        "attack": true
+      },
+      "stages": [
+        {
+          "stage": "import-120",
+          "totalMs": 640.5999999046326,
+          "lastFinalUpdateMs": 442.59999990463257,
+          "renderFrameTotalMs": 108.0
+        },
+        {
+          "stage": "round",
+          "totalMs": 1854.4000000953674,
+          "lastFinalUpdateMs": 331.2000002861023,
+          "renderFrameTotalMs": 88.2999997138977
+        },
+        {
+          "stage": "move",
+          "totalMs": 1110.4000000953674,
+          "lastFinalUpdateMs": 339.0,
+          "renderFrameTotalMs": 48.200000286102295
+        },
+        {
+          "stage": "summon-Raptor",
+          "totalMs": 4143.699999809265,
+          "lastFinalUpdateMs": 740.6999998092651,
+          "renderFrameTotalMs": 167.09999990463257
+        }
+      ],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "scenes": [
+        {
+          "disposed": false,
+          "nodes": 27,
+          "unitIds": [
+            "actor",
+            "near",
+            "raptor-1"
+          ],
+          "memory": {
+            "geometries": 7,
+            "textures": 13
+          },
+          "representation": "cardboard",
+          "removed": 406
+        }
+      ]
+    },
+    "browser-quick442": {
+      "spec": {
+        "size": 442,
+        "name": "quick442"
+      },
+      "stages": [
+        {
+          "stage": "quickPlay",
+          "totalMs": 15197.099999904633,
+          "lastFinalUpdateMs": 14962.699999809265,
+          "renderFrameTotalMs": 142.30000066757202
+        }
+      ],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "scenes": [
+        {
+          "disposed": false,
+          "nodes": 37,
+          "unitIds": [
+            "population/x-17-y-13-w120-h120/request-92/WildernessGroup/unit-0",
+            "population/x-17-y-13-w120-h120/request-92/WildernessGroup/unit-1",
+            "population/x-17-y-13-w120-h120/request-92/WildernessGroup/unit-2",
+            "population/x-17-y-13-w120-h120/request-92/WildernessGroup/unit-3",
+            "population/x-17-y-13-w120-h120/request-92/WildernessGroup/unit-4",
+            "quick-play-barbarian-type",
+            "quick-play-rogue-type",
+            "quick-play-wizard-type",
+            "quick-play-cleric-type",
+            "quick-play-beastmaster-type"
+          ],
+          "memory": {
+            "geometries": 6,
+            "textures": 24
+          },
+          "representation": "cardboard",
+          "removed": 64
+        }
+      ]
+    },
+    "browser-small": {
+      "spec": {
+        "size": 12,
+        "name": "small",
+        "summon": "Raptor"
+      },
+      "stages": [
+        {
+          "stage": "import-12",
+          "totalMs": 78.30000019073486,
+          "lastFinalUpdateMs": 40.90000009536743,
+          "renderFrameTotalMs": 0
+        },
+        {
+          "stage": "round",
+          "totalMs": 1869.5999999046326,
+          "lastFinalUpdateMs": 615.5,
+          "renderFrameTotalMs": 23.999999046325684
+        },
+        {
+          "stage": "move",
+          "totalMs": 802.8999996185303,
+          "lastFinalUpdateMs": 123.89999961853027,
+          "renderFrameTotalMs": 2.3000001907348633
+        },
+        {
+          "stage": "summon-Raptor",
+          "totalMs": 1601.5999999046326,
+          "lastFinalUpdateMs": 69.40000009536743,
+          "renderFrameTotalMs": 4.999999523162842
+        }
+      ],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "scenes": [
+        {
+          "disposed": false,
+          "nodes": 11,
+          "unitIds": [
+            "actor",
+            "raptor-1"
+          ],
+          "memory": {
+            "geometries": 7,
+            "textures": 11
+          },
+          "representation": "cardboard",
+          "removed": 286
+        }
+      ]
+    }
+  },
+  "profiles": {
+    "profile-after100": {
+      "create": {
+        "BuildPlacementLookup": [
+          103,
+          3.8136000000000005,
+          3.8136000000000005,
+          2178648,
+          2178648
+        ],
+        "ContentValidate": [
+          2,
+          1.2870000000000001,
+          1.2870000000000001,
+          226768,
+          226768
+        ],
+        "CanPlace": [
+          204,
+          6.770699999999997,
+          2.9571000000000103,
+          2361600,
+          182952
+        ],
+        "Validate": [
+          2,
+          14.8565,
+          8.3123,
+          674008,
+          140488
+        ],
+        "Create": [
+          1,
+          91.6305,
+          63.8856,
+          3476816,
+          454856
+        ],
+        "PlaceUnit": [
+          102,
+          8.083100000000004,
+          1.572900000000004,
+          2314848,
+          87296
+        ],
+        "FogRefresh": [
+          103,
+          4.8572,
+          4.8572,
+          33104,
+          33104
+        ],
+        "LootValidate": [
+          2,
+          4.9448,
+          4.9448,
+          172704,
+          172704
+        ]
+      },
+      "round": {
+        "BuildPlacementLookup": [
+          2,
+          0.14029999999999998,
+          0.14029999999999998,
+          88464,
+          88464
+        ],
+        "ContentValidate": [
+          1,
+          0.2568,
+          0.2568,
+          113320,
+          113320
+        ],
+        "CanPlace": [
+          103,
+          0.23960000000000015,
+          0.09930000000000003,
+          179368,
+          90904
+        ],
+        "Validate": [
+          1,
+          1.3561,
+          0.8102,
+          460104,
+          113584
+        ],
+        "AbilityModifier": [
+          1,
+          1.1207,
+          1.1207,
+          28840,
+          28840
+        ],
+        "FogRefresh": [
+          6,
+          0.9169,
+          0.9169,
+          9656,
+          9656
+        ],
+        "LootValidate": [
+          1,
+          0.1422,
+          0.1422,
+          99040,
+          99040
+        ],
+        "Event": [
+          3,
+          0.3907,
+          0.2733,
+          27416,
+          22808
+        ]
+      },
+      "initialChoices": {
+        "BuildPlacementLookup": [
+          1,
+          0.0841,
+          0.0841,
+          44232,
+          44232
+        ],
+        "CanPlace": [
+          1,
+          0.1041,
+          0.02,
+          45320,
+          1088
+        ],
+        "AbilityModifier": [
+          1,
+          0.07,
+          0.07,
+          28840,
+          28840
+        ],
+        "FogRefresh": [
+          1,
+          0.0342,
+          0.0342,
+          1536,
+          1536
+        ]
+      },
+      "engineMove": {
+        "Actions": [
+          1,
+          9.7499,
+          9.3541,
+          883912,
+          561592
+        ],
+        "BuildPlacementLookup": [
+          3,
+          0.24090000000000003,
+          0.24090000000000003,
+          132696,
+          132696
+        ],
+        "CanPlace": [
+          47,
+          0.2270999999999999,
+          0.08770000000000007,
+          127568,
+          39104
+        ],
+        "AbilityModifier": [
+          205,
+          0.20750000000000002,
+          0.20750000000000002,
+          224680,
+          224680
+        ],
+        "FogRefresh": [
+          4,
+          0.1026,
+          0.1026,
+          6144,
+          6144
+        ],
+        "Event": [
+          1,
+          0.0293,
+          0.0143,
+          9272,
+          7736
+        ]
+      },
+      "copy": {},
+      "observe": {
+        "Observe": [
+          1,
+          5.1474,
+          4.9671,
+          138504,
+          79160
+        ],
+        "AbilityModifier": [
+          4,
+          0.1803,
+          0.1803,
+          59344,
+          59344
+        ]
+      },
+      "presentationMove": {
+        "Observe": [
+          2,
+          1.9304999999999999,
+          1.6247,
+          264432,
+          145744
+        ],
+        "AbilityModifier": [
+          8,
+          0.3058,
+          0.3058,
+          118688,
+          118688
+        ],
+        "Presentation": [
+          1,
+          33.1964,
+          31.2659,
+          1685808,
+          1421376
+        ]
+      },
+      "engineSummon": {
+        "Actions": [
+          1,
+          3.0482,
+          2.7635,
+          883056,
+          560384
+        ],
+        "BuildPlacementLookup": [
+          3,
+          0.22050000000000003,
+          0.22050000000000003,
+          132936,
+          132936
+        ],
+        "CanPlace": [
+          47,
+          0.20700000000000013,
+          0.05890000000000003,
+          127744,
+          39040
+        ],
+        "AbilityModifier": [
+          204,
+          0.09569999999999998,
+          0.09569999999999998,
+          195840,
+          195840
+        ],
+        "PlaceUnit": [
+          1,
+          0.2116,
+          0.0097,
+          96088,
+          4176
+        ],
+        "FogRefresh": [
+          8,
+          0.4292,
+          0.4292,
+          60520,
+          60520
+        ],
+        "Event": [
+          5,
+          0.39380000000000004,
+          0.1525,
+          48360,
+          38280
+        ]
+      },
+      "presentationSummon": {
+        "Observe": [
+          5,
+          5.2024,
+          3.9638999999999998,
+          882640,
+          344192
+        ],
+        "AbilityModifier": [
+          36,
+          1.2384999999999997,
+          1.2384999999999997,
+          538448,
+          538448
+        ],
+        "Presentation": [
+          1,
+          8.1765,
+          2.9741,
+          1719128,
+          836488
+        ]
+      }
+    },
+    "profile-afterquick442": {
+      "prepare.parseValidate": {
+        "Create": [
+          1,
+          243.01,
+          6.8887,
+          48504640,
+          3886800
+        ],
+        "BuildPlacementLookup": [
+          444,
+          88.17530000000008,
+          88.17530000000008,
+          37920488,
+          37920488
+        ],
+        "PlaceUnit": [
+          442,
+          155.10340000000002,
+          32.5663,
+          38504976,
+          376440
+        ],
+        "FogRefresh": [
+          443,
+          0.022199999999999935,
+          0.022199999999999935,
+          0,
+          0
+        ],
+        "Validate": [
+          2,
+          81.01780000000001,
+          30.62,
+          6112864,
+          4285224
+        ],
+        "CanPlace": [
+          884,
+          150.44010000000003,
+          62.26949999999998,
+          38713952,
+          794904
+        ],
+        "EdgeValidate": [
+          272,
+          20.463699999999985,
+          20.458999999999985,
+          46328,
+          44888
+        ],
+        "ContentValidate": [
+          2,
+          0.6299,
+          0.6299,
+          236712,
+          236712
+        ],
+        "LootValidate": [
+          2,
+          1.3791,
+          1.3791,
+          959184,
+          959184
+        ]
+      },
+      "prepare.WorldQuickPlay": {
+        "Create": [
+          2,
+          1312.0846999999999,
+          48.6382,
+          102640024,
+          7789048
+        ],
+        "BuildPlacementLookup": [
+          898,
+          209.94520000000009,
+          209.94520000000009,
+          78323720,
+          78323720
+        ],
+        "PlaceUnit": [
+          894,
+          559.4443000000003,
+          181.94590000000008,
+          79510408,
+          761304
+        ],
+        "FogRefresh": [
+          896,
+          224.27960000000002,
+          224.27960000000002,
+          3813400,
+          3813400
+        ],
+        "Validate": [
+          4,
+          481.71500000000003,
+          152.96800000000002,
+          12515816,
+          8616280
+        ],
+        "CanPlace": [
+          1783,
+          583.8700000000007,
+          373.93809999999996,
+          79926648,
+          1606960
+        ],
+        "EdgeValidate": [
+          544,
+          115.19700000000007,
+          115.18370000000006,
+          94208,
+          90176
+        ],
+        "ContentValidate": [
+          4,
+          2.1759000000000004,
+          2.1759000000000004,
+          570016,
+          570016
+        ],
+        "LootValidate": [
+          4,
+          4.9237,
+          4.9237,
+          2057768,
+          2057768
+        ]
+      },
+      "prepare.encode": {},
+      "createPrepared": {
+        "Create": [
+          1,
+          499.2043,
+          14.6697,
+          54089720,
+          3909136
+        ],
+        "BuildPlacementLookup": [
+          449,
+          88.0355,
+          88.0355,
+          39416016,
+          39416016
+        ],
+        "PlaceUnit": [
+          447,
+          309.9199999999999,
+          113.09559999999996,
+          40006200,
+          381040
+        ],
+        "FogRefresh": [
+          448,
+          41.2048,
+          41.2048,
+          3810704,
+          3810704
+        ],
+        "Validate": [
+          2,
+          133.4496,
+          59.239000000000004,
+          6363680,
+          4329736
+        ],
+        "CanPlace": [
+          894,
+          228.41649999999998,
+          140.39159999999995,
+          40194696,
+          781272
+        ],
+        "EdgeValidate": [
+          272,
+          39.54040000000001,
+          39.52980000000001,
+          47480,
+          44888
+        ],
+        "ContentValidate": [
+          2,
+          0.9400999999999999,
+          0.9400999999999999,
+          322904,
+          322904
+        ],
+        "LootValidate": [
+          2,
+          2.0982,
+          2.0982,
+          1094024,
+          1094024
+        ]
+      },
+      "webImport": {
+        "JsonSerialize": [
+          5,
+          16175.0707,
+          220.32939999999996,
+          532498512,
+          16895832
+        ],
+        "Detach": [
+          5,
+          16255.3746,
+          0.011300000000000001,
+          564719256,
+          784
+        ],
+        "JsonDeserialize": [
+          5,
+          80.2926,
+          80.2926,
+          32219960,
+          32219960
+        ],
+        "Observe": [
+          1,
+          103.179,
+          42.9822,
+          3719880,
+          595456
+        ],
+        "Create": [
+          3,
+          459.70219999999995,
+          19.4469,
+          161881544,
+          11733056
+        ],
+        "BuildPlacementLookup": [
+          1347,
+          181.34429999999986,
+          181.34429999999986,
+          118248816,
+          118248816
+        ],
+        "PlaceUnit": [
+          1341,
+          208.44749999999948,
+          14.944700000000005,
+          119588120,
+          898544
+        ],
+        "FogRefresh": [
+          1344,
+          122.32520000000079,
+          122.32520000000079,
+          11432112,
+          11432112
+        ],
+        "Validate": [
+          6,
+          109.5305,
+          67.16890000000001,
+          19128256,
+          12990808
+        ],
+        "CanPlace": [
+          2682,
+          206.39470000000017,
+          25.076400000000003,
+          120422616,
+          2181576
+        ],
+        "EdgeValidate": [
+          816,
+          20.88020000000003,
+          20.854200000000027,
+          142472,
+          134696
+        ],
+        "ContentValidate": [
+          6,
+          3.8718,
+          3.8718,
+          976408,
+          976408
+        ],
+        "LootValidate": [
+          6,
+          4.6698,
+          4.6698,
+          3285528,
+          3285528
+        ],
+        "Presentation": [
+          2,
+          110.19470000000001,
+          7.015700000000001,
+          4474712,
+          754832
+        ],
+        "AbilityModifier": [
+          5420,
+          15904.74340000023,
+          15904.74340000023,
+          514252392,
+          514252392
+        ]
+      },
+      "browserImport": {
+        "Observe": [
+          2,
+          103.40069999999999,
+          39.2869,
+          3698704,
+          580680
+        ],
+        "AbilityModifier": [
+          40,
+          64.11380000000001,
+          64.11380000000001,
+          3118024,
+          3118024
+        ]
+      },
+      "serializeImport": {}
+    }
+  },
+  "tests": {
+    "enginePassed": 3061,
+    "equivalenceAndLookupPassed": 307,
+    "nodePassed": 1016,
+    "webPassed": 722,
+    "webFailed": 12,
+    "webFailureBaselineReproduced": true,
+    "webFailure": "ScenarioContentReferenceTests: conflicting knightly-boots provider identities",
+    "baselineFocusedWebPassed": 4,
+    "baselineFocusedWebFailed": 12
+  }
+}
