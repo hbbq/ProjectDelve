@@ -7,6 +7,26 @@ const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, '../ProjectDelve.Web/wwwroot/designer-state.js'), 'utf8');
 const plain = value => JSON.parse(JSON.stringify(value));
 
+test('storage-free Machine drafts preserve Reveal, limits and Side counters while rejecting malformed storage', () => {
+  const { draft, draftDocument, readDraftDocument } = setup();
+  const definition = draft.snapshot();
+  definition.machines = [{ id: 'beacon', position: { x: 2, y: 2 }, type: {
+    id: 'beacon', name: 'Beacon', storage: null,
+    operation: { costs: [], outputQuantity: 1, reveal: { distance: 15 }, maxUsesTotal: 3, maxUsesPerSide: 1 },
+    requiredTerrainTypeId: 'stone-floor'
+  }, storedResources: [], useCounts: { blue: 1 } }];
+  const saved = JSON.stringify(draftDocument(definition, 'Current Beacon draft'));
+  assert.deepEqual(plain(readDraftDocument(saved).definition), definition);
+  for (const storage of [{}, { capacities: null }, { capacities: {} }, { capacities: [null] }, { capacities: [{}] }]) {
+    const damaged = JSON.parse(saved); damaged.definition.machines[0].type.storage = storage;
+    assert.throws(() => readDraftDocument(JSON.stringify(damaged)), /damaged/);
+  }
+  for (const type of [null, 'bad-type', []]) {
+    const damaged = JSON.parse(saved); damaged.definition.machines[0].type = type;
+    assert.throws(() => readDraftDocument(JSON.stringify(damaged)), /damaged/);
+  }
+});
+
 test('new empty drafts honor host limits smaller than the usual blank board', () => {
   const context=vm.createContext({structuredClone});vm.runInContext(source.replace(/^export /gm,''),context);
   const Draft=vm.runInContext('DesignerDraft',context);

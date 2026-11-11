@@ -6,6 +6,43 @@ const vm = require("node:vm");
 
 const source = name => fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", name), "utf8");
 
+test('storage-free generated Machines open, render, edit, export, play and reopen without losing limits or uses', async () => {
+  const definition = structuredClone(designerSetup);
+  definition.machines = [{ id: 'beacon', position: { x: 5, y: 4 }, type: {
+    id: 'beacon', name: 'Beacon', storage: null,
+    operation: { costs: [], outputQuantity: 1, reveal: { distance: 15 }, maxUsesPerSide: 1 },
+    requiredTerrainTypeId: 'stone-floor'
+  }, storedResources: [], useCounts: { A: 1 } }];
+  const storage = memoryStorage(), submitted = [], played = [];
+  const request = async (operation, body) => {
+    submitted.push({ operation, body: plain(body) });
+    return operation === 'import' ? structuredClone(definition) : operation === 'validate'
+      ? { valid: true, errors: [] } : { transport: 'DELVE1:beacon-test' };
+  };
+  const h = harness(request, async transport => { played.push(transport); return true; }, storage);
+  h.context.generated = { title: 'Beacon world', code: 'WLD1:test-owned', definition };
+  assert.equal(h.run('delveOpenGenerated(generated)'), true);
+  assert.deepEqual(plain(h.editor.draft.snapshot()), definition);
+  h.down(h.cell(5, 4));
+  const form = h.editor.ui.properties.children[0];
+  assert.match(form.textContent, /Beacon/); assert.doesNotMatch(form.textContent, /capacity/);
+  inputField(form, 'Machine ID').value = 'renamed-beacon'; h.submit(form);
+  const edited = plain(h.editor.draft.snapshot());
+  assert.deepEqual(edited.machines[0].useCounts, { A: 1 });
+  assert.deepEqual(edited.machines[0].type, definition.machines[0].type);
+  const document = JSON.stringify(h.editor.documentData());
+  h.editor.loadDocument(document);
+  assert.deepEqual(plain(h.editor.draft.snapshot()), edited);
+  const recovered = harness(undefined, undefined, storage);
+  assert.deepEqual(plain(recovered.editor.draft.snapshot()), edited);
+  assert.match(recovered.editor.ui['save-status'].textContent, /Recovered draft/);
+  await h.click('validate'); await h.click('export'); await h.click('play');
+  for (const call of submitted) assert.deepEqual(call.body.machines, edited.machines);
+  assert.deepEqual(played, ['DELVE1:beacon-test']);
+  await h.click('import');
+  assert.deepEqual(plain(h.editor.draft.snapshot()), definition);
+});
+
 test('placement and selected Unit previews use registered portraits and retain unknown or failed image text controls', () => {
   const h = harness();
   h.run('boardVisuals.unit["opaque-large"] = { image: "./test-owned-portrait.webp" }');

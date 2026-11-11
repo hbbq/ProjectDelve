@@ -219,18 +219,19 @@ public static class FogOfWar
     public static void Refresh(GameState state)
     {
         if (state.FogOfWarSides.Count == 0) { state.VisionCache = null; return; }
+        var stats = new ObservationStatContext(state);
         var sources = state.Units.Where(u => state.FogOfWarSides.Contains(u.SideId) && u.CurrentHp > 0)
             .Select(u => (Unit: u, Figure: state.Physical.Figures.FirstOrDefault(f => f.Id == u.Id)))
             .Where(p => p.Figure is not null)
             .Select(p => new VisionSource(p.Unit.Id, p.Unit.SideId, p.Figure!.Position,
-                FootprintGeometry.FootprintOf(state, p.Unit.Id), state.HasPhase(p.Unit.Id))).ToArray();
+                FootprintGeometry.FootprintOf(state, p.Unit.Id), state.HasPhase(p.Unit.Id), state.EffectiveSightDistanceOf(p.Unit.Id, stats))).ToArray();
         var cached = state.VisionCache;
         if (cached is null || !cached.Matches(state, sources))
             state.VisionCache = cached = new CachedVision(state, sources);
         cached.Accumulate(state);
     }
 
-    internal sealed record VisionSource(string UnitId, string SideId, Cell Anchor, Footprint Footprint, bool Phase);
+    internal sealed record VisionSource(string UnitId, string SideId, Cell Anchor, Footprint Footprint, bool Phase, int Distance);
 
     // One completed, privately owned snapshot. It contains no mutable GameState references
     // and can safely be shared by copies. Direct edits to public model collections are
@@ -252,11 +253,15 @@ public static class FogOfWar
             width = board.Width; height = board.Height; terrainTypes = board.TerrainTypes;
             terrain = [.. board.Terrain]; edges = [.. board.Edges]; machines = [.. board.Machines];
             sides = [.. state.FogOfWarSides]; this.sources = sources;
+            var geometry = new VisionGeometry(board);
             foreach (var side in sides)
             {
                 if (!visible.TryGetValue(side, out var cells)) visible[side] = cells = [];
                 foreach (var source in sources.Where(s => s.SideId == side))
-                    ExploreFrom(state, state.Units.Single(u => u.Id == source.UnitId), cells);
+                {
+                    var origins = FootprintGeometry.OccupiedCells(source.Footprint, source.Anchor);
+                    cells.UnionWith(VisionAreaLocal(geometry.Around(origins, source.Distance), origins, source.Distance, source.Phase));
+                }
             }
         }
 
@@ -280,18 +285,54 @@ public static class FogOfWar
         }
     }
 
-    private static void ExploreFrom(GameState state, Unit unit, HashSet<Cell> explored)
+    // Callers supply the physical origins and rules-specific distance. This query
+    // does not inspect Units, stats, exploration or controller knowledge.
+    public static IReadOnlySet<Cell> VisionArea(Board board, IReadOnlyList<Cell> origins, int distance,
+        bool phase = false, string? excludedMachineId = null)
     {
-        var board = state.Physical.Board;
-        const int range = 5;
-        var phase = state.HasPhase(unit.Id);
-        foreach (var from in FootprintGeometry.OccupiedCells(state, unit.Id))
-        for (var y = Math.Max(0, from.Y - range); y <= Math.Min(board.Height - 1, from.Y + range); y++)
-        for (var x = Math.Max(0, from.X - range); x <= Math.Min(board.Width - 1, from.X + range); x++)
+        if (distance < 0) throw new ArgumentOutOfRangeException(nameof(distance));
+        return origins.Count == 0 ? new HashSet<Cell>() :
+            VisionAreaLocal(new VisionGeometry(board).Around(origins, distance), origins, distance, phase, excludedMachineId);
+    }
+
+    internal static IReadOnlySet<Cell> VisionAreaLocal(Board board, IReadOnlyList<Cell> origins, int distance,
+        bool phase = false, string? excludedMachineId = null)
+    {
+        HashSet<Cell> result = [];
+        foreach (var from in origins)
+        for (var y = (int)Math.Max(0, (long)from.Y - distance); y <= Math.Min(board.Height - 1L, (long)from.Y + distance); y++)
+        for (var x = (int)Math.Max(0, (long)from.X - distance); x <= Math.Min(board.Width - 1L, (long)from.X + distance); x++)
         {
             var to = new Cell(x, y);
-            if (Math.Abs(x - from.X) + Math.Abs(y - from.Y) <= range &&
-                AttackRules.HasGeometricVision(board, from, to, ignoreObstacles: phase)) explored.Add(to);
+            if (Math.Abs((long)x - from.X) + Math.Abs((long)y - from.Y) <= distance &&
+                AttackRules.HasGeometricVision(board, from, to, phase, excludedMachineId)) result.Add(to);
+        }
+        return result;
+    }
+
+    // Restrict the shared geometric vision query to range-local obstacles. Index
+    // the sanitized board once, rather than scanning a whole world for each ray.
+    internal sealed class VisionGeometry(Board board)
+    {
+        private readonly Dictionary<Cell, TerrainTile> terrain = board.Terrain.ToDictionary(t => t.Position);
+        private readonly Dictionary<Cell, Machine> machines = board.Machines.ToDictionary(m => m.Position);
+        private readonly Dictionary<Cell, Edge[]> edges = board.Edges.SelectMany(e => new[] { (Cell: e.A, Edge: e), (Cell: e.B, Edge: e) })
+            .GroupBy(p => p.Cell).ToDictionary(g => g.Key, g => g.Select(p => p.Edge).ToArray());
+
+        internal Board Around(IReadOnlyList<Cell> footprint, int distance)
+        {
+            var tiles = new List<TerrainTile>();
+            var objects = new List<Machine>();
+            var boundaries = new HashSet<Edge>();
+            for (var y = (int)Math.Max(0, (long)footprint.Min(c => c.Y) - distance); y <= Math.Min(board.Height - 1, (long)footprint.Max(c => c.Y) + distance); y++)
+            for (var x = (int)Math.Max(0, (long)footprint.Min(c => c.X) - distance); x <= Math.Min(board.Width - 1, (long)footprint.Max(c => c.X) + distance); x++)
+            {
+                var cell = new Cell(x, y);
+                if (terrain.TryGetValue(cell, out var tile)) tiles.Add(tile);
+                if (machines.TryGetValue(cell, out var machine)) objects.Add(machine);
+                if (edges.TryGetValue(cell, out var adjacent)) boundaries.UnionWith(adjacent);
+            }
+            return board with { Terrain = tiles, Machines = objects, Edges = boundaries.ToList() };
         }
     }
 

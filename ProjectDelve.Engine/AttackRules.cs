@@ -137,9 +137,9 @@ internal static class AttackRules
 
     // Vision uses the same straight rays and corner passages as attack LOS, with
     // its own obstacle properties and blocking-destination discovery exception.
-    internal static bool HasGeometricVision(Board board, Cell from, Cell to, bool ignoreObstacles = false) =>
+    internal static bool HasGeometricVision(Board board, Cell from, Cell to, bool ignoreObstacles = false, string? excludedMachineId = null) =>
         HasGeometricSight(board, from, to, ignoreObstacles ? SightObstacles.None : SightObstacles.Vision,
-            ignoredTerrainCell: to, discoverDestination: true);
+            interactionMachineId: excludedMachineId, ignoredTerrainCell: to, discoverDestination: true);
 
     private enum SightObstacles { Attack, Vision, None }
 

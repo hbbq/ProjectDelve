@@ -44,6 +44,9 @@ public sealed record GroundObjectDisplay(ObjectDisplay Object, Cell Position);
 public sealed record MachineDisplay(string Id, Cell Position, string Name, string Operation, IReadOnlyList<StoredResourceDisplay> ResourceStorage, string? OwnerSide = null)
 {
     public string? TypeId { get; init; }
+    public int? RemainingUsesTotal { get; init; }
+    public int? RemainingUsesForViewingSide { get; init; }
+    public int? MaxUsesPerSide { get; init; }
 }
 public sealed record StoredResourceDisplay(string ResourceTypeId, string Name, int Quantity, int Capacity);
 public sealed record UnitCard(string DisplayName, IReadOnlyList<CardEntry> Entries)
@@ -183,9 +186,13 @@ public static class BrowserProjection
 
     public static IReadOnlyList<MachineDisplay> Machines(GameState state) => state.Physical.Board.Machines.Select(m =>
         new MachineDisplay(m.Id, m.Position, m.Type.Name,
-            "Spend " + string.Join(", ", m.Type.Operation.Costs.Select(c => $"{c.Quantity} {c.Type.Name}")) +
-            $" -> Output {m.Type.Operation.OutputQuantity} {m.Type.Operation.OutputDescription} on the operator's Cell",
-            m.Type.Storage.Capacities.Select(c => new StoredResourceDisplay(c.Type.Id, c.Type.Name, m.StoredQuantity(c.Type.Id), c.Capacity)).ToArray(), m.OwnerSide) { TypeId = m.Type.Id }).ToArray();
+            m.Type.Operation.Description +
+                (m.RemainingUsesTotal is { } total ? $". {total} total uses remaining" : "") +
+                (m.Type.Operation.MaxUsesPerSide is { } max ? $". Maximum {max} use(s) per Side" : "") +
+                (FogOfWar.ViewingSide(state) is { } side && m.RemainingUsesFor(side) is { } remaining ? $"; {remaining} remaining for {side}" : ""),
+            (m.Type.Storage?.Capacities ?? []).Select(c => new StoredResourceDisplay(c.Type.Id, c.Type.Name, m.StoredQuantity(c.Type.Id), c.Capacity)).ToArray(), m.OwnerSide)
+            { TypeId = m.Type.Id, RemainingUsesTotal = m.RemainingUsesTotal, MaxUsesPerSide = m.Type.Operation.MaxUsesPerSide,
+                RemainingUsesForViewingSide = FogOfWar.ViewingSide(state) is { } viewingSide ? m.RemainingUsesFor(viewingSide) : null }).ToArray();
 
     public static IReadOnlyList<BrowserObjective> Objectives(GameState state) => state.Objectives.Select(o =>
         new BrowserObjective(o.SideId, ObjectivePresentation.Name(o)) { Meaning = ObjectivePresentation.Meaning(o),
@@ -569,7 +576,9 @@ public static class BrowserProjection
                 description = $"{e.ResourceType?.Name} created at {e.Cell?.X},{e.Cell?.Y}";
                 break;
             case "MachineOperated":
-                description = $"{name(e.UnitId)}: operated {e.MachineId}, spent {string.Join(", ", e.ConsumedResources.Select(r => $"{r.Quantity} {r.Type.Name}"))}, output {e.ResourceType?.Name} at {e.Cell?.X},{e.Cell?.Y}";
+                description = e.ResourceType is null
+                    ? $"{name(e.UnitId)}: operated {e.MachineId}, revealed Cells for Side {e.SideId}"
+                    : $"{name(e.UnitId)}: operated {e.MachineId}, spent {string.Join(", ", e.ConsumedResources.Select(r => $"{r.Quantity} {r.Type.Name}"))}, output {e.ResourceType.Name} at {e.Cell?.X},{e.Cell?.Y}";
                 break;
             case "ResourceStored" when e.MachineId is not null:
                 description = $"{name(e.UnitId)}: {e.ResourceType?.Name} stored in {e.MachineId} ({e.StoredQuantity} stored)";

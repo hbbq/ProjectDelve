@@ -26,6 +26,7 @@ public static class ContentDescriptions
                 values["selector"] = Relationship(posture.Selector); values["newPosture"] = PostureOperation(posture.NewPosture); break;
             case AdjacentUnitsPostureChangeMechanic posture:
                 values["selector"] = Relationship(posture.Selector); values["newPosture"] = PostureOperation(posture.NewPosture); break;
+            case RevealDistance reveal: Number("distance", reveal.Distance); break;
             case ExtraActionsMechanic extra: Number("amount", extra.Amount); break;
             case SelfExtraMovesMechanic extra: Number("amount", extra.Amount); break;
             case SelfModifiersMechanic self: values["modifiers"] = Modifiers(self.Modifiers); break;
@@ -73,7 +74,7 @@ public static class ContentDescriptions
     private static string PostureOperation(Posture posture) => posture == Posture.Upright ? "Stand up" : "Lay down";
 
     private static string Modifiers(IEnumerable<ModifierThisTurn> modifiers) =>
-        string.Join("; ", modifiers.Select(m => $"{m.Stat.ToString().ToUpperInvariant()} {m.Amount:+0;-0;0}"));
+        string.Join("; ", modifiers.Select(m => $"{(m.Stat == Stat.SightDistance ? "Sight Distance" : m.Stat.ToString().ToUpperInvariant())} {m.Amount:+0;-0;0}"));
 
     public static IReadOnlyList<CardEntryDescription> CardEntries(this UnitType type, IReadOnlyList<UnitType>? existingTypes = null)
     {

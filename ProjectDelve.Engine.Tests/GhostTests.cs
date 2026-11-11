@@ -46,8 +46,8 @@ public sealed class GhostTests
         var capability = Assert.Single(ghost.CardEntries(), e => e.Id == "ability:phase");
         Assert.Equal("Passive", capability.Category);
         Assert.Null(capability.MaxUses);
-        Assert.Contains("normally passable", capability.Description);
-        Assert.Equal("Move through all terrain and Edges, including Walls and Closed Doors, without opening them.\nEnd on an unoccupied, normally passable Cell.", capability.Description);
+        Assert.Contains("can normally occupy", capability.Description);
+        Assert.Equal("Move through all terrain and Edges, including Walls and Closed Doors, without opening them.\nEnd on an unoccupied Cell this Unit can normally occupy. This capability persists while Lying; it does not grant a Move or Action.", capability.Description);
         var state = State();
         state.Types[0] = UnitType.Define("other-type", "Other phasing content", Stats(2, 1, 3, 3, 1), Phase());
         state.Units[0] = state.Types[0].CreateUnit("ghost", "red");

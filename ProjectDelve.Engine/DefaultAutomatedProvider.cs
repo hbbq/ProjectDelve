@@ -37,6 +37,8 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
             PreferredWorkerSummon(request, queries) is { } summon) return summon;
         if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.Worker))
             return WorkerBehavior.Choose(request, queries)!;
+        if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.PreferBeacon) &&
+            queries.PreferredBeaconChoice(request) is { } beacon) return beacon;
         if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.PreferReshapeRoom) &&
             request.Candidates.FirstOrDefault(c => c.Ability?.Definition.Mechanic is ReshapeRoom) is { } reshape)
             return reshape.Key;

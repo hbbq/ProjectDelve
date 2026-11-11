@@ -12,33 +12,8 @@ internal sealed partial class GameplayQueries
     private readonly ConcurrentDictionary<(string Actor, bool Doors), IReadOnlyDictionary<Cell, int>> followOriginDistances = new();
     private readonly ConcurrentDictionary<(string Actor, Cell Origin, bool Doors), IReadOnlyDictionary<Cell, IReadOnlyList<Cell>>> autonomousPaths = new();
     private readonly ConcurrentDictionary<string, Cell?> explorationGoals = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, VisionGeometry> visionGeometry = new(StringComparer.Ordinal);
-
-    // Restrict the shared geometric vision query to range-local obstacles. Index
-    // the sanitized board once, rather than scanning a whole world for each ray.
-    private sealed class VisionGeometry(Board board)
-    {
-        private readonly Dictionary<Cell, TerrainTile> terrain = board.Terrain.ToDictionary(t => t.Position);
-        private readonly Dictionary<Cell, Machine> machines = board.Machines.ToDictionary(m => m.Position);
-        private readonly Dictionary<Cell, Edge[]> edges = board.Edges.SelectMany(e => new[] { (Cell: e.A, Edge: e), (Cell: e.B, Edge: e) })
-            .GroupBy(p => p.Cell).ToDictionary(g => g.Key, g => g.Select(p => p.Edge).ToArray());
-
-        internal Board Around(IReadOnlyList<Cell> footprint)
-        {
-            var tiles = new List<TerrainTile>();
-            var objects = new List<Machine>();
-            var boundaries = new HashSet<Edge>();
-            for (var y = Math.Max(0, footprint.Min(c => c.Y) - 5); y <= Math.Min(board.Height - 1, footprint.Max(c => c.Y) + 5); y++)
-            for (var x = Math.Max(0, footprint.Min(c => c.X) - 5); x <= Math.Min(board.Width - 1, footprint.Max(c => c.X) + 5); x++)
-            {
-                var cell = new Cell(x, y);
-                if (terrain.TryGetValue(cell, out var tile)) tiles.Add(tile);
-                if (machines.TryGetValue(cell, out var machine)) objects.Add(machine);
-                if (edges.TryGetValue(cell, out var adjacent)) boundaries.UnionWith(adjacent);
-            }
-            return board with { Terrain = tiles, Machines = objects, Edges = boundaries.ToList() };
-        }
-    }
+    private readonly ConcurrentDictionary<string, int> sightDistances = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, FogOfWar.VisionGeometry> visionGeometry = new(StringComparer.Ordinal);
 
     public string? SummonerOf(string unitId) => world.Units.Single(u => u.Id == unitId).SummonerUnitId;
 
@@ -108,18 +83,13 @@ internal sealed partial class GameplayQueries
         var result = new HashSet<Cell>();
         if (!FogOfWar.IsEnabled(world, unit.SideId)) return result;
         var footprint = FootprintGeometry.OccupiedCells(world, key.Actor, key.Anchor);
-        var board = visionGeometry.GetOrAdd(unit.SideId, _ => new(AutonomousBoard(key.Actor))).Around(footprint);
+        // Advisory forecasts retain the decision-time range, like the MOV budget.
+        // Actual swept vision reevaluates effective auras at each real transit position.
+        var range = sightDistances.GetOrAdd(key.Actor, world.EffectiveSightDistanceOf);
+        var board = visionGeometry.GetOrAdd(unit.SideId, _ => new(AutonomousBoard(key.Actor))).Around(footprint, range);
         var known = world.ExploredCells.GetValueOrDefault(unit.SideId) ?? [];
-        var phase = world.HasPhase(key.Actor);
-        const int range = 5;
-        foreach (var from in footprint)
-        for (var y = Math.Max(0, from.Y - range); y <= Math.Min(board.Height - 1, from.Y + range); y++)
-        for (var x = Math.Max(0, from.X - range); x <= Math.Min(board.Width - 1, from.X + range); x++)
-        {
-            var to = new Cell(x, y);
-            if (!known.Contains(to) && Math.Abs(from.X - x) + Math.Abs(from.Y - y) <= range &&
-                (phase || AttackRules.HasGeometricVision(board, from, to))) result.Add(to);
-        }
+        result.UnionWith(FogOfWar.VisionAreaLocal(board, footprint, range, world.HasPhase(key.Actor)));
+        result.ExceptWith(known);
         return result;
     });
 
@@ -155,7 +125,7 @@ internal sealed partial class GameplayQueries
         var cells = FootprintGeometry.OccupiedCells(type.Footprint, anchor);
         var known = MovementTraversal.For(world, actor).KnownCells;
         return cells.All(c => known is null || known.Contains(c)) &&
-            SpatialRules.Fits(AutonomousBoard(actor), type.Footprint, anchor, MovementTraversal.OccupancyFor(type)) &&
+            SpatialRules.Fits(AutonomousBoard(actor), type.Footprint, anchor, MovementTraversal.OccupancyFor(world, actor)) &&
             !cells.Any(KnownOccupants(actor).Contains);
     }
 

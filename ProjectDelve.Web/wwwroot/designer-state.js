@@ -630,7 +630,8 @@ export function readDraftDocument(text, maxBoardSize = 120) {
       board.cells.some(c => !c?.position) || board.edges.some(e => !e?.position) ||
       (d.terrainTypes ?? []).some(t => !t || typeof t.id !== 'string' || typeof t.name !== 'string' || t.presentation != null && typeof t.presentation.recipe !== 'string') ||
       (d.waypoints ?? []).some(w => !w?.area) || (d.routes ?? []).some(r => !Array.isArray(r?.waypointIds)) ||
-      (d.machines ?? []).some(m => !m?.position || !m.type?.storage?.capacities))
+      (d.machines ?? []).some(m => !m?.position || !m.type || typeof m.type !== "object" || Array.isArray(m.type) ||
+        m.type.storage != null && !m.type.storage.capacities))
     throw new Error("The saved draft is damaged or has an unsupported structure. The current draft was retained.");
   if (typeof board.defaultTerrain !== "string" && typeof board.defaultTerrainTypeId !== "string" ||
       board.defaultTerrainTypeId != null && typeof board.defaultTerrainTypeId !== 'string' ||
@@ -640,8 +641,9 @@ export function readDraftDocument(text, maxBoardSize = 120) {
       (d.objectives ?? []).some(o => !o || typeof o.sideId !== "string") ||
       (d.routes ?? []).some(r => typeof r.id !== "string") || (d.waypoints ?? []).some(w => typeof w.id !== "string") ||
       [...(d.cellMarkers ?? []), ...(d.resources ?? [])].some(m => !m?.position || !m.type || typeof m.type.id !== "string") ||
-      (d.machines ?? []).some(m => typeof m.id !== "string" || !Array.isArray(m.type.storage.capacities) ||
-        m.type.storage.capacities.some(c => !c?.type) || m.storedResources != null && !Array.isArray(m.storedResources)))
+      (d.machines ?? []).some(m => typeof m.id !== "string" ||
+        m.type.storage != null && (!Array.isArray(m.type.storage.capacities) || m.type.storage.capacities.some(c => !c?.type)) ||
+        m.storedResources != null && !Array.isArray(m.storedResources)))
     throw new Error("The saved draft contains damaged authoring data. The current draft was retained.");
   if (doc.buffers != null && (typeof doc.buffers !== "object" || Array.isArray(doc.buffers))) throw new Error("Invalid saved form data.");
   if (Object.values(doc.buffers ?? {}).some(buffer => !buffer || typeof buffer !== "object" ||

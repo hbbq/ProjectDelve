@@ -191,6 +191,11 @@ function renderPreview() {
   const scroll = byId("board-wrap"), scrollLeft = scroll.scrollLeft, scrollTop = scroll.scrollTop;
   const changed = new Set((selectedOperation ? frame : selected)?.changedCells ?? []), boundaries = new Set(preview?.boundaryCells ?? []);
   const chokepoints = new Set(frame?.chokepoints ?? []);
+  const machineCutoff = selectedOperation && constructionRange(selected?.construction ?? [], selectedOperation);
+  const machineOperations = machineCutoff ? new Set((selected.construction ?? []).slice(0, compareBefore ? machineCutoff.start : machineCutoff.end).map(operation => operation.objectId)) : null;
+  const machines = new Map((frame?.machines ?? (!preview ? result.definition.machines : []) ?? [])
+    .filter(machine => !machineOperations || machineOperations.has(machine.id))
+    .map(machine => [machine.position.y * board.width + machine.position.x, machine]));
   const entrances = new Map(), opportunities = new Map();
   for (const entrance of frame?.entrances ?? []) for (const index of [entrance.insideIndex, entrance.outsideIndex]) {
     if (!entrances.has(index)) entrances.set(index, []); entrances.get(index).push(entrance);
@@ -239,6 +244,14 @@ function renderPreview() {
       node.title = details.join("\n");
       const inspect = () => { byId("inspection").textContent = node.title; };
       node.addEventListener("pointerenter", inspect); node.addEventListener("click", inspect);
+    }
+    const machine = machines.get(y * board.width + x);
+    if (machine) {
+      const marker = document.createElement("span"); marker.textContent = "◇";
+      marker.dataset.machineId = machine.id;
+      Object.assign(marker.style, { position: "absolute", inset: "0", display: "grid", placeItems: "center", color: "#fff2a8", background: "#252438bb", fontWeight: "bold", pointerEvents: "none" });
+      node.append(marker);
+      node.title += `\nMachine ${machine.type.name} (${machine.id}); ${machine.ownerSide ?? "neutral"}; blocks movement, LOS and vision`;
     }
     counts.set(display.name, (counts.get(display.name) ?? 0) + 1); fragment.append(node);
   }
@@ -319,7 +332,7 @@ function renderConstruction(frame) {
   const costs = (frame?.sites ?? []).map(site => `${site.id}: preparation ${site.preparation.cost}, trees ${site.preparation.treesRemoved}, rock ${site.preparation.rockExcavated}, Water ${site.preparation.waterFilled}` +
     (site.settlementLayout ? `; ${site.settlementLayout.family}; ${site.settlementLayout.lots.length} lots; spaces ${site.settlementLayout.publicSpaces.map(space => space.role).join(", ")}${site.settlementLayout.fallbackReasons.length ? "; fallback: " + site.settlementLayout.fallbackReasons.join("; ") : ""}` : "") +
     (site.populationIntent ? `; ${site.populationIntent.layout}, occupation ${site.populationIntent.minimumUnits}–${site.populationIntent.maximumUnits}, ${site.populationIntent.alertTopology} Alert; roles ${site.populationIntent.areas.map(area => area.role).join(", ")}` : ""));
-  byId("civilization-summary").textContent = stats ? `${stats.sites} sites · ${stats.campsites} campsites · ${stats.settlements} settlements · ${stats.buildings} buildings · ${stats.rooms} rooms · ${stats.attempts} attempts · work ${stats.work} · terrain changes ${stats.changedTerrain} · Edge changes ${stats.changedEdges}${costs.length ? "\n" + costs.join("\n") : ""}` : "";
+  byId("civilization-summary").textContent = stats ? `${stats.sites} sites · ${stats.campsites} campsites · ${stats.settlements} settlements · ${stats.buildings} buildings · ${stats.rooms} rooms · Beacons ${stats.beaconsPlaced ?? 0} placed / ${stats.beaconsOmitted ?? 0} omitted · Beacon attempts ${stats.beaconAttempts ?? 0}, work ${stats.beaconWork ?? 0} · ${stats.attempts} attempts · work ${stats.work} · terrain changes ${stats.changedTerrain} · Edge changes ${stats.changedEdges}${costs.length ? "\n" + costs.join("\n") : ""}` : "";
   const failures = frame?.planningFailures ?? [], list = byId("planning-failures"); list.replaceChildren();
   for (const failure of failures) { const item = document.createElement("li"); item.textContent = `${failure.requestId} · ${failure.code}: ${failure.reason} (${failure.attempts} attempts)`; list.append(item); }
   byId("planning-failure-panel").hidden = !failures.length;

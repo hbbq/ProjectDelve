@@ -13,7 +13,13 @@ public sealed record CivilizationSettings(bool Enabled = true, ContentDensity Ca
 }
 
 public sealed record CivilizationStatistics(int Attempts, long Work, int Sites, int Campsites, int Settlements,
-    int Buildings, int Rooms, int ChangedTerrain, int ChangedEdges);
+    int Buildings, int Rooms, int ChangedTerrain, int ChangedEdges)
+{
+    public int BeaconsPlaced { get; init; }
+    public int BeaconsOmitted { get; init; }
+    public int BeaconAttempts { get; init; }
+    public long BeaconWork { get; init; }
+}
 
 public sealed partial class WorldGenerationContext
 {
@@ -31,7 +37,7 @@ public sealed partial class WorldGenerationContext
         var board = ConstructionBoard ?? throw new InvalidOperationException("No construction board.");
         for (var i = 0; i < Samples.Length; i++) Samples[i] = Samples[i] with { TerrainTypeId = board.TerrainAt(i) };
         Revision++;
-        CurrentAnalysis = TerrainAnalyzer.Analyze(Window, Samples, board.Content, Revision, ConstructionEdges());
+        CurrentAnalysis = TerrainAnalyzer.Analyze(Window, Samples, board.Content, Revision, ConstructionEdges(), board.State.Machines);
         Entrances.RemoveAll(e => !board.Passable(e.InsideIndex) || !board.Passable(e.OutsideIndex) ||
             !(board.EdgeAt(EdgeKey.Between(e.InsideIndex, e.OutsideIndex, Window.Width)) is EdgeKind.None or EdgeKind.OpenDoor or EdgeKind.ClosedDoor));
         FeatureOpportunities.RemoveAll(o => !board.Passable(o.AnchorIndex) || board.IsReserved(o.AnchorIndex));
@@ -85,13 +91,19 @@ public static class CivilizationGenerator
             Accept(CampsiteGenerator.Plan(new(key, area, policy, Requirements: requirements,
                 Preferences: new(OpportunityAnchors: anchors, RouteAnchors: routeAnchors)), scope), draft);
         }
+        // Separate stream and allowance keep Machine placement independent of Site retries.
+        var beacons = BeaconGenerator.Apply(context, step, board, area, path);
         context.RefreshConstructionAnalysis();
         context.CampsiteDensity = new(campsiteTarget, campsiteTarget, context.Sites.Count(s => s.Kind == GeneratedSiteKind.Campsite));
         context.SettlementDensity = new(settlementTarget, settlementTarget, context.Sites.Count(s => s.Kind == GeneratedSiteKind.Settlement));
         context.CivilizationStats = new(budget.Attempts, budget.Work, context.Sites.Count,
             context.Sites.Count(s => s.Kind == GeneratedSiteKind.Campsite), context.Sites.Count(s => s.Kind == GeneratedSiteKind.Settlement),
             context.Sites.Sum(s => s.Buildings.Count), context.Sites.Sum(s => s.Buildings.Sum(b => b.Rooms.Count)),
-            context.Sites.Sum(s => s.Preparation.ChangedTerrain), context.Sites.Sum(s => s.Preparation.ChangedEdges));
+            context.Sites.Sum(s => s.Preparation.ChangedTerrain) + beacons.ChangedTerrain, context.Sites.Sum(s => s.Preparation.ChangedEdges))
+        {
+            BeaconsPlaced = beacons.Placed, BeaconsOmitted = beacons.Target - beacons.Placed,
+            BeaconAttempts = beacons.Attempts, BeaconWork = beacons.Work
+        };
 
         void Accept(PlacementResult<SitePlan> result, BoardDraft draft)
         {

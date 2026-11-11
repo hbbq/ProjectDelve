@@ -5,6 +5,7 @@ namespace ProjectDelve.Engine;
 
 public interface IGameplayQueries
 {
+    string? PreferredBeaconChoice(DecisionRequest request) => null;
     string? SummonerOf(string unitId) => throw new NotSupportedException();
     IReadOnlyList<string> KnownFriendlyUnitIds(string unitId) => throw new NotSupportedException();
     int? DistanceToFollowPositionFrom(string unitId, Cell position, string targetId, bool closedDoorsTraversable = false) => throw new NotSupportedException();
@@ -115,8 +116,7 @@ internal sealed partial class GameplayQueries : IGameplayQueries
                     var anchor = new Cell(x, y);
                     if (FootprintGeometry.OccupiedCells(footprint, anchor).All(c => RouteRules.Contains(key.Area, c) &&
                             (traversal.KnownCells is null || traversal.KnownCells.Contains(c))) &&
-                        SpatialRules.Fits(board, footprint, anchor, MovementTraversal.OccupancyFor(
-                            queries.world.Types.Single(t => t.Id == queries.world.Units.Single(u => u.Id == key.Actor).TypeId))) &&
+                        SpatialRules.Fits(board, footprint, anchor, MovementTraversal.OccupancyFor(queries.world, key.Actor)) &&
                         SpatialRules.Fits(board, footprint, anchor, traversal))
                         yield return anchor;
                 }
@@ -300,8 +300,7 @@ internal sealed partial class GameplayQueries : IGameplayQueries
                 if (targeted
                     ? FootprintGeometry.OccupiedCells(footprint, position).All(c => MovementRules.Inside(board, c)) &&
                         CanAttackTargetFrom(unitId, position, targetId!)
-                    : SpatialRules.Fits(board, footprint, position, MovementTraversal.OccupancyFor(
-                        world.Types.Single(t => t.Id == world.Units.Single(u => u.Id == unitId).TypeId))) && CanAttackFrom(unitId, position))
+                    : SpatialRules.Fits(board, footprint, position, MovementTraversal.OccupancyFor(world, unitId)) && CanAttackFrom(unitId, position))
                     yield return position;
             }
         }

@@ -131,7 +131,8 @@ public enum UnitBehavior
     GoToFriendly = 524288,
     MaximizeFriendlyAdjacent = 1048576,
     FollowSummoner = 2097152,
-    OptimizeFollowAdjacency = 4194304
+    OptimizeFollowAdjacency = 4194304,
+    PreferBeacon = 8388608
 }
 public enum MovementPattern { StraightOrthogonal, DiagonalCorridor, LShape, StraightOrthogonalOrDiagonalCorridor, Adjacent }
 public sealed record AdvanceOnKill : AbilityMechanic;
@@ -180,7 +181,7 @@ public sealed record Backstab : AbilityMechanic
 // Presentation metadata only; passive rules retain their concrete representations.
 public sealed record PassiveDescription(string Name, string DisplayText);
 // Current HP is never a modifier stat.
-public enum Stat { Atk, Mov, Rng, Def }
+public enum Stat { Atk, Mov, Rng, Def, SightDistance }
 public sealed record ModifierThisTurn(Stat Stat, int Amount);
 public sealed record AbilityUses
 {
@@ -203,6 +204,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public ControllerKind? DefaultController { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool Amphibious { get; init; }
+    public int SightDistance { get; init; } = 5;
     public int? WakeDistance { get; init; }
     public bool CanHaveItems { get; init; }
     public bool CanHaveEquipment { get; init; }
@@ -438,7 +440,7 @@ public sealed class GameState
     public List<GroundObject> GroundObjects { get; set; } = [];
     // Only detached Side observations carry these values. Removing hidden providers
     // from presentation must not recalculate the visible Units' authoritative stats.
-    internal Dictionary<string, (int Mov, int Rng, int Atk, int Def)>? ObservationValues { get; set; }
+    internal Dictionary<string, (int Mov, int Rng, int Atk, int Def, int SightDistance)>? ObservationValues { get; set; }
     public required PhysicalState Physical { get; set; }
     public required List<UnitType> Types { get; set; }
     public required List<Unit> Units { get; set; }
@@ -448,7 +450,7 @@ public sealed class GameState
 
     // Creating detached Unit data does not enter play; placement is the runtime entry boundary.
     public void PlaceUnit(string typeId, string id, string sideId, Cell cell, Posture posture = Posture.Upright, string? groupId = null,
-        bool dormant = false, int? wakeDistance = null, string? summonerUnitId = null)
+        bool dormant = false, int? wakeDistance = null, string? summonerUnitId = null, IReadOnlyList<OwnedObject>? inventory = null)
     {
         var type = UnitContent.Find(typeId, Types)
             ?? throw new ArgumentException("Unit Type is not defined.", nameof(typeId));
@@ -456,16 +458,17 @@ public sealed class GameState
             throw new ArgumentException("Maximum HP greater than 1 requires a Unique Unit Type.", nameof(typeId));
         if (!CanPlaceUnitType(type, sideId))
             throw new ArgumentException("A Unit of this Unique Unit Type is already in play on this Side.", nameof(typeId));
+        var entering = type.CreateUnit(id, sideId) with { GroupId = groupId, Dormant = dormant, SummonerUnitId = summonerUnitId,
+            WakeDistance = wakeDistance ?? type.WakeDistance ?? DormantRules.DefaultWakeDistance, Inventory = [.. inventory ?? []] };
         if (summonerUnitId is not null && (string.IsNullOrWhiteSpace(summonerUnitId) || summonerUnitId == id) ||
             wakeDistance < 0 || Physical.Board.Machines.Any(m => m.Id == id) || Units.Any(u => u.Id == id || u.SummonerUnitId == id) || string.IsNullOrWhiteSpace(sideId) ||
             groupId is not null && string.IsNullOrWhiteSpace(groupId) ||
-            !Enum.IsDefined(posture) || !Enum.IsDefined(type.Footprint) || !SpatialRules.CanPlaceUnit(this, type, cell) ||
+            !Enum.IsDefined(posture) || !Enum.IsDefined(type.Footprint) || !SpatialRules.CanPlaceUnit(this, type.Footprint, cell, placement: new MovementTraversal(Amphibious: HasAmphibious(entering))) ||
             FootprintGeometry.OccupiedCells(type.Footprint, cell)
                 .Any(c => !TerrainCatalog.Accepts(type, Physical.Board.TerrainDefinitionAt(c))))
             throw new ArgumentException("Invalid Unit placement.");
         if (ActivationTypeOrder is {} order && !order.Contains(type.Id)) order.Add(type.Id);
-        Units.Add(type.CreateUnit(id, sideId) with { GroupId = groupId, Dormant = dormant, SummonerUnitId = summonerUnitId,
-            WakeDistance = wakeDistance ?? type.WakeDistance ?? DormantRules.DefaultWakeDistance });
+        Units.Add(entering);
         Physical.Figures.Add(new(id, cell, posture));
         FogOfWar.Refresh(this);
     }
@@ -548,7 +551,21 @@ public sealed class GameState
     public bool HasEquipment(string unitId, LootCardKind kind) => IsUpright(unitId) &&
         this.ActiveEquipment(unitId).Any(e => e.Id == EquipmentCatalog.LegacyTypeId(kind));
     public bool HasPhase(string unitId) => Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Mechanic<Phase>() is not null ||
-        this.ActiveEquipment(unitId).Any(equipment => equipment.LocalAbilities.Any(ability => ability.Mechanic is Phase));
+        this.AbilitiesOf(unitId).Any(ability => ability.SourceKind == AbilitySourceKind.Equipment && ability.Definition.Mechanic is Phase);
+    public bool HasAmphibious(string unitId) => HasAmphibious(Units.Single(u => u.Id == unitId));
+    private bool HasAmphibious(Unit unit)
+    {
+        var type = Types.Single(t => t.Id == unit.TypeId);
+        return type.Amphibious || type.Mechanic<Amphibious>() is not null ||
+            unit.Inventory.Select(this.EquipmentTypeId).OfType<string>().Select(this.Equipment)
+                .Any(e => e.LocalAbilities.Any(a => a.Mechanic is Amphibious));
+    }
+    public int EffectiveSightDistanceOf(string unitId) => EffectiveSightDistanceOf(unitId, null);
+    internal int EffectiveSightDistanceOf(string unitId, ObservationStatContext? context) =>
+        ObservationValues?.TryGetValue(unitId, out var observed) == true ? observed.SightDistance :
+        Math.Max(0, Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).SightDistance +
+            (context?.Modifier(unitId, Stat.SightDistance) ?? this.AbilityModifier(unitId, Stat.SightDistance)) +
+            (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.SightDistance).Sum(m => m.Amount) : 0));
     public bool HasOpenDoor(string unitId) => this.AbilitiesOf(unitId).Any(ability =>
         ability.Definition.Mechanic is OpenDoor && this.CanUseAbility(unitId, ability));
 

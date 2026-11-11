@@ -87,7 +87,7 @@ public sealed class EquipmentMechanicsTests
         Assert.True(state.HasPhase("a")); Assert.True(state.HasOpenDoor("a"));
         state.Physical.Figures[0] = state.Physical.Figures[0] with { Posture = Posture.Lying };
         Assert.Equal(3, state.EffectiveMovOf("a")); Assert.Equal(1, state.EffectiveDefOf("a"));
-        Assert.False(state.HasPhase("a")); Assert.False(state.HasOpenDoor("a"));
+        Assert.True(state.HasPhase("a")); Assert.False(state.HasOpenDoor("a"));
         Assert.Single(state.Units[0].Inventory);
     }
 

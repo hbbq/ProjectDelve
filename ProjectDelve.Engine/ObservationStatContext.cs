@@ -59,7 +59,7 @@ internal sealed class ObservationStatContext
         return totals.GetValueOrDefault(stat);
     }
 
-    internal (int Mov, int Rng, int Atk, int Def) Values(string unitId) =>
+    internal (int Mov, int Rng, int Atk, int Def, int SightDistance) Values(string unitId) =>
         (state.EffectiveMovOf(unitId, this), state.EffectiveRngOf(unitId, this),
-            state.EffectiveAtkOf(unitId, this), state.EffectiveDefOf(unitId, this));
+            state.EffectiveAtkOf(unitId, this), state.EffectiveDefOf(unitId, this), state.EffectiveSightDistanceOf(unitId, this));
 }

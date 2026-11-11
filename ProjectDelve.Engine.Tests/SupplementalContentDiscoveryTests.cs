@@ -8,21 +8,24 @@ public sealed class SupplementalContentDiscoveryTests
     [Fact]
     public void MachineCatalogExposesCanonicalDefinitionsAndConcreteOperationData()
     {
-        Assert.Equal(new[] { MachineTypes.DiamondPress, MachineTypes.SlotMachine }, MachineTypes.All);
+        Assert.Equal(new[] { MachineTypes.DiamondPress, MachineTypes.SlotMachine, MachineTypes.Beacon }, MachineTypes.All);
         Assert.Equal(MachineTypes.All.Length, MachineTypes.All.Select(type => type.Id).Distinct().Count());
 
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
         foreach (var type in MachineTypes.All)
         {
             var json = JsonSerializer.SerializeToElement(type, options);
-            var storage = json.GetProperty("storage").GetProperty("capacities");
-            Assert.Equal(type.Storage.Capacities.Length, storage.GetArrayLength());
+            if (type.Storage is { } store)
+                Assert.Equal(store.Capacities.Length, json.GetProperty("storage").GetProperty("capacities").GetArrayLength());
+            else Assert.Equal(JsonValueKind.Null, json.GetProperty("storage").ValueKind);
             var operation = json.GetProperty("operation");
             Assert.Equal(type.Operation.Costs.Length, operation.GetProperty("costs").GetArrayLength());
             Assert.Equal(1, operation.GetProperty("outputQuantity").GetInt32());
             if (type.Operation.OutputTable is { } table)
                 Assert.Equal(table.Faces.Select(face => face.Id), operation.GetProperty("outputTable")
                     .GetProperty("faces").EnumerateArray().Select(face => face.GetProperty("id").GetString()));
+            else if (type.Operation.Reveal is { } reveal)
+                Assert.Equal(reveal.Distance, operation.GetProperty("reveal").GetProperty("distance").GetInt32());
             else
                 Assert.Equal(type.Operation.OutputType!.Id, operation.GetProperty("outputType").GetProperty("id").GetString());
         }

@@ -7,6 +7,28 @@ const source = name => fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web
 const code = "WLD1-2x2-X-8-Y12-F35-W20-R15-KBalanced-HAuto-S0123456789ABCDEF";
 const withEmptyLoot = value => value.includes('-S') ? value.replace('-S', '-OEmpty-S') : value + '-OEmpty';
 const flush = () => new Promise(resolve => setImmediate(resolve));
+
+test('storage-free Beacon Quick Play passes the real draft parser before launching temporary transport', async () => {
+  const h = harness(); h.get('world-generator').open = true;
+  const parser = vm.runInNewContext(source('designer-state.js').replace(/^export /gm, '') +
+    '\n({draftDocument, readDraftDocument})', { structuredClone });
+  h.context.delveOpenGenerated = result => {
+    const doc = parser.readDraftDocument(JSON.stringify(parser.draftDocument(result.definition, result.title)));
+    h.designs.push(doc.definition); return true;
+  };
+  const generated = h.result();
+  generated.definition.unitTypeIds = []; generated.definition.agency = [];
+  generated.definition.machines = [{ id: 'beacon', position: { x: 1, y: 1 },
+    type: { id: 'beacon', name: 'Beacon', storage: null,
+      operation: { costs: [], reveal: { distance: 15 }, maxUsesPerSide: 1 } },
+    storedResources: [], useCounts: {} }];
+  h.click('preview'); await h.accept(0, generated);
+  const playing = h.click('quick-play'); await h.accept(1, { transport: 'DELVE1:prepared-beacon-party' }); await playing;
+  assert.deepEqual(h.plays, ['DELVE1:prepared-beacon-party'], h.get('world-generator-status').textContent);
+  assert.equal(h.designs.length, 1);
+  assert.equal(JSON.stringify(h.designs[0]), JSON.stringify(generated.definition));
+  assert.equal(h.get('world-generator').open, false);
+});
 function harness() {
   class Node {
     value = ""; hidden = false; textContent = ""; dataset = {}; children = []; listeners = {}; open = false;

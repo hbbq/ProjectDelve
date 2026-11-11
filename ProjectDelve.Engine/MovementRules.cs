@@ -11,17 +11,17 @@ internal readonly record struct MovementTraversal(bool IgnoreTerrainAndEdges = f
     // Phase and hypothetical Closed Door traversal never authorize stopping there.
     // Terrain restrictions constrain ordinary Moves (and authored entry), not
     // externally relocated positions; e.g. a Kart may be displaced off Asphalt.
-    internal static MovementTraversal OccupancyFor(UnitType type) => new(Amphibious: type.Amphibious);
+    internal static MovementTraversal OccupancyFor(UnitType type) => new(Amphibious: type.Amphibious || type.Mechanic<Amphibious>() is not null);
+    internal static MovementTraversal OccupancyFor(GameState state, string unitId) => new(Amphibious: state.HasAmphibious(unitId));
 
     internal static MovementTraversal For(GameState state, string unitId, bool closedDoorsTraversable = false) =>
-        new(state.IsUpright(unitId) &&
-            state.HasPhase(unitId),
+        new(state.HasPhase(unitId),
             closedDoorsTraversable,
             state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == unitId).TypeId).TerrainRestrictedMovement?.Terrain,
             FogOfWar.IsEnabled(state, state.Units.Single(u => u.Id == unitId).SideId)
                 ? state.ExploredCells.GetValueOrDefault(state.Units.Single(u => u.Id == unitId).SideId) ?? [] : null,
             state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == unitId).TypeId).TerrainRestriction,
-            state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == unitId).TypeId).Amphibious);
+            state.HasAmphibious(unitId));
 
     internal bool CanTraverse(TerrainDefinition terrain) =>
         (!RequiredTerrain.HasValue || TerrainCatalog.AcceptsLegacy(RequiredTerrain.Value, terrain)) &&
@@ -142,7 +142,7 @@ internal static class MovementRules
         // Friendly and impassable terrain cells may be traversed but cannot be destinations.
         return new ReadOnlyDictionary<Cell, IReadOnlyList<Cell>>(paths
             .Where(pair => SpatialRules.Fits(state.Physical.Board, footprint, pair.Key,
-                    MovementTraversal.OccupancyFor(state.Types.Single(t => t.Id == unit.TypeId))) &&
+                    MovementTraversal.OccupancyFor(state, unit.Id)) &&
                 FootprintGeometry.OccupiedCells(footprint, pair.Key).All(c => !occupants.ContainsKey(c)))
             .ToDictionary(pair => pair.Key,
                 pair => (IReadOnlyList<Cell>)pair.Value.AsReadOnly()));
@@ -282,7 +282,7 @@ internal static class HypotheticalPosition
         var unit = state.Units.Single(u => u.Id == unitId);
         if (unit.CurrentHp <= 0 || !state.Physical.Figures.Any(f => f.Id == unitId))
             throw new ArgumentException("The querying unit must be alive and placed.", nameof(unitId));
-        if (!SpatialRules.CanPlaceUnit(state, state.Types.Single(t => t.Id == unit.TypeId), from, unitId))
+        if (!SpatialRules.CanPlaceUnit(state, unitId, from))
             throw new ArgumentException("The hypothetical footprint must be a normally legal placement, free of other figures.", nameof(from));
     }
 }

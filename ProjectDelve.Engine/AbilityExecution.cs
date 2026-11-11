@@ -117,6 +117,7 @@ public static partial class GameEngine
                     foreach (var destination in ExternalMovementRules.Destinations(state, unit.Id, target.Id, displace.MaxMove))
                         yield return Bind(new($"{ability.CandidatePrefix}:{target.Id}:{destination.X},{destination.Y}", Destination: destination, TargetId: target.Id));
                     break;
+                case RevealDistance:
                 case ReshapeRoom:
                     yield return Bind(new(ability.CandidatePrefix));
                     break;
@@ -129,7 +130,7 @@ public static partial class GameEngine
         var ability = choice.Ability!;
         // Modifier/extra-Action events expose the resulting activation state,
         // preserving their existing event-time snapshots.
-        if (ability.Definition.Mechanic is not (SelfModifiersMechanic or ExtraActionsMechanic or SelfExtraMovesMechanic or ReshapeRoom))
+        if (ability.Definition.Mechanic is not (SelfModifiersMechanic or ExtraActionsMechanic or SelfExtraMovesMechanic or ReshapeRoom or RevealDistance))
             EmitActionUsed(request, choice.Key, events);
         switch (ability.Definition.Mechanic)
         {
@@ -220,6 +221,15 @@ public static partial class GameEngine
                     { SourceUnitId = request.UnitId, ActionId = ability.ActionId, Cell = choice.Destination });
                 if (affected.Position != choice.Destination) ResolveArrival(state, affected.Id, events);
                 else events.LootArrivals.Add(affected.Id);
+                break;
+            case RevealDistance reveal:
+                var side = state.Units.Single(u => u.Id == request.UnitId).SideId;
+                if (FogOfWar.IsEnabled(state, side))
+                {
+                    if (!state.ExploredCells.TryGetValue(side, out var explored)) state.ExploredCells[side] = explored = [];
+                    explored.UnionWith(FogOfWar.VisionArea(state.Physical.Board, FootprintGeometry.OccupiedCells(state, request.UnitId!), reveal.Distance, state.HasPhase(request.UnitId!)));
+                }
+                EmitActionUsed(request, choice.Key, events);
                 break;
             case ReshapeRoom:
                 ReshapeRoomRules.Apply(state, request.UnitId!);

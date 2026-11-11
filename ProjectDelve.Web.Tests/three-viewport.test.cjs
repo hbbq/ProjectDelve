@@ -5,6 +5,114 @@ const path=require('node:path');
 const {pathToFileURL}=require('node:url');
 const moduleAt=name=>import(pathToFileURL(path.resolve(__dirname,'../ProjectDelve.Web/wwwroot',name)).href);
 
+for(const presentation of ['flat','tabletop'])test(`${presentation} Beacon rotates without lights and releases owned resources on replacement`,async()=>{
+  const f=fixture();f.presentation.machines=[{id:'beacon',typeId:'beacon',name:'Beacon',position:{x:3,y:3},resourceStorage:[]}];
+  const h=await harness(f);try{
+    h.viewport.setPresentation(presentation);h.viewport.settle();h.flush(1000);
+    assert.equal(h.viewport.inspect().animatedBeacons,1);
+    const items=h.rendered.at(-1).scene.getObjectByName('items'),beacon=items.children.find(n=>n.userData.beaconRotor);
+    assert.ok(beacon);const rotor=beacon.userData.beaconRotor,first=rotor.rotation.y;
+    h.flush(1500);assert.notEqual(rotor.rotation.y,first);assert.ok(h.frames.size>0);
+    let owned=0,disposed=0;beacon.traverse(node=>{
+      assert.equal(!!node.isSpotLight,false);
+      if(node.userData.owned){owned+=2;node.geometry.addEventListener('dispose',()=>disposed++);node.material.addEventListener('dispose',()=>disposed++);}
+    });
+    assert.equal(owned,6);
+    const hidden=structuredClone(f);hidden.presentation.machines=[];
+    h.viewport.renderFrame(hidden);h.viewport.settle();h.flush(2000);
+    assert.equal(disposed,owned);assert.equal(h.viewport.inspect().animatedBeacons,0);assert.equal(h.frames.size,0);
+    assert.equal(items.children.filter(n=>n.userData.beaconRotor).length,0);
+    assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
+test('offscreen Beacon does not keep the shared frame loop running',async()=>{
+  const f=fixture(80);f.presentation.machines=[{id:'far',typeId:'beacon',position:{x:75,y:75},resourceStorage:[]}];
+  const h=await harness(f);try{
+    h.viewport.camera.manual({x:2.5,y:2.5,scale:110});h.viewport.settle();h.flush(1000);
+    assert.equal(h.viewport.inspect().animatedBeacons,0);assert.equal(h.frames.size,0);
+  }finally{h.cleanup();}
+});
+
+test('optional Beacon scene CPU orchestration and heap benchmark',{
+  skip:process.env.PROJECTDELVE_BEACON_BENCHMARK!=='1'
+},async t=>{
+  const {Session}=require('node:inspector');
+  const session=new Session();session.connect();
+  const post=(method,params={})=>new Promise((resolve,reject)=>session.post(method,params,(error,result)=>error?reject(error):resolve(result)));
+  const collect=()=>{if(typeof global.gc==='function')global.gc();};
+  const heap=()=>process.memoryUsage().heapUsed;
+  const allocated=node=>node.selfSize+node.children.reduce((total,child)=>total+allocated(child),0);
+  const warmupFrames=120,measuredFrames=600,allocationFrames=120;
+  // Load shared modules and initialize their caches before comparing scene sizes.
+  const preload=await harness();preload.viewport.settle();preload.flush();preload.cleanup();
+  t.diagnostic('Renderer is stubbed: timings cover shared-frame JavaScript orchestration and harness scene traversal, not GPU rendering. Allocation is V8 sampling estimate (1 KiB interval, including collected objects and harness bookkeeping); sampled pass is separate from latency. Heap deltas are net, not gross allocation; retained deltas require --expose-gc and include shared caches.');
+  const run=async(presentation,count)=>{
+      const f=fixture();f.presentation.machines=Array.from({length:count},(_,i)=>({
+        id:`beacon-${i}`,typeId:'beacon',name:'Beacon',position:{x:2+i%2*2,y:2+Math.floor(i/2)*2},resourceStorage:[]
+      }));
+      await new Promise(resolve=>setImmediate(resolve));collect();const beforeScene=heap();
+      const h=await harness(f);try{
+        h.viewport.setPresentation(presentation);h.viewport.camera.setMode('full');h.viewport.settle();
+        let clock=1000;
+        const frame=()=>{h.flush(clock+=1000/60);h.rendered.length=0;};
+        for(let i=0;i<warmupFrames;i++)frame();
+        assert.equal(h.viewport.inspect().animatedBeacons,count);
+        collect();const activeScene=heap();
+        let timings=new Float64Array(measuredFrames);const beforeFrames=heap();
+        for(let i=0;i<measuredFrames;i++){
+          const start=performance.now();h.flush(clock+=1000/60);timings[i]=performance.now()-start;
+          // The recording renderer must not retain one entry per benchmark frame.
+          h.rendered.length=0;
+        }
+        const afterFrames=heap();
+        const cpuOrchestrationMs=(()=>{
+          const ordered=Array.from(timings).sort((a,b)=>a-b);
+          return {median:ordered[Math.floor(ordered.length/2)],p95:ordered[Math.floor(ordered.length*.95)],mean:ordered.reduce((a,b)=>a+b,0)/ordered.length};
+        })();
+        timings=null;
+        assert.equal(h.viewport.inspect().animatedBeacons,count);
+        // One extra render gives access to the current scene after recordings
+        // were cleared, without retaining removed Beacon nodes in the benchmark.
+        h.flush(clock+=1000/60);
+        let owned=0,disposed=0;
+        h.rendered.at(-1).scene.getObjectByName('items').traverse(node=>{
+          if(node.userData.owned){owned+=2;node.geometry.addEventListener('dispose',()=>disposed++);node.material.addEventListener('dispose',()=>disposed++);}
+        });
+        h.rendered.length=0;
+        const removed=structuredClone(f);removed.presentation.machines=[];
+        const removalStart=performance.now();h.viewport.renderFrame(removed);h.viewport.settle();frame();
+        const removalCpuMs=performance.now()-removalStart;
+        assert.equal(owned,count*6);assert.equal(disposed,owned);
+        assert.equal(h.viewport.inspect().animatedBeacons,0);assert.equal(h.frames.size,0);assert.deepEqual(h.failures,[]);
+        await new Promise(resolve=>setImmediate(resolve));collect();const afterRemoval=heap();
+        const idleFrames=h.frames.size;
+        // Profile a separate warmed pass after measuring retention, so profiler
+        // result objects cannot contaminate the removal heap reading.
+        h.viewport.renderFrame(f);h.viewport.settle();
+        for(let i=0;i<warmupFrames;i++)frame();
+        await post('HeapProfiler.startSampling',{samplingInterval:1024,includeObjectsCollectedByMajorGC:true,includeObjectsCollectedByMinorGC:true});
+        for(let i=0;i<allocationFrames;i++)frame();
+        const {profile}=await post('HeapProfiler.stopSampling');
+        const estimatedAllocation=allocated(profile.head);
+        h.viewport.renderFrame(removed);h.viewport.settle();frame();
+        assert.equal(h.frames.size,0);
+
+        return {presentation,visibleBeacons:count,warmupFrames,measuredFrames,
+          cpuOrchestrationMs,
+          allocationFrames,sampledAllocationEstimateBytes:estimatedAllocation,sampledBytesPerFrame:estimatedAllocation/allocationFrames,
+          frameHeapUsedNetDeltaBytes:afterFrames-beforeFrames,forcedGcAvailable:typeof global.gc==='function',
+          activeSceneRetainedHeapDeltaBytes:typeof global.gc==='function'?activeScene-beforeScene:null,
+          afterRemovalRetainedHeapDeltaBytes:typeof global.gc==='function'?afterRemoval-beforeScene:null,
+          removalCpuMs,ownedResources:owned,disposedResources:disposed,scheduledFramesAfterRemoval:idleFrames};
+      }finally{h.cleanup();}
+  };
+  try{
+    for(const presentation of ['flat','tabletop'])for(const count of [1,4])
+      t.diagnostic(JSON.stringify(await run(presentation,count)));
+  }finally{session.disconnect();}
+});
+
 const componentAssembly=(surface,recipe,quarterTurns=null)=>({surface:{presentation:{recipe:surface}},
   components:[{slot:'furniture',definition:{id:`fixture-${recipe}`,name:recipe,presentation:{recipe,layer:'Object'}},quarterTurns}]});
 

@@ -19,7 +19,7 @@ public static class UnitRoster
 {
     public static UnitType Beastmaster(string id = UnitTypeIds.Beastmaster) => UnitType.Define(id,
         "Beastmaster", Stats(3, 1, 2, 3, 5), Loot(1, items: true, equipment: true),
-        Unique(), DefaultController(ControllerKind.Human), OpenDoor(),
+        Unique(), DefaultController(ControllerKind.Human), OpenDoor(), Operate(),
         Ability("Summon Jackalope", Unlimited(), AdjacentUnitSummon(UnitTypeIds.Jackalope, Posture.Upright, sameTypeSummonerLimit: 1), id: "summon-jackalope"),
         Ability("Summon Giant Toad", Unlimited(), AdjacentUnitSummon(UnitTypeIds.GiantToad, Posture.Upright, sameTypeSummonerLimit: 1), id: "summon-giant-toad"),
         Ability("Summon Dire Bear", Unlimited(), AdjacentUnitSummon(UnitTypeIds.DireBear, Posture.Lying, sameTypeSummonerLimit: 1), id: "summon-dire-bear"),
@@ -28,12 +28,12 @@ public static class UnitRoster
     );
 
     public static UnitType Jackalope(string id = UnitTypeIds.Jackalope) => UnitType.Define(id,
-        "Jackalope", Stats(5, 0, 0, 2, 1), DefaultController(ControllerKind.Automated), CantAttack()
-    ).WithBehaviors(UnitBehavior.ExploreFoW, UnitBehavior.FollowSummoner, UnitBehavior.GoToFriendly);
+        "Jackalope", Stats(5, 0, 0, 2, 1), DefaultController(ControllerKind.Automated), CantAttack(), Operate()
+    ).WithBehaviors(UnitBehavior.PreferBeacon, UnitBehavior.ExploreFoW, UnitBehavior.FollowSummoner, UnitBehavior.GoToFriendly);
 
     public static UnitType GiantToad(string id = UnitTypeIds.GiantToad) => UnitType.Define(id,
-        "Giant Toad", Stats(3, 0, 0, 2, 1), DefaultController(ControllerKind.Automated), CantAttack(), Amphibious()
-    ).WithBehaviors(UnitBehavior.ExploreFoW, UnitBehavior.FollowSummoner, UnitBehavior.GoToFriendly);
+        "Giant Toad", Stats(3, 0, 0, 2, 1), DefaultController(ControllerKind.Automated), CantAttack(), Amphibious(), Operate()
+    ).WithBehaviors(UnitBehavior.PreferBeacon, UnitBehavior.ExploreFoW, UnitBehavior.FollowSummoner, UnitBehavior.GoToFriendly);
 
     public static UnitType DireBear(string id = UnitTypeIds.DireBear) => UnitType.Define(id,
         "Dire Bear", Stats(2, 1, 3, 3, 1), DefaultController(ControllerKind.Automated)
@@ -212,7 +212,7 @@ public static class UnitRoster
         "Barbarian",
         Stats(3, 1, 4, 3, 5), Loot(1, items: true, equipment: true),
         Unique(),
-        OpenDoor(),
+        OpenDoor(), Operate(),
         Ability("Fury", Unlimited(), Fury(atkBonus: +1, adjacentEnemies: 2), id: "fury"),
         Ability("Cleave", Uses(2), Cleave(triggerDamage: 2, damage: 1), id: "cleave"),
         Ability("Rage", Uses(2), BonusActionSelfModifier(Modifier(Stat.Atk, +2)), id: "rage")
@@ -222,7 +222,7 @@ public static class UnitRoster
         "Rogue",
         Stats(4, 1, 3, 2, 4), Loot(1, items: true, equipment: true),
         Unique(),
-        OpenDoor(),
+        OpenDoor(), Operate(),
         Ability("Backstab", Unlimited(), Backstab(atkBonus: +1), id: "backstab"),
         Ability("Dash", Uses(2), BonusActionSelfModifier(Modifier(Stat.Mov, +2)), id: "dash"),
         Ability("Throwing Knife", Uses(2), BonusActionSelfModifier(Modifier(Stat.Rng, +2), Modifier(Stat.Atk, -1)), id: "throwing-knife")
@@ -232,7 +232,7 @@ public static class UnitRoster
         "Cleric",
         Stats(3, 1, 3, 3, 4), Loot(1, items: true, equipment: true),
         Unique(),
-        OpenDoor(),
+        OpenDoor(), Operate(),
         LocalAbility(new("heal", "Heal", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, Amount: 2))
         {
             Usage = new(MaxUses: 2)
@@ -251,7 +251,7 @@ public static class UnitRoster
         "Wizard",
         Stats(3, 4, 3, 2, 4), Loot(1, items: true, equipment: true),
         Unique(),
-        OpenDoor(),
+        OpenDoor(), Operate(),
         Ability("Fireball", Uses(2), Fireball(), id: "fireball"),
         Ability("Telekinesis", Unlimited(), Telekinesis(), id: "telekinesis"),
         Ability("Focus", Uses(2), BonusActionSelfModifier(Modifier(Stat.Atk, +1)), id: "focus")

@@ -66,8 +66,8 @@ public sealed class BeastmasterTests
     }
 
     [Theory]
-    [InlineData(UnitTypeIds.Jackalope, 5, 0, 0, 2, Posture.Upright, UnitBehavior.ExploreFoW | UnitBehavior.FollowSummoner | UnitBehavior.GoToFriendly)]
-    [InlineData(UnitTypeIds.GiantToad, 3, 0, 0, 2, Posture.Upright, UnitBehavior.ExploreFoW | UnitBehavior.FollowSummoner | UnitBehavior.GoToFriendly)]
+    [InlineData(UnitTypeIds.Jackalope, 5, 0, 0, 2, Posture.Upright, UnitBehavior.PreferBeacon | UnitBehavior.ExploreFoW | UnitBehavior.FollowSummoner | UnitBehavior.GoToFriendly)]
+    [InlineData(UnitTypeIds.GiantToad, 3, 0, 0, 2, Posture.Upright, UnitBehavior.PreferBeacon | UnitBehavior.ExploreFoW | UnitBehavior.FollowSummoner | UnitBehavior.GoToFriendly)]
     [InlineData(UnitTypeIds.DireBear, 2, 1, 3, 3, Posture.Lying, UnitBehavior.FollowSummoner | UnitBehavior.GoToFriendly)]
     [InlineData(UnitTypeIds.Raptor, 4, 1, 2, 2, Posture.Lying, UnitBehavior.BackAwayAfterAttack | UnitBehavior.FollowSummoner | UnitBehavior.GoToFriendly)]
     [InlineData(UnitTypeIds.LightElemental, 3, 0, 0, 2, Posture.Upright, UnitBehavior.FollowSummoner | UnitBehavior.GoToFriendly | UnitBehavior.OptimizeFollowAdjacency)]

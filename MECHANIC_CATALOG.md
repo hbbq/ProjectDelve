@@ -61,10 +61,10 @@ Each `Profiles` entry is one complete supported combination. Do not combine sour
 | Mechanic IDs | Timing | Unit usage | Equipment usage | Item usage |
 | --- | --- | --- | --- | --- |
 | `adjacentUnitHeal`, `adjacentUnitsPostureChange`, `adjacentUnitPostureChange` | Action | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
-| `fireball` | Action, BonusAction, FreeAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
+| `fireball`, `revealDistance` | Action, BonusAction, FreeAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
 | `selfModifiers`, `extraActions` | BonusAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
 | `selfModifiers`, `adjacentUnitsStatModifiers` | Passive | Unlimited | Unlimited | Unsupported |
-| `phase` | Passive | Unlimited | Unlimited | Unsupported |
+| `phase`, `amphibious` | Passive; persist while Lying | Unlimited | Unlimited | Unsupported |
 | `openDoor` | Action, FreeAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
 | `telekinesis`, `tryOpenDoor` | Action | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
 | `reshapeRoom`, `swap`, `displace` | BonusAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
@@ -72,7 +72,15 @@ Each `Profiles` entry is one complete supported combination. Do not combine sour
 | `placeBananaPeel`, `selfExtraMoves` | BonusAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
 | `fury`, `backstab`, `transportResource` | Passive | Unlimited | Unlimited | Unsupported |
 
-Equipment stat changes use local Passive `selfModifiers`; Phase and Open Door use their local typed payloads. There are no separate Equipment modifier/capability execution paths. Modifier lists accept ATK, MOV, RNG, and DEF amounts from -100 through 100, including zero and repeated stats. An empty modifier list is invalid; an Equipment definition with no stat changes simply has no such Ability. This preserves the previous direct Equipment modifier domain.
+Equipment stat changes use local Passive `selfModifiers`; Phase, Amphibious and Open Door use their local typed payloads. There are no separate Equipment modifier/capability execution paths. Modifier lists accept ATK, MOV, RNG, DEF and SightDistance amounts from -100 through 100, including zero and repeated stats. An empty modifier list is invalid; an Equipment definition with no stat changes simply has no such Ability. Ordinary modifiers require an Upright source; Phase and Amphibious explicitly persist while Lying. Their catalog dependencies identify `persistentCapability`, without introducing a generic status lifecycle.
+
+`revealDistance` requires an explicit integer `distance` of at least zero. Its
+target selection is None: it explores for the acting Unit's Side from all of its
+footprint Cells using shared FoW vision and effective Phase. No-new-discovery
+invocations remain legal and still spend the ordinary accepted costs and usage.
+Machine Reveal instead uses `MachineOperation.Reveal`, outside the Ability
+catalog; `operate` supplies the source-bound Action and its normal eligibility
+checks. See [Vision and Machines](VISION_AND_MACHINES.md).
 
 The remaining specialized mechanics currently support Unit sources only. Their local envelope is the same; the source restriction records implemented gameplay scope rather than a second model.
 

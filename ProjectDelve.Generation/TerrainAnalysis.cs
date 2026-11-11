@@ -37,7 +37,7 @@ public sealed record TerrainAnalysisSnapshot(WorldWindow Window, int Revision, i
 public static class TerrainAnalyzer
 {
     public static TerrainAnalysisSnapshot Analyze(WorldWindow window, IReadOnlyList<NaturalTerrainSample> samples,
-        ContentBundle? content = null, int revision = 0, IReadOnlyList<EdgeDefinition>? edges = null)
+        ContentBundle? content = null, int revision = 0, IReadOnlyList<EdgeDefinition>? edges = null, IReadOnlyList<Machine>? machines = null)
     {
         ArgumentNullException.ThrowIfNull(window);
         ArgumentNullException.ThrowIfNull(samples);
@@ -61,6 +61,12 @@ public static class TerrainAnalyzer
                 "grass" or "dirt" => NaturalFormationKind.OpenLand,
                 _ => NaturalFormationKind.Other
             };
+        }
+        foreach (var machine in machines ?? [])
+        {
+            if ((uint)machine.Position.X >= w || (uint)machine.Position.Y >= h) throw new ArgumentException("Machine must be within the analysis window.", nameof(machines));
+            var index = machine.Position.Y * w + machine.Position.X;
+            passable[index] = false; los[index] = true;
         }
         int Neighbor(int i, int d) => d switch
         {

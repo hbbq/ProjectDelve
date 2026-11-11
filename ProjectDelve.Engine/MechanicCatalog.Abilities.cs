@@ -33,6 +33,14 @@ public static partial class MechanicCatalog
             "Choose a Cell within RNG and LOS.\nAttack all Units on or adjacent to that Cell.", [],
             ["effectiveRange", "effectiveAttack", "lineOfSight", "attack", "dice"]), (_, _, _) => { });
 
+        var revealDistance = new MechanicParameter("distance", MechanicParameterKind.Integer) { Minimum = 0 };
+        yield return MechanicRegistration.Create<RevealDistance>(AbilityContract("revealDistance", "Reveal Distance",
+            [MechanicTiming.Action, MechanicTiming.BonusAction, MechanicTiming.FreeAction], MechanicContext.ActingUnit,
+            new(MechanicTargetSelection.None, "Reveal from every occupied Cell to the acting Unit's own Side; legal with no new discovery."),
+            "Reveal Cells within {distance} Cells using this Unit's vision.", ["distance"], ["vision", "fogOfWar"])
+            with { Parameters = [revealDistance] },
+            (payload, path, errors) => MechanicChecks.Integer(errors, revealDistance, payload.Distance, path + ".distance"));
+
         var selfModifiers = AbilityModifiersParameter();
         var self = AbilityContract("selfModifiers", "Self Stat Modifiers", [MechanicTiming.BonusAction, MechanicTiming.Passive],
             MechanicContext.BearingUnit, new(MechanicTargetSelection.None, "The bearing Unit; Bonus Action modifiers last through the current activation, Passive modifiers require an Upright source."),
@@ -107,7 +115,7 @@ public static partial class MechanicCatalog
         MinimumItems = 1,
         Item = new("modifier", MechanicParameterKind.Object)
         {
-            Members = [new("stat", MechanicParameterKind.Enum) { AllowedValues = ["Atk", "Mov", "Rng", "Def"] },
+            Members = [new("stat", MechanicParameterKind.Enum) { AllowedValues = ["Atk", "Mov", "Rng", "Def", "SightDistance"] },
                 new("amount", MechanicParameterKind.Integer) { Minimum = -100, Maximum = 100 }]
         }
     };

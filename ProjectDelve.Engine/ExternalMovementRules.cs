@@ -17,7 +17,7 @@ internal static class ExternalMovementRules
 
     private static bool FitsAt(GameState state, string id, Cell destination) =>
         SpatialRules.Fits(state.Physical.Board, FootprintGeometry.FootprintOf(state, id), destination,
-            MovementTraversal.OccupancyFor(state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == id).TypeId)));
+            MovementTraversal.OccupancyFor(state, id));
 
     internal static IEnumerable<Cell> Destinations(GameState state, string sourceId, string affectedId, int maxMove)
     {
@@ -26,12 +26,12 @@ internal static class ExternalMovementRules
         var figure = state.Physical.Figures.Single(f => f.Id == affectedId);
         var footprint = FootprintGeometry.FootprintOf(state, affectedId);
         var type = state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == affectedId).TypeId);
-        var placement = MovementTraversal.OccupancyFor(type);
+        var placement = MovementTraversal.OccupancyFor(state, affectedId);
         yield return figure.Position;
         if (maxMove == 0) yield break;
         foreach (var destination in MovementRules.Neighbors(figure.Position))
             if (MovementRules.CanStep(state.Physical.Board, footprint, figure.Position, destination, placement) &&
-                SpatialRules.CanPlaceUnit(state, type, destination, affectedId))
+                SpatialRules.CanPlaceUnit(state, affectedId, destination))
                 yield return destination;
     }
 

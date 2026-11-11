@@ -33,7 +33,7 @@ public static class UnitAuthoringSchema
         var terrains = Enum.GetValues<TerrainKind>().Where(t => t.Passable()).Select(t => t.ToString()).ToArray();
         return new(new("", 3, 1, 1, 1, 1) { DisplayName = "" },
             [Integer("mov", MinimumStat), Integer("rng", MinimumStat), Integer("atk", MinimumStat),
-                Integer("def", MinimumStat), Integer("hp", MinimumHp)],
+                Integer("def", MinimumStat), Integer("hp", MinimumHp), Integer("sightDistance", MinimumStat) with { Required = false }],
             [new("unique", MechanicParameterKind.Boolean), EnumField("footprint", Enum.GetNames<Footprint>()),
                 new("amphibious", MechanicParameterKind.Boolean),
                 Optional(EnumField("defaultController", Enum.GetNames<ControllerKind>())),

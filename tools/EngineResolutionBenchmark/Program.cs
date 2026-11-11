@@ -5,6 +5,9 @@ using System.Text.Json.Serialization;
 using ProjectDelve.Engine;
 using ProjectDelve.Generation;
 
+if (args.Contains("--vision")) { VisionBenchmark.Run(); return; }
+if (args.Contains("--vision-fixtures")) { VisionBenchmark.WriteFixtures(); return; }
+
 // dotnet run --project tools/EngineResolutionBenchmark -c Release --artifacts-path .playwright-cli
 // Fixed investigation fixture: 30x30 implicit floor, MOV 3/RNG 1/ATK 1/DEF 0/HP 1,
 // ten Default Behavior monsters, one human Unit, blue-only FoW, seed 7241.

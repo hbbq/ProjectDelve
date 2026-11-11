@@ -30,7 +30,11 @@ new EquipmentDefinition("trail-medallion", "Trail Medallion")
 }
 ```
 
-`LocalAbilities` is the sole Equipment mechanic declaration list. Passive `SelfModifiersMechanic` supports MOV, RNG, ATK and DEF through `Stat`; each declaration owns its numeric amounts. `Phase` uses Passive timing; `OpenDoor` supports Action or Free Action timing. These abilities are active only while the bearer is Upright. Canonical Emergency Goat Bell owns an unlimited Action with `StandAdjacentFriendlyMechanic`. It spends an ordinary Action and stands one adjacent friendly Lying Unit. Unlimited usage does not grant extra Actions. Supported active Equipment Abilities may instead declare a positive `usage.maxUses`.
+`LocalAbilities` is the sole Equipment mechanic declaration list. Passive `SelfModifiersMechanic` supports MOV, RNG, ATK, DEF and SightDistance through `Stat`; each declaration owns its numeric amounts. Ordinary stat modifiers require an Upright bearer. `Phase` and `Amphibious` use Passive timing and remain effective while Lying, without granting a Move or Action. `OpenDoor` supports Action or Free Action timing and retains ordinary Upright eligibility. Canonical Emergency Goat Bell owns an unlimited Action with `AdjacentUnitPostureChangeMechanic(RelationshipSelector.Friendlies, Posture.Upright)`. It spends an ordinary Action and stands one adjacent friendly Lying Unit. Unlimited usage does not grant extra Actions. Supported active Equipment Abilities may instead declare a positive `usage.maxUses`.
+
+Canonical Binoculars (`binoculars`) declares Passive `SelfModifiersMechanic([new(Stat.SightDistance, 3)])`; it increases the bearer's ordinary FoW vision while Upright. Swim Tube (`swim-tube`) declares Passive `Amphibious`, permitting Water occupancy even while Lying. One-Size-Fits-Most Bedsheet (`bedsheet`) grants persistent Phase movement and vision; its ordinary Move endpoints remain subject to receiving-Unit occupancy legality. These capabilities reuse the same Engine queries as native declarations and do not alter terrain globally.
+
+Equipment may also declare `RevealDistance(distance)` as an Action, Bonus Action or Free Action, with a nonnegative authored distance and ordinary limited or unlimited source usage. Reveal explores from the bearer's footprint with effective Phase, without changing SightDistance; it remains legal with no new discovery. See [Vision and Machines](VISION_AND_MACHINES.md) for geometry and the distinct usefulness requirement on Machine Reveal.
 
 For example, a second Equipment source can grant that same mechanic with its own name:
 
@@ -38,7 +42,7 @@ For example, a second Equipment source can grant that same mechanic with its own
 new EquipmentDefinition("holy-bell", "Holy Bell")
 {
     LocalAbilities = [new("ring", "Stand Up", AbilityTiming.Action,
-        new StandAdjacentFriendlyMechanic()) { Usage = new(MaxUses: null) }]
+        new AdjacentUnitPostureChangeMechanic(RelationshipSelector.Friendlies, Posture.Upright)) { Usage = new(MaxUses: null) }]
 }
 ```
 

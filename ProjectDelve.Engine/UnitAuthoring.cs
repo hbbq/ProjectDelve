@@ -46,7 +46,7 @@ public static class UnitAuthoring
     // mechanic with several supported timings, author a LocalAbility directly.
     private static AbilityTiming TimingFor(AbilityMechanic mechanic) => mechanic switch
     {
-        ProjectDelve.Engine.Fury or ProjectDelve.Engine.Backstab or ProjectDelve.Engine.Phase or ProjectDelve.Engine.TransportResource or AdjacentUnitsStatModifiersMechanic => AbilityTiming.Passive,
+        ProjectDelve.Engine.Amphibious or ProjectDelve.Engine.Fury or ProjectDelve.Engine.Backstab or ProjectDelve.Engine.Phase or ProjectDelve.Engine.TransportResource or AdjacentUnitsStatModifiersMechanic => AbilityTiming.Passive,
         ProjectDelve.Engine.Cleave or ProjectDelve.Engine.MoveAfterAttack or ProjectDelve.Engine.AdvanceOnKill => AbilityTiming.AfterAttack,
         ProjectDelve.Engine.Explosion => AbilityTiming.WhenDefeated,
         ProjectDelve.Engine.Undying => AbilityTiming.InsteadOfDefeat,
@@ -66,6 +66,8 @@ public static class UnitAuthoring
         ? t with { WakeDistance = distance } : throw new ArgumentOutOfRangeException(nameof(distance)));
     public static Entry Footprint2x2() => new UpdateEntry(t => t with { Footprint = Footprint.TwoByTwo });
     public static Entry OpenDoor() => Ability("Open Door", Unlimited(), new OpenDoor(), "open-door");
+    public static Entry SightDistance(int distance) => new UpdateEntry(t => t with { SightDistance = distance });
+    public static RevealDistance RevealDistance(int distance) => new(distance);
     public static Entry Phase() => Ability("Phase", Unlimited(), new Phase(), "phase");
     public static Entry TransportResource() => Ability("Transport Resource", Unlimited(), new TransportResource(), "transport-resource");
     public static Entry PickupResource() => Ability("Pickup Resource", Unlimited(), new PickupResource(), "pickup-resource");

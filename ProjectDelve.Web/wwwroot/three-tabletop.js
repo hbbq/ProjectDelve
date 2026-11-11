@@ -268,6 +268,25 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
   }
   function machine(m,visual){
     const group=new THREE.Group(),x=m.position.x+.5,z=m.position.y+.5;
+    if(m.typeId==='beacon'){
+      group.position.set(x,0,z);
+      box(group,'#787b79',0,.06,0,.84,.12,.84);
+      box(group,'#aaa797',0,.38,0,.46,.62,.46);
+      for(const y of [.18,.39,.61])box(group,'#626965',0,y,0,.49,.035,.49);
+      box(group,'#515c60',0,.74,0,.63,.1,.63);
+      for(const px of [-.2,.2])for(const pz of [-.2,.2])box(group,'#404c50',px,.91,pz,.045,.3,.045);
+      box(group,'#64716d',0,1.1,0,.65,.1,.65);
+      const lanternMaterial=new THREE.MeshStandardMaterial({color:'#fff0a8',emissive:'#ffd66b',emissiveIntensity:2,roughness:.8});
+      const lantern=new THREE.Mesh(new THREE.OctahedronGeometry(.15),lanternMaterial);
+      lantern.position.y=1.23;lantern.userData.owned=true;group.add(lantern);
+      const rotor=new THREE.Group();rotor.position.y=1.23;group.add(rotor);group.userData.beaconRotor=rotor;
+      for(const direction of [-1,1]){
+        const beam=new THREE.Mesh(new THREE.ConeGeometry(.22,.78,8,1,true),
+          new THREE.MeshBasicMaterial({color:'#ffe9a4',transparent:true,opacity:.15,depthWrite:false,side:THREE.DoubleSide}));
+        beam.rotation.z=direction*Math.PI/2;beam.position.x=direction*.39;beam.userData.owned=true;rotor.add(beam);
+      }
+      return group;
+    }
     box(group,'#3c4951',x,.15,z,.76,.30,.68);box(group,'#91836b',x,.34,z,.57,.09,.56);
     print(group,visual.image,x,z,.85,.85,.39,0,visual.fill);
     const color=m.ownerSide?`hsl(${sideHue(m.ownerSide)},65%,65%)`:'#c8b998';

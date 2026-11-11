@@ -237,10 +237,9 @@ internal static class ScenarioCreation
             // Preserve existing deterministic IDs when free, while reserving every authored identity first.
             var id = initialUnitIds[index];
             try { state.PlaceUnit(type.Id, id, placement.SideId, placement.Anchor, placement.Posture, placement.GroupId,
-                placement.Dormant, placement.WakeDistance); }
+                placement.Dormant, placement.WakeDistance, inventory: placement.Inventory); }
             catch (ArgumentException error) { throw ScenarioValidationContext.At(error, $"units[{index}]"); }
             if (placement.InitialHp is { } initialHp) state.Units[^1] = state.Units[^1] with { CurrentHp = initialHp };
-            state.Units[^1] = state.Units[^1] with { Inventory = [.. placement.Inventory ?? []] };
         }
         for (var index = 0; index < (definition.CellMarkers?.Count ?? 0); index++)
         {

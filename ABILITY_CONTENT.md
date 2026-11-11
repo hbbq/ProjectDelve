@@ -128,11 +128,11 @@ Use `MechanicCatalog.All` for authoritative discovery; the following is an overv
 | Mechanic | Established contexts |
 | --- | --- |
 | Adjacent Unit Heal, Adjacent Units Posture Change, Adjacent Unit Posture Change | Unit, Equipment or Item Action |
-| Fireball | Unit, Equipment or Item Action, Bonus Action or Free Action |
+| Fireball, Reveal Distance | Unit, Equipment or Item Action, Bonus Action or Free Action |
 | Self Stat Modifiers | Unit, Equipment or Item Bonus Action; Unit or Equipment Passive |
 | Adjacent Units Stat Modifiers | Unit or Equipment Passive |
 | Extra Actions | Unit, Equipment or Item Bonus Action |
-| Phase | Unit or Equipment Passive |
+| Phase, Amphibious | Unit or Equipment Passive; persist while Lying |
 | Open Door | Unit, Equipment or Item Action or Free Action |
 | Cleave, Move After Attack, Advance On Kill | Concrete Unit After Attack paths |
 | Explosion, Undying | Unit defeat consequence / immediate defeat replacement |
@@ -148,6 +148,28 @@ The catalog exposes allowed usage and per-source multiplicity too. Active mechan
 Adjacent Unit Summon uses the selected declaration's Unit Type and initial Posture across all three sources. References resolve through the effective scenario Unit catalog, including scoped canonical overrides, rather than a content name or the bearer's native summon. Resource operations likewise use the selected declaration while retaining the bearer's shared Side + Unit Type storage and ordinary Machine ownership/capacity rules. Source reuse grants neither storage nor additional activation opportunities.
 
 Passive modifiers retain ordinary posture and adjacency semantics. Holy Wave remains legal without an Upright hostile recipient and pays its source posture Cost first. Fireball planning reads available sources and actual usage restrictions; exhausting one source does not exhaust another. Mechanic validation is structural; dynamic legality still uses authoritative state, physical geometry, budgets, posture, targets and Fog of War.
+
+`SightDistance` is a numeric stat with a Unit Type base of 5 unless explicitly
+authored otherwise. Self, adjacent-Unit, Equipment and activation modifier lists
+can modify `Stat.SightDistance`; the effective value is clamped to zero. Ordinary
+Passive modifiers require an Upright source. This stat controls ordinary FoW
+vision independently of RNG.
+
+`new RevealDistance(distance)` / `{ "kind": "revealDistance", "distance": 8 }`
+requires an explicit nonnegative distance. It permanently explores the acting
+Side's Cells using ordinary FoW geometry from every occupied footprint Cell,
+including the actor's effective Phase vision. It changes no stat and remains
+legal even with no new discovery or with FoW disabled. Unit and Equipment sources
+support limited or unlimited usage; Items use their ordinary consumption
+lifecycle. Costs and physical source accounting follow the same commitment path
+as other active Abilities.
+
+Phase and Amphibious are persistent capabilities, including Equipment grants:
+they remain effective while Lying without granting permission to Move or Act.
+Amphibious permits Water traversal and occupancy while preserving other terrain,
+Edge, figure and footprint restrictions. Phase still requires a normally legal
+endpoint and does not change attack LOS. See [Vision and Machines](VISION_AND_MACHINES.md)
+for shared geometry, Machine-origin Reveal and automation.
 
 ## Validation, presentation and persistence
 

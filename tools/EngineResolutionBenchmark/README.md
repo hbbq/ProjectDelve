@@ -1,5 +1,12 @@
 # Engine resolution benchmark
 
+Vision and neutral-Machine controls are available with `--vision`: cached and
+changing 100-Unit FoW at ranges 5/8/15, Reveal 15, a companion Beacon decision and
+120×120 Civilization. They report latency and synchronous allocations. Run them
+separately from builds, tests and browser measurements. `--vision-fixtures` writes
+dedicated DELVE1 browser QA fixtures below `.playwright-cli/vision-fixtures`.
+See [the V1 report](../../VISION_NEUTRAL_V1_IMPLEMENTATION.md) for results and limits.
+
 Run from the repository root using .NET 10, Release, default tiered JIT and
 workstation GC:
 

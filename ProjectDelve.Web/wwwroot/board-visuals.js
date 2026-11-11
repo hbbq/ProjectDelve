@@ -90,7 +90,8 @@ export const boardVisuals = {
   machine: {
     default: { fill: "#566776", detail: "linear-gradient(135deg, #c8bb8d, #3b4955 45%, #182b36)", glyph: "⚙" },
     "diamond-press": { image: "./art/machines/diamond-press.webp", baseTerrain: "StoneFloor" },
-    "slot-machine": { image: "./art/machines/slot-machine.webp", baseTerrain: "StoneFloor" }
+    "slot-machine": { image: "./art/machines/slot-machine.webp", baseTerrain: "StoneFloor" },
+    "beacon": { fill: "#aaa797", detail: "radial-gradient(circle, #fff0a8 0 18%, #57645f 20% 38%, #b1ac99 40% 63%, transparent 65%)", glyph: "\u2600", baseTerrain: "StoneFloor" }
   },
   cellMarker: {
     default: { fill: "#e5c14d", glyph: "?" },

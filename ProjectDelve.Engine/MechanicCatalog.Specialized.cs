@@ -65,9 +65,12 @@ public static partial class MechanicCatalog
             "Attack an enemy with RNG {rng} and ATK {atk}.", MechanicUsageSupport.UnlimitedOnly,
             MechanicTargetSelection.Unit, "One living hostile Unit within the authored range and normal LOS.",
             (RequiredInteger("rng", 1), p => p.Rng), (RequiredInteger("atk", 1), p => p.Atk)));
-        yield return ReusablePassive(SpecializedMarker<Phase>("phase", "Phase", MechanicTiming.Passive,
-            "Move through all terrain and Edges, including Walls and Closed Doors, without opening them.\nEnd on an unoccupied, normally passable Cell.",
-            equipment: true), "Requires the bearer's established Phase movement and vision context. Multiple declarations grant the same capability once; no Item Passive or finite-use lifecycle is defined.");
+        yield return PersistentCapability(SpecializedMarker<Amphibious>("amphibious", "Amphibious", MechanicTiming.Passive,
+            "Traverse and occupy Water, including while Lying.", equipment: true),
+            "Persistent Water occupancy permission, independent of Posture; does not bypass Edges or other obstacles.");
+        yield return PersistentCapability(SpecializedMarker<Phase>("phase", "Phase", MechanicTiming.Passive,
+            "Move through all terrain and Edges, including Walls and Closed Doors, without opening them.\nEnd on an unoccupied Cell this Unit can normally occupy. This capability persists while Lying; it does not grant a Move or Action.",
+            equipment: true), "Requires the bearer's established Phase movement and vision context, independent of Posture. Multiple declarations grant the same capability once; no Item Passive or finite-use lifecycle is defined.");
         yield return ReusablePassive(SpecializedMarker<TransportResource>("transportResource", "Transport Resource", MechanicTiming.Passive,
             "During this Unit's own Move, the Resource on its starting Cell accompanies it to its final destination if that Cell has no Resource. Stay and external repositioning do not transport Resources."),
             "Requires an Upright one-Cell bearer and its own Move. Multiple declarations grant the same transport capability once; no Item Passive or finite-use lifecycle is defined.");
@@ -78,9 +81,9 @@ public static partial class MechanicCatalog
             MechanicTargetSelection.UnitOrMachine,
             recipients: "An adjacent friendly Unit or adjacent Machine that is public or owned by this Unit's Side. Its storage must accept the Resource on this Unit's Cell and have room."));
         yield return ReusableActive(SpecializedMarker<Operate>("operate", "Operate", MechanicTiming.Action,
-            "Operate an adjacent Machine with sufficient stored Resources and no impassable Edge separating it from this Unit. Spend its inputs and place its output on this Unit's Cell together, provided that Cell contains no Resource.",
+            "Operate an adjacent public Machine or one owned by this Unit's Side, with no impassable Edge between them. Meet its input requirements and use limits, then resolve its declared effect. Resource output requires this Unit's Cell to contain no Resource; Reveal requires new discovery.",
             MechanicTargetSelection.Machine,
-            recipients: "An adjacent Machine that is public or owned by this Unit's Side, with sufficient stored inputs and no impassable Edge separating it from this Unit. This Unit's Cell must contain no Resource."));
+            recipients: "An adjacent Machine that is public or owned by this Unit's Side, satisfying its inputs, use limits and effect conditions, with no impassable Edge between them. Only Resource output requires an empty Resource destination; Reveal requires new discovery."));
         yield return ReusableActive(SpecializedMarker<OpenDoor>("openDoor", "Bordering Door Open", MechanicTiming.FreeAction,
             "Open a bordering Closed Door.", MechanicTargetSelection.Edge), MechanicTiming.Action, MechanicTiming.FreeAction);
 
@@ -135,6 +138,13 @@ public static partial class MechanicCatalog
             }).ToImmutableArray(),
             MaxPerSource = null
         } };
+    }
+
+    private static MechanicRegistration PersistentCapability(MechanicRegistration registration, string requirements)
+    {
+        var reusable = ReusablePassive(registration, requirements);
+        return reusable with { Descriptor = reusable.Descriptor with
+        { Dependencies = ["bearingUnit", "persistentCapability"] } };
     }
 
     private static MechanicRegistration ReusablePassive(MechanicRegistration registration, string? requirements = null) => registration with

@@ -62,10 +62,12 @@ public sealed class BoardPatch
     public IReadOnlyList<CellReservation> Reservations { get; }
     public IReadOnlyList<RouteMembership> RouteMemberships { get; }
     public ContentBundle LocalContent { get; }
+    public IReadOnlyList<Machine> Machines { get; }
     internal BoardPatch(object target, long revision, string owner, PlanningState before, PlanningState after,
         IEnumerable<int> terrain, IEnumerable<EdgeKey> edges, IEnumerable<int> reservations, ContentBundle local)
     {
         Target = target; ExpectedRevision = revision; OwnerId = owner; Result = after; LocalContent = local;
+        Machines = Array.AsReadOnly(after.Machines.Where(m => !before.Machines.Any(old => old.Id == m.Id)).ToArray());
         TerrainChanges = Array.AsReadOnly(terrain.Distinct().Order().Where(i => before.TerrainAt(i) != after.TerrainAt(i))
             .Select(i => new TerrainChange(i, before.TerrainAt(i), after.TerrainAt(i))).ToArray());
         EdgeChanges = Array.AsReadOnly(edges.Distinct().OrderBy(k => k.Index).ThenBy(k => k.Direction)
@@ -104,12 +106,12 @@ public sealed class PlanningBoard : IPlanningBoardView
         foreach (var cell in Original.Board.Cells) terrain[cell.Position.Y * Width + cell.Position.X] =
             TerrainCompatibility.ResolveTypeId(cell.Terrain, cell.TerrainTypeId, cell.CoalGeneration);
         State = new(terrain, [], Original.Board.Edges.ToDictionary(e => new EdgeKey(e.Position.Y * Width + e.Position.X, e.Direction), e => e.Kind),
-            [], [], local, effective);
+            [], [], local, effective, [.. Original.Machines ?? []]);
         foreach (var index in protectedCells ?? new HashSet<int>()) { CheckIndex(index); State.Reservations[index] = "\0protected"; }
     }
     public string TerrainAt(int index) { CheckIndex(index); return State.TerrainAt(index); }
     public EdgeKind EdgeAt(EdgeKey key) { CheckEdge(key); return State.EdgeAt(key); }
-    public bool Passable(int index) => TerrainCatalog.Find(Content.Terrain, TerrainAt(index)).Passable;
+    public bool Passable(int index) => !State.Machines.Any(m => m.Position.Y * Width + m.Position.X == index) && TerrainCatalog.Find(Content.Terrain, TerrainAt(index)).Passable;
     public bool IsReserved(int index, string? ownerId = null)
     {
         CheckIndex(index); return State.Reservations.TryGetValue(index, out var owner) && owner != ownerId;
@@ -152,7 +154,8 @@ public sealed class PlanningBoard : IPlanningBoardView
                     .Select(p => new EdgeDefinition(new(p.Key.Index % Width, p.Key.Index / Width), p.Key.Direction, p.Value)).ToList() },
             UnitTypes = local.Units.ToList(), EquipmentTypes = local.Equipment.ToList(), ItemTypes = local.Items.ToList(),
             LootCardDefinitions = local.LootCards.ToList(), WorldCardDefinitions = local.WorldCards.ToList(),
-            TerrainTypes = local.Terrain.ToList(), TerrainAssemblies = local.Assemblies.ToList(), FixedComponentTypes = local.FixedComponents.ToList()
+            TerrainTypes = local.Terrain.ToList(), TerrainAssemblies = local.Assemblies.ToList(), FixedComponentTypes = local.FixedComponents.ToList(),
+            Machines = state.Machines.Count == 0 ? Original.Machines : state.Machines.ToList()
         });
     }
     internal static ScenarioDefinition Clone(ScenarioDefinition scenario) => JsonSerializer.Deserialize<ScenarioDefinition>(JsonSerializer.Serialize(scenario))!;
@@ -167,14 +170,14 @@ public sealed class PlanningBoard : IPlanningBoardView
 
 internal sealed record PlanningState(string[] Terrain, Dictionary<int, string> TerrainWrites,
     Dictionary<EdgeKey, EdgeKind> Edges, Dictionary<int, string> Reservations,
-    Dictionary<int, HashSet<string>> RouteCorridors, ContentBundle Local, ContentBundle Content)
+    Dictionary<int, HashSet<string>> RouteCorridors, ContentBundle Local, ContentBundle Content, List<Machine> Machines)
 {
     internal string TerrainAt(int i) => TerrainWrites.GetValueOrDefault(i, Terrain[i]);
     internal EdgeKind EdgeAt(EdgeKey key) => Edges.GetValueOrDefault(key, EdgeKind.None);
     internal IReadOnlyList<string> Memberships(int index) => RouteCorridors.TryGetValue(index, out var routes)
         ? Array.AsReadOnly(routes.Order(StringComparer.Ordinal).ToArray()) : Array.Empty<string>();
     internal PlanningState Copy() => this with { TerrainWrites = new(TerrainWrites), Edges = new(Edges), Reservations = new(Reservations),
-        RouteCorridors = RouteCorridors.ToDictionary(p => p.Key, p => new HashSet<string>(p.Value, StringComparer.Ordinal)) };
+        RouteCorridors = RouteCorridors.ToDictionary(p => p.Key, p => new HashSet<string>(p.Value, StringComparer.Ordinal)), Machines = [.. Machines] };
 }
 
 public sealed class BoardDraft : IPlanningBoardView
@@ -218,7 +221,7 @@ public sealed class BoardDraft : IPlanningBoardView
     }
     public string TerrainAt(int index) { board.CheckIndex(index); return state.TerrainAt(index); }
     public EdgeKind EdgeAt(EdgeKey key) { board.CheckEdge(key); return state.EdgeAt(key); }
-    public bool Passable(int index) => TerrainCatalog.Find(Content.Terrain, TerrainAt(index)).Passable;
+    public bool Passable(int index) => !state.Machines.Any(m => m.Position.Y * Width + m.Position.X == index) && TerrainCatalog.Find(Content.Terrain, TerrainAt(index)).Passable;
     public bool IsReserved(int index, string? ownerId = null)
     {
         board.CheckIndex(index); return state.Reservations.TryGetValue(index, out var owner) && owner != ownerId;
@@ -257,6 +260,7 @@ public sealed class BoardDraft : IPlanningBoardView
         try
         {
             InArea(index);
+            if (state.Machines.Any(m => m.Position.Y * Width + m.Position.X == index)) return false;
             return !state.Reservations.TryGetValue(index, out var owner) || owner == OwnerId ||
                 routeGrants.Any(g => g.ExactOwnerId == owner && g.TraverseCells.Contains(index));
         }
@@ -279,6 +283,7 @@ public sealed class BoardDraft : IPlanningBoardView
     private void Writable(int index)
     {
         InArea(index);
+        if (state.Machines.Any(m => m.Position.Y * Width + m.Position.X == index)) throw new ArgumentException("Cell contains a Machine.");
         if (IsRouteCorridor(index)) throw new ArgumentException("Cell belongs to a protected route corridor.");
         if (state.Reservations.TryGetValue(index, out var owner) && owner != OwnerId &&
             !(routePlanning && routeGrants.Any(g => g.ExactOwnerId == owner && g.WritableCells.Contains(index))))
@@ -349,6 +354,17 @@ public sealed class BoardDraft : IPlanningBoardView
         var merged = PlanningContent.Append(state.Local, local, state.Content);
         var effective = ScenarioContentReferences.Compose(board.Provider, board.Original.ContentReferences, merged).Definitions;
         state = state with { Local = merged, Content = effective }; Revision++;
+    }
+    public void PlaceMachine(Machine machine)
+    {
+        ArgumentNullException.ThrowIfNull(machine);
+        var position = machine.Position;
+        if ((uint)position.X >= Width || (uint)position.Y >= Height) throw new ArgumentException("Machine must be within the board.");
+        var index = position.Y * Width + position.X;
+        Writable(index);
+        if (!Passable(index) || state.Machines.Any(m => m.Id == machine.Id)) throw new ArgumentException("Machine requires a free passable cell and unique ID.");
+        if (machine.Type.RequiredTerrainTypeId is { } required && TerrainAt(index) != required) throw new ArgumentException("Machine requires its specified terrain.");
+        state.Machines.Add(machine); Revision++;
     }
     public BoardPatch BuildPatch() => new(parent is null ? board : parent, expectedRevision, OwnerId, baseline, state.Copy(),
         terrainTouched, edgeTouched, reservationsTouched, state.Local);

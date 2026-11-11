@@ -49,6 +49,10 @@ internal static class SpatialRules
         PlacementLookup? lookup = null) =>
         CanPlaceUnit(state, type.Footprint, anchor, excludedId, MovementTraversal.OccupancyFor(type), lookup);
 
+    internal static bool CanPlaceUnit(GameState state, string unitId, Cell anchor, PlacementLookup? lookup = null) =>
+        CanPlaceUnit(state, FootprintGeometry.FootprintOf(state, unitId), anchor, unitId,
+            MovementTraversal.OccupancyFor(state, unitId), lookup);
+
     internal static bool CanPlaceUnit(GameState state, Footprint footprint, Cell anchor, string? excludedId = null,
         MovementTraversal placement = default, PlacementLookup? lookup = null) =>
         Fits(state.Physical.Board, footprint, anchor, placement) &&

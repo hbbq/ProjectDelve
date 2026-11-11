@@ -74,8 +74,11 @@ public sealed class CivilizationGenerationTests
     {
         var world = WorldGenerator.Generate(Recipe(7, 120) with { Enrichment = null });
         Assert.Empty(world.Context.Sites); Assert.Equal(DensityScaling.Campsites(world.Window, ContentDensity.Low) + DensityScaling.Settlements(world.Window, ContentDensity.Medium), world.Context.PlanningFailures.Count);
-        Assert.Single(world.Context.Construction); Assert.Empty(world.Definition.Board.Edges);
-        Assert.Equal(world.Preview.Frames[0].Terrain, world.Preview.Frames[^1].Terrain);
+        Assert.Single(world.Context.Construction.Where(o => o.Name == "Civilization")); Assert.Empty(world.Definition.Board.Edges);
+        Assert.All(world.Context.Construction, o => Assert.Contains(o.Name, new[] { "Civilization", "Beacon" }));
+        var machineCells = (world.Definition.Machines ?? []).Select(m => m.Position.Y * world.Window.Width + m.Position.X).ToHashSet();
+        var before = world.Preview.Frames[0].Terrain; var after = world.Preview.Frames[^1].Terrain;
+        Assert.All(Enumerable.Range(0, before.Length).Where(i => !machineCells.Contains(i)), i => Assert.Equal(before[i], after[i]));
     }
 
     [Fact]

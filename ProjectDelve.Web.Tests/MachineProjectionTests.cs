@@ -76,6 +76,24 @@ public sealed class MachineProjectionTests
     }
 
     [Fact]
+    public void BeaconProjectsRevealAndRemainingUsesAtEventTimeWithoutHiddenMachines()
+    {
+        var fixture = Fixture() with {
+            Board = new() { Width = 40, Height = 5 }, FogOfWarSides = ["blue"],
+            Machines = [new("beacon", new(2, 1), MachineTypes.Beacon), new("hidden", new(38, 1), MachineTypes.Beacon)] };
+        var ready = Ready(fixture);
+        var before = BrowserProjection.Create(ready);
+        Assert.Equal(1, Assert.Single(before.Machines).RemainingUsesForViewingSide);
+        var result = GameEngine.Advance(ready.State, new Choice("ability:operate:beacon"), new Dice(), false);
+        var after = BrowserProjection.Create(result);
+        Assert.Equal(0, Assert.Single(after.Machines).RemainingUsesForViewingSide);
+        Assert.Contains(after.Events, e => e.Text.Contains("revealed Cells for Side blue") && !e.Text.Contains("output"));
+        var index = result.Events.ToList().FindIndex(e => e.Kind == "MachineOperated");
+        Assert.Equal(0, Assert.Single(after.ResolutionSteps.Single(s => s.EventIndex == index).Machines).RemainingUsesForViewingSide);
+        Assert.Equal(1, Assert.Single(before.Machines).RemainingUsesForViewingSide);
+    }
+
+    [Fact]
     public void OwnershipIsProjectedInStateObservationAndEveryResolutionSnapshot()
     {
         var ready = Ready(Fixture() with { Machines = [Fixture().Machines![0] with { OwnerSide = "blue" }] });

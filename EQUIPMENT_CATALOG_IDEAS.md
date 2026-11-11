@@ -10,8 +10,8 @@ Ideation backlog, not approved rules or implemented content. Proposed names, eff
 | Bracers of Strength | Equipment | Passive ATK +1 | Yes
 | Iron Shield | Equipment | Passive DEF +1 | Yes
 | Eagle Eye | Equipment | Passive RNG +2 | Yes
-| Binoculars | Equipment | Passive: SightDistance +X | No, modifierable SightDistance support planned
-| Swim Tube | Equipment | Passive: Amphibious | No, equipment-granted Amphibious support planned
+| Binoculars | Equipment | Passive: SightDistance +3 | Yes
+| Swim Tube | Equipment | Passive: Amphibious | Yes
 | Banner of Fury | Equipment | Passive: adjacent friendly Units ATK +1 | Yes
 | Guardian Standard | Equipment | Passive: adjacent friendly Units DEF +1 | Yes
 | Berserker Ring | Equipment | Bonus Action: ATK +2 for current activation; 2 uses | Yes

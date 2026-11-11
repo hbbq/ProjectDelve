@@ -259,7 +259,7 @@ public static class ContentBrowserCatalog
         var machineTypes = MachineTypes.All.Concat(source?.Machines?.Select(m => m.Type) ?? []).DistinctBy(type => Element(type).GetRawText()).ToList();
         var resourceTypes = canonical.Resources.Concat(units.SelectMany(type => type.ResourceStorage?.Capacities.Select(c => c.Type) ?? []))
             .Concat(units.SelectMany(type => type.LocalAbilities.Select(a => a.Mechanic).OfType<WaypointSlotMachine>().SelectMany(slot => slot.OutputTable.Faces)))
-            .Concat(machineTypes.SelectMany(type => type.Storage.Capacities.Select(c => c.Type)
+            .Concat(machineTypes.SelectMany(type => (type.Storage?.Capacities ?? []).Select(c => c.Type)
                 .Concat(type.Operation.Costs.Select(c => c.Type)).Concat(type.Operation.OutputTable?.Faces ?? [])
                 .Concat(type.Operation.OutputType is { } output ? [output] : [])))
             .Concat(source?.Resources?.Select(resource => resource.Type) ?? [])
@@ -275,7 +275,7 @@ public static class ContentBrowserCatalog
             if (type.Operation.OutputType is { } output) refs = refs.Append(ResourceReference("Output", output));
             entries.Add(Entry("machines", type.Id, type.Name, type, MachineTypes.All.Contains(type) ? "canonical" :
                 MachineTypes.All.Any(row => row.Id == type.Id) ? "scenario-override" : "scenario-local",
-                type.Operation.OutputDescription, references: refs));
+                type.Operation.Description, references: refs));
         }
         foreach (var type in CellMarkerTypes.All)
             entries.Add(Entry("cellMarkers", type.Id, type.Name, type, "canonical", CellMarkerTypes.Describe(type)));

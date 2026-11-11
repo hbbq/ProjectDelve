@@ -1,4 +1,4 @@
-# Project Delve — Constraints
+﻿# Project Delve — Constraints
 
 This document captures the foundational constraints for Project Delve. It is intentionally focused on the physical game and its representation, not on gameplay rules that have not yet been decided.
 
@@ -66,7 +66,7 @@ An Upright Unit functions normally.
 
 A Lying Unit remains in play, remains a Unit of its Side and Unit Type, occupies its Cell normally, and may be targeted and attacked normally. Its Stats and current HP continue to exist and are used normally, including effective values produced by rules originating elsewhere.
 
-While Lying, the Unit cannot Move, Attack, or use Actions, Bonus Actions, or Free Actions, and its Behavior supplies no choices. Continuous effects provided by that Unit, such as a Passive stat modifier, are inactive while it is Lying. Triggered consequences and replacement effects are not suppressed merely because their source Unit is Lying; if Posture matters to such a rule, the rule states the required Posture explicitly. Rules originating from other Units or from the scenario may still affect the Lying Unit normally. Merely being Lying does not cause the figure to stop counting as a Unit for occupancy, friendliness/hostility, adjacency, targeting, or conditions on another Unit's rules.
+While Lying, the Unit cannot Move, Attack, or use Actions, Bonus Actions, or Free Actions, and its Behavior supplies no choices. Continuous effects provided by that Unit, such as a Passive stat modifier, are inactive while it is Lying, except persistent Phase and Amphibious capabilities (including Equipment grants). Triggered consequences and replacement effects are not suppressed merely because their source Unit is Lying; if Posture matters to such a rule, the rule states the required Posture explicitly. Rules originating from other Units or from the scenario may still affect the Lying Unit normally. Merely being Lying does not cause the figure to stop counting as a Unit for occupancy, friendliness/hostility, adjacency, targeting, or conditions on another Unit's rules.
 
 When a Lying Unit would activate, stand its figure Upright and immediately complete that Unit's activation. It receives no Move, Action, Bonus Action, Free Action, or other ordinary activation opportunity from that activation. If one Unit Type activation contains several Units of that type, each Lying Unit is still activated in the normal sequence; its individual activation consists only of standing up.
 
@@ -812,21 +812,21 @@ The current v0 content roster is deliberately small. The reference implementatio
 
 - Unique: yes.
 - Stats: `MOV 3`, `RNG 1` (Melee), `ATK 4`, `DEF 3`, `HP 5`.
-- Actions: Normal Attack.
+- Actions: Normal Attack; Operate.
 - Free Actions: Open Door.
 
 #### Rogue
 
 - Unique: yes.
 - Stats: `MOV 4`, `RNG 1` (Melee), `ATK 3`, `DEF 2`, `HP 4`.
-- Actions: Normal Attack.
+- Actions: Normal Attack; Operate.
 - Free Actions: Open Door.
 
 #### Wizard
 
 - Unique: yes.
 - Stats: `MOV 3`, `RNG 4`, `ATK 3`, `DEF 2`, `HP 4`.
-- Actions: Normal Attack; Fireball; Telekinesis.
+- Actions: Normal Attack; Fireball; Telekinesis; Operate.
 - Bonus Actions: Focus.
 - Free Actions: Open Door.
 
@@ -834,7 +834,7 @@ The current v0 content roster is deliberately small. The reference implementatio
 
 - Unique: yes.
 - Stats: `MOV 3`, `RNG 1` (Melee), `ATK 3`, `DEF 3`, `HP 4`.
-- Actions: Normal Attack; Heal; Holy Wave.
+- Actions: Normal Attack; Heal; Holy Wave; Operate.
 - Passive abilities: Aura (adjacent friendly Units get `DEF +1`).
 - Free Actions: Open Door.
 
@@ -842,7 +842,7 @@ The current v0 content roster is deliberately small. The reference implementatio
 
 - Unique: yes. DefaultController: Human.
 - Stats: `MOV 3`, `RNG 1`, `ATK 2`, `DEF 3`, `HP 5`.
-- Normal Attack; Open Door; ordinary Hero Loot, Item and Equipment permissions.
+- Normal Attack; Operate; Open Door; ordinary Hero Loot, Item and Equipment permissions.
 - Five distinct unlimited-use Actions: Summon Jackalope (Upright), Summon Giant Toad (Upright), Summon Dire Bear (Lying), Summon Raptor (Lying), Summon Light Elemental (Upright).
 - Each uses ordinary adjacent summon placement and a same-Type summoner limit of one. Count living, placed Units of the target Type originally created by this specific Beastmaster across all current Sides, Groups and Controllers. Initially placed or other creators' Units do not count. Defeat or removal permits replacement. Beastmaster remains Unique. No extra Group, cost, cooldown or counter is introduced. No special automated priority between these Actions is established.
 
@@ -860,8 +860,8 @@ These are ordinary canonical Unit Types and may also be initially placed by a sc
 
 | Type | MOV / RNG / ATK / DEF / HP | Abilities and Normal movement preferences |
 | --- | --- | --- |
-| Jackalope | 5 / 0 / 0 / 2 / 1 | CantAttack; ExploreFoW, then Follow Summoner, then Follow Nearest Friendly, then Stay |
-| Giant Toad | 3 / 0 / 0 / 2 / 1 | CantAttack; Amphibious; ExploreFoW, then Follow Summoner, then Follow Nearest Friendly, then Stay |
+| Jackalope | 5 / 0 / 0 / 2 / 1 | CantAttack; Operate; opportunistic Beacon operation, then ExploreFoW, then Follow Summoner, then Follow Nearest Friendly, then Stay |
+| Giant Toad | 3 / 0 / 0 / 2 / 1 | CantAttack; Amphibious; Operate; opportunistic Beacon operation, then ExploreFoW, then Follow Summoner, then Follow Nearest Friendly, then Stay |
 | Dire Bear | 2 / 1 / 3 / 3 / 1 | Normal Attack pursuit; then Follow Summoner, Follow Nearest Friendly, Stay only without a reachable attack approach |
 | Raptor | 4 / 1 / 2 / 2 / 1 | Normal Attack pursuit; then Follow Summoner, Follow Nearest Friendly, Stay; Move After Attack (1) with existing Back Away After Attack behavior |
 | Light Elemental | 3 / 0 / 0 / 2 / 1 | CantAttack; ordinary Aura (adjacent friendlies DEF +1); Follow Summoner, then Follow Nearest Friendly, then Stay; Optimize Follow Adjacency |
@@ -1665,21 +1665,31 @@ Chief Mechanic combines the reusable **Worker** Behavior with a reusable **Prefe
 
 A **Machine** is an individually identifiable fixed terrain object occupying one Board Cell. Its Cell blocks Unit movement/placement and Line of Sight, like other obstructing terrain objects. A Machine does not act, activate, or have a Unit Type, Activation Token, or Unit HP/DEF under these initial rules. It may optionally have a permanent Owner Side, as specified below. Machine destruction is deferred.
 
-Unlike shared Unit Type storage, **each Machine instance has its own Resource Storage**, with accepted Resource Type(s), capacity per type, and current quantities. Place stored Resource markers on or beside the individual Machine's physical component so its state is identifiable. The Game State and scenario definitions preserve each Machine's individual location, type/operation, and storage.
+Unlike shared Unit Type storage, **each Machine instance has its own optional Resource Storage**, with accepted Resource Type(s), capacity per type, and current quantities. Place stored Resource markers on or beside the individual Machine's physical component so its state is identifiable. The Game State and scenario definitions preserve each Machine's individual location, type/operation, and storage. A Reveal-only Machine needs no storage.
 
 **Machine ownership** is optional per individual Machine instance: either no Owner Side (public, usable by all Sides) or a permanent Owner Side identifying a Side in the scenario. Ownership is set by scenario content, is authoritative and physically identifiable, and cannot change during play under these rules. A Machine's ownership restricts Give Resource and Operate to acting Units belonging to its Owner Side; a public Machine accepts those Actions from any Side. No hostility or friendly-alliance exception grants other Sides access to an owned Machine. Resources on Cells, including a Machine's output on an operator's Cell, remain unowned. Ownership does not change Machine storage, terrain, LOS, or resource transport rules.
 
 **Give Resource** may target an adjacent Machine in place of a friendly Unit if the Machine accepts the Resource on the acting Unit's Cell, has available capacity, and its ownership allows the acting Unit's Side. Giving removes the Cell Resource and adds one to the specific Machine's store atomically, consuming the acting Unit's normal Action opportunity.
 
-A Machine defines one **Operation** with specific Resource costs and an output Resource Type and quantity. For the initial concrete operation, **Diamond Press** has `ResourceStorage(Coal, 3)` and `Spend 3 Coal → Output 1 Diamond`. The Operation consumes the stated inputs from that specific Machine's storage, not from another Machine or a Unit's shared storage.
+A Machine defines one **Operation** with Resource costs and either a Resource output or a typed Reveal effect. For **Diamond Press**, `ResourceStorage(Coal, 3)` and `Spend 3 Coal → Output 1 Diamond` remain unchanged. The Operation consumes stated inputs from that specific Machine's storage, not from another Machine or a Unit's shared storage. Reveal operations may have no Resource costs or production.
+
+An Operation may specify nonnegative `MaxUsesTotal`, `MaxUsesPerSide`, both or neither. Omitted limits mean unlimited; both limits must pass when present. Count successful operations separately on each Machine instance and separately for each operating Side. Recheck eligibility at resolution and commit effects, Resource spending and use counters atomically. Failed operations spend no Machine use. Exhausted operations are unavailable. Per-Side markers and ordinary counters beside the Machine represent these uses physically. Machine uses are separate from the operator's Ability or Equipment charges and persist through GameState copying, serialization and continuation.
 
 **Operate** is an optional Unit Type Action. An acting Unit adjacent to a Machine may choose it as the Operate target if:
 - a normal wall, closed door, or other impassable Edge does not separate the Unit's Cell from the Machine Cell; ordinary adjacency by itself does not override a blocking Edge;
 - the Machine is public or its Owner Side matches the acting Unit's Side;
 - that Machine has all Resources required by its Operation;
-- the acting Unit's Cell contains no Resource, so the output has room.
+- its use limits permit the operation;
+- for Resource output only, the acting Unit's Cell contains no Resource, so the output has room;
+- for Reveal only, it would discover at least one new Cell for the operator's Side.
 
-When Operate resolves, its Resource costs are removed from that Machine and the output Resource is placed on the operator's Cell as one atomic operation. The initial Operation produces exactly one Resource. Machines with outputs of other quantities or additional output-placement rules are deferred.
+When a Resource-output Operate resolves, its Resource costs are removed from that Machine and the output Resource is placed on the operator's Cell as one atomic operation. Resource output produces exactly one Resource. Machines with outputs of other quantities or additional output-placement rules are deferred. A Reveal operation instead reveals from the Machine Cell for the operator's Side, using ordinary FoW vision, excluding only that source Machine from blockers. The operator's Phase does not affect this vision. Other Machines, terrain and Edges retain their normal vision blocking.
+
+**Beacon** is a public, stationary one-Cell Machine on Stone Floor. It blocks movement, ordinary LOS and ordinary FoW vision. Operate performs **Reveal Distance 15**, with no Resource cost, storage or production, no total-use limit and at most one successful use per Side per Beacon. It is unavailable when it cannot discover anything, including when that Side has FoW disabled. Its animated lantern and light beams are cosmetic and never reveal Cells automatically. Healing and Recharge Machines are not introduced.
+
+Barbarian, Rogue, Cleric, Wizard, Beastmaster, Jackalope and Giant Toad each explicitly have unlimited Operate. Hero is an informal content category and grants no gameplay privilege.
+
+Under Normal Standing Order, Jackalope and Giant Toad opportunistically Operate known, useful Beacons before their existing ExploreFoW, Follow Summoner and Follow Friendly preferences. Consider only an immediately legal operation or a legal Move reaching an operating position with an Action still available in this activation. Do not pursue a Beacon over multiple turns. Choose deterministically by movement cost, destination y/x, Machine identity and candidate key. Use conservative known geometry; reject known arrival hazards or unresolved Loot consequences when planning this opportunity. Regenerate normal choices after Move and recheck discovery and remaining uses. Explicit Standing Orders take precedence. No persistent target or new action budget is introduced.
 
 Machines must be allowed next to Walls and other Edge features, including an Edge immediately between the Machine Cell and an adjacent Cell. An impassable Edge prevents a Unit on that side from Operating the Machine, even when geometrically adjacent. No new general LOS rule for Machine interaction is implied.
 
@@ -1697,7 +1707,7 @@ The general large-footprint restriction under Footprint applies to all such exte
 
 ### Movement and distance queries
 
-**Amphibious** is an intrinsic, Unit Type-authored capability allowing traversal and occupancy of ordinary legal terrain plus Water. It is independent of Posture. It does not grant Phase, change Water globally, ignore other blocking Terrain or Machines, or bypass Edges, footprints, figures, terrain restrictions or FoW. Use the same receiving-Type occupancy permission for initial placement, summoning, legal Move endpoints, hypothetical positions, previews and external relocation/Swap. Other Unit Types retain ordinary Water restrictions.
+**Amphibious** allows traversal and occupancy of ordinary legal terrain plus Water. It may be authored on a Unit Type, granted by a native Ability or granted by Equipment. **Phase and Amphibious remain effective while Lying, including Equipment grants.** They do not authorize a Lying Unit to perform otherwise prohibited Moves or Actions. Ordinary Equipment stat modifiers and active Abilities retain their existing Posture requirements. Amphibious does not grant Phase, change Water globally, ignore other blocking Terrain or Machines, or bypass Edges, footprints, figures, terrain restrictions or FoW. Use the receiving Unit's effective occupancy permission for initial placement (including initial inventory), summoning, legal Move endpoints, hypothetical positions, previews, restore validation and external relocation/Swap. Phase still requires normally legal endpoints. Equipment removal/theft and consequences of losing a capability on restricted terrain remain out of scope; no remembered occupancy exception, drowning or forced relocation is introduced.
 
 Different rules questions use different notions of pathing and distance. They must not be treated as one interchangeable pathfinding operation merely because they can share low-level grid traversal algorithms.
 
@@ -2025,6 +2035,8 @@ These cards exercise the system and do not establish a final balanced catalog. T
 | Second Wind | Single Use Item; Bonus Action | Gain +1 Action this activation. |
 | One-Size-Fits-Most Bedsheet | Equipment | Grants Phase. |
 | Lucky Boots | Equipment | MOV +1. |
+| Binoculars | Equipment | Passive SightDistance +3 while Upright. |
+| Swim Tube | Equipment | Grants Amphibious, including while Lying. |
 | Official-Looking Key | Equipment | Grants Open Door. |
 | Emergency Goat Bell | Equipment | Grants an unlimited-use Action: stand up one adjacent friendly Lying Unit. |
 
@@ -2086,6 +2098,8 @@ Preview is explicitly omniscient authoring; direct play from a prefix or complet
 
 ## World Civilization V2 — Villages and Settlements
 
+Civilization also places a low map-size-scaled number of neutral Beacons through a dedicated deterministic seed stream and bounded attempts. Beacons are Machines, not Sites or Buildings. Legal Stone Floor placement must preserve protected routes, entrances, ordinary and large-footprint connectivity, and a reachable legal operating position. Subsequent routes and Population respect their blocking footprint. Diagnostics report placed and omitted counts. No Beacon density control or geographical suitability rule is added.
+
 World settlements are ordinary scenario geometry, composed by the existing Site, Building and Room generators before Population. Supported layout families are Market Village (a usable central square with facing buildings), Roadside Hamlet (frontage along actual route geometry, including bends and forks), Farmstead (a primary house, smaller utility structures and shared yard), and Inn or Service Compound (a larger communal building with connected rooms, smaller service structures and courtyard). Family, proportions, orientation, setbacks, lots and approaches vary through deterministic derived seed streams. These are generation policies, not new gameplay mechanics.
 
 Plan public access and lots before placing buildings. Entrances must join real usable Cells; every required room and public space must share ordinary potential access, including opening Doors. Preserve protected world routes and crossings, terrain preparation limits and complete Unit footprint legality. Existing roads may be reused without changing their terrain, Edges or reservations. Single-Cell Doors do not certify access for larger footprints. Population validates its final occupants against authoritative geometry and keeps required authoring access clear; temporary occupation is distinct from permanent terrain disconnection.
@@ -2116,7 +2130,9 @@ WLD1 records its selected Loot preset, including Empty. Setup repeats that prese
 
 Fog of War is an optional scenario setting per Side (`fogOfWarSides`). It is **Digital only*** under the existing digital-only exception: permanent exploration is persistent digital game state without a required physical representation. Ordinary physical content and scenarios without Fog of War retain their existing rules. V1 has only permanent exploration; no additional modes are established.
 
-Each in-play Unit of an enabled Side, including Lying Units, contributes vision from every occupied Cell of its footprint. Sight range is a constant 5 Cells for all Units, measured by Manhattan distance, independent of RNG and temporary attack modifiers. There is no separate Sight stat or per-Unit vision override. Vision uses the existing Cell-center geometry and corner passages with vision-blocking properties; Units do not block vision. The blocking destination Cell can itself be discovered.
+Each in-play Unit of an enabled Side, including Lying Units, contributes vision from every occupied Cell of its footprint. **SightDistance** is an effective numeric stat with base 5 unless overridden by its Unit Type. Existing self, adjacent-Unit, Equipment and activation modifiers may change it; clamp the result to at least zero. It is independent of RNG and need not appear on Unit Cards. Distance is Manhattan distance. Vision uses the existing Cell-center geometry and corner passages with vision-blocking properties; Units do not block vision. The blocking destination Cell can itself be discovered.
+
+**Reveal Distance X** is a reusable active Ability with explicit nonnegative distance X. It uses ordinary Action/Ability costs and source-aware usage accounting, including Equipment grants. Reveal from every occupied Cell of the acting Unit's footprint using its effective Phase vision and the same FoW geometry, and permanently discover the resulting Cells for its Side. It does not change SightDistance. A standalone Reveal remains legal when it discovers no new Cells. Machine-origin Reveal uses the same geometry with the Machine-origin and blocker-exclusion rules above.
 
 **BlocksLoS** describes attack Line of Sight obstruction; **BlocksVision** describes ordinary Fog of War vision and exploration obstruction. Floor blocks neither. Tree and Fruit Tree block attack LOS but do not block vision: ordinary vision reveals their Cells and continues beyond them within sight range. Solid Rock, other existing solid LOS-blocking objects (including Machines), Walls and Closed Doors block both. Open Doors block neither. These properties belong to terrain Types or shared obstacle rules, not individual Cell settings. At corners, use the corresponding blocking property with the established straight-ray passage rule. Seeing a Unit through Trees does not make an otherwise illegal Attack legal.
 
@@ -2136,7 +2152,7 @@ At the start of a direct Attack, reveal its established qualifying trajectory, i
 
 Exploration belongs to authoritative Game State, survives serialization/continuation and is deeply copied for hypothetical queries. Restart creates fresh initial exploration. Scenario exports contain configuration, never runtime exploration history. Existing JSON and DELVE1 scenarios remain compatible.
 
-This is a gameplay presentation feature aimed at enjoyable exploration and avoiding obvious spoilers. Anti-cheat measures, timing side channels, traffic analysis, developer-tools inspection, deliberate inference from request timing/sizes, cryptographic secrecy and adversarial information-flow analysis are outside V1. Initial explored-area painting, additional modes and a separate Sight stat are not part of V1.
+This is a gameplay presentation feature aimed at enjoyable exploration and avoiding obvious spoilers. Anti-cheat measures, timing side channels, traffic analysis, developer-tools inspection, deliberate inference from request timing/sizes, cryptographic secrecy and adversarial information-flow analysis are outside V1. Initial explored-area painting, additional FoW modes and a separate See Through Objects capability remain deferred.
 
 ## Explicitly deferred
 

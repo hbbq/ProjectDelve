@@ -606,7 +606,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       node.classList.add("machine-cell");
       node.append(element("span", machine.type.name));
       node.append(element("small", machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`));
-      for (const capacity of machine.type.storage.capacities) {
+      for (const capacity of machine.type.storage?.capacities ?? []) {
         const quantity = machine.storedResources?.find(row => row.type.id === capacity.type.id)?.quantity ?? 0;
         node.append(element("small", `${capacity.type.name}: ${quantity}/${capacity.capacity}`));
       }
@@ -782,7 +782,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       const owner = field(form, "Owner Side", machine.ownerSide, { entries: ownerEntries });
       const x = field(form, "Position X", machine.position.x, { type: "number" });
       const y = field(form, "Position Y", machine.position.y, { type: "number" });
-      const quantities = machine.type.storage.capacities.map(capacity => {
+      const quantities = (machine.type.storage?.capacities ?? []).map(capacity => {
         const quantity = machine.storedResources?.find(row => row.type.id === capacity.type.id)?.quantity ?? 0;
         const input = field(form, `Initial ${capacity.type.name} (capacity ${capacity.capacity})`, quantity, { type: "number" });
         input.step = "1"; return { type: capacity.type, input };

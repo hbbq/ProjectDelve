@@ -2419,3 +2419,19 @@ and Campfire, with no gameplay vision or hidden-information effects. See
 [the import and QA report](assets/source/models/BEASTMASTER_IMPORT.md) for
 sizes, commands, provenance, validation, browser evidence, test results and limits;
 [LOCAL_LIGHTING.md](LOCAL_LIGHTING.md) describes the small shared extension.
+## Beacon visuals
+
+Beacons use the existing Machine reconciliation path: a low-poly stone tower on
+Stone Floor, emissive lantern, and two transparent unlit beam meshes. There is no
+SpotLight and no gameplay illumination. The shared animation loop rotates only
+onscreen, visible rotors; hidden projection entries never create a model, and
+cutaway/offscreen Beacons do not keep rendering active. Rotation does not dirty
+shadow maps. The model works in Tabletop Miniatures/Cardboard and flattened Three
+views; Enhanced 2D uses the shared Stone Floor base and a luminous sun glyph.
+
+Stone pieces share the existing geometry/material cache. Lantern/beam geometry
+and materials are owned by the Machine record and disposed on record removal or
+scene disposal; rotor references are removed with the record. `animatedBeacons`
+in viewport diagnostics reports the current visible animation count. Node tests
+exercise shared frame scheduling, offscreen pause, projection removal, mode
+support, owned resource disposal and scene replacement.

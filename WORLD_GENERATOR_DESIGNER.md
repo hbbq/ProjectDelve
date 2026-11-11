@@ -128,3 +128,26 @@ primary roads can consume protected placement space. Accepted counts therefore
 need not increase monotonically. Exploration can omit every request when there
 is no useful alternative. The existing planner reports these limits rather than
 reducing layout/access quality or guaranteeing geographically impossible sites.
+
+## Civilization Beacons
+
+Civilization also requests standalone neutral Beacon Machines, independently of
+Sites and Buildings. The current policy requests one per started 3,600 Cells,
+bounded to one through four, with no additional Designer setting. Civilization
+disabled produces no Beacons. Each request has at most 96 attempts on a dedicated
+derived seed stream and an allowance of 25 neighborhood Cell checks per attempt.
+Unsuitable windows may omit every request. Diagnostics expose Beacons placed,
+omitted, attempts and work separately from Site planning.
+
+A candidate requires a completely passable, unreserved, Edge-free 5 × 5
+neighborhood clear of protected route corridors and recorded entrances. The
+center receives Stone Floor and a Beacon atomically through the existing planning
+draft and Engine validation boundary. The surrounding ring supplies a local
+bypass for ordinary and 2 × 2 figures; narrow passages are rejected. Later route
+planning, current walkable analysis and Population treat Machines as blockers,
+while the underlying Stone Floor remains ordinary terrain.
+
+Stage previews show a diamond overlay for each Machine and include its identity
+in Cell inspection. Construction inspection filters these overlays to accepted
+operations at the displayed point. The current WLD recipe and seed reproduce the
+same Machines; DELVE1 exports retain the complete concrete scenario.

@@ -152,6 +152,7 @@ public sealed record WorldPreviewFrame(string StepId, string Stage, string Terra
     public IReadOnlyList<ConstructionBatch> ConstructionBatches { get; init; } = [];
     public RouteNetworkSnapshot? RouteNetwork { get; init; }
     public PopulationSnapshot? Population { get; init; }
+    public IReadOnlyList<Machine> Machines { get; init; } = [];
 }
 public sealed record WorldPreview(IReadOnlyList<string> TerrainPalette, IReadOnlyList<WorldPreviewFrame> Frames,
     IReadOnlyList<NaturalFormation> Formations, int[] FormationLabels, int[] BoundaryCells)
@@ -159,7 +160,7 @@ public sealed record WorldPreview(IReadOnlyList<string> TerrainPalette, IReadOnl
     // Raw retained data estimate, excluding CLR/browser object overhead; measured payload is reported separately.
     public long EstimatedRetainedBytes => Frames.Sum(f => (long)f.Terrain.Length * 2 +
         4L * (f.ChangedCells.Length + f.WalkableComponents.Length + f.Chokepoints.Length) +
-        f.Entrances.Count * 96L + f.Opportunities.Count * 192L + f.Edges.Count * 32L + f.ChangedEdges.Count * 32L) +
+        f.Entrances.Count * 96L + f.Opportunities.Count * 192L + f.Edges.Count * 32L + f.ChangedEdges.Count * 32L + f.Machines.Count * 256L) +
         Frames.SelectMany(f => f.Construction).DistinctBy(o => o.Id).Sum(o => 256L + o.TerrainChanges.Count * 64L + o.EdgeChanges.Count * 32L) +
         Frames.SelectMany(f => f.Sites).DistinctBy(s => s.Id).Sum(s => 512L + s.Footprint.Spans.Count * 12L + s.Exterior.Spans.Count * 12L +
             s.Buildings.Sum(b => 256L + b.Footprint.Spans.Count * 12L + b.Rooms.Sum(r => 192L + (r.Interior.Spans.Count + r.Usable.Spans.Count) * 12L)) +
@@ -231,7 +232,7 @@ public static class WorldGenerationPipeline
                     context.OriginalAnalysis = TerrainAnalyzer.Analyze(plan.Window, context.OriginalSamples, content);
                     context.CurrentAnalysis = context.OriginalAnalysis; break;
                 case WorldStepKind.PostEnrichmentAnalysis:
-                    context.CurrentAnalysis = TerrainAnalyzer.Analyze(plan.Window, context.Samples, context.ConstructionBoard?.Content ?? content, context.Revision, context.ConstructionEdges()); break;
+                    context.CurrentAnalysis = TerrainAnalyzer.Analyze(plan.Window, context.Samples, context.ConstructionBoard?.Content ?? content, context.Revision, context.ConstructionEdges(), context.ConstructionBoard?.State.Machines); break;
                 case WorldStepKind.ForestEnrichment: ForestEnricher.Apply(context, step, content); break;
                 case WorldStepKind.RockEnrichment: RockEnricher.Apply(context, step, content); break;
                 case WorldStepKind.WaterEnrichment: WaterEnricher.Apply(context, step, content); break;
@@ -281,7 +282,8 @@ public static class WorldGenerationPipeline
                 PlanningFailures = context.PlanningFailures.ToArray(), CivilizationStats = context.CivilizationStats,
                 CampsiteDensity = context.CampsiteDensity, SettlementDensity = context.SettlementDensity,
                 ThroughRouteDensity = context.ThroughRouteDensity, ExplorationLinkDensity = context.ExplorationLinkDensity,
-                ConstructionBatches = context.ConstructionBatches.ToArray(), RouteNetwork = context.RouteNetwork, Population = context.Population
+                ConstructionBatches = context.ConstructionBatches.ToArray(), RouteNetwork = context.RouteNetwork, Population = context.Population,
+                Machines = context.ConstructionBoard?.State.Machines.ToArray() ?? []
             });
             previous = terrain; previousEdges = edgeMap;
             measurements.Add(new(step.Id, step.Kind, timer.Elapsed.TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - allocated));

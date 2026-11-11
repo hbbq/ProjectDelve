@@ -16,7 +16,9 @@ public sealed class ScenarioContentReferenceTests : IDisposable
     private static readonly JsonSerializerOptions Json = ContentPackageJson.CreateOptions();
     private readonly string directory = Path.Combine(Path.GetTempPath(), "delve-pins-" + Guid.NewGuid().ToString("N"));
     private static string WebRoot => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../ProjectDelve.Web"));
-    private CanonicalContent Canonical => new(Path.Combine(WebRoot, "Content", "Canonical"));
+    // Tests own their provider. Mutable authored publications may use the same
+    // identities as these deliberate collision fixtures.
+    private CanonicalContent Canonical => new(Path.Combine(directory, "canonical"));
     private ContentLibrary Store => new(directory, Canonical.Packages);
     private ScenarioReferenceService Service => new(Store, Canonical);
     private static ContentPackage Package(string name = "Knightly Boots", int uses = 2) => new()
@@ -213,7 +215,8 @@ public sealed class ScenarioContentReferenceTests : IDisposable
     public async Task PreviewApiAndEditorContextAreReadOnlyAndPlaytestUsesPortableDefinitions()
     {
         Store.Create(Package());
-        await using var app = PlaytestHost.Build(["--urls", "http://127.0.0.1:0", "--contentRoot", WebRoot, "--ContentLibrary:Path", directory], new Dice(), GameEngine.CreateGame(Scenario(), Canonical.Bundle));
+        await using var app = PlaytestHost.Build(["--urls", "http://127.0.0.1:0", "--contentRoot", WebRoot, "--ContentLibrary:Path", directory,
+            "--CanonicalContent:Directory", Path.Combine(directory, "canonical")], new Dice(), GameEngine.CreateGame(Scenario(), Canonical.Bundle));
         await app.StartAsync();
         using var client = new HttpClient { BaseAddress = new(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()) };
         var before = await client.GetStringAsync("/api/game");
