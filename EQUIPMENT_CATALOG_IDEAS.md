@@ -10,12 +10,15 @@ Ideation backlog, not approved rules or implemented content. Proposed names, eff
 | Bracers of Strength | Equipment | Passive ATK +1 | Yes
 | Iron Shield | Equipment | Passive DEF +1 | Yes
 | Eagle Eye | Equipment | Passive RNG +2 | Yes
+| Binoculars | Equipment | Passive: SightDistance +X | No, modifierable SightDistance support planned
+| Swim Tube | Equipment | Passive: Amphibious | No, equipment-granted Amphibious support planned
 | Banner of Fury | Equipment | Passive: adjacent friendly Units ATK +1 | Yes
 | Guardian Standard | Equipment | Passive: adjacent friendly Units DEF +1 | Yes
 | Berserker Ring | Equipment | Bonus Action: ATK +2 for current activation; 2 uses | Yes
 | Seven-League Boots | Equipment | Bonus Action: MOV +2 for current activation; 2 uses | Yes
 | Scope of Precision | Equipment | Bonus Action: RNG +2 for current activation; 2 uses | Yes
 | Healer's Staff | Equipment | Action: heal adjacent damaged friendly Unit by 2 HP; 2 uses | Yes
+| Healing Kit | Equipment | Bonus Action: heal self by X HP; X uses/game | No, bonus-action self-heal and use limits to verify
 | Holy Boots | Equipment | Action: Holy Wave; 2 uses | Yes
 | Ring of Command | Equipment | Bonus Action: +1 Action this activation; 2 uses | Yes
 
@@ -24,6 +27,8 @@ Ideation backlog, not approved rules or implemented content. Proposed names, eff
 | Name | Kind | Effect | Created |
 |---|---|---|---|
 | Phase Cloak | Equipment | Passive: Phase | Yes, as One-Size-Fits-Most Bedsheet
+| X-Ray Goggles | Equipment | Passive: see through objects without Phase movement | No, independent vision capability planned
+| Stay Alive Charm | Equipment | Passive: automatically heal 1 HP at activation start | No, activation-start equipment trigger support needed
 | Amulet of Undying | Equipment | Passive: Undying (equipment trigger support to verify) | No, undying not selectable in equipments
 | Displacer Gloves | Equipment | Bonus Action: Swap; unlimited | Yes
 | Displacer Boots | Equipment | Bonus Action: Displace maxMove 1; unlimited | Yes
