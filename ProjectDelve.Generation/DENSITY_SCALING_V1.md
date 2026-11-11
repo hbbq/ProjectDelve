@@ -13,6 +13,7 @@ Let `A = width * height`, `L = 0..4` in enum order, and
 | --- | --- | --- |
 | Campsites | ceil(E * L / 720) | 32 |
 | Settlements | ceil(E * L / 1440) | 24 |
+| Mountain Dungeons | ceil(E * max(CampsiteLevel, SettlementLevel) / 2400) | 4 |
 | Through routes | ceil(sqrt(A) * L / 30) | 12 |
 | Exploration links | ceil(E * L / 3600) | 16 |
 
@@ -32,6 +33,10 @@ partial geometry. Targets do not promise successful placements.
 Targets are seed invariant; placements, footprint requirements, family choices
 and endpoint locations use existing deterministic seed streams. Request keys
 remain ordinal, so increasing abundance does not reseed earlier requests.
+Mountain Dungeons precede Settlements and Campsites and have separate targets;
+there is no new density control. Both Site densities None, or disabled Civilization,
+requests zero dungeons. Counts are exposed in `civilizationStats.dungeonsRequested`,
+`dungeonsAccepted` and `dungeonsOmitted`. See [Mountain Dungeons V1](MOUNTAIN_DUNGEONS_V1.md).
 Settlements are still planned before Campsites. Natural terrain and Population
 selection are separate stages. Settlement families, route access and connectivity,
 protected areas, preparation allowances and physical geometry are unchanged.

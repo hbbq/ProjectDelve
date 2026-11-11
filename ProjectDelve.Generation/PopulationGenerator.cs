@@ -43,6 +43,11 @@ public static partial class PopulationGenerator
         foreach (var machine in definition.Machines ?? []) protectedCells.Add(machine.Position.Y * w + machine.Position.X);
         foreach (var site in context.Sites.Where(s => s.SettlementLayout is not null))
             protectedCells.UnionWith(site.SettlementLayout!.Access.Indices(w));
+        foreach (var site in context.Sites.Where(s => s.MountainDungeon is not null))
+        {
+            protectedCells.UnionWith(site.MountainDungeon!.RequiredAccess.Indices(w));
+            protectedCells.UnionWith(site.Entrances.SelectMany(e => new[] { e.InsideIndex, e.OutsideIndex }));
+        }
         var occupied = state.Units.SelectMany(u => FootprintGeometry.OccupiedCells(state, u.Id)).Select(c => c.Y * w + c.X).ToHashSet();
         HashSet<int> encounterCells = [.. occupied]; HashSet<int> patrolCells = [];
         var names = definition.Units.Select(u => u.UnitId).Concat(definition.Units.Select(u => u.GroupId))
@@ -59,6 +64,13 @@ public static partial class PopulationGenerator
         {
             var occupation = Pcg32.Stream(context.World.Seed, path + "/occupation/" + site.Id).Next(5);
             if (occupation == 0) continue;
+            if (site.PopulationIntent is { EncounterRegions.Count: > 0 } regional)
+            {
+                foreach (var region in regional.EncounterRegions.OrderBy(r => r.Id, StringComparer.Ordinal))
+                    if (Pcg32.Stream(context.World.Seed, path + "/occupation/" + region.Id).Next(3) != 0)
+                        candidates.Add(new("DungeonEncounter", region.Id, region.Area.Indices(w).ToArray(), region.Area.Bounds) { Region = region });
+                continue;
+            }
             if (site.Kind == GeneratedSiteKind.Settlement && (occupation > 1 || site.PopulationIntent is null))
             {
                 independentBuildings.UnionWith(site.Buildings.Select(b => b.Id));
@@ -119,6 +131,8 @@ public static partial class PopulationGenerator
             encounter = encounter with { ActualAlertComponents = componentCount };
             if (location.Intent is { } intended && (intended.AlertTopology == CampAlertTopology.Connected ? componentCount != 1 : componentCount < 2))
             { Rollback(); Fail(location, "Final occupation does not realize intended Alert connectivity."); continue; }
+            if (location.Region is not null && (componentCount != 1 || allComponents.Any(c => c.UnitIds.Any(memberIds.Contains) && c.UnitIds.Any(id => !memberIds.Contains(id)))))
+            { Rollback(); Fail(location, "Independent dungeon region would share an Alert network with another encounter."); continue; }
             accepted.Add(encounter); unitCount += encounter.Units.Count; groupCount += encounter.GroupIds.Count;
             foreach (var unit in encounter.Units) foreach (var cell in FootprintGeometry.OccupiedCells(types[unit.UnitTypeId].Footprint, unit.Anchor))
             { var index = cell.Y * w + cell.X; occupied.Add(index); encounterCells.Add(index); }
@@ -149,7 +163,7 @@ public static partial class PopulationGenerator
             foreach (var i in lootCells)
             {
                 if (!budget.Spend(1) || loot.Count >= wanted) break;
-                if (!passable[i] || protectedCells.Contains(i) || occupied.Contains(i) ||
+                if (!passable[i] || protectedCells.Contains(i) || occupied.Contains(i) || (definition.LootMarkers ?? []).Any(m => m.Position.Y * w + m.Position.X == i) ||
                     context.CurrentAnalysis is { } analysis && analysis.WalkableLabels[i] != largest) continue;
                 var markerId = path + "/loot-" + i;
                 if (names.Add(markerId)) loot.Add(new(markerId, new(i % w, i / w)));

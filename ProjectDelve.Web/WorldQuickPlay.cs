@@ -77,12 +77,13 @@ public static class WorldQuickPlay
         var occupied = state.Physical.Figures.SelectMany(f => FootprintGeometry.OccupiedCells(state, f.Id))
             .Concat(board.Machines.Select(m => m.Position)).ToHashSet();
         var tiles = board.Terrain.ToDictionary(t => t.Position);
+        var playable = PlayableWorldComponent.Select(board);
         HashSet<Cell> free = [];
         for (var y = 0; y < board.Height; y++)
         for (var x = 0; x < board.Width; x++)
         {
             var cell = new Cell(x, y);
-            if (!occupied.Contains(cell) && board.TerrainDefinition(tiles.GetValueOrDefault(cell)).Passable) free.Add(cell);
+            if (playable.Contains(y * board.Width + x) && !occupied.Contains(cell) && board.TerrainDefinition(tiles.GetValueOrDefault(cell)).Passable) free.Add(cell);
         }
         var blocked = board.Edges.Where(e => !e.Kind.Passable()).Select(e => Key(e.A, e.B)).ToHashSet();
         List<Cell>? cluster = null;
@@ -106,7 +107,7 @@ public static class WorldQuickPlay
             if (found.Count == HeroIds.Length) { cluster = found; break; }
         }
         if (cluster is null)
-            throw new ArgumentException("Quick Play needs five free passable Cells connected by open Edges in a compact starting cluster for the Heroes. Try another world window.", nameof(original));
+            throw new ArgumentException("Quick Play needs five free passable Cells connected by open Edges in a compact starting cluster in the principal doors-openable world component. No compatible Hero start exists there; try another world window.", nameof(original));
 
         for (var i = 0; i < HeroIds.Length; i++)
         {

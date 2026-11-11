@@ -19,6 +19,9 @@ public sealed record CivilizationStatistics(int Attempts, long Work, int Sites, 
     public int BeaconsOmitted { get; init; }
     public int BeaconAttempts { get; init; }
     public long BeaconWork { get; init; }
+    public int DungeonsRequested { get; init; }
+    public int DungeonsAccepted { get; init; }
+    public int DungeonsOmitted => DungeonsRequested - DungeonsAccepted;
 }
 
 public sealed partial class WorldGenerationContext
@@ -69,6 +72,26 @@ public static class CivilizationGenerator
         // Stable request keys, never accepted-object counts. Larger plots precede small camps.
         var settlementTarget = DensityScaling.Settlements(context.Window, settings.Settlements);
         var campsiteTarget = DensityScaling.Campsites(context.Window, settings.Campsites);
+        var dungeonTarget = MountainDungeonGenerator.Target(context.Window, settings);
+        var usedRock = new HashSet<int>();
+        for (var i = 0; i < dungeonTarget; i++)
+        {
+            var key = $"mountain-dungeon-{i}";
+            var draft = board.BeginDraft(area, path + "/" + key, budget);
+            var result = MountainDungeonGenerator.Plan(new(key, area, policy, ExcludedRockCells: usedRock), new(context.World.Seed, path, draft));
+            // Capture the entire pre-excavation cardinal mass, not an analyzer formation.
+            // Subsequent excavations cannot disguise a split remainder as another mountain.
+            if (result is Planned<SitePlan> planned && planned.Plan.Site.MountainDungeon is { } dungeon)
+            {
+                var q = new Queue<int>(); var mass = new HashSet<int> { dungeon.RockMassAnchor }; q.Enqueue(dungeon.RockMassAnchor);
+                while (q.TryDequeue(out var cell)) foreach (var next in board.Neighbors(cell))
+                    if (board.TerrainAt(next) == "solid-rock" && mass.Add(next)) q.Enqueue(next);
+                var previous = context.Sites.Count;
+                Accept(result, draft);
+                if (context.Sites.Count > previous) usedRock.UnionWith(mass);
+            }
+            else Accept(result, draft);
+        }
         for (var i = 0; i < settlementTarget; i++)
         {
             var key = $"settlement-{i}";
@@ -98,11 +121,12 @@ public static class CivilizationGenerator
         context.SettlementDensity = new(settlementTarget, settlementTarget, context.Sites.Count(s => s.Kind == GeneratedSiteKind.Settlement));
         context.CivilizationStats = new(budget.Attempts, budget.Work, context.Sites.Count,
             context.Sites.Count(s => s.Kind == GeneratedSiteKind.Campsite), context.Sites.Count(s => s.Kind == GeneratedSiteKind.Settlement),
-            context.Sites.Sum(s => s.Buildings.Count), context.Sites.Sum(s => s.Buildings.Sum(b => b.Rooms.Count)),
+            context.Sites.Sum(s => s.Buildings.Count), context.Sites.Sum(s => s.Buildings.Sum(b => b.Rooms.Count) + (s.MountainDungeon?.Rooms.Count ?? 0)),
             context.Sites.Sum(s => s.Preparation.ChangedTerrain) + beacons.ChangedTerrain, context.Sites.Sum(s => s.Preparation.ChangedEdges))
         {
             BeaconsPlaced = beacons.Placed, BeaconsOmitted = beacons.Target - beacons.Placed,
-            BeaconAttempts = beacons.Attempts, BeaconWork = beacons.Work
+            BeaconAttempts = beacons.Attempts, BeaconWork = beacons.Work,
+            DungeonsRequested = dungeonTarget, DungeonsAccepted = context.Sites.Count(s => s.Kind == GeneratedSiteKind.MountainDungeon)
         };
 
         void Accept(PlacementResult<SitePlan> result, BoardDraft draft)

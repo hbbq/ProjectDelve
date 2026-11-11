@@ -18,6 +18,9 @@ const traceButtons = new Map();
 const config = () => Object.fromEntries(fields.map(id => [id, byId(id).value]));
 const signature = () => JSON.stringify(config());
 const status = message => { byId("status").textContent = message; };
+// Dungeon rooms are authored directly by the Site, without synthetic Buildings.
+const siteRooms = site => [...(site.buildings ?? []).flatMap(building => (building.rooms ?? []).map(room => ({ room, ownerId: building.id }))),
+  ...(site.mountainDungeon?.rooms ?? []).map(room => ({ room, ownerId: site.id }))];
 function updateSettingSummaries() {
   for (const [key, value] of Object.entries(worldSettingSummaries(config()))) byId(`summary-${key}`).textContent = value;
 }
@@ -237,6 +240,17 @@ function renderPreview() {
         node.append(marker);
       }
       const details = [node.title, `Stage: ${stageName(frame)}`, `Walkable component: ${component >= 0 ? component : "blocked"}`];
+      const contains = area => area?.spans?.some(span => span.y === y && x >= span.x && x < span.x + span.length);
+      for (const site of selected?.sites ?? []) {
+        const dungeon = site.mountainDungeon;
+        if (!dungeon) continue;
+        if (contains(site.footprint)) details.push(`Mountain Dungeon ${site.id}: ${dungeon.profile}; ${dungeon.rooms.length}/${dungeon.roomCapacity} rooms`);
+        for (const [label, area] of [["Dungeon corridor", dungeon.corridors], ["Protected rock", dungeon.protectedRock], ["Required dungeon access", dungeon.requiredAccess], ["Dungeon Lava", dungeon.lava],
+          ...dungeon.rooms.map(room => [`Dungeon room ${room.id}: ${room.purpose}`, room.interior]),
+          ...(dungeon.treasureAreas ?? []).map(area => ["Treasure opportunity", area]),
+          ...(site.populationIntent?.encounterRegions ?? []).map(region => [`Encounter region ${region.id}: ${region.alertTopology ?? site.populationIntent.alertTopology}`, region.area])])
+          if (contains(area)) details.push(`${label} (${area.id})`);
+      }
       if (formation) details.push(`Original formation ${formation.id}: ${formation.kind}; core ${formation.coreArea}, envelope ${formation.envelopeArea}, density ${Number(formation.density).toFixed(2)}, depth ${formation.maxDepth}${formation.touchesBoundary ? "; touches window boundary" : ""}`);
       for (const entrance of entrances.get(index) ?? []) details.push(`Entrance ${entrance.id}: feature ${entrance.featureId}, width ${entrance.width}`);
       for (const opportunity of opportunities.get(index) ?? []) details.push(`Opportunity ${opportunity.id}: ${opportunity.kind}; usable area ${opportunity.usableArea}; component ${opportunity.walkableComponent}${opportunity.requiresConnection ? "; requires connection" : ""}${opportunity.otherBankIndex != null ? `; opposite bank (${opportunity.otherBankIndex % board.width + offsetX},${Math.floor(opportunity.otherBankIndex / board.width) + offsetY}), Water span ${opportunity.waterSpan}` : ""}`);
@@ -316,13 +330,13 @@ function renderConstruction(frame) {
       heading.append(button); if (heading !== container) container.append(heading);
       (nodes.get(operation.parentId) ?? tree).append(container); nodes.set(operation.id, container); traceButtons.set(operation.id, button);
     }
-    for (const site of frame?.sites ?? []) for (const building of site.buildings ?? []) for (const room of building.rooms ?? []) {
+    for (const site of frame?.sites ?? []) for (const { room, ownerId } of siteRooms(site)) {
       const layoutId = room.id.slice(0, room.id.lastIndexOf("/room-"));
       const layout = operations.find(operation => operation.objectId === layoutId);
       const button = document.createElement("button"); button.type = "button"; button.className = "world-room-inspection";
       button.dataset.spaceId = room.id; button.textContent = `${room.id} · ${room.usable.area}/${room.interior.area} usable · ${room.portalIds.length} Doors · ${room.twoByTwoPlacements} 2 × 2 placements`;
-      button.addEventListener("click", () => { selectedSpace = room.id; selectedOperation = layout?.id ?? building.id; compareBefore = false; renderPreview(); });
-      (nodes.get(layout?.id) ?? nodes.get(building.id) ?? tree).append(button);
+      button.addEventListener("click", () => { selectedSpace = room.id; selectedOperation = layout?.id ?? operations.find(operation => operation.objectId === ownerId)?.id ?? ownerId; compareBefore = false; renderPreview(); });
+      (nodes.get(layout?.id) ?? nodes.get(ownerId) ?? tree).append(button);
     }
   }
   for (const [id, button] of traceButtons) { button.dataset.selected = String(id === selectedOperation); button.setAttribute?.("aria-pressed", String(id === selectedOperation)); }
@@ -330,8 +344,12 @@ function renderConstruction(frame) {
   byId("construction-selection").textContent = operation ? `${selectedSpace ?? operation.id} · ${compareBefore ? "Before" : "After"} the complete ${selectedSpace ? "containing room layout" : "selected subtree"} · (${operation.bounds.x}, ${operation.bounds.y}), ${operation.bounds.width} × ${operation.bounds.height}` : "Choose a construction step. Parent steps inspect their complete subtree; Before shows its preceding checkpoint.";
   const stats = frame?.civilizationStats;
   const costs = (frame?.sites ?? []).map(site => `${site.id}: preparation ${site.preparation.cost}, trees ${site.preparation.treesRemoved}, rock ${site.preparation.rockExcavated}, Water ${site.preparation.waterFilled}` +
+    (site.mountainDungeon ? `; Mountain Dungeon ${site.mountainDungeon.profile}; ${site.mountainDungeon.rooms.length} rooms / ${site.mountainDungeon.roomCapacity} capacity; rock mass ${site.mountainDungeon.rockMassArea} Cells; corridors ${site.mountainDungeon.corridors.area} Cells; protected rock ${site.mountainDungeon.protectedRock.area} Cells; required access ${site.mountainDungeon.requiredAccess.area} Cells; Lava ${site.mountainDungeon.lava?.area ?? 0} Cells; treasure areas ${site.mountainDungeon.treasureAreas.length}` : "") +
     (site.settlementLayout ? `; ${site.settlementLayout.family}; ${site.settlementLayout.lots.length} lots; spaces ${site.settlementLayout.publicSpaces.map(space => space.role).join(", ")}${site.settlementLayout.fallbackReasons.length ? "; fallback: " + site.settlementLayout.fallbackReasons.join("; ") : ""}` : "") +
     (site.populationIntent ? `; ${site.populationIntent.layout}, occupation ${site.populationIntent.minimumUnits}–${site.populationIntent.maximumUnits}, ${site.populationIntent.alertTopology} Alert; roles ${site.populationIntent.areas.map(area => area.role).join(", ")}` : ""));
+  if (stats?.dungeonsRequested != null) costs.unshift(`Mountain Dungeons: ${stats.dungeonsRequested} requested / ${stats.dungeonsAccepted} accepted / ${stats.dungeonsOmitted} omitted`);
+  for (const site of frame?.sites ?? []) for (const region of site.populationIntent?.encounterRegions ?? [])
+    costs.push(`Encounter region ${region.id}: ${region.area.area} Cells; occupation ${region.minimumUnits ?? 0}–${region.maximumUnits ?? 0}; ${region.alertTopology} Alert; preferred Types ${(region.preferredUnitTypes ?? []).join(", ") || "server selection"}; ${(region.patrolPath ?? []).length} patrol Cells`);
   byId("civilization-summary").textContent = stats ? `${stats.sites} sites · ${stats.campsites} campsites · ${stats.settlements} settlements · ${stats.buildings} buildings · ${stats.rooms} rooms · Beacons ${stats.beaconsPlaced ?? 0} placed / ${stats.beaconsOmitted ?? 0} omitted · Beacon attempts ${stats.beaconAttempts ?? 0}, work ${stats.beaconWork ?? 0} · ${stats.attempts} attempts · work ${stats.work} · terrain changes ${stats.changedTerrain} · Edge changes ${stats.changedEdges}${costs.length ? "\n" + costs.join("\n") : ""}` : "";
   const failures = frame?.planningFailures ?? [], list = byId("planning-failures"); list.replaceChildren();
   for (const failure of failures) { const item = document.createElement("li"); item.textContent = `${failure.requestId} · ${failure.code}: ${failure.reason} (${failure.attempts} attempts)`; list.append(item); }
@@ -367,18 +385,30 @@ function renderPlanSpaces(root, frame, width, height) {
       Object.assign(node.style, { left: `${b.x / width * 100}%`, top: `${b.y / height * 100}%`, width: `${b.width / width * 100}%`, height: `${b.height / height * 100}%` }); root.append(node);
     }
     if (byId("usable").checked) for (const role of site.populationIntent?.areas ?? []) area(role.area, role.id, "usable", `Population role: ${role.role}`);
+    const dungeon = site.mountainDungeon;
+    if (dungeon) {
+      if (byId("sites").checked) area(dungeon.protectedRock, site.id, "site", "Protected rock");
+      if (byId("usable").checked) {
+        area(dungeon.corridors, site.id, "usable", "Dungeon corridor");
+        area(dungeon.requiredAccess, site.id, "usable", "Required dungeon access");
+        area(dungeon.lava, site.id, "site", "Dungeon Lava");
+        for (const treasure of dungeon.treasureAreas ?? []) area(treasure, treasure.id, "room", "Treasure opportunity");
+      }
+    }
+    if (byId("usable").checked) for (const region of site.populationIntent?.encounterRegions ?? [])
+      area(region.area, region.id, "usable", `Encounter region: ${region.alertTopology ?? site.populationIntent.alertTopology}`);
     if (byId("site-entrances").checked) for (const entrance of site.entrances ?? []) portal(entrance);
     for (const building of site.buildings ?? []) {
       if (byId("buildings").checked) area(building.footprint, building.id, "building", "Building");
       if (byId("site-entrances").checked) for (const entrance of building.portals ?? []) portal(entrance);
-      for (const room of building.rooms ?? []) {
-        if (byId("rooms").checked) area(room.interior, room.id, "room", room.purpose);
-        if (byId("usable").checked) area(room.usable, room.id, "usable", "Room usable space");
-      }
+    }
+    for (const { room } of siteRooms(site)) {
+      if (byId("rooms").checked) area(room.interior, room.id, "room", room.purpose);
+      if (byId("usable").checked) area(room.usable, room.id, "usable", "Room usable space");
     }
   }
   const selected = frame?.construction?.find(operation => operation.id === selectedOperation);
-  const room = (frame?.sites ?? []).flatMap(site => site.buildings ?? []).flatMap(building => building.rooms ?? []).find(room => room.id === selectedSpace);
+  const room = (frame?.sites ?? []).flatMap(site => siteRooms(site)).map(entry => entry.room).find(room => room.id === selectedSpace);
   if (selected || room) {
     const node = document.createElement("div"), b = room?.interior.bounds ?? selected.bounds; node.className = "world-construction-bounds"; node.dataset.objectId = room?.id ?? selected.objectId;
     Object.assign(node.style, { left: `${b.x / width * 100}%`, top: `${b.y / height * 100}%`, width: `${b.width / width * 100}%`, height: `${b.height / height * 100}%` }); root.append(node);
@@ -484,22 +514,29 @@ function renderRoutes(root, frame, width, height, window) {
 // as a fallback: earlier stages and construction checkpoints predate Population.
 function renderPopulation(root, frame, width, height, result) {
   const population = frame?.population, panel = byId("population");
-  panel.hidden = !population;
+  const siteLoot = new Map((frame?.siteLootMarkers ?? []).map(marker => [marker.id, marker]));
+  const markers = new Map([...siteLoot, ...(population?.lootMarkers ?? []).map(marker => [marker.id, marker])]);
+  panel.hidden = !population && !markers.size;
   const details = byId("population-details"), failures = byId("population-failures");
   details.replaceChildren(); failures.replaceChildren();
-  if (!population) return;
-  const s = population.statistics;
-  byId("population-summary").textContent = `${s.acceptedEncounters} / ${s.target} encounters · ${s.units} / ${s.requestedUnits ?? s.units} requested Units · ${s.groups} Groups · ${s.dormantUnits ?? 0} Dormant · ${s.awakeUnits ?? 0} awake · ${s.initialTokens ?? 0} initial tokens · ${s.lootMarkers ?? 0} Loot markers · ${s.quietRegions ?? 0} quiet regions · ${s.attempts} attempts · work ${s.work}${s.shortfall ? ` · encounter shortfall ${s.shortfall}` : ""}${s.unitShortfall ? ` · Unit shortfall ${s.unitShortfall}` : ""}. No party, starts or Objectives are generated.`;
-  const metadata = new Map((result.unitDefinitions ?? []).map(type => [type.id, type]));
   const inspect = text => { byId("inspection").textContent = text; };
-  const areaText = a => `(${a.x}, ${a.y}), ${a.w} × ${a.h}`;
-  const components = new Map((population.alertComponents ?? []).flatMap(component => component.unitIds.map(id => [id, component.index])));
-  for (const marker of population.lootMarkers ?? []) {
+  for (const marker of markers.values()) {
     const node = document.createElement("span"); node.className = "generator-loot"; node.textContent = "◆";
     node.dataset.lootMarkerId = marker.id; node.title = `${marker.id} · unopened Loot (${marker.position.x}, ${marker.position.y})`;
     Object.assign(node.style, { left: `${(marker.position.x + .5) / width * 100}%`, top: `${(marker.position.y + .5) / height * 100}%` });
     node.addEventListener("click", () => inspect(node.title)); root.append(node);
   }
+  if (!population) {
+    byId("population-summary").textContent = `${siteLoot.size} Site Loot markers; no Population at this stage. No party, starts or Objectives are generated.`;
+    byId("population-failure-panel").hidden = true;
+    return;
+  }
+  const s = population.statistics;
+  byId("population-summary").textContent = `${s.acceptedEncounters} / ${s.target} encounters · ${s.units} / ${s.requestedUnits ?? s.units} requested Units · ${s.groups} Groups · ${s.dormantUnits ?? 0} Dormant · ${s.awakeUnits ?? 0} awake · ${s.initialTokens ?? 0} initial tokens · ${s.lootMarkers ?? 0} Loot markers · ${s.quietRegions ?? 0} quiet regions · ${s.attempts} attempts · work ${s.work}${s.shortfall ? ` · encounter shortfall ${s.shortfall}` : ""}${s.unitShortfall ? ` · Unit shortfall ${s.unitShortfall}` : ""}. No party, starts or Objectives are generated.`;
+  const metadata = new Map((result.unitDefinitions ?? []).map(type => [type.id, type]));
+  if (siteLoot.size) byId("population-summary").textContent += ` ${siteLoot.size} Site Loot markers (${markers.size} total unique Loot markers).`;
+  const areaText = a => `(${a.x}, ${a.y}), ${a.w} × ${a.h}`;
+  const components = new Map((population.alertComponents ?? []).flatMap(component => component.unitIds.map(id => [id, component.index])));
   for (const encounter of population.encounters) {
     const item = document.createElement("div"); item.className = "world-population-detail"; item.dataset.encounterId = encounter.id;
     const heading = document.createElement("strong"); heading.textContent = `${String(encounter.kind).replace(/([a-z])([A-Z])/g, "$1 $2")} · ${encounter.units.length} Units`;

@@ -381,6 +381,32 @@ function constructionResult(h) {
 }
 function descendants(node) { return [node,...node.children.flatMap(descendants)]; }
 
+test("Mountain Dungeon inspection uses actual rooms and server spans without synthetic Buildings", async () => {
+  const h = harness(), result = constructionResult(h), site = result.preview.frames[2].sites[0];
+  const room = site.buildings[0].rooms[0], area = id => ({ ...site.exterior, id });
+  site.kind = 'MountainDungeon'; site.buildings = [];
+  site.mountainDungeon = { profile: 'ChamberComplex', rooms: [room], roomCapacity: 3, rockMassArea: 90, rockMassAnchor: 0,
+    corridors: area('corridor'), protectedRock: area('rock'), requiredAccess: area('access'), lava: area('lava'), treasureAreas: [area('treasure')] };
+  site.populationIntent = { layout: 'Dungeon', minimumUnits: 0, maximumUnits: 4, alertTopology: 'Independent', areas: [],
+    encounterRegions: [{ id: 'dungeon/encounter', area: area('encounter'), alertTopology: 'Connected' }] };
+  Object.assign(result.preview.frames[2].civilizationStats, { dungeonsRequested: 3, dungeonsAccepted: 1, dungeonsOmitted: 2 });
+  for (const id of ['usable', 'rooms', 'sites', 'buildings']) h.get(`world-generator-${id}`).checked = true;
+  h.click('preview'); await h.accept(0, result);
+  assert.match(h.get('world-generator-civilization-summary').textContent, /Mountain Dungeon ChamberComplex; 1 rooms \/ 3 capacity/);
+  assert.match(h.get('world-generator-result-summary').textContent, /0 buildings · 1 rooms/);
+  assert.match(h.get('world-generator-civilization-summary').textContent, /3 requested \/ 1 accepted \/ 2 omitted/);
+  const nodes = descendants(h.get('world-generator-board'));
+  for (const id of ['corridor', 'rock', 'access', 'lava', 'treasure', 'encounter', room.interior.id])
+    assert.ok(nodes.some(node => node.dataset.areaId === id), id);
+  assert.equal(nodes.filter(node => node.className === 'world-plan-space world-plan-building').length, 0);
+  const cell = nodes.find(node => node.dataset.worldX === -8 && node.dataset.worldY === 12);
+  cell.listeners.click(); assert.match(h.get('world-generator-inspection').textContent, /Protected rock.*\nRequired dungeon access.*\nDungeon Lava/);
+  assert.match(h.get('world-generator-inspection').textContent, /Encounter region dungeon\/encounter: Connected/);
+  const button = descendants(h.get('world-generator-construction-tree')).find(node => node.dataset.spaceId === room.id);
+  assert.ok(button); button.click();
+  assert.ok(descendants(h.get('world-generator-board')).some(node => node.className === 'world-construction-bounds' && node.dataset.objectId === room.id));
+});
+
 test("Settlement preview exposes server-authored family, lots, public spaces and fallback reasons", async () => {
   const h = harness(), result = constructionResult(h), site = result.preview.frames[2].sites[0];
   site.settlementLayout = { family: 'InnCompound', access: site.exterior,
@@ -425,6 +451,25 @@ test("Population preset settings and edits invalidate the retained preview", asy
   assert.match(h.get('world-generator-status').textContent, /outdated/); assert.equal(h.get('world-generator-board').children[0], retained);
   h.enter('populationDifficulty', '6'); h.click('preview'); assert.equal(h.requests.length, 2);
   assert.match(h.get('world-generator-status').textContent, /populationDifficulty/);
+});
+
+test("Site Loot is visible without Population, remains stage-local and deduplicates shared marker IDs", async () => {
+  const h = harness(), result = constructionResult(h), frame = result.preview.frames[2];
+  frame.siteLootMarkers = [{ id: 'dungeon-treasure', position: { x: 1, y: 1 } }];
+  result.definition.lootMarkers = [...frame.siteLootMarkers, { id: 'final-only', position: { x: 0, y: 0 } }];
+  const markerNodes = () => descendants(h.get('world-generator-board')).filter(node => node.dataset.lootMarkerId);
+  h.click('preview'); await h.accept(0, result);
+  assert.deepEqual(markerNodes().map(node => node.dataset.lootMarkerId), ['dungeon-treasure']);
+  assert.equal(h.get('world-generator-population').hidden, false);
+  assert.match(h.get('world-generator-population-summary').textContent, /1 Site Loot markers; no Population/);
+  markerNodes()[0].click(); assert.match(h.get('world-generator-inspection').textContent, /dungeon-treasure.*unopened Loot/);
+  h.click('compare'); assert.equal(markerNodes().length, 0);
+  assert.equal(h.get('world-generator-population').hidden, true);
+  frame.population = { encounters: [], lootMarkers: [...frame.siteLootMarkers, { id: 'encounter-loot', position: { x: 0, y: 1 } }],
+    statistics: { acceptedEncounters: 0, target: 0, units: 0, groups: 0, attempts: 0, work: 0, lootMarkers: 2 }, failures: [] };
+  h.click('preview'); await h.accept(1, result);
+  assert.deepEqual(markerNodes().map(node => node.dataset.lootMarkerId), ['dungeon-treasure', 'encounter-loot']);
+  assert.match(h.get('world-generator-population-summary').textContent, /1 Site Loot markers \(2 total unique Loot markers\)/);
 });
 
 test("Population preview renders only its displayed stage and preserves the ordinary final scenario", async () => {

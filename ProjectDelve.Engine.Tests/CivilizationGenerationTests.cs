@@ -73,7 +73,8 @@ public sealed class CivilizationGenerationTests
     public void ImpossibleNarrowWindowReportsFailuresWithoutPartialEdits()
     {
         var world = WorldGenerator.Generate(Recipe(7, 120) with { Enrichment = null });
-        Assert.Empty(world.Context.Sites); Assert.Equal(DensityScaling.Campsites(world.Window, ContentDensity.Low) + DensityScaling.Settlements(world.Window, ContentDensity.Medium), world.Context.PlanningFailures.Count);
+        Assert.Empty(world.Context.Sites); Assert.Equal(DensityScaling.Campsites(world.Window, ContentDensity.Low) + DensityScaling.Settlements(world.Window, ContentDensity.Medium) +
+            MountainDungeonGenerator.Target(world.Window, new()), world.Context.PlanningFailures.Count);
         Assert.Single(world.Context.Construction.Where(o => o.Name == "Civilization")); Assert.Empty(world.Definition.Board.Edges);
         Assert.All(world.Context.Construction, o => Assert.Contains(o.Name, new[] { "Civilization", "Beacon" }));
         var machineCells = (world.Definition.Machines ?? []).Select(m => m.Position.Y * world.Window.Width + m.Position.X).ToHashSet();

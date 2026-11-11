@@ -87,12 +87,13 @@ export function worldResultSummary(result) {
   // Always summarize the final result, even while inspecting an earlier stage.
   const frame = result.preview?.frames?.at(-1), sites = frame?.sites ?? [];
   const buildings = sites.flatMap(site => site.buildings ?? []);
+  const roomCount = buildings.reduce((sum, building) => sum + (building.rooms?.length ?? 0), 0) + sites.reduce((sum, site) => sum + (site.mountainDungeon?.rooms?.length ?? 0), 0);
   const failures = (frame?.planningFailures ?? []).filter(failure => !["Route", "RouteNetwork"].includes(failure.generator));
   const routeFailures = (frame?.planningFailures ?? []).filter(failure => ["Route", "RouteNetwork"].includes(failure.generator));
   const unresolved = (frame?.routeNetwork?.intents ?? []).filter(intent => intent.status === "Unresolved");
   const population = frame?.population?.failures ?? [];
   const fallbacks = sites.filter(site => site.settlementLayout?.fallbackReasons?.length);
-  const omittedSites = (frame?.settlementDensity?.omitted ?? 0) + (frame?.campsiteDensity?.omitted ?? 0);
+  const omittedSites = (frame?.settlementDensity?.omitted ?? 0) + (frame?.campsiteDensity?.omitted ?? 0) + (frame?.civilizationStats?.dungeonsOmitted ?? 0);
   const omittedRoutes = (frame?.throughRouteDensity?.omitted ?? 0) + (frame?.explorationLinkDensity?.omitted ?? 0);
   const constructionWarnings = Math.max(failures.length, omittedSites);
   const routeWarnings = Math.max(unresolved.length, omittedRoutes, routeFailures.length);
@@ -104,7 +105,7 @@ export function worldResultSummary(result) {
   if (population.length) warnings.push(`${population.length} population placement warnings`);
   if (fallbacks.length) warnings.push(`${fallbacks.length} sites used layout fallbacks`);
   const count = constructionWarnings + routeWarnings + population.length + fallbacks.length;
-  return { text: `${sites.length} sites · ${buildings.length} buildings · ${buildings.reduce((sum, building) => sum + (building.rooms?.length ?? 0), 0)} rooms · ${count} warning${count === 1 ? "" : "s"}`, warnings };
+  return { text: `${sites.length} sites · ${buildings.length} buildings · ${roomCount} rooms · ${count} warning${count === 1 ? "" : "s"}`, warnings };
 }
 
 // Sparse presentation replay only. Geometry, connectivity and content remain server-owned.

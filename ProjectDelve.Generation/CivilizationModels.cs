@@ -6,7 +6,11 @@ using ProjectDelve.Engine;
 
 namespace ProjectDelve.Generation;
 
-public enum GeneratedSiteKind { Campsite, Settlement }
+public enum GeneratedSiteKind { Campsite, Settlement, MountainDungeon }
+public enum MountainDungeonProfile { TunnelNetwork, ChamberComplex, DeepPassage }
+public sealed record MountainDungeonInfo(MountainDungeonProfile Profile, IReadOnlyList<RoomInfo> Rooms,
+    GeneratedArea Corridors, GeneratedArea ProtectedRock, GeneratedArea RequiredAccess, GeneratedArea Lava,
+    IReadOnlyList<GeneratedArea> TreasureAreas, int RockMassArea, int RockMassAnchor, int RoomCapacity);
 public enum SettlementFamily { MarketVillage, RoadsideHamlet, Farmstead, InnCompound }
 public enum GeneratedObjectKind { Site, Building, Room, Space }
 public enum SiteTag { Camp, Residential, Constructed, ArtificialIsland }
@@ -63,6 +67,7 @@ public sealed record SiteInfo(string Id, GeneratedSiteKind Kind, GeneratedArea F
     public IReadOnlyList<SiteConnectionRequest> ConnectionRequests { get; init; } = [];
     public SitePopulationIntent? PopulationIntent { get; init; }
     public SettlementLayoutInfo? SettlementLayout { get; init; }
+    public MountainDungeonInfo? MountainDungeon { get; init; }
 }
 public sealed record ConstructionOperation(string Id, string? ParentId, string Name, string ObjectId, CellBounds Bounds,
     IReadOnlyList<TerrainChange> TerrainChanges, IReadOnlyList<EdgeChange> EdgeChanges);

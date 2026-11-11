@@ -44,6 +44,8 @@ public static partial class PopulationGenerator
         PopulationSettings settings, int remaining, Pcg32 random, PlanningBoard board, Dictionary<string, UnitType> types,
         GameState state, PlanningBudget budget, Func<int, bool> available, Action<string> fail, out int requested)
     {
+        if (location.Region is { } region)
+            return DungeonRegion(id, location, region, free, settings, remaining, random, board, state, types, budget, available, fail, out requested);
         if (location.Intent is { } intent)
             return Structured(id, location, intent, free, settings, remaining, random, board, state, types, budget, fail, out requested);
         var count = location.Kind == "LoneMonster" ? 1 : location.Kind == "GoblinCamp" ? 4 + random.Next(5) : 2 + random.Next(4);

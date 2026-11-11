@@ -2,6 +2,7 @@
 
 Current abundance settings and scaling policy: [Density Scaling V1](DENSITY_SCALING_V1.md).
 Current layout, controls and verification: [World Generator Designer](../WORLD_GENERATOR_DESIGNER.md).
+Mountain Sites and current acceptance results: [Mountain Dungeons V1](MOUNTAIN_DUNGEONS_V1.md).
 Older numerical recipe examples and performance corpora below describe historical configurations.
 
 World Generator is an authoring pipeline separate from DNG1-HVM and DNG2-OS.
@@ -14,16 +15,17 @@ Designer to finish the scenario before play.
 
 **Quick Play** starts a temporary copy through the existing Designer Playtest flow.
 It places Barbarian, Rogue, Wizard, Cleric and Beastmaster in a small legal connected
-cluster, preferring the board edge, assigns explicit Human control, explicitly sets
+cluster in the principal doors-openable component, preferring its board edge Cells, assigns explicit Human control, explicitly sets
 No Objective for every participating Side, selects the existing **All** Loot Deck
 preset, and enables ordinary Hero Fog of War. The original world
 is retained in Designer; **Back to Designer** returns to it without the temporary
 party, Loot, Objectives or FoW changes. The retained generator preview, recipe,
 fingerprint and DELVE1 export are unchanged. Unsuitable or crowded boards report
 a placement failure without replacing the game. This convenience setup makes no
-global reachability, encounter-distance or mission guarantees.
+encounter-distance or mission guarantees. It fails clearly when the principal
+component lacks a compatible free cluster, without falling back to an isolated pocket.
 
-Optional Civilization now constructs Campsites and small Settlements with nested
+Optional Civilization constructs Mountain Dungeons before Campsites and small Settlements with nested
 Building/Room generators and atomic terrain/Edge planning. See
 [Civilization V2 — Villages and Settlements](CIVILIZATION_V2.md) for the four layout
 families, route frontage, occupation alternatives and current verification. See

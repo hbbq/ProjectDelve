@@ -153,6 +153,7 @@ public sealed record WorldPreviewFrame(string StepId, string Stage, string Terra
     public RouteNetworkSnapshot? RouteNetwork { get; init; }
     public PopulationSnapshot? Population { get; init; }
     public IReadOnlyList<Machine> Machines { get; init; } = [];
+    public IReadOnlyList<LootMarker> SiteLootMarkers { get; init; } = [];
 }
 public sealed record WorldPreview(IReadOnlyList<string> TerrainPalette, IReadOnlyList<WorldPreviewFrame> Frames,
     IReadOnlyList<NaturalFormation> Formations, int[] FormationLabels, int[] BoundaryCells)
@@ -164,7 +165,10 @@ public sealed record WorldPreview(IReadOnlyList<string> TerrainPalette, IReadOnl
         Frames.SelectMany(f => f.Construction).DistinctBy(o => o.Id).Sum(o => 256L + o.TerrainChanges.Count * 64L + o.EdgeChanges.Count * 32L) +
         Frames.SelectMany(f => f.Sites).DistinctBy(s => s.Id).Sum(s => 512L + s.Footprint.Spans.Count * 12L + s.Exterior.Spans.Count * 12L +
             s.Buildings.Sum(b => 256L + b.Footprint.Spans.Count * 12L + b.Rooms.Sum(r => 192L + (r.Interior.Spans.Count + r.Usable.Spans.Count) * 12L)) +
-            (s.PopulationIntent is { } intent ? 128L + intent.PatrolPath.Count * 4L + intent.Areas.Sum(a => 128L + a.Area.Spans.Count * 12L) : 0) +
+            (s.PopulationIntent is { } intent ? 128L + intent.PatrolPath.Count * 4L + intent.Areas.Sum(a => 128L + a.Area.Spans.Count * 12L) +
+                intent.EncounterRegions.Sum(r => 128L + r.Area.Spans.Count * 12L + r.PatrolPath.Count * 4L + r.PreferredUnitTypes.Sum(t => t.Length * 2L)) : 0) +
+            (s.MountainDungeon is { } dungeon ? 192L + dungeon.Rooms.Sum(r => 192L + (r.Interior.Spans.Count + r.Usable.Spans.Count) * 12L) +
+                new[] { dungeon.Corridors, dungeon.ProtectedRock, dungeon.RequiredAccess, dungeon.Lava }.Concat(dungeon.TreasureAreas).Sum(a => 64L + a.Spans.Count * 12L) : 0) +
             (s.SettlementLayout is { } layout ? 128L + layout.Lots.Count * 128L + layout.Access.Spans.Count * 12L +
                 layout.PublicSpaces.Sum(a => 128L + a.Area.Spans.Count * 12L) + layout.FallbackReasons.Sum(r => r.Length * 2L) : 0)) +
         Frames.SelectMany(f => f.RouteNetwork?.Routes ?? []).DistinctBy(r => r.Id).Sum(r => 512L + r.Corridor.Spans.Count * 12L +
@@ -179,6 +183,7 @@ public sealed record WorldPreview(IReadOnlyList<string> TerrainPalette, IReadOnl
             f.Population.AlertComponents.Sum(c => 32L + c.UnitIds.Sum(id => 24L + id.Length * 2L)) +
             f.Population.LootMarkers.Sum(m => 48L + m.Id.Length * 2L) +
             f.Population.Failures.Sum(p => 64L + 2L * (p.RequestId.Length + p.Reason.Length + (p.Kind?.Length ?? 0) + (p.SourceId?.Length ?? 0)))) +
+        Frames.Sum(f => f.SiteLootMarkers.Sum(m => 48L + m.Id.Length * 2L)) +
         4L * (FormationLabels.Length + BoundaryCells.Length) + Formations.Count * 256L;
 }
 public sealed record WorldGenerationExecution(WorldGenerationContext Context, WorldPreview Preview, IReadOnlyList<WorldStageMeasurement> Measurements);
@@ -232,7 +237,8 @@ public static class WorldGenerationPipeline
                     context.OriginalAnalysis = TerrainAnalyzer.Analyze(plan.Window, context.OriginalSamples, content);
                     context.CurrentAnalysis = context.OriginalAnalysis; break;
                 case WorldStepKind.PostEnrichmentAnalysis:
-                    context.CurrentAnalysis = TerrainAnalyzer.Analyze(plan.Window, context.Samples, context.ConstructionBoard?.Content ?? content, context.Revision, context.ConstructionEdges(), context.ConstructionBoard?.State.Machines); break;
+                    context.CurrentAnalysis = TerrainAnalyzer.Analyze(plan.Window, context.Samples, context.ConstructionBoard?.Content ?? content, context.Revision, context.ConstructionEdges(), context.ConstructionBoard?.State.Machines);
+                    DungeonSitePopulation.FinalizeGeometryAndLoot(context, context.ConstructionBoard?.Content ?? content); break;
                 case WorldStepKind.ForestEnrichment: ForestEnricher.Apply(context, step, content); break;
                 case WorldStepKind.RockEnrichment: RockEnricher.Apply(context, step, content); break;
                 case WorldStepKind.WaterEnrichment: WaterEnricher.Apply(context, step, content); break;
@@ -240,6 +246,7 @@ public static class WorldGenerationPipeline
                 case WorldStepKind.Population: PopulationGenerator.Apply(context, step, content); break;
                 case WorldStepKind.Civilization:
                     CivilizationGenerator.Apply(context, step, content);
+                    DungeonSitePopulation.PublishIntents(context);
                     if (context.RouteNetwork is not null) context.RouteNetwork = RouteTopologyBuilder.Build(context);
                     break;
                 case WorldStepKind.RouteNetwork: RouteNetworkGenerator.Apply(context, step, content); break;
@@ -283,7 +290,7 @@ public static class WorldGenerationPipeline
                 CampsiteDensity = context.CampsiteDensity, SettlementDensity = context.SettlementDensity,
                 ThroughRouteDensity = context.ThroughRouteDensity, ExplorationLinkDensity = context.ExplorationLinkDensity,
                 ConstructionBatches = context.ConstructionBatches.ToArray(), RouteNetwork = context.RouteNetwork, Population = context.Population,
-                Machines = context.ConstructionBoard?.State.Machines.ToArray() ?? []
+                Machines = context.ConstructionBoard?.State.Machines.ToArray() ?? [], SiteLootMarkers = context.SiteLootMarkers.ToArray()
             });
             previous = terrain; previousEdges = edgeMap;
             measurements.Add(new(step.Id, step.Kind, timer.Elapsed.TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - allocated));

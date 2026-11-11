@@ -106,11 +106,12 @@ internal static class RouteTopologyBuilder
         // new route whose endpoint refers back to this Site. Report that attachment
         // from the same exact ports and current topology.
         foreach (var site in context.Sites)
-        foreach (var port in site.AccessPorts.Where(p => board.IsRouteCorridor(p.OutwardIndex) &&
+        foreach (var port in site.AccessPorts.Where(p => (board.IsRouteCorridor(p.OutwardIndex) || board.IsRouteCorridor(p.AnchorIndex)) &&
             !attachments.Any(a => a.SiteId == site.Id && a.PortId == p.Id)))
         {
             var inside = port.AnchorIndex; var outside = port.OutwardIndex;
-            attachments.Add(new(site.Id, port.Id, board.RouteMemberships(outside), labels[outside],
+            var contact = board.IsRouteCorridor(outside) ? outside : inside;
+            attachments.Add(new(site.Id, port.Id, board.RouteMemberships(contact), labels[contact],
                 openLabels[inside] >= 0 && openLabels[inside] == openLabels[outside],
                 context.CurrentAnalysis.WalkableLabels[inside] >= 0 &&
                 context.CurrentAnalysis.WalkableLabels[inside] == context.CurrentAnalysis.WalkableLabels[outside]));

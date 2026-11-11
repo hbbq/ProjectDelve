@@ -14,6 +14,41 @@ public sealed class WorldQuickPlayTests
     };
     private static string Json<T>(T value) => JsonSerializer.Serialize(value, ContentPackageJson.CreateOptions());
 
+    [Fact]
+    public void StartUsesPrincipalDoorsOpenableComponentInsteadOfSmallEdgePocket()
+    {
+        var original = Empty(14, 10) with { Board = new() { Width = 14, Height = 10,
+            DefaultTerrain = TerrainKind.SolidRock,
+            Cells = Enumerable.Range(0, 7).Select(x => new CellDefinition(new(x, 0), TerrainKind.StoneFloor))
+                .Concat(Enumerable.Range(3, 6).SelectMany(y => Enumerable.Range(3, 10).Select(x => new CellDefinition(new(x, y), TerrainKind.StoneFloor)))).ToList() } };
+        var prepared = WorldQuickPlay.Prepare(original, Canonical);
+        Assert.All(prepared.Units, u => Assert.InRange(u.Anchor.Y, 3, 8));
+        var main = PlayableWorldComponent.Select(GameEngine.CreateGame(original, Canonical).Physical.Board);
+        Assert.Equal(60, main.Count);
+        Assert.All(prepared.Units, u => Assert.Contains(u.Anchor.Y * 14 + u.Anchor.X, main));
+    }
+
+    [Fact]
+    public void ClosedDoorsJoinPrincipalComponentButHeroStartStillRequiresOpenEdges()
+    {
+        var original = Empty(10, 2) with { Board = new() { Width = 10, Height = 2,
+            Edges = [new(new(3, 0), EdgeDirection.Right, EdgeKind.ClosedDoor), new(new(3, 1), EdgeDirection.Right, EdgeKind.Wall)] } };
+        Assert.Equal(20, PlayableWorldComponent.Select(GameEngine.CreateGame(original, Canonical).Physical.Board).Count);
+        var prepared = WorldQuickPlay.Prepare(original, Canonical);
+        Assert.All(prepared.Units, u => Assert.True(u.Anchor.X < 4));
+    }
+
+    [Fact]
+    public void OccupiedPrincipalComponentFailsInsteadOfFallingBackToAnIsolatedPocket()
+    {
+        var cells = Enumerable.Range(0, 6).Select(x => new CellDefinition(new(x, 0), TerrainKind.StoneFloor))
+            .Concat(Enumerable.Range(2, 2).SelectMany(y => Enumerable.Range(0, 6).Select(x => new CellDefinition(new(x, y), TerrainKind.StoneFloor)))).ToList();
+        var original = Empty(6, 4) with { Board = new() { Width = 6, Height = 4, DefaultTerrain = TerrainKind.SolidRock, Cells = cells },
+            UnitTypeIds = [UnitTypeIds.Goblin], Units = cells.Where(c => c.Position.Y >= 2).Select((c, i) => new UnitPlacement(UnitTypeIds.Goblin, "red", c.Position, UnitId: "occupant-" + i)).ToList(),
+            Agency = [new(UnitTypeIds.Goblin, "red", ControllerKind.Automated)] };
+        Assert.Contains("principal doors-openable", Assert.Throws<ArgumentException>(() => WorldQuickPlay.Prepare(original, Canonical)).Message);
+    }
+
     [Theory]
     [InlineData(1UL)]
     public void GeneratedForestQuickPlayExploresFullFriendlySightDiamondsThroughTrees(ulong seed)

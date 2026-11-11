@@ -1257,6 +1257,29 @@ test('observed Rock regions share coplanar tops, omit internal/unknown boundarie
   assert.ok(disposedGeometryCounts.size>0);assert.ok([...disposedGeometryCounts.values()].every(count=>count===1));
 });
 
+test('cutaway flattens generated Solid Rock while retaining known floors and concealing unexplored terrain',async()=>{
+  const f=fixture(16,'blue'),board=f.state.physical.board;
+  board.terrainTypes=[{id:'test-mountain-rock',name:'Mountain rock',presentation:{recipe:'SolidRock'}},
+    {id:'test-dungeon-floor',name:'Dungeon floor',presentation:{recipe:'StoneFloor'}}];
+  board.terrain=[{position:{x:2,y:2},typeId:'test-mountain-rock'},{position:{x:3,y:2},typeId:'test-dungeon-floor'},
+    {position:{x:15,y:15},typeId:'test-mountain-rock'}];
+  f.state.exploredCells.blue=[{x:2,y:2},{x:3,y:2}];
+  const h=await harness(f);try{
+    const {observedTerrain}=await moduleAt('three-viewport.js');assert.equal(observedTerrain(f).kindAt(15,15),'Unknown');
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();
+    const scene=h.rendered.at(-1).scene,objects=scene.getObjectByName('objects'),terrain=scene.getObjectByName('terrain'),fog=scene.getObjectByName('fog');
+    assert.ok(objects.children.length>0);const floor=[...terrain.children],unknown=[...fog.children];
+    assert.ok(floor.length>0);assert.ok(unknown.length>0);
+    h.controls.cutaway.checked=true;h.controls.cutaway.emit('change');h.flush();
+    assert.equal(objects.visible,false);assert.equal(terrain.visible,true);assert.equal(fog.visible,true);
+    assert.deepEqual(terrain.children,floor);assert.deepEqual(fog.children,unknown);
+    const changed=structuredClone(f);changed.state.physical.board.terrain[2].typeId='test-dungeon-floor';
+    h.viewport.renderFrame(changed);h.flush();assert.deepEqual(terrain.children,floor);assert.deepEqual(fog.children,unknown);
+    h.controls.cutaway.checked=false;h.controls.cutaway.emit('change');h.flush();assert.equal(objects.visible,true);
+    assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
 test('observed Tabletop posture flips settle, cancel and leave logical placement and HTML information fixed',async()=>{
   const f=fixture(),h=await harness(f);try{
     h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();assert.equal(h.viewport.inspect().flips,0);

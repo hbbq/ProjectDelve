@@ -47,8 +47,10 @@ public sealed partial class WorldGenerationContext
     public PopulationSnapshot? Population { get; internal set; }
     // Authoring-only exclusions, independent of construction reservations.
     public List<GeneratedArea> PopulationProtectedAreas { get; } = [];
+    public List<LootMarker> SiteLootMarkers { get; } = [];
     internal ScenarioDefinition AddPopulation(ScenarioDefinition definition)
     {
+        if (SiteLootMarkers.Count > 0) definition = definition with { LootMarkers = [.. definition.LootMarkers ?? [], .. SiteLootMarkers] };
         if (Population is null) return definition;
         return PopulationGenerator.Combine(definition, Population.Encounters) with
         { LootMarkers = [.. definition.LootMarkers ?? [], .. Population.LootMarkers], Loot = Population.Loot ?? definition.Loot };
@@ -58,6 +60,7 @@ public sealed partial class WorldGenerationContext
 internal sealed record PopulationLocation(string Kind, string SourceId, int[] Cells, CellBounds Bounds, int[]? Path = null)
 {
     public SitePopulationIntent? Intent { get; init; }
+    public SiteEncounterRegion? Region { get; init; }
 }
 internal static partial class GoblinCampPopulationGenerator
 {
