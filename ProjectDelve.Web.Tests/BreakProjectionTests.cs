@@ -99,6 +99,64 @@ public sealed class BreakProjectionTests
         Assert.DoesNotContain("secret", JsonSerializer.Serialize(GambitProjection.Event(discovered)));
     }
 
+    [Fact]
+    public void AreaEdgeBatchFiltersHiddenTargetsAndSourceWithoutBackfillingLaterDiscovery()
+    {
+        var visibleEdge = new Edge(new(1, 1), new(2, 1), EdgeKind.Wall);
+        var hiddenEdge = new Edge(new(3, 2), new(3, 3), EdgeKind.ClosedDoor);
+        var type = new UnitType("area-breaker", 0, 0, 0, 0, 1, Actions: UnitAction.None)
+        {
+            LocalAbilities = [new("self-defeat", "Self defeat", AbilityTiming.InsteadOfActivation, new DefeatSelf()),
+                new("secret-break", "Hidden demolition", AbilityTiming.WhenDefeated, new BreakAdjacentObjects(6))]
+        };
+        var state = GameEngine.CreateGame(new ScenarioDefinition
+        {
+            Board = new() { Width = 5, Height = 5,
+                Edges = [new(visibleEdge.A, EdgeDirection.Right, visibleEdge.Kind),
+                    new(hiddenEdge.A, EdgeDirection.Down, hiddenEdge.Kind)] },
+            UnitTypeIds = [type.Id], UnitTypes = [type],
+            Units = [new(type.Id, "blue", new(2, 2), UnitId: "actor")],
+            Agency = [new(type.Id, "blue", ControllerKind.Human)],
+            Objectives = [new("blue", ScenarioObjective.NoObjective)], Loot = LootSettings.Empty
+        });
+        state.FogOfWarSides.Add("viewer");
+        state.ExploredCells["viewer"] = [visibleEdge.A];
+
+        var result = GameEngine.StartRound(state, new Dice(), false);
+        var raw = Assert.Single(result.Events, e => e.Kind == "AdjacentObjectsBreakResolved");
+        Assert.Equal(2, raw.BreakOutcomes.Length);
+        Assert.Equal(EdgeKind.None, result.State.Physical.Board.EdgeBetween(visibleEdge.A, visibleEdge.B));
+        Assert.Equal(EdgeKind.None, result.State.Physical.Board.EdgeBetween(hiddenEdge.A, hiddenEdge.B));
+        var visible = Assert.Single(raw.BreakOutcomes, o => o.Target.Edge == visibleEdge);
+        Assert.Contains("viewer", visible.BeforeVisibleSideIds);
+        Assert.Empty(Assert.Single(raw.BreakOutcomes, o => o.Target.Edge == hiddenEdge).BeforeVisibleSideIds);
+
+        var later = result.State.DetachedCopy();
+        later.ExploredCells["viewer"].UnionWith([new(2, 2), hiddenEdge.A, hiddenEdge.B]);
+        var observed = BrowserProjection.Observe(result with { State = later }, "viewer");
+        var occurrence = Assert.Single(observed.Events, e => e.Kind == raw.Kind);
+        var outcome = Assert.Single(occurrence.BreakOutcomes);
+        Assert.Equal(visibleEdge, outcome.Target.Edge);
+        Assert.Equal(EdgeKind.Wall, outcome.BeforeEdgeKind);
+        Assert.Equal(EdgeKind.None, outcome.AfterEdgeKind);
+        Assert.Empty(outcome.BeforeVisibleSideIds);
+        Assert.Null(occurrence.UnitId);
+        Assert.Null(occurrence.SourceUnitId);
+        Assert.Null(occurrence.ActionId);
+        Assert.Null(occurrence.AbilityName);
+        Assert.Null(occurrence.AbilitySource);
+        var frame = observed.ResolutionSteps.Single(s => observed.Events[s.EventIndex].Kind == raw.Kind);
+        Assert.False(FogOfWar.IsExplored(frame.StateAfter, "viewer", hiddenEdge.A));
+        Assert.DoesNotContain("secret-break", JsonSerializer.Serialize(GambitProjection.Event(occurrence)));
+
+        // A fresh observation may show the current opening, but cannot reveal its hidden prior structure.
+        var discovered = FogOfWar.ObserveEvent(later, "viewer", raw)!;
+        var discoveredEdge = Assert.Single(discovered.BreakOutcomes, o => o.Target.Edge?.A == hiddenEdge.A);
+        Assert.Null(discoveredEdge.BeforeEdgeKind);
+        Assert.Equal(EdgeKind.None, discoveredEdge.Target.Edge!.Kind);
+        Assert.Null(discovered.SourceUnitId);
+    }
+
     private sealed class Selection(Func<DecisionRequest, string> select) : IDecisionProvider
     { public string Choose(DecisionRequest request, IGameplayQueries queries) => select(request); }
     private sealed class Dice : IRandomProvider

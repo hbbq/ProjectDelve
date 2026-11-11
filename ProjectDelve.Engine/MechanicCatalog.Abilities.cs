@@ -15,14 +15,14 @@ public static partial class MechanicCatalog
             (payload, path, errors) => MechanicChecks.Integer(errors, threshold, payload.SuccessThreshold, path + ".successThreshold"));
         var adjacent = AbilityContract("breakAdjacentObjects", "Break Adjacent Objects",
             [MechanicTiming.Action, MechanicTiming.BonusAction], MechanicContext.ActingUnit,
-            new(MechanicTargetSelection.None, "Every safely destructible neighboring Cell outside the source footprint using target-only Terrain LOS exemption, and every structure Edge bordering it. Freeze recipients before resolving."),
-            "Break every neighboring destructible object and bordering structure on a separate d6 result of {successThreshold} or less. A success threshold of 6 succeeds without rolling.", ["successThreshold"], ["terrain", "edges", "lineOfSight", "dice"]);
+            new(MechanicTargetSelection.None, "Every safely destructible neighboring Cell outside the source footprint using target-only Terrain LOS exemption, and every eligible structure Edge with both endpoints inside the footprint plus its one-Cell eight-neighbor ring, clipped to the board. Freeze recipients before resolving."),
+            "Break every neighboring destructible object and every eligible structure between Cells in the area formed by this Unit's footprint plus its one-Cell eight-neighbor ring on a separate d6 result of {successThreshold} or less. A success threshold of 6 succeeds without rolling.", ["successThreshold"], ["terrain", "edges", "lineOfSight", "dice"]);
         yield return MechanicRegistration.Create<BreakAdjacentObjects>(adjacent with
         {
             Parameters = [threshold],
             ContextRequirements = "Active uses require an Upright acting Unit and the declared Action or Bonus Action opportunity. Native WhenDefeated uses the captured defeat footprint and source Ability through the FIFO consequence queue.",
             Profiles = adjacent.Profiles.Add(new(MechanicSource.Unit, MechanicTiming.WhenDefeated, MechanicUsageSupport.UnlimitedOnly)),
-            Description = adjacent.Description with { TimingTemplates = [new(MechanicTiming.WhenDefeated, "When this Unit is defeated, break every neighboring destructible object and bordering structure on a separate d6 result of {successThreshold} or less. A success threshold of 6 succeeds without rolling.")] }
+            Description = adjacent.Description with { TimingTemplates = [new(MechanicTiming.WhenDefeated, "When this Unit is defeated, break every neighboring destructible object and every eligible structure between Cells in the area formed by this Unit's footprint plus its one-Cell eight-neighbor ring on a separate d6 result of {successThreshold} or less. A success threshold of 6 succeeds without rolling.")] }
         }, (payload, path, errors) => MechanicChecks.Integer(errors, threshold, payload.SuccessThreshold, path + ".successThreshold"));
         var defeatSelf = SpecializedMarker<DefeatSelf>("defeatSelf", "Defeat Self", MechanicTiming.InsteadOfActivation,
             "Instead of this Upright Unit's activation, defeat it.");
@@ -186,7 +186,7 @@ public static partial class MechanicCatalog
             return "Choose a neighboring destructible object or bordering structure. Break it without rolling.";
         if (ability.Mechanic is BreakAdjacentObjects { SuccessThreshold: 6 })
             return (ability.Timing == AbilityTiming.WhenDefeated ? "When this Unit is defeated, break" : "Break") +
-                " every neighboring destructible object and bordering structure without rolling.";
+                " every neighboring destructible object and every eligible structure between Cells in the area formed by this Unit's footprint plus its one-Cell eight-neighbor ring without rolling.";
         var descriptor = FindByPayload(ability.Mechanic)
             ?? throw new ArgumentException("Unsupported ability mechanic.");
         var timing = AbilityTimingContext(ability.Timing);

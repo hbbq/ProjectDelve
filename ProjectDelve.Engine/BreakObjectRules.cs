@@ -50,7 +50,10 @@ public static class BreakObjectRules
             .Where(cell => sourceCells.Any(source => Math.Max(Math.Abs(source.X - cell.X), Math.Abs(source.Y - cell.Y)) == 1 &&
                 AttackRules.HasGeometricLineOfSight(board, source, cell, ignoredTerrainCell: cell)))
             .Select(cell => new BreakTarget(Cell: cell)).Where(target => CanBreak(state, target));
-        var edges = board.Edges.Where(edge => occupied.Contains(edge.A) || occupied.Contains(edge.B))
+        var affected = area ? occupied.Union(ring).ToHashSet() : occupied;
+        var edges = board.Edges.Where(edge => area
+                ? affected.Contains(edge.A) && affected.Contains(edge.B)
+                : occupied.Contains(edge.A) || occupied.Contains(edge.B))
             .Select(CanonicalEdge).Distinct().OrderBy(e => e.A.Y).ThenBy(e => e.A.X).ThenBy(e => e.B.Y).ThenBy(e => e.B.X)
             .Select(edge => new BreakTarget(Edge: edge)).Where(target => CanBreak(state, target));
         var candidates = cells.Concat(edges).ToImmutableArray();

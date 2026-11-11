@@ -91,9 +91,19 @@ public sealed class DemolitionImpPopulationIntegrationTests(ITestOutputHelper ou
         Assert.NotNull(generatedImp);
         // Retain the generated physical instance and published Type; only arrange a test-owned combat fixture.
         var imp = generatedImp! with { Anchor = new(2, 2), Posture = Posture.Upright, Dormant = false };
+        var publishedTypeJson = JsonSerializer.Serialize(content.Units.Single(t => t.Id == DemolitionImp));
+        var internalWall = new Edge(new(2, 3), new(3, 3), EdgeKind.Wall);
+        var perimeterWalls = new[]
+        {
+            new Edge(new(3, 1), new(4, 1), EdgeKind.Wall),
+            new Edge(new(1, 3), new(1, 4), EdgeKind.Wall)
+        };
         var definition = new ScenarioDefinition
         {
-            Board = new() { Width = 6, Height = 5, Cells = [new(new(2, 1), TerrainKind.Tree)] },
+            Board = new() { Width = 6, Height = 5, Cells = [new(new(2, 1), TerrainKind.Tree)],
+                Edges = [new(internalWall.A, EdgeDirection.Right, internalWall.Kind),
+                    new(perimeterWalls[0].A, EdgeDirection.Right, EdgeKind.Wall),
+                    new(perimeterWalls[1].A, EdgeDirection.Down, EdgeKind.Wall)] },
             UnitTypeIds = ["test-attacker", "test-witness", DemolitionImp],
             UnitTypes = [new("test-attacker", 0, 1, 6, 0, 5) { Unique = true }, new("test-witness", 0, 0, 0, 0, 5, Actions: UnitAction.None) { Unique = true }],
             Units = [new("test-attacker", "blue", new(1, 2), UnitId: "attacker"), imp,
@@ -120,7 +130,13 @@ public sealed class DemolitionImpPopulationIntegrationTests(ITestOutputHelper ou
         Assert.True(explosion >= 0 && destruction > explosion);
         Assert.Equal(4, result.State.Units.Single(u => u.Id == "witness").CurrentHp);
         Assert.Equal("grass", result.State.Physical.Board.TerrainDefinitionAt(new(2, 1)).Id);
+        Assert.Equal(EdgeKind.None, result.State.Physical.Board.EdgeBetween(internalWall.A, internalWall.B));
+        Assert.All(perimeterWalls, edge => Assert.Equal(EdgeKind.Wall, result.State.Physical.Board.EdgeBetween(edge.A, edge.B)));
+        var outcomes = events[destruction].BreakOutcomes;
+        Assert.Contains(outcomes, o => o.Target.Edge == internalWall && o.Succeeded);
+        Assert.DoesNotContain(outcomes, o => o.Target.Edge is { } edge && perimeterWalls.Contains(edge));
         Assert.Empty(result.State.PendingDefeatEffects);
+        Assert.Equal(publishedTypeJson, JsonSerializer.Serialize(content.Units.Single(t => t.Id == DemolitionImp)));
     }
 
     private sealed class Pick(string key) : IDecisionProvider
