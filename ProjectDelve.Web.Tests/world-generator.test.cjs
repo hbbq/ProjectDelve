@@ -359,6 +359,22 @@ function constructionResult(h) {
 }
 function descendants(node) { return [node,...node.children.flatMap(descendants)]; }
 
+test("Settlement preview exposes server-authored family, lots, public spaces and fallback reasons", async () => {
+  const h = harness(), result = constructionResult(h), site = result.preview.frames[2].sites[0];
+  site.settlementLayout = { family: 'InnCompound', access: site.exterior,
+    lots: [{ id: 'service-lot', bounds: { x: 0, y: 0, width: 1, height: 1 }, purpose: 'Storage', buildingId: 'service-building' }],
+    publicSpaces: [{ id: 'service-yard', role: 'Courtyard', area: site.exterior }],
+    fallbackReasons: ['Reduced to two buildings: constrained geography.'] };
+  h.get('world-generator-usable').checked = true;
+  h.get('world-generator-buildings').checked = true;
+  h.click('preview'); await h.accept(0, result);
+  assert.match(h.get('world-generator-civilization-summary').textContent, /InnCompound.*Courtyard.*Reduced to two buildings/);
+  const nodes = descendants(h.get('world-generator-board'));
+  assert.ok(nodes.some(node => node.dataset.objectId === 'service-lot' && node.title.includes('Storage')));
+  assert.ok(nodes.some(node => node.dataset.objectId === 'service-yard' && node.title.includes('Courtyard')));
+  assert.ok(nodes.some(node => node.title?.includes('Public access')));
+});
+
 test("Population controls round-trip all densities and difficulties without type selection controls", () => {
   const h = harness();
   for (const density of ['Off', 'Low', 'Medium', 'High']) for (const difficulty of [1, 3, 5]) {

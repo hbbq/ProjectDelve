@@ -84,7 +84,11 @@ public static partial class PopulationGenerator
         var areas = intent.Areas.Where(a => a.Role != "supplies" && (!separated || intent.Areas.Any(b => b.Role == "resting" && b.ClusterId == a.ClusterId)))
             .OrderBy(a => a.Id, StringComparer.Ordinal).ToArray();
         var placed = new List<(string Type, int Cell, string Role, string Cluster, string? Area)>();
-        var baseType = random.Next(8) == 0 ? UnitTypeIds.Zombie : UnitTypeIds.Goblin;
+        var baseType = location.Kind == "SettlementCompound"
+            ? PopulationComposition.Monster(random, settings.Difficulty, building: true)
+            : random.Next(8) == 0 ? UnitTypeIds.Zombie : UnitTypeIds.Goblin;
+        if (types[baseType].Footprint != Footprint.OneByOne)
+        { fail("Compound occupation omitted: single-Cell portals do not certify large-footprint access."); return null; }
         // Patrol is an optional active role, not a side effect of being a camp.
         var occupied = state.Units.SelectMany(u => FootprintGeometry.OccupiedCells(state, u.Id)).Select(c => c.Y * width + c.X).ToHashSet();
         var wantsPatrol = !separated && random.Next(4) == 0 && OpenPath(board, intent.PatrolPath, i => board.Passable(i) && !occupied.Contains(i));
@@ -105,6 +109,8 @@ public static partial class PopulationGenerator
             var selected = options[0]; var type = baseType;
             if (selected.Area.Role == "sentry" && settings.Difficulty >= 3 && random.Next(3) == 0) type = UnitTypeIds.SkeletonArcher;
             if (selected.Area.Role == "central" && settings.Difficulty >= 4 && random.Next(3) == 0) type = UnitTypeIds.Troll;
+            if (location.Kind == "SettlementCompound" && types[type].Footprint != Footprint.OneByOne)
+                type = baseType; // Only the checked base Type is certified through these portals.
             placed.Add((type, selected.Cell, selected.Area.Role, selected.Area.ClusterId, selected.Area.Id));
         }
         IReadOnlyList<int>? patrol = null;

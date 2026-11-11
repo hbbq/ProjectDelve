@@ -6,6 +6,8 @@ ProjectDelve.Web/Content/Library/**/*.tmp
 .dotnet-local/
 .artwork-venv/
 .artwork-qa/
+# Local investigation scratch files, profiling copies, and generated evidence.
+/.tmp/
 tools/__pycache__/
 .vs/
 # Playwright CLI output (may contain credentials)

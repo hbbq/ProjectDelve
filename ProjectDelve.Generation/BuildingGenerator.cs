@@ -33,7 +33,13 @@ public static class BuildingGenerator
         var w = scope.Draft.Width;
         int Distance(int a, int b) => Math.Abs(a % w - b % w) + Math.Abs(a / w - b / w);
         var maxWidth = Math.Min(r.MaxWidth, request.Plot.Width - 2); var maxHeight = Math.Min(r.MaxHeight, request.Plot.Height - 2);
-        for (var sample = 0; sample < 256 && maxWidth >= r.MinWidth && maxHeight >= r.MinHeight; sample++)
+        // A planned settlement lot can fix both the shell and exact Door. Such a
+        // request has one candidate; repeatedly sampling it only consumes budget.
+        var exactLot = r.MinWidth == maxWidth && r.MinHeight == maxHeight &&
+            request.Plot.Width == r.MinWidth + 2 && request.Plot.Height == r.MinHeight + 2 &&
+            r.Entrance is { Side: not null, NearIndex: not null, MaxDistance: 0 };
+        var sampleLimit = exactLot ? 1 : 256;
+        for (var sample = 0; sample < sampleLimit && maxWidth >= r.MinWidth && maxHeight >= r.MinHeight; sample++)
         {
             if (!scope.Budget.Spend(1)) return Fail(PlacementFailureCode.BudgetExhausted, "Footprint search budget exhausted.");
             // The first four minimal footprints cover each orientation. Remaining bounded

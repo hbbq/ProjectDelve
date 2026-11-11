@@ -7,11 +7,14 @@ namespace ProjectDelve.Web.Tests;
 
 public sealed class PopulationV2IntegrationTests
 {
-    [Fact]
-    public void DenseQuickPlayKeepsEveryMarkerScalesAllAndFiltersHiddenPopulation()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void DenseQuickPlayKeepsEveryMarkerScalesAllAndFiltersHiddenPopulation(int settlements)
     {
         var world = WorldGenerator.Generate(new WorldGenerationRecipe(new(Width: 60, Height: 50), new(0, 0, 0), 12345,
-            Civilization: new(Campsites: 2, Settlements: 0), Population: new(PopulationDensity.High, 4), LootPreset: "Fun"));
+            Civilization: new(Campsites: 2, Settlements: settlements), Population: new(PopulationDensity.High, 4), LootPreset: "Fun"));
+        Assert.Equal(settlements, world.Context.Sites.Count(s => s.Kind == GeneratedSiteKind.Settlement));
         var before = ScenarioDefinitionJson.ToJson(world.Definition);
         var prepared = WorldQuickPlay.Prepare(world.Definition, ContentBundle.Canonical());
         Assert.Equal(world.Definition.LootMarkers, prepared.LootMarkers);

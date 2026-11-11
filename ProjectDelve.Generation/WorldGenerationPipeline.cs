@@ -159,7 +159,9 @@ public sealed record WorldPreview(IReadOnlyList<string> TerrainPalette, IReadOnl
         Frames.SelectMany(f => f.Construction).DistinctBy(o => o.Id).Sum(o => 256L + o.TerrainChanges.Count * 64L + o.EdgeChanges.Count * 32L) +
         Frames.SelectMany(f => f.Sites).DistinctBy(s => s.Id).Sum(s => 512L + s.Footprint.Spans.Count * 12L + s.Exterior.Spans.Count * 12L +
             s.Buildings.Sum(b => 256L + b.Footprint.Spans.Count * 12L + b.Rooms.Sum(r => 192L + (r.Interior.Spans.Count + r.Usable.Spans.Count) * 12L)) +
-            (s.PopulationIntent is { } intent ? 128L + intent.PatrolPath.Count * 4L + intent.Areas.Sum(a => 128L + a.Area.Spans.Count * 12L) : 0)) +
+            (s.PopulationIntent is { } intent ? 128L + intent.PatrolPath.Count * 4L + intent.Areas.Sum(a => 128L + a.Area.Spans.Count * 12L) : 0) +
+            (s.SettlementLayout is { } layout ? 128L + layout.Lots.Count * 128L + layout.Access.Spans.Count * 12L +
+                layout.PublicSpaces.Sum(a => 128L + a.Area.Spans.Count * 12L) + layout.FallbackReasons.Sum(r => r.Length * 2L) : 0)) +
         Frames.SelectMany(f => f.RouteNetwork?.Routes ?? []).DistinctBy(r => r.Id).Sum(r => 512L + r.Corridor.Spans.Count * 12L +
             r.Geometry.Runs.Count * 16L + r.Crossings.Sum(c => c.Footprint.Spans.Count * 12L) + r.TunnelEntrances.Count * 32L) +
         Frames.Sum(f => (f.RouteNetwork?.Junctions.Sum(j => 128L + j.Contact.Spans.Count * 12L) ?? 0) +

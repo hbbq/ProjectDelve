@@ -21,6 +21,8 @@ global reachability, encounter-distance or mission guarantees.
 
 Optional Civilization now constructs Campsites and small Settlements with nested
 Building/Room generators and atomic terrain/Edge planning. See
+[Civilization V2 — Villages and Settlements](CIVILIZATION_V2.md) for the four layout
+families, route frontage, occupation alternatives and current verification. See
 [CIVILIZATION_SITES.md](CIVILIZATION_SITES.md) for current contracts, recipe controls,
 nested inspection, evaluation, measurements and limits.
 

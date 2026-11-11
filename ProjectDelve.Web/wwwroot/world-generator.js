@@ -294,6 +294,7 @@ function renderConstruction(frame) {
   byId("construction-selection").textContent = operation ? `${selectedSpace ?? operation.id} · ${compareBefore ? "Before" : "After"} the complete ${selectedSpace ? "containing room layout" : "selected subtree"} · (${operation.bounds.x}, ${operation.bounds.y}), ${operation.bounds.width} × ${operation.bounds.height}` : "Choose a construction step. Parent steps inspect their complete subtree; Before shows its preceding checkpoint.";
   const stats = frame?.civilizationStats;
   const costs = (frame?.sites ?? []).map(site => `${site.id}: preparation ${site.preparation.cost}, trees ${site.preparation.treesRemoved}, rock ${site.preparation.rockExcavated}, Water ${site.preparation.waterFilled}` +
+    (site.settlementLayout ? `; ${site.settlementLayout.family}; ${site.settlementLayout.lots.length} lots; spaces ${site.settlementLayout.publicSpaces.map(space => space.role).join(", ")}${site.settlementLayout.fallbackReasons.length ? "; fallback: " + site.settlementLayout.fallbackReasons.join("; ") : ""}` : "") +
     (site.populationIntent ? `; ${site.populationIntent.layout}, occupation ${site.populationIntent.minimumUnits}–${site.populationIntent.maximumUnits}, ${site.populationIntent.alertTopology} Alert; roles ${site.populationIntent.areas.map(area => area.role).join(", ")}` : ""));
   byId("civilization-summary").textContent = stats ? `${stats.sites} sites · ${stats.campsites} campsites · ${stats.settlements} settlements · ${stats.buildings} buildings · ${stats.rooms} rooms · ${stats.attempts} attempts · work ${stats.work} · terrain changes ${stats.changedTerrain} · Edge changes ${stats.changedEdges}${costs.length ? "\n" + costs.join("\n") : ""}` : "";
   const failures = frame?.planningFailures ?? [], list = byId("planning-failures"); list.replaceChildren();
@@ -319,6 +320,16 @@ function renderPlanSpaces(root, frame, width, height) {
   for (const site of frame?.sites ?? []) {
     if (byId("sites").checked) area(site.footprint, site.id, "site", site.kind);
     if (byId("usable").checked) area(site.exterior, site.id, "usable", "Exterior");
+    if (byId("usable").checked && site.settlementLayout) {
+      area(site.settlementLayout.access, site.id, "usable", "Public access");
+      for (const space of site.settlementLayout.publicSpaces) area(space.area, space.id, "room", space.role);
+    }
+    if (byId("buildings").checked) for (const lot of site.settlementLayout?.lots ?? []) {
+      const b = lot.bounds, node = document.createElement("div");
+      node.className = "world-construction-bounds"; node.dataset.objectId = lot.id;
+      node.title = `${lot.purpose} lot: ${lot.buildingId}`;
+      Object.assign(node.style, { left: `${b.x / width * 100}%`, top: `${b.y / height * 100}%`, width: `${b.width / width * 100}%`, height: `${b.height / height * 100}%` }); root.append(node);
+    }
     if (byId("usable").checked) for (const role of site.populationIntent?.areas ?? []) area(role.area, role.id, "usable", `Population role: ${role.role}`);
     if (byId("site-entrances").checked) for (const entrance of site.entrances ?? []) portal(entrance);
     for (const building of site.buildings ?? []) {

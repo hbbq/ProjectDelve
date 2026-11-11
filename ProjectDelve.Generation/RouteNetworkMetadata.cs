@@ -100,6 +100,19 @@ internal static class RouteTopologyBuilder
                 openLabels[outside] >= 0 && openLabels[outside] == openLabels[port.AnchorIndex],
                 context.CurrentAnalysis.WalkableLabels[outside] >= 0 && context.CurrentAnalysis.WalkableLabels[outside] == context.CurrentAnalysis.WalkableLabels[port.AnchorIndex]));
         }
+        // A frontage can meet a pre-existing route directly, without generating a
+        // new route whose endpoint refers back to this Site. Report that attachment
+        // from the same exact ports and current topology.
+        foreach (var site in context.Sites)
+        foreach (var port in site.AccessPorts.Where(p => board.IsRouteCorridor(p.OutwardIndex) &&
+            !attachments.Any(a => a.SiteId == site.Id && a.PortId == p.Id)))
+        {
+            var inside = port.AnchorIndex; var outside = port.OutwardIndex;
+            attachments.Add(new(site.Id, port.Id, board.RouteMemberships(outside), labels[outside],
+                openLabels[inside] >= 0 && openLabels[inside] == openLabels[outside],
+                context.CurrentAnalysis.WalkableLabels[inside] >= 0 &&
+                context.CurrentAnalysis.WalkableLabels[inside] == context.CurrentAnalysis.WalkableLabels[outside]));
+        }
         return new(context.Routes.ToArray(), context.RouteIntents.ToArray(), junctions, shared, attachments, context.RouteAlternatives.ToArray(),
             new(board.Revision, components, open, potential), new(context.Routes.Sum(r => r.Stats.Attempts), context.Routes.Sum(r => r.Stats.ExpandedStates),
                 context.Routes.Select(r => r.Stats.QueuePeak).DefaultIfEmpty().Max(), context.Routes.Count,

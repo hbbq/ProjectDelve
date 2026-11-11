@@ -18,7 +18,9 @@ public sealed class SiteConnectionsTests
         var civil = world.Preview.Frames.Single(f => f.StepId == "civilization"); var final = world.Preview.Frames[^1];
         foreach (var site in world.Context.Sites)
         {
-            Assert.NotEmpty(site.AccessPorts); Assert.NotEmpty(site.ConnectionRequests);
+            Assert.NotEmpty(site.AccessPorts);
+            if (site.ConnectionRequests.Count == 0)
+                Assert.All(site.AccessPorts, p => Assert.True(world.Context.ConstructionBoard!.IsRouteCorridor(p.OutwardIndex)));
             foreach (var i in site.Footprint.Indices(world.Window.Width)) Assert.Equal(civil.Terrain[i], final.Terrain[i]);
             foreach (var port in site.AccessPorts)
             {
@@ -93,6 +95,11 @@ public sealed class SiteConnectionsTests
             var board = world.Context.ConstructionBoard!;
             if (!site.AccessPorts.Any(p => board.Passable(p.OutwardIndex))) continue;
             checkedSites++;
+            if (site.ConnectionRequests.Count == 0)
+            {
+                Assert.All(site.AccessPorts, p => Assert.True(board.IsRouteCorridor(p.OutwardIndex) && board.Passable(p.OutwardIndex)));
+                continue;
+            }
             var request = Assert.Single(site.ConnectionRequests);
             var selected = site.AccessPorts.Single(p => p.Id == request.PortId);
             Assert.True(board.Passable(selected.OutwardIndex));

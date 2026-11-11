@@ -14,14 +14,16 @@ var enrichment = false;
 var civilization = false;
 var routes = false;
 var population = false;
+var settlements = false;
 for (var i = 0; i < args.Length; i++)
 {
     if (args[i] == "--enrichment") { enrichment = true; continue; }
     if (args[i] == "--civilization") { civilization = true; continue; }
     if (args[i] == "--routes") { routes = true; continue; }
     if (args[i] == "--population") { population = true; continue; }
+    if (args[i] == "--settlements") { settlements = true; continue; }
     if (args[i] != "--fixtures" || ++i == args.Length)
-        throw new ArgumentException("Usage: WorldGenerationBenchmark [--population|--routes|--civilization|--enrichment] [--fixtures directory]");
+        throw new ArgumentException("Usage: WorldGenerationBenchmark [--settlements|--population|--routes|--civilization|--enrichment] [--fixtures directory]");
     fixtures = Path.GetFullPath(args[i]);
 }
 if (fixtures is not null) Directory.CreateDirectory(fixtures);
@@ -29,6 +31,7 @@ if (enrichment) { EnrichmentInvestigation.Run(fixtures); return; }
 if (civilization) { CivilizationInvestigation.Run(fixtures); return; }
 if (routes) { RoutesInvestigation.Run(fixtures); return; }
 if (population) { PopulationInvestigation.Run(fixtures); return; }
+if (settlements) { SettlementInvestigation.Run(fixtures); return; }
 var httpJson = new JsonSerializerOptions(JsonSerializerDefaults.Web)
 {
     Converters = { new JsonStringEnumConverter() }

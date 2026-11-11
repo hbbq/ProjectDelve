@@ -18,6 +18,25 @@ internal static class SiteRouteAccess
 
     internal static SiteInfo Publish(SiteInfo site, BoardDraft draft, SitePlacementPreferences? preferences)
     {
+        // Settlements can front an existing protected road. Publish those exact
+        // contacts through the same Site port model without requesting a redundant
+        // route or claiming ownership of the road's immutable corridor.
+        var direct = site.Entrances.Where(p => draft.IsRouteCorridor(p.OutsideIndex) &&
+            draft.Passable(p.InsideIndex) && draft.Passable(p.OutsideIndex) && draft.EdgeAt(p.Edge).Passable()).ToArray();
+        if (direct.Length > 0)
+        {
+            var connectedPorts = direct.Select((p, ordinal) =>
+            {
+                var id = site.Id + "/road-access-" + ordinal;
+                var side = p.OutsideIndex / draft.Width < p.InsideIndex / draft.Width ? CardinalSide.North :
+                    p.OutsideIndex / draft.Width > p.InsideIndex / draft.Width ? CardinalSide.South :
+                    p.OutsideIndex % draft.Width < p.InsideIndex % draft.Width ? CardinalSide.West : CardinalSide.East;
+                return new SiteAccessPort(id, site.Id, p.InsideIndex, p.OutsideIndex, side,
+                    GeneratedArea.From(id + "/approach", [p.InsideIndex], draft.Width), p.Width,
+                    new(site.Id, [p.InsideIndex], [], []));
+            }).ToArray();
+            return site with { AccessPorts = connectedPorts, ConnectionRequests = [] };
+        }
         var exterior = site.Exterior.Indices(draft.Width).ToHashSet(); var footprint = site.Footprint.Indices(draft.Width).ToHashSet();
         var start = site.Entrances[0].OutsideIndex; var parents = new Dictionary<int, int> { [start] = -1 }; var queue = new Queue<int>(); queue.Enqueue(start);
         while (queue.TryDequeue(out var i)) foreach (var j in draft.Neighbors(i))

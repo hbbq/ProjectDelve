@@ -31,8 +31,11 @@ vary placement, orientation, radius (2–4 in world generation), optional second
 in each wing, occupation and Alert intent. Existing Campfire, Table, grass and floor
 tiles form a shared hearth and separate supply/resting wings. No prop catalog was
 added. All usable ground must connect to the approach before construction commits;
-existing reserved roads cannot be overwritten. Settlements and buildings retain
-their previous geometry.
+existing reserved roads cannot be overwritten. [Civilization V2](CIVILIZATION_V2.md)
+extends settlement geometry and publishes room, threshold, storage and public-space
+intent through this same boundary. Settlements choose mutually exclusive vacant,
+independent-house or compound occupation; a vacant settlement does not then receive
+house defenders from a separate pass. Planned public access remains protected.
 
 Population resolves final usable role areas. Camps request 6–16 Units, with density
 limiting their upper size to 8/12/16. Sentries, central defenders, resting occupants

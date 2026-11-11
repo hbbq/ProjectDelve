@@ -7,6 +7,7 @@ using ProjectDelve.Engine;
 namespace ProjectDelve.Generation;
 
 public enum GeneratedSiteKind { Campsite, Settlement }
+public enum SettlementFamily { MarketVillage, RoadsideHamlet, Farmstead, InnCompound }
 public enum GeneratedObjectKind { Site, Building, Room, Space }
 public enum SiteTag { Camp, Residential, Constructed, ArtificialIsland }
 public enum PlacementFailureCode { InvalidRequest, InvalidContent, NoFootprint, ReservationConflict, PreparationLimit, EntranceConstraint, DisconnectedSpace, BudgetExhausted, ValidationFailed }
@@ -45,6 +46,10 @@ public sealed record SpaceAccess(int UsableCells, int ConnectedCells, bool Inter
 public sealed record RoomInfo(string Id, string Purpose, GeneratedArea Interior, GeneratedArea Usable, IReadOnlyList<string> PortalIds, int TwoByTwoPlacements);
 public sealed record BuildingInfo(string Id, string Purpose, GeneratedArea Footprint, IReadOnlyList<RoomInfo> Rooms,
     IReadOnlyList<SitePortal> Portals, SpaceAccess Access, IReadOnlyList<ScenarioRoleBinding> Roles);
+public sealed record SettlementLotInfo(string Id, CellBounds Bounds, string Purpose, string BuildingId);
+public sealed record SettlementPublicSpace(string Id, string Role, GeneratedArea Area);
+public sealed record SettlementLayoutInfo(SettlementFamily Family, IReadOnlyList<SettlementLotInfo> Lots,
+    IReadOnlyList<SettlementPublicSpace> PublicSpaces, GeneratedArea Access, IReadOnlyList<string> FallbackReasons);
 public sealed record PreparationSummary(int TreesRemoved, int RockExcavated, int WaterFilled, int ChangedTerrain, int ChangedEdges, int Cost)
 {
     public static PreparationSummary Empty { get; } = new(0, 0, 0, 0, 0, 0);
@@ -57,6 +62,7 @@ public sealed record SiteInfo(string Id, GeneratedSiteKind Kind, GeneratedArea F
     public IReadOnlyList<SiteAccessPort> AccessPorts { get; init; } = [];
     public IReadOnlyList<SiteConnectionRequest> ConnectionRequests { get; init; } = [];
     public SitePopulationIntent? PopulationIntent { get; init; }
+    public SettlementLayoutInfo? SettlementLayout { get; init; }
 }
 public sealed record ConstructionOperation(string Id, string? ParentId, string Name, string ObjectId, CellBounds Bounds,
     IReadOnlyList<TerrainChange> TerrainChanges, IReadOnlyList<EdgeChange> EdgeChanges);

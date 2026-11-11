@@ -41,6 +41,8 @@ public static partial class PopulationGenerator
             .Concat(context.Routes.SelectMany(r => r.Crossings.SelectMany(x => x.Footprint.Indices(w))
                 .Concat(r.TunnelEntrances.Select(x => x.AnchorIndex))))) protectedCells.Add(i);
         foreach (var machine in definition.Machines ?? []) protectedCells.Add(machine.Position.Y * w + machine.Position.X);
+        foreach (var site in context.Sites.Where(s => s.SettlementLayout is not null))
+            protectedCells.UnionWith(site.SettlementLayout!.Access.Indices(w));
         var occupied = state.Units.SelectMany(u => FootprintGeometry.OccupiedCells(state, u.Id)).Select(c => c.Y * w + c.X).ToHashSet();
         HashSet<int> encounterCells = [.. occupied]; HashSet<int> patrolCells = [];
         var names = definition.Units.Select(u => u.UnitId).Concat(definition.Units.Select(u => u.GroupId))
@@ -52,16 +54,24 @@ public static partial class PopulationGenerator
         var path = WorldGenerationContext.WindowPath("population", context.Window);
         var siteCells = context.Sites.SelectMany(s => s.Footprint.Indices(w)).ToHashSet();
         List<PopulationLocation> candidates = [];
+        var independentBuildings = new HashSet<string>(StringComparer.Ordinal);
         foreach (var site in context.Sites.OrderBy(s => s.Id, StringComparer.Ordinal))
         {
-            if (Pcg32.Stream(context.World.Seed, path + "/occupation/" + site.Id).Next(5) == 0) continue;
+            var occupation = Pcg32.Stream(context.World.Seed, path + "/occupation/" + site.Id).Next(5);
+            if (occupation == 0) continue;
+            if (site.Kind == GeneratedSiteKind.Settlement && (occupation > 1 || site.PopulationIntent is null))
+            {
+                independentBuildings.UnionWith(site.Buildings.Select(b => b.Id));
+                continue;
+            }
             if (site.PopulationIntent is { } intent)
-                candidates.Add(new("StructuredCamp", site.Id, site.Exterior.Indices(w).ToArray(), site.Exterior.Bounds) { Intent = intent });
+                candidates.Add(new(site.Kind == GeneratedSiteKind.Settlement ? "SettlementCompound" : "StructuredCamp", site.Id,
+                    intent.Areas.SelectMany(a => a.Area.Indices(w)).Distinct().Order().ToArray(), site.Footprint.Bounds) { Intent = intent });
             else if (site.Kind == GeneratedSiteKind.Campsite)
                 candidates.Add(new("GoblinCamp", site.Id, site.Exterior.Indices(w).ToArray(), site.Exterior.Bounds));
         }
         candidates.AddRange(ZombieHousePopulationGenerator.Locations(context)
-            .Where(l => Pcg32.Stream(context.World.Seed, path + "/occupation/" + l.SourceId).Next(5) != 0)
+            .Where(l => independentBuildings.Contains(l.SourceId) && Pcg32.Stream(context.World.Seed, path + "/occupation/" + l.SourceId).Next(5) != 0)
             .Select(l => l with { Kind = "BuildingDefenders" }));
         var roads = RoadPatrolPopulationGenerator.Locations(context).ToList();
         Pcg32.Stream(context.World.Seed, path + "/road-patrols").Shuffle(roads);
@@ -82,9 +92,11 @@ public static partial class PopulationGenerator
             var stem = path + "/request-" + budget.Attempts + "/" + location.Kind; var id = stem;
             for (var suffix = 0; names.Any(name => name == id || name.StartsWith(id + "/", StringComparison.Ordinal)); suffix++) id = stem + "-" + suffix;
             var random = Pcg32.Stream(context.World.Seed, id + "/composition");
-            var free = location.Cells.Where(Available).Distinct().Order().ToList(); random.Shuffle(free);
+            bool LocationAvailable(int cell) => Available(cell) &&
+                (location.Kind is not ("LoneMonster" or "WildernessGroup") || !siteCells.Contains(cell));
+            var free = location.Cells.Where(LocationAvailable).Distinct().Order().ToList(); random.Shuffle(free);
             var encounter = BuildEncounter(id, location, free, w, settings, unitLimit - unitCount, random, board, types,
-                state, budget, Available, reason => Fail(location, reason), out var requested);
+                state, budget, LocationAvailable, reason => Fail(location, reason), out var requested);
             if (encounter is null) continue;
             if (groupCount + encounter.GroupIds.Count > MaxGroups) { Fail(location, "Group allowance exhausted."); continue; }
             var beforeUnits = state.Units.Count; var beforeFigures = state.Physical.Figures.Count;

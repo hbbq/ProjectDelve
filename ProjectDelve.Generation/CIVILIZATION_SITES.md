@@ -1,4 +1,8 @@
-# Civilization and Sites — Milestone 1
+# Civilization and Sites — foundation
+
+The settlement planner described historically below has been replaced by
+[Civilization V2 — Villages and Settlements](CIVILIZATION_V2.md). The draft,
+Building, Room, preparation and Site publication contracts remain shared.
 
 World generation can now construct Campsites and small Settlements after natural
 enrichment. A Settlement composes independent Building and Room Layout generators.
@@ -14,8 +18,8 @@ after final geometry analysis. Camps publish sentry, resting, central and supply
 areas, occupation bounds, an optional open patrol path and Connected/Separated Alert
 intent. Clearing-centered and elongated roadside families use existing Campfire and
 Table obstacles. Population may leave a Site vacant or use a compatible different
-occupation; natural encounters do not require Sites. Settlements/buildings retain
-their existing geometry. Construction reservations never become runtime ownership
+occupation; natural encounters do not require Sites. Settlements now publish their
+own role geometry and occupation alternatives. Construction reservations never become runtime ownership
 or population occupancy. Population validates final placements and protects required
 access, with bounded recorded fallback rather than modifying the Site at runtime.
 
@@ -117,13 +121,10 @@ preservation caps do not constrain explicit construction policies.
   remains connected. Supplied exterior portals must match actual geometry and
   crossability. Existing interior Edges require explicit replacement permission;
   authorized replacement clears them privately before repartitioning.
-* Settlement requests two to four Buildings in stable named lots around a shared
-  street and small plaza. Entrances face the street, with short Gravel approaches.
-  Candidate lots have varied dimensions; footprints, partitions, Doors and room
-  counts vary by seed. Only actual footprints, aprons, access and plaza are
-  prepared/reserved. Unused plot margins retain natural terrain. Final aggregate
-  flood checks every usable room and exterior Cell together. A failed child or
-  aggregate limit discards the entire candidate Settlement.
+* Settlement now uses four access-first layout families, documented in
+  [Civilization V2](CIVILIZATION_V2.md). Stable lots, public space, actual route
+  frontage, entrances and local traversal share the same construction contracts.
+  Failed children or aggregate limits discard the private candidate.
 
 Water construction creates ordinary land terrain, including artificial islands.
 Water-separated Sites truthfully require an external connection. No bridge,
@@ -279,9 +280,9 @@ Node/Pillow-capable Python and set `PROJECTDELVE_PYTHON` as documented in AGENTS
 Browser inspection uses the playwright-cli skill and protected dispatcher described
 in BROWSER_INSPECTION.md, with a disposable 5081 host preserving the 5080 game.
 
-Buildings currently use bounded rectangular BSP interiors, and Settlements use
-four possible lots around a shared street. Variety is procedural rather than
-blueprint-based, but larger/irregular architecture remains future work. Preparation
+Buildings currently use bounded rectangular BSP interiors. Settlements use the
+four families in Civilization V2. Variety is procedural rather than blueprint-based;
+irregular building architecture remains future work. Preparation
 does not automatically widen Doorways for large Units or connect isolated Sites.
 Semantic output remains generator-internal/preview-only and is not persisted as
 scenario gameplay state. Connections and Population consume these references and

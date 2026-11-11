@@ -39,22 +39,39 @@ public sealed class SettlementGenerationTests
     public void FailedParentAfterSuccessfulChildrenDoesNotLeakConstructionOrReservations()
     {
         var board = CampsiteGenerationTests.Board("grass", 40, 35); var scope = CampsiteGenerationTests.Scope(board); var source = ScenarioDefinitionJson.ToJson(board.Export());
-        // Bare grass preparation costs zero, but complete buildings exceed this final Site allowance.
-        var result = SettlementGenerator.Plan(new("village", scope.Draft.AllowedArea, new(MaxChangedCells: 160, MaxCost: 300)), scope);
-        Assert.IsType<Rejected<SitePlan>>(result); Assert.Equal(source, ScenarioDefinitionJson.ToJson(board.Export()));
-        Assert.Empty(scope.Draft.BuildPatch().Reservations); Assert.Empty(scope.Draft.BuildPatch().EdgeChanges); Assert.True(scope.Budget.Attempts >= 4);
+        // Each market lot fits independently, while even the smallest four-building market exceeds the aggregate allowance.
+        var result = SettlementGenerator.Plan(new("village", scope.Draft.AllowedArea, new(MaxChangedCells: 100, MaxCost: 300),
+            new(BuildingCount: 4, Family: SettlementFamily.MarketVillage)), scope);
+        var failure = Assert.IsType<Rejected<SitePlan>>(result).Failure;
+        Assert.Equal(PlacementFailureCode.PreparationLimit, failure.Code);
+        Assert.Contains("Complete Settlement", failure.Reason);
+        Assert.Equal(source, ScenarioDefinitionJson.ToJson(board.Export()));
+        Assert.Empty(scope.Draft.BuildPatch().Reservations);
+        Assert.Empty(scope.Draft.BuildPatch().EdgeChanges);
+        Assert.True(scope.Budget.Attempts >= 9);
     }
     [Fact]
     public void SeedsGiveRepeatableDistinctSettlementsAndStableRequestedObjectPaths()
     {
         var forms = new HashSet<string>();
+        var relativeLayouts = new HashSet<string>();
+        var families = new HashSet<SettlementFamily>();
         for (ulong seed = 0; seed < 12; seed++)
         {
             SitePlan Generate() { var board = CampsiteGenerationTests.Board("grass", 40, 35); var scope = CampsiteGenerationTests.Scope(board, seed); return Assert.IsType<Planned<SitePlan>>(SettlementGenerator.Plan(new("village", scope.Draft.AllowedArea, new()), scope)).Plan; }
             var a = Generate(); var b = Generate(); Assert.Equal(JsonSerializer.Serialize(a.Site), JsonSerializer.Serialize(b.Site));
             Assert.Equal(JsonSerializer.Serialize(a.Operations), JsonSerializer.Serialize(b.Operations)); forms.Add(JsonSerializer.Serialize(a.Patch.EdgeChanges));
+            var origin = a.Site.Footprint.Bounds;
+            relativeLayouts.Add(string.Join("/", a.Site.Buildings.Select(building =>
+            {
+                var bounds = building.Footprint.Bounds;
+                return $"{bounds.X - origin.X},{bounds.Y - origin.Y},{bounds.Width},{bounds.Height},{building.Rooms.Count}";
+            })));
+            families.Add(a.Site.SettlementLayout!.Family);
             Assert.All(a.Site.Buildings, building => Assert.StartsWith("test/village/", building.Id));
         }
         Assert.True(forms.Count >= 10);
+        Assert.True(relativeLayouts.Count >= 8);
+        Assert.True(families.Count >= 2);
     }
 }

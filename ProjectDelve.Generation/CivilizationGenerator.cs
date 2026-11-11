@@ -66,7 +66,7 @@ public static class CivilizationGenerator
             var scope = new GenerationScope(context.World.Seed, path, draft);
             var rng = scope.Child(key, draft).Random("requirements");
             var routeAnchors = board.State.RouteCorridors.Keys.Order().ToArray();
-            Accept(SettlementGenerator.Plan(new(key, area, policy, new(BuildingCount: 2 + rng.Next(3)), new(RouteAnchors: routeAnchors)), scope), draft);
+            Accept(SettlementGenerator.Plan(new(key, area, policy, new(BuildingCount: 2 + rng.Next(3), AllowReducedBuildingCount: true), new(RouteAnchors: routeAnchors)), scope), draft);
         }
         for (var i = 0; i < settings.Campsites; i++)
         {
