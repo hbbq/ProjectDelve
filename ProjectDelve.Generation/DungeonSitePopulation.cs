@@ -14,7 +14,8 @@ internal static class DungeonSitePopulation
             var regions = dungeon.Rooms.Select(room =>
             {
                 var cells = room.Usable.Indices(width).ToArray();
-                var preferred = HeroesVsMonsters.Pool.Where(p => p.UnitTypeId != UnitTypeIds.Shaman).Select(p => p.UnitTypeId).ToArray();
+                var preferred = PopulationComposition.Pool((context.ConstructionBoard?.Content ?? ContentBundle.Canonical()).Units.Select(t => t.Id))
+                    .Select(p => p.UnitTypeId).ToArray();
                 // Large chambers can host an existing large creature, without promising exit access.
                 if (room.TwoByTwoPlacements >= 4) preferred = [.. preferred, UnitTypeIds.RedDragon];
                 // A short local circuit is an optional ordinary patrol, entirely within its room.
@@ -73,10 +74,9 @@ public static partial class PopulationGenerator
         var wanted = Math.Min(requested, remaining); var width = board.Width;
         var allowed = free.ToHashSet(); var claimed = new HashSet<Cell>();
         var preferences = region.PreferredUnitTypes.Where(types.ContainsKey).ToHashSet(StringComparer.Ordinal);
-        var pool = HeroesVsMonsters.Pool.Where(p => p.UnitTypeId != UnitTypeIds.Shaman && (preferences.Count == 0 || preferences.Contains(p.UnitTypeId))).ToArray();
+        var pool = PopulationComposition.Pool(types.Keys).Where(p => preferences.Count == 0 || preferences.Contains(p.UnitTypeId)).ToArray();
         if (pool.Length == 0) { fail("Dungeon region has no available preferred Monster composition."); return null; }
-        var weighted = pool.SelectMany(p => Enumerable.Repeat(p.UnitTypeId, HeroesVsMonsters.ThreatWeight(settings.Difficulty, p.Threat))).ToArray();
-        var type = weighted[random.Next(weighted.Length)];
+        var type = PopulationComposition.Select(random, settings.Difficulty, pool);
         if (settings.Difficulty == 5 && preferences.Contains(UnitTypeIds.RedDragon) && random.Next(12) == 0 &&
             !state.Units.Any(u => u.TypeId == UnitTypeIds.RedDragon)) { type = UnitTypeIds.RedDragon; wanted = 1; }
         var placed = new List<(string Type, int Cell, string Role, string Cluster, string? Area)>();

@@ -2,19 +2,42 @@ using ProjectDelve.Engine;
 
 namespace ProjectDelve.Generation;
 
+internal sealed record PopulationMonster(string UnitTypeId, int Threat, int RelativeWeight = 2)
+{
+    internal int Weight(int difficulty) => RelativeWeight * HeroesVsMonsters.ThreatWeight(difficulty, Threat);
+}
+
 internal static class PopulationComposition
 {
-    internal static string Monster(Pcg32 random, int difficulty, bool building = false)
+    // References only: definitions and abilities come from the supplied effective content.
+    // Keep optional published content out of the C#-only standalone Dungeon Generator.
+    private static readonly IReadOnlyList<PopulationMonster> Monsters = [
+        .. HeroesVsMonsters.Pool.Where(p => p.UnitTypeId != UnitTypeIds.Shaman)
+            .Select(p => new PopulationMonster(p.UnitTypeId, p.Threat)),
+        new("demolition-imp", 3, RelativeWeight: 1)
+    ];
+
+    internal static PopulationMonster[] Pool(IEnumerable<string> availableTypeIds)
+    {
+        var available = availableTypeIds.ToHashSet(StringComparer.Ordinal);
+        return Monsters.Where(p => available.Contains(p.UnitTypeId)).ToArray();
+    }
+
+    internal static string Select(Pcg32 random, int difficulty, IReadOnlyList<PopulationMonster> pool)
+    {
+        var weights = pool.Select(p => p.Weight(difficulty)).ToArray();
+        var draw = random.Next(weights.Sum());
+        for (var i = 0; i < pool.Count; i++) { draw -= weights[i]; if (draw < 0) return pool[i].UnitTypeId; }
+        throw new InvalidOperationException("Empty Monster selection.");
+    }
+
+    internal static string Monster(Pcg32 random, int difficulty, IEnumerable<string> availableTypeIds, bool building = false)
     {
         if (building) return difficulty >= 4 && random.Next(4) == 0 ? UnitTypeIds.Troll :
             difficulty >= 3 && random.Next(5) == 0 ? UnitTypeIds.Ghost : UnitTypeIds.Zombie;
         // Existing coarse authoring weights, never gameplay ratings. Summoners are
         // excluded here: this milestone bounds initial occupation, not summoned crowds.
-        var pool = HeroesVsMonsters.Pool.Where(p => p.UnitTypeId != UnitTypeIds.Shaman).ToArray();
-        var weights = pool.Select(p => HeroesVsMonsters.ThreatWeight(difficulty, p.Threat)).ToArray();
-        var draw = random.Next(weights.Sum());
-        for (var i = 0; i < pool.Length; i++) { draw -= weights[i]; if (draw < 0) return pool[i].UnitTypeId; }
-        throw new InvalidOperationException("Empty Monster selection.");
+        return Select(random, difficulty, Pool(availableTypeIds));
     }
 
     internal static PopulationEncounter FromRoles(string id, string kind, string source, int width,

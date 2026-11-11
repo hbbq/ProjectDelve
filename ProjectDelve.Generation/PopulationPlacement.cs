@@ -54,7 +54,7 @@ public static partial class PopulationGenerator
         if (count < requested) fail($"Unit allowance fallback: placed {count} of {requested} requested Units.");
         if (location.Path is { } path && !OpenPath(board, path, available)) { fail("Patrol path lacks open, unclaimed access."); return null; }
         var type = location.Kind == "RoadPatrol" ? UnitTypeIds.Grunt : location.Kind == "GoblinCamp" ? UnitTypeIds.Goblin :
-            PopulationComposition.Monster(random, settings.Difficulty, location.Kind == "BuildingDefenders");
+            PopulationComposition.Monster(random, settings.Difficulty, types.Keys, location.Kind == "BuildingDefenders");
         if (location.Kind == "LoneMonster" && settings.Difficulty == 5 && random.Next(50) == 0 &&
             !state.Units.Any(u => u.TypeId == UnitTypeIds.RedDragon && u.SideId == HeroesVsMonsters.Monsters)) type = UnitTypeIds.RedDragon;
         if (location.Kind == "BuildingDefenders" && types[type].Footprint != Footprint.OneByOne)
@@ -87,7 +87,7 @@ public static partial class PopulationGenerator
             .OrderBy(a => a.Id, StringComparer.Ordinal).ToArray();
         var placed = new List<(string Type, int Cell, string Role, string Cluster, string? Area)>();
         var baseType = location.Kind == "SettlementCompound"
-            ? PopulationComposition.Monster(random, settings.Difficulty, building: true)
+            ? PopulationComposition.Monster(random, settings.Difficulty, types.Keys, building: true)
             : random.Next(8) == 0 ? UnitTypeIds.Zombie : UnitTypeIds.Goblin;
         if (types[baseType].Footprint != Footprint.OneByOne)
         { fail("Compound occupation omitted: single-Cell portals do not certify large-footprint access."); return null; }

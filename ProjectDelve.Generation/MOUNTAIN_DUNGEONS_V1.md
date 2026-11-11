@@ -77,6 +77,13 @@ excluding summoners from initial composition. Eligible large chambers may reques
 the existing Red Dragon at difficulty five. Complete footprints must fit inside
 the region and avoid required access, including the exterior entrance Cell.
 
+The shared World Population pool includes published `demolition-imp` when available
+in effective content, at half Bomb Imp's selection weight at every Difficulty.
+Room preferences include that reference, and ordinary group sizing can place
+multiple instances. No room or dungeon is guaranteed one. Its existing ordered
+defeat consequences can destroy dungeon geometry during gameplay; construction
+reservations do not restrict that destruction. See [Population V2](POPULATION_V2.md).
+
 Occupants within a region form a connected initial Alert component. Distinct
 encounters must remain separate in the full initial Alert topology, including
 existing Units and awake relays; Walls and Doors do not supply isolation. Most

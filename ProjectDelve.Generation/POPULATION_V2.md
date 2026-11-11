@@ -78,6 +78,22 @@ excluded from this initial-population policy. A rare difficulty-5 lone Red Drago
 is possible if its Unique and complete 2×2 placement requirements are satisfied.
 Independent wilderness groups currently share a Type; camps can mix Types.
 
+The shared outdoor and Mountain Dungeon composition pool references the published
+`demolition-imp` Unit Type from `canonical-workspace` when it exists in the supplied
+effective content. It uses Threat 3, matching Bomb Imp, with relative selection
+weight 1 versus Bomb Imp's 2 (and 2 for the other existing pool entries). These
+multipliers apply to the existing Difficulty/Threat weights, so Demolition Imp has
+half Bomb Imp's selection weight at every Difficulty. Its definition, art and
+ordered Explosion then Break Adjacent Objects abilities remain owned by the
+publication. No definition is duplicated in Generation.
+
+This is ordinary composition selection: there is no guaranteed placement or
+one-per-group limit. Dungeon preferences, occupation rolls, density, footprint
+legality and all existing budgets still apply. Missing optional publications are
+filtered out before selection. C#-only generation remains usable, and the standalone
+Dungeon Generator keeps its existing pool. Current recipe, effective content and
+seed determine the result; adding published pool content can change compositions.
+
 Lone Monsters are Dormant, Upright, WakeDistance 6, Automated and Normal. Natural
 groups are also Dormant with Normal Orders. Building defenders use existing
 Zombie/Troll/Ghost content and Guard Area. Road patrols are deliberately Awake
