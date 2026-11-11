@@ -546,9 +546,24 @@ body:has(#playtest-main:not([hidden])) > footer { margin-top: 8px; }
 .cell.Dirt { background: #806344; color: #f0ddbc; }
 #world-generator { width: min(1440px, 96vw); max-width: 96vw; max-height: 94dvh; box-sizing: border-box; overflow: auto; padding: 24px; border: 1px solid #586976; border-radius: 14px; background: #19232d; color: #e3e8ed; }
 #world-generator::backdrop { background: #080d16c9; }
+#world-generator > .generator-heading { position: sticky; top: -24px; z-index: 10; background: #19232d; padding-block: 10px; flex-wrap: wrap; gap: 10px; }
+#world-generator > .generator-heading .generator-actions { margin: 0; }
 .world-generator-intro { color: #b7c7ba; line-height: 1.5; }
-.world-generator-layout { display: grid; grid-template-columns: minmax(260px, 330px) minmax(0, 1fr); gap: 24px; align-items: start; }
-.world-generator-controls { display: grid; gap: 12px; }
+.world-generator-layout { display: grid; grid-template-columns: minmax(250px, 300px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.world-generator-controls { display: grid; gap: 10px; max-height: 74dvh; overflow: auto; padding-right: 6px; }
+.world-generator-setting { border: 1px solid #586976; border-radius: 5px; padding: 10px; min-width: 0; margin: 0; color: #e3e8ed; }
+#world-generator-recipe { margin-top: 4px; }
+.world-generator-setting summary { cursor: pointer; font-weight: 600; }
+.world-generator-setting summary span { display: block; font-size: 12px; font-weight: normal; color: #b7c7ba; margin-top: 4px; }
+.world-generator-setting[open] > summary { margin-bottom: 12px; }
+#world-generator summary:focus-visible { outline: 2px solid #aad4ff; outline-offset: 3px; }
+.world-generator-diagnostic-panel { border: 1px solid #586976; border-radius: 5px; padding: 10px; margin-block: 10px; }
+.world-generator-diagnostic-panel > summary { cursor: pointer; }
+.world-generator-diagnostic-scroll { max-height: 44dvh; overflow: auto; overscroll-behavior: contain; }
+#world-generator-warning-panel { border-left: 3px solid #dfbb6f; padding: 6px 10px; background: #dfbb6f12; }
+#world-generator-warnings { margin: 0 0 6px; font-size: 13px; }
+#world-generator-result-summary { margin: 8px 0; }
+#world-generator-density-summary { white-space: pre-line; }
 .world-generator-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 #world-generator label { display: grid; gap: 5px; min-width: 0; }
 #world-generator input, #world-generator select, #world-generator textarea { width: 100%; min-width: 0; box-sizing: border-box; }
@@ -556,10 +571,10 @@ body:has(#playtest-main:not([hidden])) > footer { margin-top: 8px; }
 #world-generator textarea, #world-generator-seed { font-family: ui-monospace, monospace; font-size: 12px; overflow-wrap: anywhere; }
 #world-generator details > label { margin: 12px 0; }
 #world-generator small, #world-generator .legend { color: #a9bac8; line-height: 1.5; overflow-wrap: anywhere; }
-#world-generator-status { margin-top: 0; border-left: 3px solid #91ba91; padding: 12px; background: #91ba9110; line-height: 1.5; overflow-wrap: anywhere; }
+#world-generator-status { margin: 0 0 8px; border-left: 3px solid #91ba91; padding: 8px; background: #91ba9110; line-height: 1.5; font-size: 13px; overflow-wrap: anywhere; }
 .world-generator-result { min-width: 0; }
-.world-generator-board-wrap { padding: 4px; margin: 12px 0; max-height: 65dvh; overflow: auto; background: #101820; border-radius: 5px; }
-#world-generator-board { min-width: 0; width: min(100%, calc(65dvh * var(--world-board-ratio, 1))); margin-inline: auto; }
+.world-generator-board-wrap { padding: 4px; margin: 12px 0; max-height: 55dvh; overflow: auto; background: #101820; border-radius: 5px; }
+#world-generator-board { min-width: 0; width: min(100%, calc(55dvh * var(--world-board-ratio, 1))); margin-inline: auto; }
 #world-generator-board .cell { border-width: .5px; }
 .world-generator-enrichment { border: 1px solid #586976; border-radius: 5px; padding: 10px; min-width: 0; }
 .world-generator-overlays { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 12px; }
@@ -615,7 +630,11 @@ body:has(#playtest-main:not([hidden])) > footer { margin-top: 8px; }
 .designer-board .waypoint-area { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 @media (max-width: 850px) {
   #world-generator { padding: 16px; }
+  #world-generator > .generator-heading { top: -16px; }
   .world-generator-layout { grid-template-columns: 1fr; gap: 18px; }
+  .world-generator-result { grid-row: 1; }
+  .world-generator-controls { max-height: none; overflow: visible; padding-right: 0; }
+  #world-generator:not(:has(#world-generator-preview-content:not([hidden]))) .world-generator-result { grid-row: auto; }
 }
 
 .dormant-marker { position: absolute; top: 0; right: 0; z-index: 3; border-radius: 3px; padding: 1px 3px; background: #18243f; color: #fff; font-size: 11px; font-weight: bold; pointer-events: none; }

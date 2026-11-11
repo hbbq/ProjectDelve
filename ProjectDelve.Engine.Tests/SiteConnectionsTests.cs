@@ -7,14 +7,14 @@ namespace ProjectDelve.Engine.Tests;
 public sealed class SiteConnectionsTests
 {
     private static WorldGenerationRecipe Recipe(int through = 1) => ThroughRouteTests.Recipe(120, 100) with
-    { Civilization = new(), Routes = new(ThroughRoutes: through, ConnectSites: true, Alternatives: 0) };
+    { Civilization = new(), Routes = new(ThroughRoutes: through == 0 ? ContentDensity.None : ContentDensity.Low, ConnectSites: true, Alternatives: ContentDensity.None) };
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
     public void PublishedAccessConnectsSitesWithoutChangingTheirStructuresOrInternalPaths(int through)
     {
         var world = WorldGenerator.Generate(Recipe(through));
-        Assert.Equal(3, world.Context.Sites.Count); Assert.True(world.Context.Routes.Any(r => r.Purpose == RoutePurpose.SiteConnection), JsonSerializer.Serialize(world.Context.PlanningFailures));
+        Assert.Equal(world.Context.CampsiteDensity!.Accepted + world.Context.SettlementDensity!.Accepted, world.Context.Sites.Count); Assert.NotEmpty(world.Context.Sites); Assert.True(world.Context.Routes.Any(r => r.Purpose == RoutePurpose.SiteConnection), JsonSerializer.Serialize(world.Context.PlanningFailures));
         var civil = world.Preview.Frames.Single(f => f.StepId == "civilization"); var final = world.Preview.Frames[^1];
         foreach (var site in world.Context.Sites)
         {
@@ -61,7 +61,7 @@ public sealed class SiteConnectionsTests
     [Fact]
     public void MultipleExplicitRequestsRetainDistinctRouteAndOperationIdentities()
     {
-        var world = WorldGenerator.Generate(Recipe() with { Routes = new(ConnectSites: false, Alternatives: 0) });
+        var world = WorldGenerator.Generate(Recipe() with { Routes = new(ConnectSites: false, Alternatives: ContentDensity.None) });
         var context = world.Context; var source = context.Sites[0]; Assert.True(source.AccessPorts.Count >= 2);
         for (var i = 0; i < context.Sites.Count; i++) context.Sites[i] = context.Sites[i] with { ConnectionRequests = [] };
         context.Sites[0] = source with { ConnectionRequests = source.AccessPorts.Take(2).Select(p => new SiteConnectionRequest(p.Id + "/required", p.Id, true)).ToArray() };

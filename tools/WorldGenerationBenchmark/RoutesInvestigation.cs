@@ -14,12 +14,12 @@ internal static class RoutesInvestigation
         foreach (var (width, height) in new[] { (50, 50), (120, 100), (120, 120) })
         foreach (var preset in WorldGenerationPresets.All)
             Profile($"{width}x{height}-{preset.Id}", new(new(-17, -13, width, height), preset.Settings, 0x123456789ABCDEF0, new(), new(),
-                preset.Routes with { ThroughRoutes = 2, Alternatives = 2, WaterCrossings = preset.Id is "LakeCountry" or "RiverValley" }));
-        Profile("Mixed", new(new(-1, -69, 120, 100), new(35, 20, 30), 991, new(), new(), new(ThroughRoutes: 2, Profile: RouteProfileKind.Road, Alternatives: 2, WaterCrossings: true)));
-        Profile("ThroughOnly", new(new(-51, -1, 120, 100), new(75, 0, 10), 14, new(), null, new(ThroughRoutes: 2, Profile: RouteProfileKind.ForestTrail, Alternatives: 2)));
-        Profile("RockPassages", new(new(-17, -13, 50, 50), new(0, 0, 95), 24, new(), null, new(ThroughRoutes: 2, Profile: RouteProfileKind.RockPassage, Alternatives: 2)));
+                preset.Routes with { ThroughRoutes = ContentDensity.Medium, Alternatives = ContentDensity.Medium, WaterCrossings = preset.Id is "LakeCountry" or "RiverValley" }));
+        Profile("Mixed", new(new(-1, -69, 120, 100), new(35, 20, 30), 991, new(), new(), new(ThroughRoutes: ContentDensity.Medium, Profile: RouteProfileKind.Road, Alternatives: ContentDensity.Medium, WaterCrossings: true)));
+        Profile("ThroughOnly", new(new(-51, -1, 120, 100), new(75, 0, 10), 14, new(), null, new(ThroughRoutes: ContentDensity.Medium, Profile: RouteProfileKind.ForestTrail, Alternatives: ContentDensity.Medium)));
+        Profile("RockPassages", new(new(-17, -13, 50, 50), new(0, 0, 95), 24, new(), null, new(ThroughRoutes: ContentDensity.Medium, Profile: RouteProfileKind.RockPassage, Alternatives: ContentDensity.Medium)));
         Profile("Narrow", new(new(-121, -1, 21, 55), new(35, 10, 15), 991, new(), new(), new(Profile: RouteProfileKind.ForestTrail)));
-        Profile("SiteNetworkOnly", new(new(0, 0, 60, 60), new(15, 4, 5), 42, new(), new(), new(ThroughRoutes: 0, Alternatives: 1)));
+        Profile("SiteNetworkOnly", new(new(0, 0, 60, 60), new(15, 4, 5), 42, new(), new(), new(ThroughRoutes: ContentDensity.None, Alternatives: ContentDensity.Low)));
         if (directory is not null) File.WriteAllText(Path.Combine(directory, "performance.json"), JsonSerializer.Serialize(results, new JsonSerializerOptions(json) { WriteIndented = true }));
 
         void Profile(string name, WorldGenerationRecipe recipe)

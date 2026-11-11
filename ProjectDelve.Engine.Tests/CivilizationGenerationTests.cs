@@ -15,10 +15,10 @@ public sealed class CivilizationGenerationTests
         foreach (var enabled in new[] { false, true })
         foreach (var intensity in new[] { 1, 2, 3 })
         {
-            var recipe = Recipe() with { Civilization = new(enabled, 4, 2, intensity) };
+            var recipe = Recipe() with { Civilization = new(enabled, ContentDensity.VeryHigh, ContentDensity.Medium, intensity) };
             Assert.Equal(recipe, WorldGenerationRecipe.Parse(recipe.ToString()));
         }
-        Assert.Throws<ArgumentException>(() => (Recipe() with { Civilization = new(Campsites: 9) }).Validate());
+        Assert.Throws<ArgumentException>(() => (Recipe() with { Civilization = new(Campsites: (ContentDensity)9) }).Validate());
         Assert.Throws<FormatException>(() => WorldGenerationRecipe.Parse(Recipe().ToString().Replace("-P2", "-P4")));
         var noSites = WorldGenerator.Generate(Recipe() with { Civilization = new(false) });
         Assert.Empty(noSites.Context.Sites); Assert.DoesNotContain(noSites.Preview.Frames, f => f.Stage == "Civilization");
@@ -31,7 +31,7 @@ public sealed class CivilizationGenerationTests
     public void AcceptedNestedEditsReconstructFinalBoardAndCarrySemanticObjects(int width, int height)
     {
         var world = WorldGenerator.Generate(Recipe(width, height));
-        Assert.Equal(3, world.Context.Sites.Count);
+        Assert.Equal(DensityScaling.Campsites(world.Window, ContentDensity.Low) + DensityScaling.Settlements(world.Window, ContentDensity.Medium), world.Context.Sites.Count);
         var index = world.Preview.Frames.ToList().FindIndex(f => f.Stage == "Civilization");
         var frame = world.Preview.Frames[index];
         var terrain = world.Preview.Frames[index - 1].Terrain.Select(c => world.Preview.TerrainPalette[c - 'A']).ToArray();
@@ -59,10 +59,11 @@ public sealed class CivilizationGenerationTests
     [Fact]
     public void RegenerationAndLaterCampsDoNotReseedEarlierSitesOrNaturalTerrain()
     {
-        var one = WorldGenerator.Generate(Recipe() with { Civilization = new(Campsites: 1) });
-        var two = WorldGenerator.Generate(Recipe()); var repeat = WorldGenerator.Generate(Recipe());
+        var one = WorldGenerator.Generate(Recipe() with { Civilization = new(Campsites: ContentDensity.Low) });
+        var later = Recipe() with { Civilization = new(Campsites: ContentDensity.Medium) };
+        var two = WorldGenerator.Generate(later); var repeat = WorldGenerator.Generate(later);
         Assert.Equal(two.Fingerprint, repeat.Fingerprint); Assert.Equal(JsonSerializer.Serialize(two.Preview), JsonSerializer.Serialize(repeat.Preview));
-        Assert.Equal(JsonSerializer.Serialize(one.Context.Sites), JsonSerializer.Serialize(two.Context.Sites.Take(2)));
+        Assert.Equal(JsonSerializer.Serialize(one.Context.Sites), JsonSerializer.Serialize(two.Context.Sites.Take(one.Context.Sites.Count)));
         var natural = WorldGenerator.Generate(Recipe() with { Civilization = null });
         Assert.Equal(natural.Context.OriginalSamples, two.Context.OriginalSamples);
         Assert.Equal(natural.Preview.Frames.Take(6).Select(f => f.Terrain), two.Preview.Frames.Take(6).Select(f => f.Terrain));
@@ -72,7 +73,7 @@ public sealed class CivilizationGenerationTests
     public void ImpossibleNarrowWindowReportsFailuresWithoutPartialEdits()
     {
         var world = WorldGenerator.Generate(Recipe(7, 120) with { Enrichment = null });
-        Assert.Empty(world.Context.Sites); Assert.Equal(3, world.Context.PlanningFailures.Count);
+        Assert.Empty(world.Context.Sites); Assert.Equal(DensityScaling.Campsites(world.Window, ContentDensity.Low) + DensityScaling.Settlements(world.Window, ContentDensity.Medium), world.Context.PlanningFailures.Count);
         Assert.Single(world.Context.Construction); Assert.Empty(world.Definition.Board.Edges);
         Assert.Equal(world.Preview.Frames[0].Terrain, world.Preview.Frames[^1].Terrain);
     }
@@ -87,8 +88,8 @@ public sealed class CivilizationGenerationTests
             var opportunity = new TerrainOpportunity("test-clearing", "clearing", 25 * 50 + 25, new(20, 20, 11, 11), 100, null, null, 0, false);
             context.OriginalAnalysis = analysis; context.CurrentAnalysis = analysis with { Opportunities = enriched ? [] : [opportunity] };
             if (enriched) context.FeatureOpportunities.Add(opportunity);
-            CivilizationGenerator.Apply(context, new("civilization", WorldStepKind.Civilization, new CivilizationStepParameters(new(Campsites: 1, Settlements: 0)), ["formations"]), ContentBundle.Canonical());
-            Assert.Single(context.Sites); Assert.Equal("campfire", context.Samples[opportunity.AnchorIndex].TerrainTypeId);
+            CivilizationGenerator.Apply(context, new("civilization", WorldStepKind.Civilization, new CivilizationStepParameters(new(Campsites: ContentDensity.Low, Settlements: ContentDensity.None)), ["formations"]), ContentBundle.Canonical());
+            Assert.Equal(DensityScaling.Campsites(context.Window, ContentDensity.Low), context.Sites.Count); Assert.Equal("campfire", context.Samples[opportunity.AnchorIndex].TerrainTypeId);
         }
     }
 

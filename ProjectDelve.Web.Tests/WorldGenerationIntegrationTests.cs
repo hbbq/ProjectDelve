@@ -97,7 +97,7 @@ public sealed class WorldGenerationIntegrationTests
         var workspace = host.App.Services.GetRequiredService<ContentWorkspace>();
         var table = TerrainRoster.Assemblies.Single(a => a.Id == "stone-floor-with-table") with { Name = "Captured village table" };
         var saved = workspace.Save(new() { Assemblies = [table] }, workspace.Snapshot().Token);
-        var code = Code.Replace("30x24", "120x100").Replace("-S", "-E1-I2-B1111-C1-N2-V1-P2-S");
+        var code = Code.Replace("30x24", "120x100").Replace("-S", "-E1-I2-B1111-C1-NMedium-VLow-P2-S");
         using var response = await host.Client.PostAsJsonAsync("/api/world-generation", new { code });
         Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync()); var result = await response.Content.ReadFromJsonAsync<JsonElement>();
         workspace.Clear(saved.Token);
@@ -119,7 +119,7 @@ public sealed class WorldGenerationIntegrationTests
     public async Task RouteRecipeExportsAcceptedFinalNetworkAndDesignerBoard()
     {
         await using var host = await Host.Start(); var before = await host.Client.GetStringAsync("/api/game");
-        var code = Code.Replace("30x24", "120x100").Replace("-S", "-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JRoad-L1-A2-U1-Z2-S");
+        var code = Code.Replace("30x24", "120x100").Replace("-S", "-E1-I2-B1111-C1-NMedium-VLow-P2-Q1-TMedium-JRoad-L1-AMedium-U1-Z2-S");
         using var response = await host.Client.PostAsJsonAsync("/api/world-generation", new { code });
         Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
         var result = await response.Content.ReadFromJsonAsync<JsonElement>();
@@ -163,7 +163,7 @@ public sealed class WorldGenerationIntegrationTests
     {
         await using var host = await Host.Start();
         var before = await host.Client.GetStringAsync("/api/game");
-        var code = "WLD1-80x60-X-17-Y-13-F0-W0-R0-KBalanced-HAuto-C1-N2-V1-P2-Q1-T2-JRoad-L1-A1-U0-Z2-MHigh-D3-S0000000000003039";
+        var code = "WLD1-80x60-X-17-Y-13-F0-W0-R0-KBalanced-HAuto-C1-NMedium-VLow-P2-Q1-TMedium-JRoad-L1-ALow-U0-Z2-MHigh-D3-S0000000000003039";
         using var response = await host.Client.PostAsJsonAsync("/api/world-generation", new { code });
         Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
         var result = await response.Content.ReadFromJsonAsync<JsonElement>();
@@ -222,7 +222,7 @@ public sealed class WorldGenerationIntegrationTests
     public async Task QuickPlayPreparesOnlyATemporaryCopyThenUsesTheExistingPlaytestImport()
     {
         await using var host = await Host.Start();
-        var code = "WLD1-40x35-X0-Y0-F0-W0-R0-KBalanced-HAuto-C1-N2-V0-P2-Q1-T1-JRoad-L1-A0-U0-Z2-MHigh-D3-S0000000000003039";
+        var code = "WLD1-40x35-X0-Y0-F0-W0-R0-KBalanced-HAuto-C1-NMedium-VNone-P2-Q1-TLow-JRoad-L1-ANone-U0-Z2-MHigh-D3-S0000000000003039";
         using var generatedResponse = await host.Client.PostAsJsonAsync("/api/world-generation", new { code });
         generatedResponse.EnsureSuccessStatusCode();
         var generated = await generatedResponse.Content.ReadFromJsonAsync<JsonElement>();

@@ -1,0 +1,51 @@
+- group: Settings
+- main:
+  - region "Current scenario":
+    - button "Menu"
+    - text: PROJECT DELVE
+    - heading "Generated populated world" [level=2]
+  - region "Current play status":
+    - paragraph: Round 0 · Ready
+    - text: Awaiting draw Ready to begin
+    - group: Activation Bag
+  - region "Your next step":
+    - text: READY WHEN YOU ARE
+    - status: Start the first round.
+    - button "Start round"
+  - region "Board":
+    - group: ◈View & camera
+  - complementary "Gameplay and Unit card":
+    - text: FIELD GUIDE
+    - navigation "Field guide sections":
+      - button "Unit" [pressed]
+      - button "Mission"
+      - button "Journal"
+    - region "Unit details":
+      - button "Enlarge portrait of Rogue"
+      - heading "Rogue" [level=3]
+      - text: Side side-1 Group quick-play-heroes Wake Distance 8
+      - paragraph: HP 4 / 4
+      - paragraph: MOV 4
+      - paragraph: RNG 1
+      - paragraph: ATK 3
+      - paragraph: DEF 2 → 3
+      - text: Native
+      - group:
+        - strong: Attack
+        - text: Action ⌄
+      - text: Native
+      - strong: Open Door
+      - text: Free Action
+      - paragraph: Open a bordering Closed Door.
+      - text: Native
+      - strong: Backstab
+      - text: Passive
+      - paragraph: +1 ATK when attacking an enemy adjacent to another friendly Unit
+      - text: Native
+      - strong: Dash [2/game]
+      - text: Bonus Action 2/2
+      - paragraph: MOV +2 this activation.
+      - text: Native
+      - strong: Throwing Knife [2/game]
+      - text: Bonus Action 2/2
+      - paragraph: RNG +2; ATK -1 this activation.

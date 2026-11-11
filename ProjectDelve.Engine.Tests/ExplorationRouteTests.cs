@@ -28,7 +28,7 @@ public sealed class ExplorationRouteTests
     {
         var context = Context(); AddNetwork(context, new(5, 5, [new(5, 5, CardinalSide.South, 20), new(5, 25, CardinalSide.East, 20), new(25, 25, CardinalSide.North, 20)]));
         RouteNetworkGenerator.Apply(context, new("alternatives", WorldStepKind.RouteNetwork,
-            new RouteNetworkStepParameters(RouteNetworkMode.ExplorationLinks, new(Alternatives: 1)), ["fixture"]), ContentBundle.Canonical());
+            new RouteNetworkStepParameters(RouteNetworkMode.ExplorationLinks, new(Alternatives: ContentDensity.Low)), ["fixture"]), ContentBundle.Canonical());
         var quality = Assert.Single(context.RouteAlternatives); Assert.True(quality.AddsCycle); Assert.True(quality.NewDistance < quality.PreviousDistance);
         Assert.True(quality.NewCorridorCells >= 6); Assert.False(quality.IndependentSiteEntrance);
         Assert.Equal(2, context.Routes.Count); Assert.Contains(context.Construction, o => o.ObjectId == quality.RouteId);
@@ -41,7 +41,7 @@ public sealed class ExplorationRouteTests
         AddNetwork(context, new(5, 5, [new(5, 5, CardinalSide.South, 28)]), "fixture/west");
         AddNetwork(context, new(5, 5, [new(5, 5, CardinalSide.East, 25), new(30, 5, CardinalSide.South, 28)]), "fixture/east");
         RouteNetworkGenerator.Apply(context, new("alternatives", WorldStepKind.RouteNetwork,
-            new RouteNetworkStepParameters(RouteNetworkMode.ExplorationLinks, new(Alternatives: 1)), ["fixture"]), ContentBundle.Canonical());
+            new RouteNetworkStepParameters(RouteNetworkMode.ExplorationLinks, new(Alternatives: ContentDensity.Low)), ["fixture"]), ContentBundle.Canonical());
         var quality = Assert.Single(context.RouteAlternatives);
         Assert.True(quality.AddsCycle); Assert.False(quality.ConnectsRegion);
         Assert.True(quality.PreviousDistance - quality.NewDistance >= 3);
@@ -55,7 +55,7 @@ public sealed class ExplorationRouteTests
         // Analysis candidates are hints. The open surrounding board must still be checked.
         context.CurrentAnalysis = context.CurrentAnalysis! with { Chokepoints = [20 * 40 + 12] };
         RouteNetworkGenerator.Apply(context, new("alternatives", WorldStepKind.RouteNetwork,
-            new RouteNetworkStepParameters(RouteNetworkMode.ExplorationLinks, new(Alternatives: 1)), ["fixture"]), ContentBundle.Canonical());
+            new RouteNetworkStepParameters(RouteNetworkMode.ExplorationLinks, new(Alternatives: ContentDensity.Low)), ["fixture"]), ContentBundle.Canonical());
         Assert.Empty(context.RouteAlternatives);
         Assert.Contains(context.RouteIntents, i => i.Status == RouteIntentStatus.RejectedAlternative);
         Assert.Single(context.Routes);
@@ -66,7 +66,7 @@ public sealed class ExplorationRouteTests
     {
         var context = Context(); AddNetwork(context, new(5, 5, [new(5, 5, CardinalSide.East, 25)])); var before = ScenarioDefinitionJson.ToJson(context.Materialize());
         RouteNetworkGenerator.Apply(context, new("alternatives", WorldStepKind.RouteNetwork,
-            new RouteNetworkStepParameters(RouteNetworkMode.ExplorationLinks, new(Alternatives: 3)), ["fixture"]), ContentBundle.Canonical());
+            new RouteNetworkStepParameters(RouteNetworkMode.ExplorationLinks, new(Alternatives: ContentDensity.High)), ["fixture"]), ContentBundle.Canonical());
         Assert.Empty(context.RouteAlternatives); Assert.Single(context.Routes); Assert.Equal(before, ScenarioDefinitionJson.ToJson(context.Materialize()));
     }
     [Fact]
@@ -78,7 +78,7 @@ public sealed class ExplorationRouteTests
         AddNetwork(context, new(5, 5, [new(5, 5, CardinalSide.South, 30)]));
         foreach (var y in new[] { 8, 30 }) context.FeatureOpportunities.Add(new("room-" + y, "clearing", y * 40 + 30, new(25, y, 6, 6), 25, null, null,
             context.CurrentAnalysis!.WalkableLabels[y * 40 + 30], true));
-        RouteNetworkGenerator.Apply(context, new("regions", WorldStepKind.RouteNetwork, new RouteNetworkStepParameters(RouteNetworkMode.ExplorationLinks, new(Alternatives: 3)), ["fixture"]), ContentBundle.Canonical());
+        RouteNetworkGenerator.Apply(context, new("regions", WorldStepKind.RouteNetwork, new RouteNetworkStepParameters(RouteNetworkMode.ExplorationLinks, new(Alternatives: ContentDensity.High)), ["fixture"]), ContentBundle.Canonical());
         Assert.Single(context.RouteAlternatives.Where(q => q.ConnectsRegion));
         Assert.True(context.CurrentAnalysis!.Connectivity.ComponentCount < 2);
     }

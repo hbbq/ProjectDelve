@@ -1,0 +1,133 @@
+{
+  "date": "2026-11-11",
+  "browser": "Microsoft Edge",
+  "host": "isolated 5081",
+  "keyboard": "Enter/Space disclosure, Tab order, retained values and preview nodes, no regeneration, keyboard stage navigation passed",
+  "cases": [
+    {
+      "case": "low",
+      "viewport": "desktop",
+      "summary": "1 sites \u00b7 4 buildings \u00b7 5 rooms \u00b7 2 warnings",
+      "snapshot": "density-low-desktop.yaml",
+      "inspection": ".playwright-cli\\browser-qa\\inspection-Lhz16X",
+      "console": [
+        {
+          "type": "info",
+          "text": "Images loaded lazily and replaced with placeholders. Load events are deferred. See https://go.microsoft.com/fwlink/?linkid=2048113"
+        }
+      ],
+      "failedRequests": []
+    },
+    {
+      "case": "low",
+      "viewport": "narrow",
+      "summary": "1 sites \u00b7 4 buildings \u00b7 5 rooms \u00b7 2 warnings",
+      "snapshot": "density-low-narrow.yaml",
+      "inspection": ".playwright-cli\\browser-qa\\inspection-EsEfYY",
+      "console": [
+        {
+          "type": "info",
+          "text": "Images loaded lazily and replaced with placeholders. Load events are deferred. See https://go.microsoft.com/fwlink/?linkid=2048113"
+        }
+      ],
+      "failedRequests": []
+    },
+    {
+      "case": "medium",
+      "viewport": "desktop",
+      "summary": "9 sites \u00b7 8 buildings \u00b7 15 rooms \u00b7 3 warnings",
+      "snapshot": "density-medium-desktop.yaml",
+      "inspection": ".playwright-cli\\browser-qa\\inspection-Si4tjD",
+      "console": [
+        {
+          "type": "info",
+          "text": "Images loaded lazily and replaced with placeholders. Load events are deferred. See https://go.microsoft.com/fwlink/?linkid=2048113"
+        }
+      ],
+      "failedRequests": []
+    },
+    {
+      "case": "medium",
+      "viewport": "narrow",
+      "summary": "9 sites \u00b7 8 buildings \u00b7 15 rooms \u00b7 3 warnings",
+      "snapshot": "density-medium-narrow.yaml",
+      "inspection": ".playwright-cli\\browser-qa\\inspection-PBVK3m",
+      "console": [
+        {
+          "type": "info",
+          "text": "Images loaded lazily and replaced with placeholders. Load events are deferred. See https://go.microsoft.com/fwlink/?linkid=2048113"
+        }
+      ],
+      "failedRequests": []
+    },
+    {
+      "case": "high",
+      "viewport": "desktop",
+      "summary": "21 sites \u00b7 22 buildings \u00b7 33 rooms \u00b7 1 warning",
+      "snapshot": "density-high-desktop.yaml",
+      "inspection": ".playwright-cli\\browser-qa\\inspection-irRvaV",
+      "console": [
+        {
+          "type": "info",
+          "text": "Images loaded lazily and replaced with placeholders. Load events are deferred. See https://go.microsoft.com/fwlink/?linkid=2048113"
+        }
+      ],
+      "failedRequests": []
+    },
+    {
+      "case": "high",
+      "viewport": "narrow",
+      "summary": "21 sites \u00b7 22 buildings \u00b7 33 rooms \u00b7 1 warning",
+      "snapshot": "density-high-narrow.yaml",
+      "inspection": ".playwright-cli\\browser-qa\\inspection-CzWY67",
+      "console": [
+        {
+          "type": "info",
+          "text": "Images loaded lazily and replaced with placeholders. Load events are deferred. See https://go.microsoft.com/fwlink/?linkid=2048113"
+        }
+      ],
+      "failedRequests": []
+    },
+    {
+      "case": "none",
+      "viewport": "desktop",
+      "summary": "0 sites \u00b7 0 buildings \u00b7 0 rooms \u00b7 1 warning",
+      "snapshot": "density-none-desktop.yaml",
+      "inspection": ".playwright-cli\\browser-qa\\inspection-FKvIAN",
+      "console": [
+        {
+          "type": "info",
+          "text": "Images loaded lazily and replaced with placeholders. Load events are deferred. See https://go.microsoft.com/fwlink/?linkid=2048113"
+        }
+      ],
+      "failedRequests": []
+    },
+    {
+      "case": "none",
+      "viewport": "narrow",
+      "summary": "0 sites \u00b7 0 buildings \u00b7 0 rooms \u00b7 1 warning",
+      "snapshot": "density-none-narrow.yaml",
+      "inspection": ".playwright-cli\\browser-qa\\inspection-h7uesb",
+      "console": [
+        {
+          "type": "info",
+          "text": "Images loaded lazily and replaced with placeholders. Load events are deferred. See https://go.microsoft.com/fwlink/?linkid=2048113"
+        }
+      ],
+      "failedRequests": []
+    },
+    {
+      "case": "Quick Play Tabletop/Enhanced, return to original Designer",
+      "inspection": ".playwright-cli\\browser-qa\\inspection-Qztwpj",
+      "session": "delve-qa-e3aca2ff-7610-4329-8223-fc96eca89596",
+      "url": "http://127.0.0.1:5081/#designer",
+      "messages": [
+        {
+          "type": "info",
+          "text": "Images loaded lazily and replaced with placeholders. Load events are deferred. See https://go.microsoft.com/fwlink/?linkid=2048113"
+        }
+      ],
+      "requests": []
+    }
+  ]
+}

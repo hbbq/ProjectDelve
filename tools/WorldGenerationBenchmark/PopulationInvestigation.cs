@@ -21,7 +21,7 @@ internal static class PopulationInvestigation
             try
             {
                 var recipe = new WorldGenerationRecipe(new(-17, -13, width, height), new(10, 4, 5), 12345,
-                    new(), new(Campsites: 4, Settlements: 1), new(ThroughRoutes: 2, Profile: RouteProfileKind.Road),
+                    new(), new(Campsites: ContentDensity.VeryHigh, Settlements: ContentDensity.Low), new(ThroughRoutes: ContentDensity.Medium, Profile: RouteProfileKind.Road),
                     new(density, Difficulty: 5), LootPreset: "Classic");
                 _ = WorldGenerator.Generate(recipe);
                 List<GeneratedWorld> runs = []; List<double> total = [];

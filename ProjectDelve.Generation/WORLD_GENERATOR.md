@@ -1,5 +1,9 @@
 # World Generator
 
+Current abundance settings and scaling policy: [Density Scaling V1](DENSITY_SCALING_V1.md).
+Current layout, controls and verification: [World Generator Designer](../WORLD_GENERATOR_DESIGNER.md).
+Older numerical recipe examples and performance corpora below describe historical configurations.
+
 World Generator is an authoring pipeline separate from DNG1-HVM and DNG2-OS.
 Open **World Generator** in the browser, choose a preset or explicit settings,
 and generate a world. Optional Population adds structured camps, building defenders,

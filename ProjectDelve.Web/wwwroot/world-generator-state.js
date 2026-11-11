@@ -21,15 +21,20 @@ export function worldConfigurationCode(config, includeSeed = true, maxBoardSize 
     if (!["true", "false"].includes(value)) throw new Error(`Choose ${key}.`);
     return value === "true" ? "1" : "0";
   };
+  const density = key => {
+    if (!["None", "Low", "Medium", "High", "VeryHigh"].includes(config[key]))
+      throw new Error(`Choose ${key}: None, Low, Medium, High or Very High.`);
+    return config[key];
+  };
   let enrichment = "", civilization = "", routes = "", population = "";
   if (config.enrichmentEnabled != null && config.enrichmentEnabled !== "") {
     enrichment = `-E${bit("enrichmentEnabled")}-I${integer("enrichmentIntensity", 1, 3)}-B${["forestEnrichment", "rockEnrichment", "waterEnrichment", "grasslandEnrichment"].map(bit).join("")}`;
   }
   if (config.civilizationEnabled != null && config.civilizationEnabled !== "")
-    civilization = `-C${bit("civilizationEnabled")}-N${integer("campsiteCount", 0, 8)}-V${integer("settlementCount", 0, 4)}-P${integer("preparationIntensity", 1, 3)}`;
+    civilization = `-C${bit("civilizationEnabled")}-N${density("campsiteDensity")}-V${density("settlementDensity")}-P${integer("preparationIntensity", 1, 3)}`;
   if (config.routesEnabled != null && config.routesEnabled !== "") {
     if (!["ForestTrail", "MinorPath", "Road", "RockPassage"].includes(config.routeProfile)) throw new Error("Choose a route profile.");
-    routes = `-Q${bit("routesEnabled")}-T${integer("throughRoutes", 0, 4)}-J${config.routeProfile}-L${bit("connectSites")}-A${integer("explorationLinks", 0, 3)}-U${bit("waterCrossings")}-Z${integer("routeIntensity", 1, 3)}`;
+    routes = `-Q${bit("routesEnabled")}-T${density("throughRoutes")}-J${config.routeProfile}-L${bit("connectSites")}-A${density("explorationLinks")}-U${bit("waterCrossings")}-Z${integer("routeIntensity", 1, 3)}`;
   }
   if (config.populationDensity != null && config.populationDensity !== "") {
     if (!["Off", "Low", "Medium", "High"].includes(config.populationDensity)) throw new Error("Choose a Population density.");
@@ -41,7 +46,7 @@ export function worldConfigurationCode(config, includeSeed = true, maxBoardSize 
 }
 
 export function worldConfigurationFromCode(input, maxBoardSize = 120) {
-  const match = input.trim().match(/^WLD1-([1-9]\d{0,2})x([1-9]\d{0,2})-X(-?\d+)-Y(-?\d+)-F(\d{1,3})-W(\d{1,3})-R(\d{1,3})-K(Fine|Balanced|Broad)-H(Auto|Lakes|River|Mixed)(?:-E([01])-I([123])-B([01]{4}))?(?:-C([01])-N([0-8])-V([0-4])-P([123]))?(?:-Q([01])-T([0-4])-J(ForestTrail|MinorPath|Road|RockPassage)-L([01])-A([0-3])-U([01])-Z([123]))?(?:-M(Off|Low|Medium|High)-D([1-5]))?(?:-O(Empty|Classic|Fun|Experimental|FarOut|All))?(?:-S([0-9a-fA-F]{16}))?$/);
+  const match = input.trim().match(/^WLD1-([1-9]\d{0,2})x([1-9]\d{0,2})-X(-?\d+)-Y(-?\d+)-F(\d{1,3})-W(\d{1,3})-R(\d{1,3})-K(Fine|Balanced|Broad)-H(Auto|Lakes|River|Mixed)(?:-E([01])-I([123])-B([01]{4}))?(?:-C([01])-N(None|Low|Medium|High|VeryHigh)-V(None|Low|Medium|High|VeryHigh)-P([123]))?(?:-Q([01])-T(None|Low|Medium|High|VeryHigh)-J(ForestTrail|MinorPath|Road|RockPassage)-L([01])-A(None|Low|Medium|High|VeryHigh)-U([01])-Z([123]))?(?:-M(Off|Low|Medium|High)-D([1-5]))?(?:-O(Empty|Classic|Fun|Experimental|FarOut|All))?(?:-S([0-9a-fA-F]{16}))?$/);
   if (!match) throw new Error("Enter an ordered WLD1 recipe or complete code; a seed needs exactly 16 hexadecimal digits.");
   const result = Object.fromEntries(["width", "height", "offsetX", "offsetY", "forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm"].map((key, i) => [key, match[i + 1]]));
   result.lootPreset = match[26] ?? "Empty";
@@ -51,8 +56,8 @@ export function worldConfigurationFromCode(input, maxBoardSize = 120) {
     ["forestEnrichment", "rockEnrichment", "waterEnrichment", "grasslandEnrichment"].forEach((key, i) => { result[key] = String(match[12][i] === "1"); });
   }
   if (match[13] != null) {
-    result.civilizationEnabled = String(match[13] === "1"); result.campsiteCount = match[14];
-    result.settlementCount = match[15]; result.preparationIntensity = match[16];
+    result.civilizationEnabled = String(match[13] === "1"); result.campsiteDensity = match[14];
+    result.settlementDensity = match[15]; result.preparationIntensity = match[16];
   }
   if (match[17] != null) {
     result.routesEnabled = String(match[17] === "1"); result.throughRoutes = match[18]; result.routeProfile = match[19];
@@ -63,6 +68,43 @@ export function worldConfigurationFromCode(input, maxBoardSize = 120) {
   worldConfigurationCode(result, true, maxBoardSize);
   result.seed = result.seed.toUpperCase();
   return result;
+}
+
+// Summaries describe authored settings only; counts and legality remain server-owned.
+export function worldSettingSummaries(config) {
+  const label = value => String(value ?? "").replace(/([a-z])([A-Z])/g, "$1 $2");
+  const intensity = value => ({ 1: "Low", 2: "Medium", 3: "High" })[value] ?? "";
+  return {
+    world: `${config.width}×${config.height} · ${label(config.waterForm)} · ${label(config.scale)}`,
+    civilization: config.civilizationEnabled === "false" ? "Disabled" : `${label(config.settlementDensity)} settlements · ${label(config.campsiteDensity)} campsites`,
+    routes: config.routesEnabled === "false" ? "Disabled" : `${label(config.routeProfile)} · ${label(config.throughRoutes)} through · ${label(config.explorationLinks)} links · ${intensity(config.routeIntensity)} intensity`,
+    population: `${config.populationDensity} · Difficulty ${config.populationDifficulty} · ${label(config.lootPreset)} Loot`,
+    advanced: config.enrichmentEnabled === "false" ? "Disabled" : `${intensity(config.enrichmentIntensity)} · ${["forest", "rock", "water", "grassland"].filter(key => config[`${key}Enrichment`] === "true").join(", ")}`
+  };
+}
+
+export function worldResultSummary(result) {
+  // Always summarize the final result, even while inspecting an earlier stage.
+  const frame = result.preview?.frames?.at(-1), sites = frame?.sites ?? [];
+  const buildings = sites.flatMap(site => site.buildings ?? []);
+  const failures = (frame?.planningFailures ?? []).filter(failure => !["Route", "RouteNetwork"].includes(failure.generator));
+  const routeFailures = (frame?.planningFailures ?? []).filter(failure => ["Route", "RouteNetwork"].includes(failure.generator));
+  const unresolved = (frame?.routeNetwork?.intents ?? []).filter(intent => intent.status === "Unresolved");
+  const population = frame?.population?.failures ?? [];
+  const fallbacks = sites.filter(site => site.settlementLayout?.fallbackReasons?.length);
+  const omittedSites = (frame?.settlementDensity?.omitted ?? 0) + (frame?.campsiteDensity?.omitted ?? 0);
+  const omittedRoutes = (frame?.throughRouteDensity?.omitted ?? 0) + (frame?.explorationLinkDensity?.omitted ?? 0);
+  const constructionWarnings = Math.max(failures.length, omittedSites);
+  const routeWarnings = Math.max(unresolved.length, omittedRoutes, routeFailures.length);
+  const warnings = [];
+  if (constructionWarnings) warnings.push(`${constructionWarnings} construction requests failed or omitted`);
+  if (unresolved.length) warnings.push(`${unresolved.length} unresolved route connections`);
+  if (omittedRoutes) warnings.push(`${omittedRoutes} route requests omitted`);
+  if (routeFailures.length && !unresolved.length && !omittedRoutes) warnings.push(`${routeFailures.length} route planning failures`);
+  if (population.length) warnings.push(`${population.length} population placement warnings`);
+  if (fallbacks.length) warnings.push(`${fallbacks.length} sites used layout fallbacks`);
+  const count = constructionWarnings + routeWarnings + population.length + fallbacks.length;
+  return { text: `${sites.length} sites · ${buildings.length} buildings · ${buildings.reduce((sum, building) => sum + (building.rooms?.length ?? 0), 0)} rooms · ${count} warning${count === 1 ? "" : "s"}`, warnings };
 }
 
 // Sparse presentation replay only. Geometry, connectivity and content remain server-owned.

@@ -10,7 +10,7 @@ public sealed class SettlementPopulationTests
     public void GeneratedDoorConcealsInteriorUntilOpenedAndExplorationSurvivesSave()
     {
         var world = WorldGenerator.Generate(new WorldGenerationRecipe(new(Width: 40, Height: 35), new(0, 0, 0), 42,
-            Civilization: new(Campsites: 0)));
+            Civilization: new(Campsites: ContentDensity.None, Settlements: ContentDensity.Low)));
         var portal = world.Context.Sites.SelectMany(s => s.Buildings).First().Portals.Single(p => p.Id.EndsWith("/entrance"));
         var outside = new Cell(portal.OutsideIndex % 40, portal.OutsideIndex / 40);
         var inside = new Cell(portal.InsideIndex % 40, portal.InsideIndex / 40);
@@ -39,7 +39,7 @@ public sealed class SettlementPopulationTests
         for (ulong seed = 1; seed <= 24; seed++)
         {
             var recipe = new WorldGenerationRecipe(new(Width: 40, Height: 35), new(0, 0, 0), seed,
-                Civilization: new(Campsites: 0, Settlements: 1), Population: new(PopulationDensity.High, 4));
+                Civilization: new(Campsites: ContentDensity.None, Settlements: ContentDensity.Low), Population: new(PopulationDensity.High, 4));
             var world = WorldGenerator.Generate(recipe);
             var site = Assert.Single(world.Context.Sites);
             Assert.NotNull(site.PopulationIntent);
@@ -78,7 +78,7 @@ public sealed class SettlementPopulationTests
         var pool = HeroesVsMonsters.Pool.Select(p => p.UnitTypeId).ToHashSet();
         content = content with { Units = [.. content.Units.Select(t => pool.Contains(t.Id) ? t with { Footprint = Footprint.TwoByTwo } : t)] };
         var world = WorldGenerator.Generate(new WorldGenerationRecipe(new(Width: 40, Height: 35), new(0, 0, 0), 12,
-            Civilization: new(Campsites: 0), Population: new(PopulationDensity.High, 5)), content);
+            Civilization: new(Campsites: ContentDensity.None, Settlements: ContentDensity.Low), Population: new(PopulationDensity.High, 5)), content);
         var site = Assert.Single(world.Context.Sites);
         var natural = world.Context.Population!.Encounters.Where(e => e.Kind is "LoneMonster" or "WildernessGroup").ToArray();
         Assert.NotEmpty(natural);
@@ -92,7 +92,7 @@ public sealed class SettlementPopulationTests
     public void SettlementScenarioAndSaveRoundtripPreserveConcreteBuildingsAndOccupants()
     {
         var recipe = new WorldGenerationRecipe(new(Width: 40, Height: 35), new(0, 0, 0), 42,
-            Civilization: new(Campsites: 0), Population: new(PopulationDensity.High, 4));
+            Civilization: new(Campsites: ContentDensity.None, Settlements: ContentDensity.Low), Population: new(PopulationDensity.High, 4));
         var world = WorldGenerator.Generate(recipe);
         Assert.NotEmpty(world.Context.Sites.SelectMany(s => s.Buildings));
         var repeated = WorldGenerator.Generate(world.Code);

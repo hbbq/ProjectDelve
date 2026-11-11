@@ -692,8 +692,12 @@ Fruit Tree composes existing Grass with three independent deterministic object v
 
 The separate **World Generator** creates previewable natural terrain with stable
 world coordinates, signed offsets, five presets and explicit WLD1 recipes. Its
-terrain-only results can be exported as DELVE1 or opened in Scenario Designer.
-Production windows remain at most 50 by 50. See the
+results can be exported as DELVE1 or opened in Scenario Designer.
+Production windows support up to 120 by 120. Site and route density controls use
+bounded sublinear targets; Population, preparation and route intensity remain
+independent. See [Density Scaling V1](ProjectDelve.Generation/DENSITY_SCALING_V1.md)
+for formulas, WLD1 fields and calibration, and [World Generator Designer](WORLD_GENERATOR_DESIGNER.md)
+for the compact settings, preview-first layout and verification evidence. See the
 [architecture, usage, gallery and measured performance](ProjectDelve.Generation/WORLD_GENERATOR.md).
 
 Canonical `dirt` has Grass-equivalent gameplay without a new TerrainKind value.

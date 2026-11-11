@@ -7,7 +7,7 @@ namespace ProjectDelve.Engine.Tests;
 public sealed class ThroughRouteTests
 {
     internal static WorldGenerationRecipe Recipe(int width = 50, int height = 50, RouteProfileKind profile = RouteProfileKind.MinorPath) =>
-        new(new(-17, -13, width, height), new(0, 0, 0), 42, null, null, new(ThroughRoutes: 2, Profile: profile, ConnectSites: false, Alternatives: 0));
+        new(new(-17, -13, width, height), new(0, 0, 0), 42, null, null, new(ThroughRoutes: ContentDensity.Medium, Profile: profile, ConnectSites: false, Alternatives: ContentDensity.None));
     [Theory]
     [InlineData(50, 50)]
     [InlineData(120, 100)]
@@ -15,7 +15,7 @@ public sealed class ThroughRouteTests
     public void ThroughRoutesCrossTheWindowWithNoSitesAndFormSharedNetwork(int width, int height)
     {
         var world = WorldGenerator.Generate(Recipe(width, height));
-        Assert.Empty(world.Context.Sites); Assert.Equal(2, world.Context.Routes.Count);
+        Assert.Empty(world.Context.Sites); Assert.Equal(DensityScaling.ThroughRoutes(world.Window, ContentDensity.Medium), world.Context.Routes.Count);
         Assert.Single(world.Context.RouteNetwork!.Topology.Components); Assert.NotEmpty(world.Context.RouteNetwork.Junctions);
         Assert.NotEmpty(world.Context.RouteNetwork.SharedSegments);
         foreach (var route in world.Context.Routes)
@@ -35,7 +35,7 @@ public sealed class ThroughRouteTests
     {
         var recipe = Recipe(); var a = WorldGenerator.Generate(recipe); var b = WorldGenerator.Generate(recipe);
         Assert.Equal(a.Fingerprint, b.Fingerprint); Assert.Equal(JsonSerializer.Serialize(a.Preview), JsonSerializer.Serialize(b.Preview));
-        var one = WorldGenerator.Generate(recipe with { Routes = recipe.Routes! with { ThroughRoutes = 1 } });
+        var one = WorldGenerator.Generate(recipe with { Routes = recipe.Routes! with { ThroughRoutes = ContentDensity.Low } });
         Assert.Equal(JsonSerializer.Serialize(one.Context.Routes[0]), JsonSerializer.Serialize(a.Context.Routes[0]));
         var starts = Enumerable.Range(0, 8).Select(seed => WorldGenerator.Generate(recipe with { Seed = (ulong)seed }).Context.Routes[0].Start.AnchorIndex).Distinct();
         Assert.True(starts.Count() >= 5);
@@ -43,7 +43,7 @@ public sealed class ThroughRouteTests
     [Fact]
     public void SingleColumnUsesSeparatedNorthSouthBoundaryPorts()
     {
-        var recipe = Recipe(1, 25) with { Routes = new(ThroughRoutes: 1, ConnectSites: false, Alternatives: 0) };
+        var recipe = Recipe(1, 25) with { Routes = new(ThroughRoutes: ContentDensity.Low, ConnectSites: false, Alternatives: ContentDensity.None) };
         var world = WorldGenerator.Generate(recipe); var route = Assert.Single(world.Context.Routes);
         Assert.Equal(CardinalSide.North, route.Start.Side); Assert.Equal(CardinalSide.South, route.End.Side);
         Assert.All(route.Geometry.Runs, run => Assert.Equal(CardinalSide.South, run.Direction));

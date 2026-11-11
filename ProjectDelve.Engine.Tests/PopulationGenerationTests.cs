@@ -114,7 +114,7 @@ public sealed class PopulationGenerationTests
     public void PipelineAddsPopulationOnlyAtTheFinalStageAndPreservesTerrain(bool construction)
     {
         var recipe = new WorldGenerationRecipe(new(Width: 40, Height: 35), new(0, 0, 0), 123,
-            Civilization: construction ? new(Campsites: 2, Settlements: 0) : null);
+            Civilization: construction ? new(Campsites: ContentDensity.Medium, Settlements: ContentDensity.None) : null);
         var baseline = WorldGenerator.Generate(recipe);
         var generated = WorldGenerator.Generate(recipe with { Population = new() });
         Assert.Null(baseline.Context.Population);

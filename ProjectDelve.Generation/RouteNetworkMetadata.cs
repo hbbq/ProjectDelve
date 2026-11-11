@@ -29,6 +29,8 @@ public sealed partial class WorldGenerationContext
     public List<RouteIntent> RouteIntents { get; } = [];
     public List<AlternativeRouteQuality> RouteAlternatives { get; } = [];
     public RouteNetworkSnapshot? RouteNetwork { get; internal set; }
+    public DensityAllocation? ThroughRouteDensity { get; internal set; }
+    public DensityAllocation? ExplorationLinkDensity { get; internal set; }
     internal double RouteSearchMilliseconds { get; set; }
     internal double RouteMaterializationMilliseconds { get; set; }
     internal long RoutePlanningWork { get; set; }

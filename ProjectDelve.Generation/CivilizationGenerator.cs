@@ -2,12 +2,12 @@ using ProjectDelve.Engine;
 
 namespace ProjectDelve.Generation;
 
-public sealed record CivilizationSettings(bool Enabled = true, int Campsites = 2, int Settlements = 1, int PreparationIntensity = 2)
+public sealed record CivilizationSettings(bool Enabled = true, ContentDensity Campsites = ContentDensity.Low, ContentDensity Settlements = ContentDensity.Medium, int PreparationIntensity = 2)
 {
     public CivilizationSettings Validate()
     {
-        if (Campsites is < 0 or > 8 || Settlements is < 0 or > 4 || PreparationIntensity is < 1 or > 3)
-            throw new ArgumentException("Civilization supports 0..8 campsites, 0..4 settlements and preparation intensity 1..3.");
+        if (!Enum.IsDefined(Campsites) || !Enum.IsDefined(Settlements) || PreparationIntensity is < 1 or > 3)
+            throw new ArgumentException("Civilization requires known site densities and preparation intensity 1..3.");
         return this;
     }
 }
@@ -22,6 +22,8 @@ public sealed partial class WorldGenerationContext
     public List<ConstructionOperation> Construction { get; } = [];
     public List<PlacementFailure> PlanningFailures { get; } = [];
     public CivilizationStatistics? CivilizationStats { get; internal set; }
+    public DensityAllocation? CampsiteDensity { get; internal set; }
+    public DensityAllocation? SettlementDensity { get; internal set; }
 
     // Terrain and Edge changes both affect the same current-topology revision.
     public void RefreshConstructionAnalysis()
@@ -59,7 +61,9 @@ public static class CivilizationGenerator
         };
         context.Construction.Add(new(path, null, "Civilization", path, area, [], []));
         // Stable request keys, never accepted-object counts. Larger plots precede small camps.
-        for (var i = 0; i < settings.Settlements; i++)
+        var settlementTarget = DensityScaling.Settlements(context.Window, settings.Settlements);
+        var campsiteTarget = DensityScaling.Campsites(context.Window, settings.Campsites);
+        for (var i = 0; i < settlementTarget; i++)
         {
             var key = $"settlement-{i}";
             var draft = board.BeginDraft(area, path + "/" + key, budget);
@@ -68,7 +72,7 @@ public static class CivilizationGenerator
             var routeAnchors = board.State.RouteCorridors.Keys.Order().ToArray();
             Accept(SettlementGenerator.Plan(new(key, area, policy, new(BuildingCount: 2 + rng.Next(3), AllowReducedBuildingCount: true), new(RouteAnchors: routeAnchors)), scope), draft);
         }
-        for (var i = 0; i < settings.Campsites; i++)
+        for (var i = 0; i < campsiteTarget; i++)
         {
             var key = $"campsite-{i}";
             var draft = board.BeginDraft(area, path + "/" + key, budget);
@@ -82,6 +86,8 @@ public static class CivilizationGenerator
                 Preferences: new(OpportunityAnchors: anchors, RouteAnchors: routeAnchors)), scope), draft);
         }
         context.RefreshConstructionAnalysis();
+        context.CampsiteDensity = new(campsiteTarget, campsiteTarget, context.Sites.Count(s => s.Kind == GeneratedSiteKind.Campsite));
+        context.SettlementDensity = new(settlementTarget, settlementTarget, context.Sites.Count(s => s.Kind == GeneratedSiteKind.Settlement));
         context.CivilizationStats = new(budget.Attempts, budget.Work, context.Sites.Count,
             context.Sites.Count(s => s.Kind == GeneratedSiteKind.Campsite), context.Sites.Count(s => s.Kind == GeneratedSiteKind.Settlement),
             context.Sites.Sum(s => s.Buildings.Count), context.Sites.Sum(s => s.Buildings.Sum(b => b.Rooms.Count)),

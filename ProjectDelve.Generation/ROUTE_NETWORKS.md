@@ -1,5 +1,8 @@
 # Connections and route networks
 
+Current abundance settings and scaling policy: [Density Scaling V1](DENSITY_SCALING_V1.md).
+Older numerical recipe examples and performance corpora below describe historical configurations.
+
 The subsequent [visual quality refinement](ROUTE_QUALITY.md) documents current
 cost tuning, paired galleries, diagnostics and verification. Measurements below
 describe the original route milestone baseline.
@@ -187,11 +190,13 @@ route identity is promised. Natural Terrain remains globally seamless.
 The optional effective recipe suffix, after Civilization and before the seed, is:
 
 ```text
--Q1-T2-JRoad-L1-A2-U0-Z2
+-Q1-TMedium-JRoad-L1-AMedium-U0-Z2
 ```
 
-`Q` enables routes; `T` is 0..4 Through Routes; `J` is ForestTrail, MinorPath, Road
-or RockPassage; `L` enables Site Connections; `A` is 0..3 optional Exploration Links;
+`Q` enables routes; `T` is Through route density; `J` is ForestTrail, MinorPath, Road
+or RockPassage; `L` enables Site Connections; `A` is Exploration link density.
+Both densities use None/Low/Medium/High/VeryHigh, with the bounded formulas in
+[Density Scaling V1](DENSITY_SCALING_V1.md).
 `U` permits ordinary-terrain Water crossings; `Z` is intensity 1..3. Presets provide
 editable profile defaults; completed codes capture effective settings. Natural-only,
 enrichment-only, routes without Sites and Sites without Primary Routes remain

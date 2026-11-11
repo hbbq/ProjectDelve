@@ -7,13 +7,13 @@ namespace ProjectDelve.Generation;
 
 public enum RouteNetworkMode { PrimaryRoutes, SiteConnections, ExplorationLinks }
 public enum RouteProfileKind { ForestTrail, MinorPath, Road, RockPassage }
-public sealed record RouteSettings(bool Enabled = true, int ThroughRoutes = 1, RouteProfileKind Profile = RouteProfileKind.MinorPath,
-    bool ConnectSites = true, int Alternatives = 1, bool WaterCrossings = false, int Intensity = 2)
+public sealed record RouteSettings(bool Enabled = true, ContentDensity ThroughRoutes = ContentDensity.Low, RouteProfileKind Profile = RouteProfileKind.MinorPath,
+    bool ConnectSites = true, ContentDensity Alternatives = ContentDensity.Low, bool WaterCrossings = false, int Intensity = 2)
 {
     public RouteSettings Validate()
     {
-        if (ThroughRoutes is < 0 or > 4 || Alternatives is < 0 or > 3 || Intensity is < 1 or > 3 || !Enum.IsDefined(Profile))
-            throw new ArgumentException("Routes support 0..4 through routes, 0..3 alternatives and intensity 1..3.");
+        if (!Enum.IsDefined(ThroughRoutes) || !Enum.IsDefined(Alternatives) || Intensity is < 1 or > 3 || !Enum.IsDefined(Profile))
+            throw new ArgumentException("Routes require known route densities and intensity 1..3.");
         return this;
     }
 }

@@ -1,11 +1,11 @@
 import { GeneratorSession } from "./generator-state.js";
-import { worldConfigurationCode, worldConfigurationFromCode, constructionPreview, constructionRange } from "./world-generator-state.js";
+import { worldConfigurationCode, worldConfigurationFromCode, constructionPreview, constructionRange, worldSettingSummaries, worldResultSummary } from "./world-generator-state.js";
 import { applyBoardVisual, terrainDisplay } from "./board-visuals.js";
 
 const byId = id => document.getElementById(`world-generator-${id}`);
 const dialog = document.getElementById("world-generator");
 const enrichmentFields = ["enrichmentEnabled", "enrichmentIntensity", "forestEnrichment", "rockEnrichment", "waterEnrichment", "grasslandEnrichment"];
-const civilizationFields = ["civilizationEnabled", "campsiteCount", "settlementCount", "preparationIntensity"];
+const civilizationFields = ["civilizationEnabled", "campsiteDensity", "settlementDensity", "preparationIntensity"];
 const routeFields = ["routesEnabled", "throughRoutes", "routeProfile", "connectSites", "explorationLinks", "waterCrossings", "routeIntensity"];
 const populationFields = ["populationDensity", "populationDifficulty"];
 const fields = ["width", "height", "offsetX", "offsetY", "forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm", "seed", "lootPreset", ...enrichmentFields, ...civilizationFields, ...routeFields, ...populationFields];
@@ -18,7 +18,28 @@ const traceButtons = new Map();
 const config = () => Object.fromEntries(fields.map(id => [id, byId(id).value]));
 const signature = () => JSON.stringify(config());
 const status = message => { byId("status").textContent = message; };
+function updateSettingSummaries() {
+  for (const [key, value] of Object.entries(worldSettingSummaries(config()))) byId(`summary-${key}`).textContent = value;
+}
+function renderResultSummary(result) {
+  const summary = worldResultSummary(result);
+  byId("result-summary").textContent = summary.text;
+  byId("warnings").textContent = summary.warnings.join(" · ");
+  byId("warning-panel").hidden = !summary.warnings.length;
+  const frame = result.preview?.frames?.at(-1);
+  byId("density-summary").textContent = [
+    ["Settlements", frame?.settlementDensity], ["Campsites", frame?.campsiteDensity],
+    ["Through routes", frame?.throughRouteDensity], ["Exploration links", frame?.explorationLinkDensity]
+  ].filter(([, allocation]) => allocation).map(([name, allocation]) =>
+    `${name}: ${allocation.requested} requested · ${allocation.attempted} attempted · ${allocation.accepted} accepted · ${allocation.omitted} omitted${allocation.reason ? ` · ${allocation.reason}` : ""}`).join("\n");
+}
+byId("investigate").addEventListener("click", () => {
+  byId("diagnostic-panel").open = true;
+  showStage((session.result?.preview?.frames.length ?? 1) - 1);
+  byId("stage").focus();
+});
 function changed() {
+  updateSettingSummaries();
   session.changed();
   try { byId("prefix").value = worldConfigurationCode(config(), false, maxBoardSize); worldConfigurationCode(config(), true, maxBoardSize); }
   catch (error) { status(error.message); return; }
@@ -52,7 +73,7 @@ byId("preset").addEventListener("change", () => {
   const enrichment = preset.enrichment ?? preset.settings.enrichment;
   if (enrichment) for (const [field, key] of [["enrichmentEnabled", "enabled"], ["enrichmentIntensity", "intensity"], ["forestEnrichment", "forest"], ["rockEnrichment", "rock"], ["waterEnrichment", "water"], ["grasslandEnrichment", "grassland"]]) byId(field).value = String(enrichment[key]);
   const civilization = preset.civilization ?? preset.settings.civilization;
-  if (civilization) for (const [field, key] of [["civilizationEnabled", "enabled"], ["campsiteCount", "campsites"], ["settlementCount", "settlements"], ["preparationIntensity", "preparationIntensity"]]) byId(field).value = String(civilization[key]);
+  if (civilization) for (const [field, key] of [["civilizationEnabled", "enabled"], ["campsiteDensity", "campsites"], ["settlementDensity", "settlements"], ["preparationIntensity", "preparationIntensity"]]) byId(field).value = String(civilization[key]);
   const routes = preset.routes ?? preset.settings.routes;
   if (routes) for (const [field, key] of [["routesEnabled", "enabled"], ["throughRoutes", "throughRoutes"], ["routeProfile", "profile"], ["connectSites", "connectSites"], ["explorationLinks", "alternatives"], ["waterCrossings", "waterCrossings"], ["routeIntensity", "intensity"]]) byId(field).value = String(routes[key]);
   const population = preset.population ?? preset.settings.population;
@@ -67,8 +88,8 @@ function randomSeed() {
 byId("load").addEventListener("click", () => {
   try {
     const loaded = worldConfigurationFromCode(byId("code-input").value, maxBoardSize);
-    const defaults = { civilizationEnabled: "false", campsiteCount: "2", settlementCount: "1", preparationIntensity: "2",
-      routesEnabled: "false", throughRoutes: "1", routeProfile: "MinorPath", connectSites: "true", explorationLinks: "1", waterCrossings: "false", routeIntensity: "2",
+    const defaults = { civilizationEnabled: "false", campsiteDensity: "Low", settlementDensity: "Medium", preparationIntensity: "2",
+      routesEnabled: "false", throughRoutes: "Low", routeProfile: "MinorPath", connectSites: "true", explorationLinks: "Low", waterCrossings: "false", routeIntensity: "2",
       populationDensity: "Off", populationDifficulty: "3", lootPreset: "Empty" };
     for (const field of fields) byId(field).value = loaded[field] ?? defaults[field] ?? (field === "enrichmentEnabled" ? "false" : field === "enrichmentIntensity" ? "2" : enrichmentFields.includes(field) ? "true" : "");
     byId("preset").value = ""; changed(); status("Recipe loaded · choose Generate Preview.");
@@ -97,7 +118,8 @@ async function generate() {
       const option = document.createElement("option"); option.value = String(index); option.textContent = `${index + 1}. ${stageName(frame)}`; select.append(option);
     }
     byId("steps").hidden = !result.preview?.frames.length;
-    renderPreview(); status("World preview ready · awaiting scenario authoring. Add your party and Objectives in Designer.");
+    byId("diagnostic-panel").open = false;
+    renderPreview(); dialog.scrollTop = 0; status("World preview ready · Open in Designer to author the scenario.");
   } catch (error) { if (ticket.sequence === session.sequence) status(error.message); }
 }
 byId("preview").addEventListener("click", () => { void generate(); });
@@ -238,6 +260,7 @@ function renderPreview() {
     byId("diagnostics").textContent = `${stageName(frame)} · ${compareBefore ? "Before" : "After"}${operation ? ` ${operation.name} · server analysis describes the accepted stage` : ""} · selected step changes ${changed.size} · features added ${d.featuresAdded} · walkable ${d.walkableArea} · components ${d.componentCount} · largest ${d.largestComponentArea} · route searches ${d.routingSearches} · visited ${d.routingVisitedCells}`;
     byId("inspection").textContent = "Hover or click a Cell to inspect server analysis. Overlays: gold changes, cyan formation boundaries, coloured components, red chokepoints, white entrances, purple opportunities.";
   }
+  renderResultSummary(result);
   byId("complete").value = result.code;
   const elapsed = (performance.now() - started).toFixed(1); root.dataset.renderMs = elapsed;
   byId("preview-summary").textContent = `${board.width} × ${board.height} · world (${offsetX}, ${offsetY}) · ${[...counts].map(([name, count]) => `${name} ${count} (${(100 * count / (board.width * board.height)).toFixed(1)}%)`).join(" · ")} · fingerprint ${result.fingerprint.slice(0, 16)}`;
@@ -298,7 +321,7 @@ function renderConstruction(frame) {
     (site.populationIntent ? `; ${site.populationIntent.layout}, occupation ${site.populationIntent.minimumUnits}–${site.populationIntent.maximumUnits}, ${site.populationIntent.alertTopology} Alert; roles ${site.populationIntent.areas.map(area => area.role).join(", ")}` : ""));
   byId("civilization-summary").textContent = stats ? `${stats.sites} sites · ${stats.campsites} campsites · ${stats.settlements} settlements · ${stats.buildings} buildings · ${stats.rooms} rooms · ${stats.attempts} attempts · work ${stats.work} · terrain changes ${stats.changedTerrain} · Edge changes ${stats.changedEdges}${costs.length ? "\n" + costs.join("\n") : ""}` : "";
   const failures = frame?.planningFailures ?? [], list = byId("planning-failures"); list.replaceChildren();
-  for (const failure of failures.slice(0, 24)) { const item = document.createElement("li"); item.textContent = `${failure.requestId} · ${failure.code}: ${failure.reason} (${failure.attempts} attempts)`; list.append(item); }
+  for (const failure of failures) { const item = document.createElement("li"); item.textContent = `${failure.requestId} · ${failure.code}: ${failure.reason} (${failure.attempts} attempts)`; list.append(item); }
   byId("planning-failure-panel").hidden = !failures.length;
 }
 

@@ -8,6 +8,7 @@ using ProjectDelve.Web;
 
 // Detached, package-free benchmark, deliberately outside the solution. Run sequentially:
 // dotnet run --project tools/WorldGenerationBenchmark -c Release --artifacts-path .world-benchmark -- --fixtures .playwright-cli/large-map-baseline
+if (args.Length > 0 && args[0] == "--density") { DensityInvestigation.Run(args.Skip(1).ToArray()); return; }
 const int warmups = 3, samples = 7, lookupPasses = 3;
 string? fixtures = null;
 var enrichment = false;

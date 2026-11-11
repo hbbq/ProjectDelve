@@ -321,11 +321,12 @@
   </dialog>
   <footer><span>Project Delve · A world at your table</span><span>One shared game per host. Browsing keeps it running; starting another scenario replaces it.</span></footer>
   <dialog id="world-generator" aria-labelledby="world-generator-heading">
-    <div class="generator-heading"><div><span class="designer-eyebrow">TERRAIN WORKSHOP</span><h2 id="world-generator-heading">World Generator</h2></div><button id="world-generator-close" type="button">Close</button></div>
-    <p class="world-generator-intro">Generate world terrain, settlements and discoverable encounters. Inspect each stage, then finish your scenario in Designer.</p>
+    <div class="generator-heading"><div><span class="designer-eyebrow">TERRAIN WORKSHOP</span><h2 id="world-generator-heading">World Generator</h2></div><div class="generator-actions"><button id="world-generator-preview" class="designer-primary">Generate Preview</button><button id="world-generator-another">Generate Another</button></div><button id="world-generator-close" type="button">Close</button></div>
+    <p class="world-generator-intro">Generate a world, inspect its stages, then finish your scenario in Designer.</p>
     <div class="world-generator-layout">
       <section class="world-generator-controls" aria-label="World terrain configuration">
-        <label>Terrain preset <select id="world-generator-preset"><option value="">Custom settings</option></select></label>
+        <details id="world-generator-settings-world" class="world-generator-setting"><summary>World &amp; Terrain<span id="world-generator-summary-world"></span></summary>
+<label>Terrain preset <select id="world-generator-preset"><option value="">Custom settings</option></select></label>
         <div class="world-generator-fields">
           <label>Width <input id="world-generator-width" type="number" min="1" max="120" value="30"></label>
           <label>Height <input id="world-generator-height" type="number" min="1" max="120" value="24"></label>
@@ -338,37 +339,45 @@
           <label>Water form <select id="world-generator-waterForm"><option>Auto</option><option>Lakes</option><option>River</option><option>Mixed</option></select></label>
         </div>
         <small id="world-generator-dimension-help">Dimensions 1–120. Offsets locate this window in the world. Coverage totals must be at most 100%; local terrain proportions vary by window.</small>
-        <fieldset class="world-generator-enrichment"><legend>Formation enrichment</legend><div class="world-generator-fields">
+        </details>
+        <details id="world-generator-settings-civilization" class="world-generator-setting"><summary>Civilization<span id="world-generator-summary-civilization"></span></summary>
+<div class="world-generator-fields">
+          <label>Construction <select id="world-generator-civilizationEnabled"><option value="true">Enabled</option><option value="false">Disabled</option></select></label>
+          <label>Campsites <select id="world-generator-campsiteDensity"><option value="None">None</option><option value="Low" selected>Low</option><option value="Medium">Medium</option><option value="High">High</option><option value="VeryHigh">Very High</option></select></label>
+          <label>Settlements <select id="world-generator-settlementDensity"><option value="None">None</option><option value="Low">Low</option><option value="Medium" selected>Medium</option><option value="High">High</option><option value="VeryHigh">Very High</option></select></label>
+          <label>Preparation <select id="world-generator-preparationIntensity"><option value="1">Low</option><option value="2" selected>Medium</option><option value="3">High</option></select></label>
+        </div><small>Density scales site requests with world size. Preparation limits terrain changes; unsuitable sites may be omitted.</small>
+        </details>
+        <details id="world-generator-settings-routes" class="world-generator-setting"><summary>Routes<span id="world-generator-summary-routes"></span></summary>
+<div class="world-generator-fields">
+          <label>Route planning <select id="world-generator-routesEnabled"><option value="true">Enabled</option><option value="false">Disabled</option></select></label>
+          <label>Through routes <select id="world-generator-throughRoutes"><option value="None">None</option><option value="Low" selected>Low</option><option value="Medium">Medium</option><option value="High">High</option><option value="VeryHigh">Very High</option></select></label>
+          <label>Route profile <select id="world-generator-routeProfile"><option value="ForestTrail">Forest trail</option><option value="MinorPath" selected>Minor path</option><option value="Road">Road</option><option value="RockPassage">Rock passage</option></select></label>
+          <label>Connect Sites <select id="world-generator-connectSites"><option value="true">Enabled</option><option value="false">Disabled</option></select></label>
+          <label>Exploration links <select id="world-generator-explorationLinks"><option value="None">None</option><option value="Low" selected>Low</option><option value="Medium">Medium</option><option value="High">High</option><option value="VeryHigh">Very High</option></select></label>
+          <label>Water crossings <select id="world-generator-waterCrossings"><option value="false">Preserve Water</option><option value="true">Allow limited fill</option></select></label>
+          <label>Route intensity <select id="world-generator-routeIntensity"><option value="1">Low</option><option value="2" selected>Medium</option><option value="3">High</option></select></label>
+        </div><small>Through routes cross the world; exploration links extend the network. Intensity limits terrain preparation. Site connections remain independent.</small>
+        </details>
+        <details id="world-generator-settings-population" class="world-generator-setting"><summary>Population<span id="world-generator-summary-population"></span></summary>
+<div class="world-generator-fields">
+          <label>Density <select id="world-generator-populationDensity"><option>Off</option><option>Low</option><option selected>Medium</option><option>High</option></select></label>
+          <label>Difficulty <select id="world-generator-populationDifficulty"><option value="1">1 · Easier</option><option value="2">2</option><option value="3" selected>3 · Standard</option><option value="4">4</option><option value="5">5 · Harder</option></select></label>
+          <label>Loot deck <select id="world-generator-lootPreset"><option>Empty</option><option selected>Classic</option><option>Fun</option><option>Experimental</option><option value="FarOut">Far Out</option><option>All</option></select></label>
+        </div><small>Population is independent of Civilization. Difficulty selects Monsters; Empty Loot creates no markers.</small>
+        </details>
+        <details id="world-generator-settings-advanced" class="world-generator-setting"><summary>Terrain enrichment<span id="world-generator-summary-advanced"></span></summary>
+<div class="world-generator-fields">
           <label>Enrichment <select id="world-generator-enrichmentEnabled"><option value="true">Enabled</option><option value="false">Natural terrain only</option></select></label>
           <label>Intensity <select id="world-generator-enrichmentIntensity"><option value="1">Low</option><option value="2" selected>Medium</option><option value="3">High</option></select></label>
           <label>Forest <select id="world-generator-forestEnrichment"><option value="true">Enabled</option><option value="false">Disabled</option></select></label>
           <label>Rock <select id="world-generator-rockEnrichment"><option value="true">Enabled</option><option value="false">Disabled</option></select></label>
           <label>Water <select id="world-generator-waterEnrichment"><option value="true">Enabled</option><option value="false">Disabled</option></select></label>
           <label>Grassland <select id="world-generator-grasslandEnrichment"><option value="true">Enabled</option><option value="false">Disabled</option></select></label>
-        </div></fieldset>
-        <fieldset class="world-generator-enrichment"><legend>Civilization</legend><div class="world-generator-fields">
-          <label>Construction <select id="world-generator-civilizationEnabled"><option value="true">Enabled</option><option value="false">Disabled</option></select></label>
-          <label>Campsites <input id="world-generator-campsiteCount" type="number" min="0" max="8" value="2"></label>
-          <label>Settlements <input id="world-generator-settlementCount" type="number" min="0" max="4" value="1"></label>
-          <label>Preparation <select id="world-generator-preparationIntensity"><option value="1">Low</option><option value="2" selected>Medium</option><option value="3">High</option></select></label>
-        </div><small>Construction may clear trees, excavate rock or fill Water within its preparation allowance. Unplaced requests are reported below.</small></fieldset>
-        <fieldset class="world-generator-enrichment"><legend>Routes</legend><div class="world-generator-fields">
-          <label>Route planning <select id="world-generator-routesEnabled"><option value="true">Enabled</option><option value="false">Disabled</option></select></label>
-          <label>Through routes <input id="world-generator-throughRoutes" type="number" min="0" max="4" value="1"></label>
-          <label>Route profile <select id="world-generator-routeProfile"><option value="ForestTrail">Forest trail</option><option value="MinorPath" selected>Minor path</option><option value="Road">Road</option><option value="RockPassage">Rock passage</option></select></label>
-          <label>Connect Sites <select id="world-generator-connectSites"><option value="true">Enabled</option><option value="false">Disabled</option></select></label>
-          <label>Exploration links <input id="world-generator-explorationLinks" type="number" min="0" max="3" value="1"></label>
-          <label>Water crossings <select id="world-generator-waterCrossings"><option value="false">Preserve Water</option><option value="true">Allow limited fill</option></select></label>
-          <label>Route intensity <select id="world-generator-routeIntensity"><option value="1">Low</option><option value="2" selected>Medium</option><option value="3">High</option></select></label>
-        </div><small>Primary Routes are planned before Sites, followed by Site connections and exploration links. Water crossings use ordinary terrain fill within the preparation allowance.</small></fieldset>
-        <fieldset class="world-generator-enrichment"><legend>Population</legend><div class="world-generator-fields">
-          <label>Density <select id="world-generator-populationDensity"><option>Off</option><option>Low</option><option selected>Medium</option><option>High</option></select></label>
-          <label>Difficulty <select id="world-generator-populationDifficulty"><option value="1">1 · Easier</option><option value="2">2</option><option value="3" selected>3 · Standard</option><option value="4">4</option><option value="5">5 · Harder</option></select></label>
-          <label>Loot deck <select id="world-generator-lootPreset"><option>Empty</option><option selected>Classic</option><option>Fun</option><option>Experimental</option><option value="FarOut">Far Out</option><option>All</option></select></label>
-        </div><small>Density controls population amount; Difficulty selects Monsters and supporting roles. Camps, small groups and lone Monsters create uneven danger, mostly Dormant. Loot presets repeat at setup to supply caches; Empty creates no Loot markers.</small></fieldset>
+        </div>
+        </details>
         <label>Seed · optional 16 hexadecimal digits <input id="world-generator-seed" maxlength="16" placeholder="Blank = fresh seed on Generate" autocomplete="off" spellcheck="false"></label>
-        <div class="generator-actions"><button id="world-generator-preview" class="designer-primary">Generate Preview</button><button id="world-generator-another">Generate Another</button></div>
-        <details><summary>World recipe code</summary>
+        <details id="world-generator-recipe"><summary>World recipe code</summary>
           <label>Load a recipe or completed code <textarea id="world-generator-code-input" rows="3" spellcheck="false" placeholder="WLD1-30x24-X0-Y0-F35-W20-R15-KBalanced-HAuto"></textarea></label>
           <button id="world-generator-load">Load World Code</button>
           <label>Current configuration prefix <textarea id="world-generator-prefix" rows="3" readonly spellcheck="false"></textarea></label>
@@ -378,10 +387,15 @@
         <p id="world-generator-status" role="status" aria-live="polite"></p>
         <div id="world-generator-preview-content" hidden>
           <div class="toolbar"><strong>World preview · awaiting scenario authoring</strong><label>View <select id="world-generator-view"><option value="enhanced">Enhanced 2D</option><option value="classic">Classic</option></select></label><label>Zoom <select id="world-generator-zoom"><option value="fit">Fit window</option><option value="12">12 px / Cell</option><option value="24">24 px / Cell</option><option value="48">48 px / Cell</option></select></label></div>
+          <p id="world-generator-result-summary" class="legend" aria-live="polite"></p>
+          <div id="world-generator-warning-panel" hidden><p id="world-generator-warnings" role="status"></p><button id="world-generator-investigate" type="button">Inspect diagnostics</button></div>
+          <div id="world-generator-board-wrap" class="world-generator-board-wrap"><div id="world-generator-board" class="generator-board" data-view="enhanced" role="img" aria-label="Generated world window"></div></div>
+          <details id="world-generator-diagnostic-panel" class="world-generator-diagnostic-panel"><summary>Generation diagnostics &amp; stages</summary><div class="world-generator-diagnostic-scroll">
           <p id="world-generator-preview-summary" class="legend"></p>
+          <p id="world-generator-density-summary" class="legend"></p>
           <div id="world-generator-steps" hidden>
             <div class="toolbar"><button id="world-generator-previous">Previous</button><label>Generation stage <select id="world-generator-stage"></select></label><button id="world-generator-next">Next</button><button id="world-generator-compare" aria-pressed="false" title="Compare the selected stage with its preceding frame">After</button></div>
-            <div class="world-generator-overlays"><label><input id="world-generator-changed" type="checkbox" checked> Changed Cells</label><label><input id="world-generator-boundaries" type="checkbox"> Formation boundaries</label><label><input id="world-generator-components" type="checkbox"> Walkable components / chokepoints</label><label><input id="world-generator-opportunities" type="checkbox"> Entrances / opportunities</label></div>
+            <div class="world-generator-overlays"><label><input id="world-generator-changed" type="checkbox"> Changed Cells</label><label><input id="world-generator-boundaries" type="checkbox"> Formation boundaries</label><label><input id="world-generator-components" type="checkbox"> Walkable components / chokepoints</label><label><input id="world-generator-opportunities" type="checkbox"> Entrances / opportunities</label></div>
             <p id="world-generator-diagnostics" class="legend"></p>
             <p id="world-generator-inspection" class="legend"></p>
             <p id="world-generator-civilization-summary" class="legend world-civilization-summary"></p>
@@ -413,12 +427,13 @@
             <details id="world-generator-population-encounters"><summary>Encounters, Groups and Orders</summary><div id="world-generator-population-details"></div></details>
             <details id="world-generator-population-failure-panel" hidden><summary>Population placement diagnostics</summary><ul id="world-generator-population-failures"></ul></details>
           </section>
-          <div id="world-generator-board-wrap" class="world-generator-board-wrap"><div id="world-generator-board" class="generator-board" data-view="enhanced" role="img" aria-label="Generated world window"></div></div>
+
           <p id="world-generator-performance" class="legend"></p>
+          </div></details>
           <label>Completed code for this preview <textarea id="world-generator-complete" rows="3" readonly spellcheck="false"></textarea></label>
           <div class="generator-actions"><button id="world-generator-quick-play" class="designer-primary">Quick Play</button><button id="world-generator-copy-complete">Copy Completed Code</button><button id="world-generator-designer">Open in Designer</button><button id="world-generator-export">Export DELVE1</button></div>
           <label id="world-generator-export-label" hidden>Exact world · DELVE1 <textarea id="world-generator-transport" rows="4" readonly spellcheck="false"></textarea></label>
-          <p class="legend">This is an omniscient authoring preview. Quick Play adds five Human Heroes with Fog of War, All Loot and No Objective; Back to Designer returns to the original world. A world code is a recipe; DELVE1 preserves the exact scenario.</p>
+          <details><summary>About preview and Quick Play</summary><p class="legend">This is an omniscient authoring preview. Quick Play adds five Human Heroes with Fog of War, All Loot and No Objective; Back to Designer returns to the original world. A world code is a recipe; DELVE1 preserves the exact scenario.</p></details>
         </div>
       </section>
     </div>

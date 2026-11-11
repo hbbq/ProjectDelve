@@ -18,10 +18,11 @@ public static class RouteNetworkGenerator
         var operations = new List<ConstructionOperation> { new(path, null, parameters.Mode.ToString(), path, area, [], []) };
         var routes = new List<RouteInfo>(); var intents = new List<RouteIntent>();
         var alternatives = new List<AlternativeRouteQuality>();
+        var submitted = 0;
         if (parameters.Mode == RouteNetworkMode.PrimaryRoutes)
         {
             var axis = RouteSeed.Stream(context.World.Seed, path, "selection").Next(2);
-            for (var ordinal = 0; ordinal < parameters.Settings.ThroughRoutes; ordinal++)
+            for (var ordinal = 0; ordinal < DensityScaling.ThroughRoutes(context.Window, parameters.Settings.ThroughRoutes); ordinal++)
             {
                 var key = "through-" + ordinal;
                 if (Math.Max(board.Width, board.Height) < 4)
@@ -58,7 +59,7 @@ public static class RouteNetworkGenerator
         {
             foreach (var candidate in ExplorationRoutes.Candidates(context, scope, parameters.Settings))
             {
-                if (alternatives.Count >= parameters.Settings.Alternatives) break;
+                if (alternatives.Count >= DensityScaling.ExplorationLinks(context.Window, parameters.Settings.Alternatives)) break;
                 Plan(candidate.Request, accept: plan =>
                 {
                     var quality = ExplorationRoutes.Quality(draft, plan, candidate);
@@ -119,12 +120,24 @@ public static class RouteNetworkGenerator
             }
         }
         context.RouteIntents.AddRange(intents);
+        if (parameters.Mode == RouteNetworkMode.PrimaryRoutes)
+            context.ThroughRouteDensity = new(DensityScaling.ThroughRoutes(context.Window, parameters.Settings.ThroughRoutes), submitted, intents.Count(i => i.Status == RouteIntentStatus.Accepted));
+        if (parameters.Mode == RouteNetworkMode.ExplorationLinks)
+        {
+            var requested = DensityScaling.ExplorationLinks(context.Window, parameters.Settings.Alternatives);
+            var accepted = intents.Count(i => i.Status == RouteIntentStatus.Accepted);
+            context.ExplorationLinkDensity = new(requested, submitted, accepted,
+                accepted >= requested ? null : submitted == 0
+                    ? "No useful exploration candidates remain in the current network and terrain."
+                    : "Available useful candidates or planning and disturbance allowances could not satisfy the exploration target.");
+        }
         context.RoutePlanningWork += budget.Work; context.RoutePlanningAttempts += budget.Attempts;
         context.RefreshConstructionAnalysis();
         context.RouteNetwork = RouteTopologyBuilder.Build(context);
 
         RouteInfo? Plan(RouteRequest request, string? requirementId = null, Func<RoutePlan, bool>? accept = null)
         {
+            submitted++;
             var clock = Stopwatch.StartNew();
             var result = RouteGenerator.Plan(request, scope);
             context.RouteSearchMilliseconds += clock.Elapsed.TotalMilliseconds;

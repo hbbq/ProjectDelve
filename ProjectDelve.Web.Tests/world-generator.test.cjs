@@ -231,7 +231,7 @@ test("loaded recipes update controls and stale responses cannot overwrite a newe
   const h = harness(); h.enter("code-input",code); h.click("load");
   assert.equal(h.get("world-generator-seed").value,"0123456789ABCDEF"); h.click("preview");
   h.click("another"); const newer = code.replace("0123456789ABCDEF","0000000100000002");
-  assert.equal(h.requests[1].body.code,newer.replace('-S','-E0-I2-B1111-C0-N2-V1-P2-Q0-T1-JMinorPath-L1-A1-U0-Z2-MOff-D3-OEmpty-S')); await h.accept(1,h.result(newer)); await h.accept(0);
+  assert.equal(h.requests[1].body.code,newer.replace('-S','-E0-I2-B1111-C0-NLow-VMedium-P2-Q0-TLow-JMinorPath-L1-ALow-U0-Z2-MOff-D3-OEmpty-S')); await h.accept(1,h.result(newer)); await h.accept(0);
   assert.equal(h.get("world-generator-complete").value,newer);
   h.click("preview"); h.enter("forestCoverage","30"); await h.accept(2);
   assert.equal(h.get("world-generator-complete").value,newer);
@@ -300,7 +300,7 @@ test("performance labels distinguish finalization and follow the displayed compa
 test("enrichment codes round-trip settings, preserve legacy codes and load old codes disabled", () => {
   const h=harness(), enriched=code.replace('-S','-E1-I3-B1010-S');
   assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${enriched}'))`,h.context),withEmptyLoot(enriched));
-  h.enter('code-input',enriched);h.click('load');h.click('preview');assert.equal(h.requests[0].body.code,enriched.replace('-S','-C0-N2-V1-P2-Q0-T1-JMinorPath-L1-A1-U0-Z2-MOff-D3-OEmpty-S'));
+  h.enter('code-input',enriched);h.click('load');h.click('preview');assert.equal(h.requests[0].body.code,enriched.replace('-S','-C0-NLow-VMedium-P2-Q0-TLow-JMinorPath-L1-ALow-U0-Z2-MOff-D3-OEmpty-S'));
   assert.equal(h.get('world-generator-enrichmentIntensity').value,'3'); assert.equal(h.get('world-generator-rockEnrichment').value,'false');
   h.enter('code-input',code);h.click('load');assert.equal(h.get('world-generator-enrichmentEnabled').value,'false');
   for(const suffix of ['-E2-I1-B1111','-E1-I4-B1111','-E1-I2-B111','-E1-I2-B1112']) assert.throws(()=>vm.runInContext(`worldConfigurationFromCode('${code.split('-S')[0]+suffix}')`,h.context),/ordered WLD1/);
@@ -319,22 +319,22 @@ test("a maximum map with the bounded 24-frame preview renders stage changes and 
 
 test("civilization suffixes round-trip independently and validate controls before generation", () => {
   const h = harness();
-  for (const suffix of ['-C1-N2-V1-P2','-C0-N0-V0-P1','-E1-I3-B1111-C1-N8-V4-P3']) {
+  for (const suffix of ['-C1-NLow-VMedium-P2','-C0-NNone-VNone-P1','-E1-I3-B1111-C1-NVeryHigh-VVeryHigh-P3']) {
     const complete = code.replace('-S',`${suffix}-S`);
     assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${complete}'))`,h.context),withEmptyLoot(complete));
     h.enter('code-input',complete); h.click('load');
     assert.equal(h.get('world-generator-civilizationEnabled').value, suffix.includes('-C1-') ? 'true' : 'false');
   }
-  for (const suffix of ['-C2-N2-V1-P2','-C1-N9-V1-P2','-C1-N2-V5-P2','-C1-N2-V1-P0'])
+  for (const suffix of ['-C2-NLow-VMedium-P2','-C1-N9-VMedium-P2','-C1-NLow-V5-P2','-C1-NLow-VMedium-P0'])
     assert.throws(()=>vm.runInContext(`worldConfigurationFromCode('${code.replace('-S',`${suffix}-S`)}')`,h.context),/ordered WLD1/);
-  h.enter('campsiteCount','9'); h.click('preview'); assert.equal(h.requests.length,0); assert.match(h.get('world-generator-status').textContent,/campsiteCount/);
+  h.enter('campsiteDensity','9'); h.click('preview'); assert.equal(h.requests.length,0); assert.match(h.get('world-generator-status').textContent,/campsiteDensity/);
 });
 
 test("catalog civilization presets update only authored settings", async () => {
   const h=harness(); h.opened.click();
-  await h.accept(0,{maxBoardSize:120,presets:[{id:'settled',name:'Settled',settings:{},civilization:{enabled:true,campsites:3,settlements:2,preparationIntensity:3}}]});
+  await h.accept(0,{maxBoardSize:120,presets:[{id:'settled',name:'Settled',settings:{},civilization:{enabled:true,campsites:"High",settlements:"High",preparationIntensity:3}}]});
   h.get('world-generator-preset').value='settled'; h.get('world-generator-preset').listeners.change(); h.click('preview');
-  assert.equal(h.requests[1].body.code,code.split('-S')[0]+'-C1-N3-V2-P3-OEmpty');
+  assert.equal(h.requests[1].body.code,code.split('-S')[0]+'-C1-NHigh-VHigh-P3-OEmpty');
   assert.equal(h.get('world-generator-offsetX').value,'-8');
 });
 
@@ -522,29 +522,29 @@ test("construction checkpoints isolate overlapping edits across several writer s
 test("route recipes round-trip every profile and bounded setting, with old codes explicitly disabled on load", () => {
   const h=harness();
   for(const profile of ['ForestTrail','MinorPath','Road','RockPassage']) for(const enabled of [0,1]) {
-    const recipe=code.replace('-S',`-E1-I2-B1111-C1-N2-V1-P2-Q${enabled}-T4-J${profile}-L0-A3-U1-Z3-S`);
+    const recipe=code.replace('-S',`-E1-I2-B1111-C1-NLow-VMedium-P2-Q${enabled}-TVeryHigh-J${profile}-L0-AHigh-U1-Z3-S`);
     assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${recipe}'))`,h.context),withEmptyLoot(recipe));
     h.enter('code-input',recipe);h.click('load');
-    assert.equal(h.get('world-generator-routeProfile').value,profile);assert.equal(h.get('world-generator-throughRoutes').value,'4');
-    assert.equal(h.get('world-generator-explorationLinks').value,'3');assert.equal(h.get('world-generator-waterCrossings').value,'true');
+    assert.equal(h.get('world-generator-routeProfile').value,profile);assert.equal(h.get('world-generator-throughRoutes').value,'VeryHigh');
+    assert.equal(h.get('world-generator-explorationLinks').value,'High');assert.equal(h.get('world-generator-waterCrossings').value,'true');
   }
   h.enter('code-input',code);h.click('load');
   assert.equal(h.get('world-generator-routesEnabled').value,'false');assert.equal(h.get('world-generator-waterCrossings').value,'false');
-  assert.match(h.get('world-generator-prefix').value,/-Q0-T1-JMinorPath-L1-A1-U0-Z2-MOff-D3-OEmpty$/);
-  for(const suffix of ['-Q2-T1-JRoad-L1-A1-U0-Z2','-Q1-T5-JRoad-L1-A1-U0-Z2','-Q1-T1-JRail-L1-A1-U0-Z2',
-    '-Q1-T1-JRoad-L1-A4-U0-Z2','-Q1-T1-JRoad-L1-A1-U2-Z2','-Q1-T1-JRoad-L1-A1-U0-Z0'])
+  assert.match(h.get('world-generator-prefix').value,/-Q0-TLow-JMinorPath-L1-ALow-U0-Z2-MOff-D3-OEmpty$/);
+  for(const suffix of ['-Q2-TLow-JRoad-L1-ALow-U0-Z2','-Q1-T5-JRoad-L1-ALow-U0-Z2','-Q1-TLow-JRail-L1-ALow-U0-Z2',
+    '-Q1-TLow-JRoad-L1-A4-U0-Z2','-Q1-TLow-JRoad-L1-ALow-U2-Z2','-Q1-TLow-JRoad-L1-ALow-U0-Z0'])
     assert.throws(()=>vm.runInContext(`worldConfigurationFromCode('${code.replace('-S',suffix+'-S')}')`,h.context),/ordered WLD1/);
 });
 
 test("catalog route settings preserve world inputs and HTML declares enabled conservative defaults", async () => {
   const h=harness();h.opened.click();
-  await h.accept(0,{maxBoardSize:120,presets:[{id:'connected',name:'Connected',settings:{},routes:{enabled:true,throughRoutes:2,profile:'Road',connectSites:true,alternatives:3,waterCrossings:false,intensity:1}}]});
+  await h.accept(0,{maxBoardSize:120,presets:[{id:'connected',name:'Connected',settings:{},routes:{enabled:true,throughRoutes:"Medium",profile:'Road',connectSites:true,alternatives:"High",waterCrossings:false,intensity:1}}]});
   h.get('world-generator-preset').value='connected';h.get('world-generator-preset').listeners.change();h.click('preview');
-  assert.equal(h.requests[1].body.code,code.split('-S')[0]+'-Q1-T2-JRoad-L1-A3-U0-Z1-OEmpty');
+  assert.equal(h.requests[1].body.code,code.split('-S')[0]+'-Q1-TMedium-JRoad-L1-AHigh-U0-Z1-OEmpty');
   assert.equal(h.get('world-generator-offsetX').value,'-8');assert.equal(h.get('world-generator-width').value,'2');
   const html=source('index.html').slice(source('index.html').indexOf('<dialog id="world-generator"'));
   assert.match(html,/id="world-generator-routesEnabled"><option value="true">Enabled/);
-  assert.match(html,/id="world-generator-throughRoutes"[^>]*value="1"/);
+  assert.match(html,/id="world-generator-throughRoutes">.*?<option value="Low" selected>/);
   assert.match(html,/<option value="MinorPath" selected>/);
   assert.match(html,/id="world-generator-waterCrossings"><option value="false">Preserve Water/);
   for(const id of ['route-intents','route-centerlines','route-corridors','route-junctions','route-crossings','route-access'])
@@ -638,4 +638,89 @@ test("maximum-window route overlays scale with supplied spans and runs without C
   assert.equal(overlays.filter(node=>node.dataset.routeKind==='centerline').length,2);assert.equal(overlays.length,124);
   assert.ok(overlays.every(node=>Object.keys(node.listeners).length===0));
   assert.equal(h.get('world-generator-board').children.filter(node=>node.className.startsWith('cell ')).length,14400);
+});
+
+
+test("density controls round-trip every level independently of Population and preparation", () => {
+  const h = harness();
+  for (const level of ['None', 'Low', 'Medium', 'High', 'VeryHigh']) {
+    const recipe = code.replace('-S', `-C1-N${level}-V${level}-P1-Q1-T${level}-JRoad-L1-A${level}-U0-Z3-MOff-D4-S`);
+    h.enter('code-input', recipe); h.click('load');
+    assert.equal(h.get('world-generator-campsiteDensity').value, level);
+    assert.equal(h.get('world-generator-settlementDensity').value, level);
+    assert.equal(h.get('world-generator-populationDensity').value, 'Off');
+    assert.equal(h.get('world-generator-preparationIntensity').value, '1');
+    assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${recipe}'))`, h.context), withEmptyLoot(recipe));
+  }
+});
+
+test("settings summaries track edited and loaded values without generating or remounting a preview", async () => {
+  const h = harness(); h.click('preview'); await h.accept(0);
+  const cell = h.get('world-generator-board').children[0];
+  h.enter('code-input', code.replace('-S', '-C1-NLow-VVeryHigh-P2-Q1-TMedium-JMinorPath-L1-ALow-U0-Z2-MLow-D3-S'));
+  h.click('load');
+  assert.equal(h.get('world-generator-summary-civilization').textContent, 'Very High settlements · Low campsites');
+  assert.equal(h.get('world-generator-summary-world').textContent, '2×2 · Auto · Balanced');
+  assert.match(h.get('world-generator-summary-routes').textContent, /Medium through · Low links · Medium intensity/);
+  assert.match(h.get('world-generator-summary-population').textContent, /Low · Difficulty 3/);
+  for (const key of ['world','civilization','routes','population','advanced']) {
+    const panel = h.get(`world-generator-settings-${key}`);
+    panel.open = true; panel.open = false;
+    assert.deepEqual(panel.listeners, {}); // Native disclosure is independent of input/session listeners.
+  }
+  assert.equal(h.requests.length, 1);
+  assert.equal(h.get('world-generator-board').children[0], cell);
+  assert.equal(h.get('world-generator-settlementDensity').value, 'VeryHigh');
+});
+
+test("diagnostics start collapsed and warnings persist while inspecting earlier stages", async () => {
+  const h = harness(), result = constructionResult(h);
+  const final = result.preview.frames.at(-1);
+  final.planningFailures = [{requestId:'omitted',code:'NoFootprint',reason:'No suitable footprint',attempts:3}];
+  final.routeNetwork = { routes:[], intents:[{status:'Unresolved'}], siteAttachments:[], alternatives:[], junctions:[], sharedSegments:[] };
+  final.campsiteDensity = { requested: 3, attempted: 2, accepted: 1, omitted: 2 };
+  h.get('world-generator-diagnostic-panel').open = true;
+  h.click('preview'); await h.accept(0, result);
+  assert.equal(h.get('world-generator-diagnostic-panel').open, false);
+  assert.equal(h.get('world-generator-warning-panel').hidden, false);
+  assert.match(h.get('world-generator-warnings').textContent, /construction requests failed or omitted/);
+  assert.match(h.get('world-generator-warnings').textContent, /unresolved route connections/);
+  assert.match(h.get('world-generator-density-summary').textContent, /3 requested · 2 attempted · 1 accepted · 2 omitted/);
+  h.click('previous');
+  assert.equal(h.get('world-generator-warning-panel').hidden, false);
+  h.click('investigate');
+  assert.equal(h.get('world-generator-diagnostic-panel').open, true);
+  assert.equal(h.get('world-generator-stage').value, String(result.preview.frames.length - 1));
+});
+
+test("native disclosures have keyboard semantics and keep the board before independently scrolling diagnostics", () => {
+  const html = source('index.html').split('<dialog id="world-generator"')[1].split('</dialog>')[0];
+  for (const key of ['world','civilization','routes','population','advanced']) {
+    assert.match(html, new RegExp(`<details id="world-generator-settings-${key}" class="world-generator-setting"><summary>`));
+  }
+  assert.match(html, /<details id="world-generator-diagnostic-panel" class="world-generator-diagnostic-panel"><summary>/);
+  assert.ok(html.indexOf('id="world-generator-board-wrap"') < html.indexOf('id="world-generator-diagnostic-panel"'));
+  assert.match(source('styles.css'), /world-generator-diagnostic-scroll[^}]*max-height: 44dvh; overflow: auto/s);
+  assert.match(source('styles.css'), /@media \(max-width: 850px\)[\s\S]*world-generator-result \{ grid-row: 1/);
+  assert.match(source('styles.css'), /summary:focus-visible/);
+});
+
+test("unattempted route allocations still surface omission warnings and their reason", async () => {
+  const h = harness(), result = stagedResult(h);
+  result.preview.frames.at(-1).explorationLinkDensity = {
+    requested: 3, attempted: 0, accepted: 0, omitted: 3, reason: 'No useful exploration candidates remain.'
+  };
+  h.click('preview'); await h.accept(0, result);
+  assert.equal(h.get('world-generator-warning-panel').hidden, false);
+  assert.match(h.get('world-generator-warnings').textContent, /3 route requests omitted/);
+  assert.match(h.get('world-generator-result-summary').textContent, /3 warnings/);
+  assert.match(h.get('world-generator-density-summary').textContent, /No useful exploration candidates remain/);
+});
+
+test("route planning failures are not mislabeled as failed site construction", async () => {
+  const h = harness(), result = stagedResult(h);
+  result.preview.frames.at(-1).planningFailures = [{generator:'Route',requestId:'route',code:'NoFootprint',reason:'No corridor',attempts:3}];
+  h.click('preview'); await h.accept(0, result);
+  assert.match(h.get('world-generator-warnings').textContent, /1 route planning failures/);
+  assert.doesNotMatch(h.get('world-generator-warnings').textContent, /construction requests/);
 });

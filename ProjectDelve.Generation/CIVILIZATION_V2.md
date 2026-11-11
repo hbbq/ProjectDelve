@@ -1,5 +1,8 @@
 # Civilization V2 — Villages and Settlements
 
+Current abundance settings and scaling policy: [Density Scaling V1](DENSITY_SCALING_V1.md).
+Older numerical recipe examples and performance corpora below describe historical configurations.
+
 Civilization composes the existing `SitePlan`, `BuildingGenerator` and
 `RoomLayoutGenerator`. It changes authoring geometry; Population runs after the
 final terrain, Edges and Site connections have been resolved. Runtime scenarios

@@ -158,9 +158,10 @@ from the previously enriched or constructed board.
 
 ## Recipe and preview controls
 
-The effective WLD1 suffix is `-C1-N2-V1-P2`: Civilization enabled, two Campsites,
-one Settlement, medium preparation. `C` is 0/1, `N` is 0..8, `V` is 0..4 and `P`
-is 1..3. Low/medium/high limits are respectively 320/650/1100 changed Cells and
+The effective WLD1 suffix is `-C1-NLow-VMedium-P2`: Civilization enabled, Low Campsite
+density, Medium Settlement density, medium preparation. `C` is 0/1, `N` and `V`
+are None/Low/Medium/High/VeryHigh and `P` is 1..3. See
+[Density Scaling V1](DENSITY_SCALING_V1.md) for current target formulas and bounds. Low/medium/high limits are respectively 320/650/1100 changed Cells and
 1600/4500/9000 weighted cost per Site. Requested counts are bounded targets;
 unplaced requests are reported. Presets supply editable defaults and completed
 codes contain effective settings. Disabling construction retains the natural and

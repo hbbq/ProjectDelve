@@ -11,7 +11,7 @@ public sealed class RouteOrchestrationTests
         var recipe = new WorldGenerationRecipe(new(-17, -13, 50, 50), new(), 42, new(), new(), new());
         foreach (var profile in Enum.GetValues<RouteProfileKind>())
         {
-            var configured = recipe with { Routes = new(Profile: profile, ThroughRoutes: 3, WaterCrossings: true) };
+            var configured = recipe with { Routes = new(Profile: profile, ThroughRoutes: ContentDensity.High, WaterCrossings: true) };
             Assert.Equal(configured, WorldGenerationRecipe.Parse(configured.ToString()));
         }
         var plan = WorldGenerationPlan.FromRecipe(recipe).Validate();

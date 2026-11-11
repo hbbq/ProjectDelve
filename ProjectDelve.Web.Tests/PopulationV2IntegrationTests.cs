@@ -13,8 +13,8 @@ public sealed class PopulationV2IntegrationTests
     public void DenseQuickPlayKeepsEveryMarkerScalesAllAndFiltersHiddenPopulation(int settlements)
     {
         var world = WorldGenerator.Generate(new WorldGenerationRecipe(new(Width: 60, Height: 50), new(0, 0, 0), 12345,
-            Civilization: new(Campsites: 2, Settlements: settlements), Population: new(PopulationDensity.High, 4), LootPreset: "Fun"));
-        Assert.Equal(settlements, world.Context.Sites.Count(s => s.Kind == GeneratedSiteKind.Settlement));
+            Civilization: new(Campsites: ContentDensity.Medium, Settlements: settlements == 0 ? ContentDensity.None : ContentDensity.Low), Population: new(PopulationDensity.High, 4), LootPreset: "Fun"));
+        Assert.Equal(settlements == 0 ? 0 : DensityScaling.Settlements(world.Window, ContentDensity.Low), world.Context.Sites.Count(s => s.Kind == GeneratedSiteKind.Settlement));
         var before = ScenarioDefinitionJson.ToJson(world.Definition);
         var prepared = WorldQuickPlay.Prepare(world.Definition, ContentBundle.Canonical());
         Assert.Equal(world.Definition.LootMarkers, prepared.LootMarkers);

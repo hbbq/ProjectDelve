@@ -62,7 +62,7 @@ public sealed class PopulationV2Tests
         for (ulong seed = 1; seed <= 12; seed++)
         {
             var recipe = Recipe(seed, width: 40, height: 35) with
-            { Civilization = new(Campsites: 2, Settlements: 0), Routes = new(ThroughRoutes: 1, Profile: RouteProfileKind.Road) };
+            { Civilization = new(Campsites: ContentDensity.Low, Settlements: ContentDensity.None), Routes = new(ThroughRoutes: ContentDensity.Low, Profile: RouteProfileKind.Road) };
             var world = WorldGenerator.Generate(recipe); var encounters = world.Context.Population!.Encounters;
             foreach (var site in world.Context.Sites)
             {
@@ -101,7 +101,7 @@ public sealed class PopulationV2Tests
             result = result.State.RoundComplete ? GameEngine.StartRound(result.State, dice, false) : GameEngine.Advance(result.State, new OrderAwareAutomatedProvider(), dice, false);
         Assert.Equal(-1, result.State.Orders.Single(o => o.Kind == OrderKind.PatrolRoute).Route!.Direction);
         Assert.All(result.State.Units.Where(u => camp.Units.Single(p => p.UnitId == u.Id).Dormant), u => Assert.True(u.Dormant));
-        var noPopulation = WorldGenerator.Generate(Recipe() with { Civilization = new(Campsites: 1, Settlements: 0), Population = new(PopulationDensity.Off) });
+        var noPopulation = WorldGenerator.Generate(Recipe() with { Civilization = new(Campsites: ContentDensity.Low, Settlements: ContentDensity.None), Population = new(PopulationDensity.Off) });
         Assert.NotEmpty(noPopulation.Context.Sites); Assert.Empty(noPopulation.Definition.Units);
     }
 

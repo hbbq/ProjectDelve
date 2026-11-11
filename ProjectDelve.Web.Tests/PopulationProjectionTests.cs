@@ -11,7 +11,7 @@ public sealed class PopulationProjectionTests
     public void GeneratedEncountersRemainHiddenInSideObservationAndBrowserPresentation()
     {
         var generated = WorldGenerator.Generate(new WorldGenerationRecipe(new(Width: 40, Height: 35), new(0, 0, 0), 123,
-            Civilization: new(Campsites: 2, Settlements: 0), Population: new(PopulationDensity.High)));
+            Civilization: new(Campsites: ContentDensity.Medium, Settlements: ContentDensity.None), Population: new(PopulationDensity.High)));
         Assert.NotEmpty(generated.Definition.Units);
         var initial = GameEngine.CreateGame(generated.Definition);
         var occupied = initial.Units.SelectMany(u => FootprintGeometry.OccupiedCells(initial, u.Id)).ToHashSet();

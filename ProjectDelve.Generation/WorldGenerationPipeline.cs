@@ -41,7 +41,7 @@ public sealed record WorldGenerationPlan(WorldDefinition World, WorldWindow Wind
         {
             steps.Add(new("grassland", WorldStepKind.GrasslandEnrichment, new EnrichmentStepParameters(grass.Intensity), [last])); last = "grassland";
         }
-        if (recipe.Routes is { Enabled: true, ThroughRoutes: > 0 } routes)
+        if (recipe.Routes is { Enabled: true, ThroughRoutes: not ContentDensity.None } routes)
         {
             steps.Add(new("primary-routes", WorldStepKind.RouteNetwork, new RouteNetworkStepParameters(RouteNetworkMode.PrimaryRoutes, routes), [last])); last = "primary-routes";
         }
@@ -53,7 +53,7 @@ public sealed record WorldGenerationPlan(WorldDefinition World, WorldWindow Wind
         {
             steps.Add(new("site-connections", WorldStepKind.RouteNetwork, new RouteNetworkStepParameters(RouteNetworkMode.SiteConnections, connections), [last])); last = "site-connections";
         }
-        if (recipe.Routes is { Enabled: true, Alternatives: > 0 } links)
+        if (recipe.Routes is { Enabled: true, Alternatives: not ContentDensity.None } links)
         {
             steps.Add(new("exploration-links", WorldStepKind.RouteNetwork, new RouteNetworkStepParameters(RouteNetworkMode.ExplorationLinks, links), [last])); last = "exploration-links";
         }
@@ -145,6 +145,10 @@ public sealed record WorldPreviewFrame(string StepId, string Stage, string Terra
     public IReadOnlyList<SiteInfo> Sites { get; init; } = [];
     public IReadOnlyList<PlacementFailure> PlanningFailures { get; init; } = [];
     public CivilizationStatistics? CivilizationStats { get; init; }
+    public DensityAllocation? CampsiteDensity { get; init; }
+    public DensityAllocation? SettlementDensity { get; init; }
+    public DensityAllocation? ThroughRouteDensity { get; init; }
+    public DensityAllocation? ExplorationLinkDensity { get; init; }
     public IReadOnlyList<ConstructionBatch> ConstructionBatches { get; init; } = [];
     public RouteNetworkSnapshot? RouteNetwork { get; init; }
     public PopulationSnapshot? Population { get; init; }
@@ -275,6 +279,8 @@ public static class WorldGenerationPipeline
             {
                 Edges = edges, ChangedEdges = changedEdges, Sites = context.Sites.ToArray(), Construction = context.Construction.ToArray(),
                 PlanningFailures = context.PlanningFailures.ToArray(), CivilizationStats = context.CivilizationStats,
+                CampsiteDensity = context.CampsiteDensity, SettlementDensity = context.SettlementDensity,
+                ThroughRouteDensity = context.ThroughRouteDensity, ExplorationLinkDensity = context.ExplorationLinkDensity,
                 ConstructionBatches = context.ConstructionBatches.ToArray(), RouteNetwork = context.RouteNetwork, Population = context.Population
             });
             previous = terrain; previousEdges = edgeMap;

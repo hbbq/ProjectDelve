@@ -2094,6 +2094,12 @@ Only actual structures, aprons, squares, yards and paths are prepared; unused su
 
 Settlement occupation may be entirely absent, use separate individual buildings with vacant houses, or occupy a compound. Original building purpose does not determine occupant Unit Type. Independent encounters retain ordinary Group and Alert semantics; neither separate houses nor Walls promise separate Alert networks. Most occupants remain Dormant, with pre-contact activity limited to explicit roles. No civilians, economy, multiple floors, new Orders or new building interactions are introduced.
 
+## World Density Scaling V1 - generator configuration
+
+Campsite, Settlement, Through route and Exploration link abundance use None, Low, Medium, High and VeryHigh density settings rather than absolute counts. Targets scale with the finite window size, remain bounded and deterministic, and are constrained by available geometry, useful network opportunities and existing planning/preparation budgets. Geography and resource limits may omit requested content with explicit authoring diagnostics. Preparation and route intensity remain separate controls; Population density and Difficulty retain their existing independent meaning. These are generator configuration policies, not new gameplay mechanics or physical state. Current target formulas and diagnostics are documented in `ProjectDelve.Generation/DENSITY_SCALING_V1.md`.
+
+WLD1 records the named density values. Numerical count recipes have no compatibility or migration requirement under the existing active-development policy. The same current recipe, content and seed remain deterministic; DELVE1 preserves concrete scenarios.
+
 ## World Population V2 — authoring and setup
 
 WLD1 World Generation produces ordinary scenario content. Civilization and Population remain independently useful: Sites can be empty or occupied differently from their original purpose, and natural-terrain encounters need no Site. Site Population Intent is authoring-only geometry and preferences for sentries, resting areas, central defenders, supply areas, patrol opportunities, minimum/maximum occupation and initial Alert connectivity. Population resolves these preferences after final terrain, Edges and connectivity analysis. It adds ordinary Units, exact Unit Type + Side + Group agency and Orders, Routes/Waypoints and Loot markers. No runtime Site ownership, encounter controller or persistent generator-specific state is established.

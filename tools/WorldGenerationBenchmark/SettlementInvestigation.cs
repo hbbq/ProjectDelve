@@ -14,7 +14,7 @@ internal static class SettlementInvestigation
         foreach (var seed in new ulong[] { 1, 2, 3, 4 })
         {
             var recipe = new WorldGenerationRecipe(new(Width: width, Height: height), new(10, 4, 5), seed,
-                new(), new(Campsites: 1, Settlements: 2), new(ThroughRoutes: 2, Profile: RouteProfileKind.Road),
+                new(), new(Campsites: ContentDensity.Low, Settlements: ContentDensity.Medium), new(ThroughRoutes: ContentDensity.Medium, Profile: RouteProfileKind.Road),
                 new(PopulationDensity.Medium, 4));
             _ = WorldGenerator.Generate(recipe);
             List<GeneratedWorld> runs = []; List<double> elapsed = [];
@@ -32,7 +32,7 @@ internal static class SettlementInvestigation
                 totalMs = Median(elapsed), civilizationMs = Median(runs.Select(r => r.Metrics.Stages.Single(s => s.Stage == WorldStepKind.Civilization).Milliseconds)),
                 constructionValidationMs = Median(runs.Select(r => r.Metrics.ConstructionValidationMilliseconds)),
                 scenarioValidationMs = validation.Elapsed.TotalMilliseconds, world.Metrics.ConstructionValidations,
-                world.Context.CivilizationStats, acceptedSettlements = sites.Length, rejectedSettlements = 2 - sites.Length,
+                world.Context.CivilizationStats, acceptedSettlements = sites.Length, rejectedSettlements = world.Context.SettlementDensity!.Omitted,
                 families = sites.GroupBy(s => s.SettlementLayout!.Family).ToDictionary(g => g.Key.ToString(), g => g.Count()),
                 routeAttachments = world.Context.RouteNetwork?.SiteAttachments.Where(a => sites.Any(s => s.Id == a.SiteId)).ToArray(),
                 connectionRequests = sites.Sum(s => s.ConnectionRequests.Count),

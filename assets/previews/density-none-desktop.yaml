@@ -1,0 +1,43 @@
+- dialog "World Generator":
+  - text: TERRAIN WORKSHOP
+  - heading "World Generator" [level=2]
+  - button "Generate Preview"
+  - button "Generate Another"
+  - button "Close"
+  - paragraph: Generate a world, inspect its stages, then finish your scenario in Designer.
+  - region "World terrain configuration":
+    - group: World & Terrain 30×24 · Lakes · Broad
+    - group: Civilization None settlements · None campsites
+    - group: Routes Minor Path · Low through · Low links · Medium intensity
+    - group: Population Off · Difficulty 3 · Empty Loot
+    - group: Terrain enrichment Medium · forest, rock, water, grassland
+    - text: Seed · optional 16 hexadecimal digits
+    - textbox "Seed · optional 16 hexadecimal digits":
+      - /placeholder: Blank = fresh seed on Generate
+      - text: 00000000000003DF
+    - group: World recipe code
+  - region "World terrain preview":
+    - status: World preview ready · Open in Designer to author the scenario.
+    - strong: World preview · awaiting scenario authoring
+    - text: View
+    - combobox "View":
+      - option "Enhanced 2D" [selected]
+      - option "Classic"
+    - text: Zoom
+    - combobox "Zoom":
+      - option "Fit window" [selected]
+      - option "12 px / Cell"
+      - option "24 px / Cell"
+      - option "48 px / Cell"
+    - paragraph: 0 sites · 0 buildings · 0 rooms · 1 warning
+    - status: 1 route requests omitted
+    - button "Inspect diagnostics"
+    - img "Generated world window"
+    - group: Generation diagnostics & stages
+    - text: Completed code for this preview
+    - textbox "Completed code for this preview": WLD1-30x24-X0-Y0-F10-W4-R5-KBroad-HLakes-E1-I2-B1111-C1-NNone-VNone-P2-Q1-TLow-JMinorPath-L1-ALow-U0-Z2-MOff-D3-OEmpty-S00000000000003DF
+    - button "Quick Play"
+    - button "Copy Completed Code"
+    - button "Open in Designer"
+    - button "Export DELVE1"
+    - group: About preview and Quick Play
