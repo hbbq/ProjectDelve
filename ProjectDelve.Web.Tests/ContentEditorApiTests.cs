@@ -20,6 +20,35 @@ public sealed class ContentEditorApiTests
     { Converters = { new JsonStringEnumConverter() } };
 
     [Fact]
+    public async Task SwapAuthoringExposesRelationshipDefaultsBothTimingsAndTypedValidation()
+    {
+        await using var host = await Host.Start();
+        using var catalog = JsonDocument.Parse(await host.Client.GetStringAsync("/api/content/catalog"));
+        var swap = catalog.RootElement.GetProperty("entries").EnumerateArray().Single(m => m.GetProperty("id").GetString() == "swap" && m.GetProperty("family").GetString() == "mechanics").GetProperty("mechanic");
+        var selector = Assert.Single(swap.GetProperty("parameters").EnumerateArray());
+        Assert.Equal("selector", selector.GetProperty("name").GetString());
+        Assert.Equal("Enemies", selector.GetProperty("defaultValue").GetString());
+        Assert.Equal(new[] { "Friendlies", "Enemies" }, selector.GetProperty("allowedValues").EnumerateArray().Select(v => v.GetString()));
+        foreach (var relation in new[] { RelationshipSelector.Enemies, RelationshipSelector.Friendlies })
+        foreach (var timing in new[] { AbilityTiming.Action, AbilityTiming.BonusAction })
+        {
+            var definition = new EquipmentDefinition("swap-kit", "Exchange kit")
+            { LocalAbilities = [new("exchange", "Exchange", timing, new Swap { Selector = relation })] };
+            var validated = await host.Validate("equipment", definition);
+            Assert.True(validated.Valid);
+            var restored = validated.Definition!.Value.Deserialize<EquipmentDefinition>(Json)!;
+            Assert.Equal(relation, Assert.IsType<Swap>(restored.LocalAbilities.Single().Mechanic).Selector);
+            Assert.Equal(timing, restored.LocalAbilities.Single().Timing);
+            Assert.Equal($"Swap places with an adjacent {(relation == RelationshipSelector.Enemies ? "enemy" : "friendly")} Unit.", validated.Entry!.Abilities.Single().Description);
+        }
+        foreach (var invalid in new[] { RelationshipSelector.All, (RelationshipSelector)999 })
+            AssertError(await host.Validate("equipment", new EquipmentDefinition("bad-swap", "Bad swap")
+                { LocalAbilities = [new("exchange", "Exchange", AbilityTiming.Action, new Swap { Selector = invalid })] }), "definition.localAbilities[0].mechanic.selector");
+        AssertError(await host.Validate("equipment", new EquipmentDefinition("free-swap", "Free swap")
+            { LocalAbilities = [new("exchange", "Exchange", AbilityTiming.FreeAction, new Swap { Selector = RelationshipSelector.Friendlies })] }), "definition.localAbilities[0].timing");
+    }
+
+    [Fact]
     public async Task EquipmentAuthoringUsesTypedModifiersCapabilitiesActionsAndStableIdentityWithoutADestination()
     {
         await using var host = await Host.Start();

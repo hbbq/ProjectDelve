@@ -129,7 +129,7 @@ public sealed class SpecializedMechanicCatalogTests
             (new OpenDoor(), [MechanicTiming.Action, MechanicTiming.FreeAction]),
             (new Telekinesis(), [MechanicTiming.Action]),
             (new TryOpenDoor(3), [MechanicTiming.Action]),
-            (new Swap(), [MechanicTiming.BonusAction]),
+            (new Swap(), [MechanicTiming.Action, MechanicTiming.BonusAction]),
             (new Displace(1), [MechanicTiming.BonusAction]),
             (new ReshapeRoom(), [MechanicTiming.BonusAction]),
             (new AdjacentUnitSummonMechanic(UnitTypeIds.Grunt, Posture.Upright), [MechanicTiming.Action]),

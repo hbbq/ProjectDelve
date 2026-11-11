@@ -20,6 +20,7 @@ public static class ContentDescriptions
         void Signed(string key, int value) => values[key] = value.ToString("+0;-0;0", CultureInfo.InvariantCulture);
         switch (ability.Mechanic)
         {
+            case Swap swap: values["selector"] = Relationship(swap.Selector); break;
             case AdjacentUnitHealMechanic heal:
                 values["selector"] = Relationship(heal.Selector); Number("amount", heal.Amount); break;
             case AdjacentUnitPostureChangeMechanic posture:

@@ -108,8 +108,8 @@ public static partial class GameEngine
                 case PlaceBananaPeel:
                     foreach (var candidate in BananaPlacementRules.Candidates(state, unit, ability)) yield return Bind(candidate);
                     break;
-                case Swap:
-                    foreach (var target in AdjacentHostiles(state, unit).Where(t => ExternalMovementRules.CanSwap(state, unit.Id, t.Id)))
+                case Swap swap:
+                    foreach (var target in AdjacentSwapTargets(state, unit, swap.Selector).Where(t => ExternalMovementRules.CanSwap(state, unit.Id, t.Id)))
                         yield return Bind(new($"{ability.CandidatePrefix}:{target.Id}", TargetId: target.Id));
                     break;
                 case Displace displace:
@@ -124,6 +124,11 @@ public static partial class GameEngine
             }
         }
     }
+
+    private static IEnumerable<Unit> AdjacentSwapTargets(GameState state, Unit unit, RelationshipSelector selector) =>
+        state.Units.Where(target => target.CurrentHp > 0 &&
+            AbilityQueries.MatchesRelationship(state, unit, target, selector) &&
+            SpatialRules.AreAdjacent(state, unit.Id, target.Id));
 
     private static void ResolveAbility(GameState state, DecisionRequest request, Candidate choice, ResolutionEvents events)
     {

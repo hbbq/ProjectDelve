@@ -137,7 +137,10 @@ public enum UnitBehavior
 public enum MovementPattern { StraightOrthogonal, DiagonalCorridor, LShape, StraightOrthogonalOrDiagonalCorridor, Adjacent }
 public sealed record AdvanceOnKill : AbilityMechanic;
 public sealed record ReshapeRoom : AbilityMechanic;
-public sealed record Swap : AbilityMechanic;
+public sealed record Swap : AbilityMechanic
+{
+    public RelationshipSelector Selector { get; init; } = RelationshipSelector.Enemies;
+}
 // Current external movement supports zero or one ordinary step only.
 public sealed record Displace(int MaxMove) : AbilityMechanic;
 public sealed record AdjacentUnitSummonMechanic([property: JsonRequired] string UnitTypeId, [property: JsonRequired] Posture InitialPosture, int? SameTypeSideLimit = null, int? SameTypeSummonerLimit = null) : AbilityMechanic;

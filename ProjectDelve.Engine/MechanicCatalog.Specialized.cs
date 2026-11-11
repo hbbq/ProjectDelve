@@ -50,8 +50,21 @@ public static partial class MechanicCatalog
             (NativeInteger("atkBonus", 1), p => p.AtkBonus)));
         yield return ReusableActive(SpecializedMarker<ReshapeRoom>("reshapeRoom", "Reshape Room", MechanicTiming.BonusAction,
             "Replace Edges in the 3 × 3 area centered on this Unit to form a room with an opening at the middle of each of its four sides."));
-        yield return ReusableActive(SpecializedMarker<Swap>("swap", "Adjacent Enemy Unit Position Swap", MechanicTiming.BonusAction,
-            "Swap places with an adjacent enemy Unit.", MechanicTargetSelection.Unit));
+        var swapSelector = new MechanicParameter("selector", MechanicParameterKind.Enum)
+        {
+            Required = false, AllowedValues = ["Friendlies", "Enemies"],
+            DefaultValue = JsonSerializer.SerializeToElement("Enemies")
+        };
+        yield return ReusableActive(MechanicRegistration.Create<Swap>(SpecializedDescriptor(
+            "swap", "Adjacent Unit Position Swap", MechanicTiming.BonusAction,
+            "Swap places with an adjacent {selector} Unit.") with
+        {
+            Parameters = [swapSelector],
+            Targeting = new(MechanicTargetSelection.Unit,
+                "One living adjacent Unit matching the relationship selector and eligible for external repositioning; both receiving placements must be legal."),
+            Description = new("Swap places with an adjacent {selector} Unit.", ["selector"])
+        }, (payload, path, errors) => MechanicChecks.Enum(errors, swapSelector, payload.Selector, path + ".selector")),
+            MechanicTiming.Action, MechanicTiming.BonusAction);
         yield return ReusableActive(SpecializedNumbers<Displace>("displace", "Displace", MechanicTiming.BonusAction,
             "Move an adjacent enemy Unit up to {maxMove} Cell.", MechanicUsageSupport.UnlimitedOnly,
             MechanicTargetSelection.Unit, "An adjacent hostile one-Cell Unit and one legal external movement destination, including its current Cell.",

@@ -163,7 +163,7 @@ public sealed class WizardTests
     public void CardWordingAndUseLimitAreDomainOwned()
     {
         var type = UnitType.Wizard();
-        Assert.Equal(new[] { "Attack", "Open Door", "Operate", "Fireball", "Telekinesis", "Focus" }, type.CardEntries().Select(e => e.Name));
+        Assert.Equal(new[] { "Attack", "Open Door", "Operate", "Friendly Swap", "Fireball", "Telekinesis", "Focus" }, type.CardEntries().Select(e => e.Name));
         var focus = Assert.Single(type.CardEntries(), e => e.Name == "Focus");
         Assert.Equal(new CardEntryDescription("ability:focus", "Focus", "Bonus Action", "ATK +1 this activation.", 2), focus);
         Assert.Equal("2/game", focus.UseLimitText);

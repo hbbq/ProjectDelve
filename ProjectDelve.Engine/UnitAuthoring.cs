@@ -108,7 +108,7 @@ public static class UnitAuthoring
         int? sameTypeSummonerLimit = null) => new(unitTypeId, initialPosture, sameTypeSideLimit, sameTypeSummonerLimit);
     public static Telekinesis Telekinesis() => new();
     public static ReshapeRoom ReshapeRoom() => new();
-    public static Swap Swap() => new();
+    public static Swap Swap(RelationshipSelector selector = RelationshipSelector.Enemies) => new() { Selector = selector };
     public static Displace Displace(int maxMove) => new(maxMove);
     public static Fury Fury(int atkBonus, int adjacentEnemies) => new() { AtkBonus = atkBonus, AdjacentEnemyThreshold = adjacentEnemies };
     public static Backstab Backstab(int atkBonus) => new() { AtkBonus = atkBonus };

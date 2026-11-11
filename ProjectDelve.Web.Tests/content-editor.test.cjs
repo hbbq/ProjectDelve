@@ -100,6 +100,29 @@ test('metadata selects supported families and profiles without ID-specific forms
   assert.equal(h.run('parameterValue({kind:"Integer",minimum:1})'), 1);
 });
 
+test('Swap relationship and Action or Bonus Action are editable through the ordinary metadata form', async () => {
+  const swap = { id: 'swap', name: 'Adjacent Unit Position Swap', family: 'Ability', maxPerSource: null,
+    profiles: ['Action', 'BonusAction'].map(timing => ({ source: 'Equipment', timing, usage: 'LimitedOrUnlimited' })),
+    parameters: [{ name: 'selector', kind: 'Enum', required: false, defaultValue: 'Enemies', allowedValues: ['Friendlies', 'Enemies'] }],
+    description: { parameters: ['selector'] } };
+  const h = harness({ callbacks: { catalog: { ...catalog, entries: [...catalog.entries, { family: 'mechanics', id: 'swap', mechanic: swap }] } } });
+  await h.editor.open({ family: 'equipment' });
+  h.change('definition.id', 'swap-kit'); h.change('definition.name', 'Swap kit');
+  h.byId('content-editor-add-mechanic').value = 'swap'; h.clickText('Add Ability');
+  assert.equal(h.field('definition.localAbilities[0].mechanic.selector').value, 'Enemies');
+  assert.deepEqual(h.field('definition.localAbilities[0].mechanic.selector').children.map(e => e.value), ['Friendlies', 'Enemies']);
+  h.change('definition.localAbilities[0].mechanic.selector', 'Friendlies', 'change');
+  h.change('definition.localAbilities[0].timing', 'BonusAction', 'change');
+  await h.editor.validate();
+  assert.deepEqual(h.validated[0].definition.localAbilities[0].mechanic, { kind: 'swap', selector: 'Friendlies' });
+  assert.equal(h.validated[0].definition.localAbilities[0].timing, 'BonusAction');
+  h.change('definition.localAbilities[0].timing', 'Action', 'change');
+  h.change('definition.localAbilities[0].mechanic.selector', 'Enemies', 'change');
+  await h.editor.validate();
+  assert.deepEqual(h.validated[1].definition.localAbilities[0].mechanic, { kind: 'swap', selector: 'Enemies' });
+  assert.equal(h.validated[1].definition.localAbilities[0].timing, 'Action');
+});
+
 test('new and copied definitions retain local keys through rename; adding after removal does not recycle a key', () => {
   const h = harness(); h.environment.catalog = catalog;
   h.run('globalThis.state = new ContentEditorState(catalog); state.open({family:"equipment"}); state.addAbility("testAction"); state.set(["localAbilities",0,"name"],"Renamed"); state.addAbility("testAction"); state.removeAbility(0); state.addAbility("testAction")');

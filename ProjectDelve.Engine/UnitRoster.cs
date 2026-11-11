@@ -20,6 +20,10 @@ public static class UnitRoster
     public static UnitType Beastmaster(string id = UnitTypeIds.Beastmaster) => UnitType.Define(id,
         "Beastmaster", Stats(3, 1, 2, 3, 5), Loot(1, items: true, equipment: true),
         Unique(), DefaultController(ControllerKind.Human), OpenDoor(), Operate(),
+        LocalAbility(new("friendly-swap", "Friendly Swap", AbilityTiming.BonusAction, Swap(RelationshipSelector.Friendlies))
+        {
+            Usage = new(MaxUses: null)
+        }),
         Ability("Summon Jackalope", Unlimited(), AdjacentUnitSummon(UnitTypeIds.Jackalope, Posture.Upright, sameTypeSummonerLimit: 1), id: "summon-jackalope"),
         Ability("Summon Giant Toad", Unlimited(), AdjacentUnitSummon(UnitTypeIds.GiantToad, Posture.Upright, sameTypeSummonerLimit: 1), id: "summon-giant-toad"),
         Ability("Summon Dire Bear", Unlimited(), AdjacentUnitSummon(UnitTypeIds.DireBear, Posture.Lying, sameTypeSummonerLimit: 1), id: "summon-dire-bear"),
@@ -213,6 +217,10 @@ public static class UnitRoster
         Stats(3, 1, 4, 3, 5), Loot(1, items: true, equipment: true),
         Unique(),
         OpenDoor(), Operate(),
+        LocalAbility(new("friendly-swap", "Friendly Swap", AbilityTiming.Action, Swap(RelationshipSelector.Friendlies))
+        {
+            Usage = new(MaxUses: null)
+        }),
         Ability("Fury", Unlimited(), Fury(atkBonus: +1, adjacentEnemies: 2), id: "fury"),
         Ability("Cleave", Uses(2), Cleave(triggerDamage: 2, damage: 1), id: "cleave"),
         Ability("Rage", Uses(2), BonusActionSelfModifier(Modifier(Stat.Atk, +2)), id: "rage")
@@ -223,6 +231,10 @@ public static class UnitRoster
         Stats(4, 1, 3, 2, 4), Loot(1, items: true, equipment: true),
         Unique(),
         OpenDoor(), Operate(),
+        LocalAbility(new("friendly-swap", "Friendly Swap", AbilityTiming.Action, Swap(RelationshipSelector.Friendlies))
+        {
+            Usage = new(MaxUses: null)
+        }),
         Ability("Backstab", Unlimited(), Backstab(atkBonus: +1), id: "backstab"),
         Ability("Dash", Uses(2), BonusActionSelfModifier(Modifier(Stat.Mov, +2)), id: "dash"),
         Ability("Throwing Knife", Uses(2), BonusActionSelfModifier(Modifier(Stat.Rng, +2), Modifier(Stat.Atk, -1)), id: "throwing-knife")
@@ -233,6 +245,10 @@ public static class UnitRoster
         Stats(3, 1, 3, 3, 4), Loot(1, items: true, equipment: true),
         Unique(),
         OpenDoor(), Operate(),
+        LocalAbility(new("friendly-swap", "Friendly Swap", AbilityTiming.Action, Swap(RelationshipSelector.Friendlies))
+        {
+            Usage = new(MaxUses: null)
+        }),
         LocalAbility(new("heal", "Heal", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, Amount: 2))
         {
             Usage = new(MaxUses: 2)
@@ -252,6 +268,10 @@ public static class UnitRoster
         Stats(3, 4, 3, 2, 4), Loot(1, items: true, equipment: true),
         Unique(),
         OpenDoor(), Operate(),
+        LocalAbility(new("friendly-swap", "Friendly Swap", AbilityTiming.Action, Swap(RelationshipSelector.Friendlies))
+        {
+            Usage = new(MaxUses: null)
+        }),
         Ability("Fireball", Uses(2), Fireball(), id: "fireball"),
         Ability("Telekinesis", Unlimited(), Telekinesis(), id: "telekinesis"),
         Ability("Focus", Uses(2), BonusActionSelfModifier(Modifier(Stat.Atk, +1)), id: "focus")

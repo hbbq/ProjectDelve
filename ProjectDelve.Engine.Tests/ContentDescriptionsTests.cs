@@ -12,9 +12,9 @@ public sealed class ContentDescriptionsTests
             UnitType.Grunt("g"), UnitType.Zombie("z"), UnitType.SkeletonArcher("s"), UnitType.Goblin("o"), UnitType.Troll("t") };
         Assert.Equal(new[] { "Barbarian", "Rogue", "Cleric", "Grunt", "Zombie", "Skeleton Archer", "Goblin", "Troll" },
             types.Select(t => t.DisplayName));
-        Assert.Equal(new[] { "Attack", "Open Door", "Operate", "Fury", "Cleave", "Rage" }, types[0].CardEntries().Select(e => e.Name));
-        Assert.Equal(new[] { "Attack", "Open Door", "Operate", "Backstab", "Dash", "Throwing Knife" }, types[1].CardEntries().Select(e => e.Name));
-        Assert.Equal(new[] { "Attack", "Open Door", "Operate", "Heal", "Holy Wave", "Aura" }, types[2].CardEntries().Select(e => e.Name));
+        Assert.Equal(new[] { "Attack", "Open Door", "Operate", "Friendly Swap", "Fury", "Cleave", "Rage" }, types[0].CardEntries().Select(e => e.Name));
+        Assert.Equal(new[] { "Attack", "Open Door", "Operate", "Friendly Swap", "Backstab", "Dash", "Throwing Knife" }, types[1].CardEntries().Select(e => e.Name));
+        Assert.Equal(new[] { "Attack", "Open Door", "Operate", "Friendly Swap", "Heal", "Holy Wave", "Aura" }, types[2].CardEntries().Select(e => e.Name));
         Assert.Equal(new[] { "Attack" }, types[3].CardEntries().Select(e => e.Name));
         Assert.Equal(new[] { "Attack", "Transport Resource", "Break Door" }, types[4].CardEntries().Select(e => e.Name));
         Assert.Equal(new[] { "Attack" }, types[5].CardEntries().Select(e => e.Name));

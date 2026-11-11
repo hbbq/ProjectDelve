@@ -67,12 +67,35 @@ Each `Profiles` entry is one complete supported combination. Do not combine sour
 | `phase`, `amphibious` | Passive; persist while Lying | Unlimited | Unlimited | Unsupported |
 | `openDoor` | Action, FreeAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
 | `telekinesis`, `tryOpenDoor` | Action | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
-| `reshapeRoom`, `swap`, `displace` | BonusAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
+| `swap` | Action, BonusAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
+| `reshapeRoom`, `displace` | BonusAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
 | `adjacentUnitSummon`, `fireBreath`, `clawAttack`, `pickupResource`, `giveResource`, `operate`, `targetUnitAttack` | Action | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
 | `placeBananaPeel`, `selfExtraMoves` | BonusAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
 | `fury`, `backstab`, `transportResource` | Passive | Unlimited | Unlimited | Unsupported |
 
 Equipment stat changes use local Passive `selfModifiers`; Phase, Amphibious and Open Door use their local typed payloads. There are no separate Equipment modifier/capability execution paths. Modifier lists accept ATK, MOV, RNG, DEF and SightDistance amounts from -100 through 100, including zero and repeated stats. An empty modifier list is invalid; an Equipment definition with no stat changes simply has no such Ability. Ordinary modifiers require an Upright source; Phase and Amphibious explicitly persist while Lying. Their catalog dependencies identify `persistentCapability`, without introducing a generic status lifecycle.
+
+`swap` is **Adjacent Unit Position Swap**. Its optional `selector` parameter uses
+`RelationshipSelector`, restricted to `Enemies` (the default) or `Friendlies`.
+Omitting the parameter preserves existing Enemy Swap definitions. The same
+target query, simultaneous exchange, arrival handling and source-aware usage
+accounting serve both relationships. Both participants remain 1 × 1; ordinary
+adjacency/LOS, receiving-Type occupancy (including Amphibious), Posture and FoW
+requirements apply. Phase does not waive endpoint legality or adjacency.
+
+The catalog advertises Action and BonusAction profiles, never FreeAction. The
+shared Designer parameter form renders the relationship enum and timing choices
+from that metadata. Generated text is `Swap places with an adjacent enemy Unit.`
+or `Swap places with an adjacent friendly Unit.` as appropriate. Equipment and
+Item grants retain their normal source identity, limits and consumption rules.
+
+Canonical `friendly-swap` is explicitly unlimited on Barbarian, Rogue, Cleric
+and Wizard as an Action, and on Beastmaster as a BonusAction. Beastmaster has no
+Action copy and no special Bonus Action handling. Every individual Bonus Action
+remains usable once per activation independently of the others. An Action copy
+spends the ordinary Action opportunity; neither variant grants extra attacks,
+Actions or Moves. `UnitAuthoring.Swap(selector)` configures the payload; use an
+explicit `LocalAbilityDefinition` when declaring its Action timing.
 
 `revealDistance` requires an explicit integer `distance` of at least zero. Its
 target selection is None: it explores for the acting Unit's Side from all of its
