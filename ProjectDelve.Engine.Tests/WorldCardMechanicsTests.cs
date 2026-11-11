@@ -88,7 +88,7 @@ public sealed class WorldCardMechanicsTests
         Assert.All(result.Events.Where(e => e.Kind == "WorldDamageResolved"), e => Assert.Equal(2, e.Damage));
         Assert.Contains("2 damage", damage.Description);
         Assert.True(result.Events.FindLastIndex(e => e.Kind == "WorldCardDrawn") > result.Events.FindLastIndex(e => e.Kind == "UnitDefeated"));
-        Assert.Empty(result.State.PendingExplosions);
+        Assert.Empty(result.State.PendingDefeatEffects);
     }
 
     [Fact]

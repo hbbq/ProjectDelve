@@ -108,8 +108,8 @@ export class DesignerDraft {
     this.changed();
   }
   applyContentDefinition(family, definition, existingId = null) {
-    const field = { units: 'unitTypes', equipment: 'equipmentTypes', items: 'itemTypes', lootCards: 'lootCardDefinitions' }[family];
-    if (!field) throw new Error('Only Unit, Equipment, Item and Loot Card definitions can be saved here.');
+    const field = { units: 'unitTypes', equipment: 'equipmentTypes', items: 'itemTypes', lootCards: 'lootCardDefinitions', terrain: 'terrainTypes', terrainAssemblies: 'terrainAssemblies' }[family];
+    if (!field) throw new Error('Only Unit, Equipment, Item, Loot Card, Terrain and Terrain Assembly definitions can be saved here.');
     if (!definition || typeof definition !== 'object' || Array.isArray(definition) ||
         !Object.hasOwn(definition, 'id') || typeof definition.id !== 'string' || !definition.id.trim())
       throw new Error('A content definition requires a nonempty ID.');
@@ -621,7 +621,7 @@ export function readDraftDocument(text, maxBoardSize = 120) {
   // Shape and rendering limits only. Incomplete/illegal game content is the engine's concern.
   if (!board || ![board.width, board.height].every(n => Number.isInteger(n) && n >= 1 && n <= maxBoardSize) ||
       ![board.cells, board.edges, d.units, d.unitTypeIds, d.agency].every(Array.isArray) ||
-      ["orders", "routes", "waypoints", "machines", "resources", "cellMarkers", "lootMarkers", "groundObjects", "objectives", "neutralSides", "fogOfWarSides", "unitTypes", "terrainTypes", "equipmentTypes", "itemTypes", "lootCardDefinitions", "storedResources"].some(key => d[key] != null && !Array.isArray(d[key])) ||
+      ["orders", "routes", "waypoints", "machines", "resources", "cellMarkers", "lootMarkers", "groundObjects", "objectives", "neutralSides", "fogOfWarSides", "unitTypes", "terrainTypes", "terrainAssemblies", "fixedComponentTypes", "equipmentTypes", "itemTypes", "lootCardDefinitions", "storedResources"].some(key => d[key] != null && !Array.isArray(d[key])) ||
       d.loot != null && (typeof d.loot !== 'object' || d.loot.cards != null && (!Array.isArray(d.loot.cards) || d.loot.cards.some(k => typeof k !== 'string')) || d.loot.composition != null && !Array.isArray(d.loot.composition) || d.loot.preset != null && typeof d.loot.preset !== 'string') ||
       (d.lootMarkers ?? []).some(m => !m || typeof m.id !== 'string' || !m.position) ||
       (d.groundObjects ?? []).some(g => !g?.position || !g.object || typeof g.object.id !== 'string' || (typeof g.object.kind !== 'string' && typeof g.object.equipmentTypeId !== 'string' && typeof g.object.itemTypeId !== 'string' && typeof g.object.lootCardId !== 'string')) ||

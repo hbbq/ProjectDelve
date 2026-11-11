@@ -1225,6 +1225,9 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       getRevision: revision,
       getSnapshot: snapshot,
       getContext: () => structuredClone({
+        terrainTypes: draft.definition.terrainTypes ?? [],
+        terrainAssemblies: draft.definition.terrainAssemblies ?? [],
+        fixedComponentTypes: draft.definition.fixedComponentTypes ?? [],
         unitTypes: draft.definition.unitTypes ?? [],
         equipmentTypes: draft.definition.equipmentTypes ?? [],
         itemTypes: draft.definition.itemTypes ?? [],

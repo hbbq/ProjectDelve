@@ -112,7 +112,7 @@ public sealed class ResolutionObservationTests
             state.Physical.Board.Edges.Add(new(new(0, 0), new(1, 0), EdgeKind.Wall));
             state.Physical.Board.Terrain.Clear();
             state.Units.Clear(); state.Types.Clear(); state.Bag.Clear(); state.Controllers.Clear();
-            state.CompletedUnitIds.Clear(); state.ModifiersThisTurn.Clear(); state.PendingExplosions.Clear();
+            state.CompletedUnitIds.Clear(); state.ModifiersThisTurn.Clear(); state.PendingDefeatEffects.Clear();
             state.BonusActionUseCountsThisActivation.Clear(); state.BonusActionUseCountsThisActivation.Clear();
             state.WorldDeck!.DrawPile.Clear();
             state.Pending?.Candidates.Clear();

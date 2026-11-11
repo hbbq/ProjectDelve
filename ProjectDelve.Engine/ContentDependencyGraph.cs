@@ -68,6 +68,28 @@ public sealed class ContentDependencyGraph
                 catch (ArgumentException error) { diagnostics.Add(new(identity, "", "invalidComposition", error.Message, definition.Source)); }
             }
         }
+        foreach (var (identity, definition) in definitions.Where(p => p.Key.Family == ContentFamily.Terrain))
+        {
+            HashSet<string> path = new(StringComparer.Ordinal) { identity.TypeId };
+            object current = definition.Value;
+            string? Result(object value) => value switch
+            {
+                TerrainDefinition terrain => terrain.DestroyedTerrainTypeId,
+                TerrainAssemblyDefinition assembly => assembly.DestroyedTerrainTypeId,
+                _ => null
+            };
+            while (Result(current) is { } id && definitions.TryGetValue(new(ContentFamily.Terrain, id), out var next))
+            {
+                if (!path.Add(id))
+                {
+                    diagnostics.Add(new(identity, "destroyedTerrainTypeId", "invalidDestruction", "Circular Terrain destruction is not allowed.", definition.Source));
+                    break;
+                }
+                if (next.Value is TerrainDefinition { LegacyKind: TerrainKind.Rail })
+                    diagnostics.Add(new(identity, "destroyedTerrainTypeId", "invalidDestruction", "Destroyed Terrain cannot require Rail direction setup.", definition.Source));
+                current = next.Value;
+            }
+        }
         Diagnostics = diagnostics.OrderBy(d => d.Owner.Family).ThenBy(d => d.Owner.TypeId, StringComparer.Ordinal)
             .ThenBy(d => d.Path, StringComparer.Ordinal).ThenBy(d => d.Code, StringComparer.Ordinal).ToImmutableArray();
     }

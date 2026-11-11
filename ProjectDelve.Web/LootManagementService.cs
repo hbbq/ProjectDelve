@@ -28,6 +28,7 @@ public sealed class LootManagementService(ContentWorkspace workspace, CanonicalC
 {
     internal static ContentBundle Local(ContentEditorContext? context) => new()
     {
+        Terrain = [.. context?.TerrainTypes ?? []], Assemblies = [.. context?.TerrainAssemblies ?? []], FixedComponents = [.. context?.FixedComponentTypes ?? []],
         Units = [.. context?.UnitTypes ?? []], Equipment = [.. context?.EquipmentTypes ?? []],
         Items = [.. context?.ItemTypes ?? []], LootCards = [.. context?.LootCardDefinitions ?? []]
     };

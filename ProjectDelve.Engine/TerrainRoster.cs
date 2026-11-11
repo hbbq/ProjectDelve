@@ -6,9 +6,9 @@ public static class TerrainRoster
 {
     public static ImmutableArray<TerrainAssemblyDefinition> Assemblies { get; } =
     [
-        new("tree", "Tree", "grass") { Components = [new("object", "tree")] },
-        new("stone-floor-with-table", "Stone Floor with Table", "stone-floor") { Components = [new("furniture", "table")] },
-        new("campfire", "Campfire", "grass") { Components = [new("object", "campfire")] }
+        new("tree", "Tree", "grass") { Components = [new("object", "tree")], DestroyedTerrainTypeId = "grass" },
+        new("stone-floor-with-table", "Stone Floor with Table", "stone-floor") { Components = [new("furniture", "table")], DestroyedTerrainTypeId = "stone-floor" },
+        new("campfire", "Campfire", "grass") { Components = [new("object", "campfire")], DestroyedTerrainTypeId = "grass" }
     ];
 
     public static ImmutableArray<TerrainDefinition> All { get; } = Create();
@@ -43,10 +43,11 @@ public static class TerrainRoster
             Define("fruit-tree", "Fruit Tree", false, true, TerrainKind.FruitTree) with
             {
                 BlocksVision = false,
+                DestroyedTerrainTypeId = "grass",
                 Production = new DirectionalResourceProduction("fruit", 2, SourceLos: ProductionSourceLos.IgnoreProducingCell),
                 LegacyProductionIdentity = LegacyTerrainProductionIdentity.FruitTree
             },
-            Define("solid-rock", "Solid Rock", false, true, TerrainKind.SolidRock),
+            Define("solid-rock", "Solid Rock", false, true, TerrainKind.SolidRock) with { DestroyedTerrainTypeId = "gravel" },
             campfire
         ];
     }

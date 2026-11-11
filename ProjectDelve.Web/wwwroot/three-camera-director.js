@@ -45,6 +45,7 @@ export function directorDecision(frame,decision,side) {
     if(c.placementCells?.length)legal.push(cameraBounds(c.placementCells));
     else if(ref?.position)legal.push(cameraBounds([ref.position]));
     if(ref?.door)legal.push(cameraBounds([ref.door.a,ref.door.b]));
+    if(ref?.edge)legal.push(cameraBounds([ref.edge.a,ref.edge.b]));
     for(const id of c.affectedUnitIds??[])legal.push(footprint(id));
   }
   return primary.length?{context:'Decision',primary,legal:unique(legal.filter(Boolean)),targets:unique(targets),subjects:own}:null;

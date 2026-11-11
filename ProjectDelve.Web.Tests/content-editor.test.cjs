@@ -553,3 +553,33 @@ test('usage compatibility follows Cost metadata and supported mechanic changes p
   const closing = h.editor.requestClose(); h.byId('content-editor-keep').listeners.click(); assert.equal(await closing, false);
   assert.equal(h.editor.isDirty(), true); assert.equal(h.editor.isOpen(), true);
 });
+
+
+test('Terrain and assembly forms author explicit optional results and referenced components without mutating copies', async () => {
+  const terrainCatalog = { ...catalog, entries: [...catalog.entries,
+    { family: 'terrain', id: 'floor', name: 'Floor' },
+    { family: 'terrain', id: 'grass', name: 'Grass' },
+    { family: 'fixedComponents', id: 'table', name: 'Table' }
+  ] };
+  const h = harness({ callbacks: { catalog: terrainCatalog } });
+  const original = { id: 'rock', name: 'Rock', passable: false, blocksLos: true, legacyKind: 'SolidRock', destroyedTerrainTypeId: 'grass', presentation: { recipe: 'rock' } };
+  await h.editor.open({ family: 'terrain', definition: original, copy: true, newId: 'custom-rock' });
+  assert.equal(h.field('definition.destroyedTerrainTypeId').value, 'grass');
+  h.change('definition.destroyedTerrainTypeId', '', 'change');
+  await h.editor.validate();
+  const copied = h.validated.at(-1).definition;
+  assert.equal(copied.id, 'custom-rock'); assert.equal(copied.passable, false);
+  assert.equal(Object.hasOwn(copied, 'destroyedTerrainTypeId'), false);
+  assert.equal(Object.hasOwn(copied, 'legacyKind'), false);
+  assert.equal(original.destroyedTerrainTypeId, 'grass');
+  const a = harness({ callbacks: { catalog: terrainCatalog } });
+  await a.editor.open({ family: 'terrainAssemblies' });
+  a.change('definition.id', 'custom-table'); a.change('definition.name', 'Table on floor');
+  a.change('definition.surfaceId', 'floor', 'change');
+  a.clickText('Add entry');
+  a.change('definition.components[0].slot', 'furniture');
+  a.change('definition.components[0].componentId', 'table', 'change');
+  a.change('definition.destroyedTerrainTypeId', 'grass', 'change');
+  await a.editor.validate();
+  assert.deepEqual(a.validated.at(-1).definition, { id: 'custom-table', name: 'Table on floor', surfaceId: 'floor', components: [{ slot: 'furniture', componentId: 'table' }], destroyedTerrainTypeId: 'grass' });
+});

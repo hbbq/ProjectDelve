@@ -62,3 +62,18 @@ test('Items and linked Loot remain detached package definitions with immutable i
   const historical = new Draft(record, { currentRevision: 2 });
   assert.throws(() => historical.apply({ family: 'items', definition, expectedRevision: historical.stamp }), /workspace changed/);
 });
+
+
+test('library terrain and assembly authoring preserves explicit and absent destruction results', () => {
+  const draft = Draft.create('terrain-workshop', 'Terrain Workshop');
+  const floor = { id: 'custom-floor', name: 'Floor', passable: true, blocksLos: false };
+  const assembly = { id: 'custom-table', name: 'Table', surfaceId: floor.id, components: [{ slot: 'object', componentId: 'table' }], destroyedTerrainTypeId: floor.id };
+  draft.apply({ family: 'terrain', definition: floor, expectedRevision: draft.stamp });
+  draft.apply({ family: 'terrainAssemblies', definition: assembly, expectedRevision: draft.stamp });
+  const saved = draft.context();
+  assert.deepEqual(plain(saved.terrainTypes), [floor]);
+  assert.deepEqual(plain(saved.terrainAssemblies), [assembly]);
+  delete assembly.destroyedTerrainTypeId;
+  draft.apply({ family: 'terrainAssemblies', definition: assembly, existingId: assembly.id, expectedRevision: draft.stamp });
+  assert.equal(Object.hasOwn(draft.context().terrainAssemblies[0], 'destroyedTerrainTypeId'), false);
+});

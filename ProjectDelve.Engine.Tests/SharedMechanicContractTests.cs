@@ -29,6 +29,7 @@ public sealed class SharedMechanicContractTests
         Assert.Equal(registrations.Select(r => Assert.IsType<string>(r.TypeDiscriminator)).Order(),
             descriptors.Select(d => d.Id).Order());
         var payloads = Supported().Select(s => s.Payload)
+            .Concat(new AbilityMechanic[] { new BreakObject(3), new BreakAdjacentObjects(6), new DefeatSelf() })
             .Concat(CanonicalUnitTypes.All.SelectMany(t => t.LocalAbilities).Select(a => a.Mechanic))
             .DistinctBy(payload => payload.GetType()).ToArray();
         Assert.Equal(registrations.Select(r => r.DerivedType.FullName).Order(), payloads.Select(p => p.GetType().FullName).Order());

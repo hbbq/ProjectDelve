@@ -106,8 +106,8 @@ public sealed class BombImpTests
         Assert.Equal(new Cell(2, 2), defeat.DefeatContext.Figure.Position);
         Assert.All(result.ResolutionSteps.Where(s => result.Events[s.EventIndex].Kind == "ExplosionDamageResolved"),
             s => Assert.DoesNotContain(s.StateAfter.Physical.Figures, f => f.Id == "imp"));
-        Assert.Empty(result.State.PendingExplosions);
-        Assert.Empty(state.PendingExplosions); // Input state remains detached.
+        Assert.Empty(result.State.PendingDefeatEffects);
+        Assert.Empty(state.PendingDefeatEffects); // Input state remains detached.
     }
 
     [Theory]
@@ -130,7 +130,7 @@ public sealed class BombImpTests
             Assert.Equal(Posture.Lying, result.State.Physical.Figures.Single(f => f.Id == "troll").Posture);
             Assert.Contains(result.Events, e => e.Kind == "PostureChanged" && e.UnitId == "troll");
         }
-        Assert.Empty(result.State.PendingExplosions);
+        Assert.Empty(result.State.PendingDefeatEffects);
     }
 
     [Fact]
@@ -144,12 +144,14 @@ public sealed class BombImpTests
         var result = Act(state);
         Assert.Equal(new[] { "imp:second", "imp:last", "second:beyond" },
             Damage(result).Select(e => $"{e.UnitId}:{e.TargetId}"));
-        Assert.Empty(result.State.PendingExplosions);
+        Assert.Empty(result.State.PendingDefeatEffects);
         Assert.DoesNotContain(result.State.Physical.Figures, f => f.Id != "actor");
     }
 
-    [Fact]
-    public void PendingAttackFinishesAcrossSaveBeforeExplosionsDrainInFifoOrder()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PendingAttackFinishesAcrossSaveBeforeExplosionsDrainInFifoOrder(bool withDestruction)
     {
         var actor = new UnitType("breather", 0, 6, 2, 0, 5, Actions: UnitAction.None)
         { Unique = true, LocalAbilities = [new("fire-breath", "Fire Breath", AbilityTiming.Action, new FireBreath())] };
@@ -158,25 +160,43 @@ public sealed class BombImpTests
         Add(state, "sibling", new(2, 3));
         Add(state, "child", new(3, 1), side: "blue");
         Add(state, "shared", new(3, 2), new("durable", 0, 0, 0, 8, 5) { Unique = true }, "blue");
+        if (withDestruction)
+        {
+            var index = state.Types.FindIndex(t => t.Id == UnitTypeIds.BombImp);
+            state.Types[index] = state.Types[index].WithLocal(new("break", "Break", AbilityTiming.WhenDefeated, new BreakAdjacentObjects(6)));
+            state.Physical.Board.Edges.Add(new(new(2, 0), new(2, 1), EdgeKind.OpenDoor));
+        }
         TestGame.Author(state);
         var dice = new Dice();
         var key = GameEngine.GameplayCandidates(state, state.Units[0]).Single(c => c.Action == UnitAction.FireBreath).Key;
         var committed = GameEngine.Advance(state, new Choice(key), dice, false);
         var rolled = GameEngine.Advance(committed.State, new Choice("roll-dice"), dice, false);
         var first = GameEngine.Advance(rolled.State, new Choice("roll-dice"), dice, false);
-        Assert.Single(first.State.PendingExplosions);
+        Assert.Equal(withDestruction ? 2 : 1, first.State.PendingDefeatEffects.Count);
         Assert.Empty(Damage(first));
         Assert.Equal("sibling", first.NextInput!.Roll!.TargetId);
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(first.State))!;
+        var directDice = new Dice();
+        var direct = GameEngine.Advance(first.State, new Choice("roll-dice"), directDice, false);
         var result = GameEngine.Advance(restored, new Choice("roll-dice"), dice, false);
+        Assert.Equal(JsonSerializer.Serialize(direct.Events), JsonSerializer.Serialize(result.Events));
+        Assert.Equal(JsonSerializer.Serialize(direct.State), JsonSerializer.Serialize(result.State));
+        Assert.Equal(2, directDice.Defences);
+        if (withDestruction)
+        {
+            Assert.Empty(result.State.Physical.Board.Edges);
+            var destroyed = result.Events.FindIndex(e => e.Kind == "AdjacentObjectsBreakResolved" && e.UnitId == "imp");
+            Assert.True(destroyed > result.Events.FindLastIndex(e => e.Kind == "ExplosionDamageResolved" && e.UnitId == "imp"));
+            Assert.True(destroyed < result.Events.FindIndex(e => e.Kind == "ExplosionDamageResolved" && e.UnitId == "sibling"));
+        }
         Assert.Equal(new[] { "imp:child", "imp:shared", "sibling:shared", "child:shared" },
             Damage(result).Select(e => $"{e.UnitId}:{e.TargetId}"));
         var summary = result.Events.FindIndex(e => e.Kind == "AttackResolved");
         Assert.True(summary < result.Events.FindIndex(e => e.Kind == "ExplosionDamageResolved"));
         Assert.Equal(2, result.State.Units.Single(u => u.Id == "shared").CurrentHp);
         Assert.Equal(2, dice.Attacks); Assert.Equal(4, dice.Defences);
-        Assert.Single(first.State.PendingExplosions); // Continuation copied, not consumed in place.
-        Assert.Empty(result.State.PendingExplosions);
+        Assert.Equal(withDestruction ? 2 : 1, first.State.PendingDefeatEffects.Count); // Continuation copied, not consumed in place.
+        Assert.Empty(result.State.PendingDefeatEffects);
     }
 
     [Fact]

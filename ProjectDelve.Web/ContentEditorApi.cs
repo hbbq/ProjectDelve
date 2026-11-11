@@ -6,6 +6,9 @@ namespace ProjectDelve.Web;
 
 public sealed record ContentEditorContext
 {
+    public List<TerrainDefinition> TerrainTypes { get; init; } = [];
+    public List<TerrainAssemblyDefinition> TerrainAssemblies { get; init; } = [];
+    public List<FixedComponentDefinition> FixedComponentTypes { get; init; } = [];
     public List<UnitType> UnitTypes { get; init; } = [];
     public List<EquipmentDefinition> EquipmentTypes { get; init; } = [];
     public List<ItemDefinition> ItemTypes { get; init; } = [];
@@ -13,7 +16,7 @@ public sealed record ContentEditorContext
     public List<ScenarioContentReference>? ContentReferences { get; init; }
 }
 public sealed record ContentEditorRequest(string Family, JsonElement Definition,
-    string? ExistingId = null, ContentEditorContext? Context = null);
+    string? ExistingId = null, ContentEditorContext? Context = null, string Destination = "scenario");
 public sealed record ContentEditorDiagnostic(string Path, string Code, string Message);
 public sealed record ContentEditorResponse(bool Valid, IReadOnlyList<ContentEditorDiagnostic> Diagnostics)
 {
@@ -68,7 +71,7 @@ public static class ContentEditorApi
                 var workspace = app.Services.GetRequiredService<ContentWorkspace>().Snapshot().Definitions;
                 var effective = ContentComposition.ComposeScopes(canonical, workspace).Definitions;
                 var resolved = Resolve(context, contextPath: "", canonical: effective);
-                var catalog = Origins(ContentBrowserCatalog.Definitions(resolved.Equipment, resolved.Items, resolved.Loot, resolved.Units, resolved.LocalUnitIds, effective), context);
+                var catalog = Origins(ContentBrowserCatalog.Definitions(resolved.Equipment, resolved.Items, resolved.Loot, resolved.Units, resolved.LocalUnitIds, effective, resolved.Effective), context);
                 return Results.Ok(ContentBrowserCatalog.WorkspaceOrigins(catalog, workspace, canonical));
             }
             catch (Exception error) when (error is JsonException or ContentEditorException or ContentCompositionException)
@@ -84,8 +87,10 @@ public static class ContentEditorApi
     public static ContentEditorResponse Validate(ContentEditorRequest request, ContentBundle? canonical = null)
     {
         canonical ??= ContentBundle.Canonical();
-        if (request.Family is not ("units" or "equipment" or "items" or "lootCards"))
-            return Invalid(new("family", "unsupportedFamily", "This editor supports Units, Equipment, Items and Loot Cards."));
+        if (request.Family is not ("units" or "equipment" or "items" or "lootCards" or "terrain" or "terrainAssemblies"))
+            return Invalid(new("family", "unsupportedFamily", "This editor supports Units, Equipment, Items, Loot Cards, Terrain and Terrain Assemblies."));
+        if (request.Destination is not ("scenario" or "workspace"))
+            return Invalid(new("destination", "unsupportedDestination", "Choose scenario or workspace authoring."));
         object candidate;
         try
         {
@@ -96,8 +101,8 @@ public static class ContentEditorApi
         catch (JsonException error) { return Invalid(JsonDiagnostic(error, "definition")); }
         try
         {
-            var resolved = Resolve(request.Context ?? new(), candidate, request.ExistingId, canonical: canonical);
-            var catalog = Origins(ContentBrowserCatalog.Definitions(resolved.Equipment, resolved.Items, resolved.Loot, resolved.Units, resolved.LocalUnitIds, canonical), request.Context ?? new(), candidate);
+            var resolved = Resolve(request.Context ?? new(), candidate, request.ExistingId, canonical: canonical, workspace: request.Destination == "workspace");
+            var catalog = Origins(ContentBrowserCatalog.Definitions(resolved.Equipment, resolved.Items, resolved.Loot, resolved.Units, resolved.LocalUnitIds, canonical, resolved.Effective), request.Context ?? new(), candidate);
             var id = ContentDefinitions.Identity(candidate).TypeId;
             return new(true, [])
             {
@@ -112,20 +117,22 @@ public static class ContentEditorApi
 
     internal static object ParseDefinition(ContentEditorRequest request) => request.Family switch
     {
+        "terrain" => request.Definition.Deserialize<TerrainDefinition>(Json) ?? throw new JsonException("A Terrain definition is required."),
+        "terrainAssemblies" => request.Definition.Deserialize<TerrainAssemblyDefinition>(Json) ?? throw new JsonException("A Terrain Assembly definition is required."),
         "units" => request.Definition.Deserialize<UnitType>(Json) ?? throw new JsonException("A Unit Type definition is required."),
         "equipment" => request.Definition.Deserialize<EquipmentDefinition>(Json) ?? throw new JsonException("An Equipment definition is required."),
         "items" => request.Definition.Deserialize<ItemDefinition>(Json) ?? throw new JsonException("An Item definition is required."),
         "lootCards" => request.Definition.Deserialize<LootCardDefinition>(Json) ?? throw new JsonException("A Loot Card definition is required."),
-        _ => throw new ArgumentException("This editor supports Units, Equipment, Items and Loot Cards.")
+        _ => throw new ArgumentException("This editor supports Units, Equipment, Items, Loot Cards, Terrain and Terrain Assemblies.")
     };
 
     private sealed record ResolvedContext(List<EquipmentDefinition> Equipment, List<ItemDefinition> Items, List<LootCardDefinition> Loot,
-        List<UnitType> Units, IReadOnlySet<string> LocalUnitIds);
+        List<UnitType> Units, IReadOnlySet<string> LocalUnitIds, ContentBundle Effective);
     private sealed class ContentEditorException(ContentEditorDiagnostic diagnostic) : Exception(diagnostic.Message)
     { public ContentEditorDiagnostic Diagnostic => diagnostic; }
 
     private static ResolvedContext Resolve(ContentEditorContext context, object? candidate = null, string? existingId = null,
-        string contextPath = "context", ContentBundle? canonical = null)
+        string contextPath = "context", ContentBundle? canonical = null, bool workspace = false)
     {
         canonical ??= ContentBundle.Canonical();
         canonical = ScenarioContentReferences.Compose(canonical, context.ContentReferences).Definitions;
@@ -134,6 +141,14 @@ public static class ContentEditorApi
         if (context.EquipmentTypes is null) throw Error(Path("equipmentTypes"), "required", "Equipment dependencies must be an array.");
         if (context.ItemTypes is null) throw Error(Path("itemTypes"), "required", "Item dependencies must be an array.");
         if (context.LootCardDefinitions is null) throw Error(Path("lootCardDefinitions"), "required", "Loot Card dependencies must be an array.");
+        if (context.TerrainTypes is null || context.TerrainAssemblies is null || context.FixedComponentTypes is null)
+            throw Error(Path("terrainTypes"), "required", "Terrain, assemblies and component dependencies must be arrays.");
+        var terrain = context.TerrainTypes.ToList();
+        var assemblies = context.TerrainAssemblies.ToList();
+        var terrainPaths = Enumerable.Range(0, terrain.Count).Select(i => $"{Path("terrainTypes")}[{i}]").ToList();
+        var assemblyPaths = Enumerable.Range(0, assemblies.Count).Select(i => $"{Path("terrainAssemblies")}[{i}]").ToList();
+        if (candidate is TerrainDefinition terrainDefinition) Replace(terrain, terrainPaths, terrainDefinition, existingId, t => t.Id);
+        if (candidate is TerrainAssemblyDefinition assemblyDefinition) Replace(assemblies, assemblyPaths, assemblyDefinition, existingId, t => t.Id);
         var authoredUnits = context.UnitTypes.ToList();
         var localUnitPaths = Enumerable.Range(0, authoredUnits.Count).Select(index => $"{Path("unitTypes")}[{index}]").ToList();
         if (candidate is UnitType unit)
@@ -185,11 +200,14 @@ public static class ContentEditorApi
         ContentBundle effective;
         try
         {
-            effective = ContentComposition.ComposeScopes(canonical, scenarioLocal: new ContentBundle
-        {
-            Units = [.. authoredUnits], Equipment = [.. equipment], Items = [.. items], LootCards = [.. loot],
-            Source = new(Package: "content-editor")
-        }).Definitions;
+            var local = new ContentBundle
+            {
+                Terrain = [.. terrain], Assemblies = [.. assemblies], FixedComponents = [.. context.FixedComponentTypes],
+                Units = [.. authoredUnits], Equipment = [.. equipment], Items = [.. items], LootCards = [.. loot],
+                Source = new(Package: "content-editor")
+            };
+            effective = (workspace ? ContentComposition.ComposeScopes(canonical, workspace: local)
+                : ContentComposition.ComposeScopes(canonical, scenarioLocal: local)).Definitions;
         }
         catch (ContentCompositionException error)
         {
@@ -198,6 +216,8 @@ public static class ContentEditorApi
                 throw Error("definition.id", diagnostic.Code, diagnostic.Message);
             var localPath = diagnostic.Owner.Family switch
             {
+                ContentFamily.Terrain => terrain.FindLastIndex(t => t.Id == diagnostic.Owner.TypeId) is var ti && ti >= 0 ? terrainPaths[ti]
+                    : assemblies.FindLastIndex(t => t.Id == diagnostic.Owner.TypeId) is var ai && ai >= 0 ? assemblyPaths[ai] : null,
                 ContentFamily.Unit => authoredUnits.FindLastIndex(t => t.Id == diagnostic.Owner.TypeId) is var i && i >= 0 ? localUnitPaths[i] : null,
                 ContentFamily.Equipment => equipment.FindLastIndex(t => t.Id == diagnostic.Owner.TypeId) is var i && i >= 0 ? equipmentPaths[i] : null,
                 ContentFamily.Item => items.FindLastIndex(t => t.Id == diagnostic.Owner.TypeId) is var i && i >= 0 ? itemPaths[i] : null,
@@ -206,14 +226,20 @@ public static class ContentEditorApi
             };
             throw Error((localPath ?? contextPath) + (diagnostic.Code == "conflictingDefinition" ? ".id" : "") + (diagnostic.Path.Length == 0 ? "" : "." + diagnostic.Path), diagnostic.Code, diagnostic.Message);
         }
+        catch (ArgumentException error)
+        {
+            throw Error(candidate is null ? contextPath : "definition", "validation", error.Message);
+        }
         var resolved = new ResolvedContext([.. effective.Equipment], [.. effective.Items], [.. effective.LootCards],
-            [.. effective.Units], authoredUnits.Select(t => t.Id).ToHashSet(StringComparer.Ordinal));
+            [.. effective.Units], authoredUnits.Select(t => t.Id).ToHashSet(StringComparer.Ordinal), effective);
         return resolved with { LocalUnitIds = authoredUnits.Select(t => t.Id).ToHashSet(StringComparer.Ordinal) };
     }
 
     private static ContentBrowserResponse Origins(ContentBrowserResponse catalog, ContentEditorContext context, object? candidate = null)
     {
         var ids = context.UnitTypes.Select(t => new ContentIdentity(ContentFamily.Unit, t.Id))
+            .Concat(context.TerrainTypes.Select(t => new ContentIdentity(ContentFamily.Terrain, t.Id)))
+            .Concat(context.TerrainAssemblies.Select(t => new ContentIdentity(ContentFamily.Terrain, t.Id)))
             .Concat(context.EquipmentTypes.Select(t => new ContentIdentity(ContentFamily.Equipment, t.Id)))
             .Concat(context.ItemTypes.Select(t => new ContentIdentity(ContentFamily.Item, t.Id)))
             .Concat(context.LootCardDefinitions.Select(t => new ContentIdentity(ContentFamily.LootCard, t.Id))).ToHashSet();
@@ -221,7 +247,7 @@ public static class ContentEditorApi
         var result = catalog with { Entries = catalog.Entries.Select(entry =>
         {
             var family = entry.Family switch { "units" => ContentFamily.Unit, "equipment" => ContentFamily.Equipment,
-                "items" => ContentFamily.Item, "lootCards" => ContentFamily.LootCard, _ => (ContentFamily?)null };
+                "items" => ContentFamily.Item, "lootCards" => ContentFamily.LootCard, "terrain" or "terrainAssemblies" => ContentFamily.Terrain, _ => (ContentFamily?)null };
             return family is not null && ids.Contains(new(family.Value, entry.Id)) ? entry with { Origin = entry.Family == "units" ? entry.Origin : "local", Availability = null } : entry;
         }).ToArray() };
         return ContentBrowserCatalog.Pinned(result, context.ContentReferences, context.UnitTypes.Select(t => t.Id).ToHashSet(StringComparer.Ordinal));

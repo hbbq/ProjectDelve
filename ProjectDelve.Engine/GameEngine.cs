@@ -32,7 +32,10 @@ public static partial class GameEngine
         state.CleavePending = false;
         state.AttackInProgress = null;
         state.DoorInProgress = null;
-        state.PendingExplosions.Clear();
+        state.BreakInProgress = null;
+        state.AttackAwaitingConsequences = null;
+        state.PendingDefeatEffects.Clear();
+        state.CompleteAfterDefeatEffects = false;
         state.ExtraActionsThisActivation = 0;
         state.MoveOpportunityModifierThisActivation = 0;
         state.MovesCompletedThisActivation = 0;
@@ -80,7 +83,7 @@ public static partial class GameEngine
         var state = previous.Copy();
         EnsureObjectives(state);
         var events = new ResolutionEvents(state, random, observe);
-        if (state.AttackInProgress is null && state.DoorInProgress is null && state.CurrentUnitId is not null &&
+        if (state.AttackInProgress is null && state.DoorInProgress is null && state.BreakInProgress is null && state.CurrentUnitId is not null &&
             (!state.Units.Any(u => u.Id == state.CurrentUnitId && u.CurrentHp > 0) ||
              !state.IsUpright(state.CurrentUnitId)))
         {
@@ -202,6 +205,12 @@ public static partial class GameEngine
                     ChangePosture(state, choice!, Posture.Upright, events);
                     CompleteUnit(state, random, events);
                 }
+                else if (state.Types.Single(t => t.Id == request.TypeId).Ability<DefeatSelf>() is { } selfDefeat)
+                {
+                    var selfAbility = new ResolvedAbility(selfDefeat, AbilitySourceKind.Unit, request.TypeId, choice!);
+                    events.Add(ResolveDefeat(state, choice!, choice, selfAbility.ActionId) with { AbilitySource = selfAbility.SourceReference });
+                    state.CompleteAfterDefeatEffects = true;
+                }
                 else if (state.Types.Single(t => t.Id == request.TypeId).Mechanic<RunRails>() is { } rails)
                 {
                     ResolveRunRails(state, choice!, rails, events);
@@ -275,6 +284,18 @@ public static partial class GameEngine
                 continue;
             }
             ResolveExplosions(state, events);
+            if (state.BreakInProgress is not null) { state.Pending = CreateDecision(state); return; }
+            if (state.AttackAwaitingConsequences is { } finishedAttack)
+            {
+                state.AttackAwaitingConsequences = null;
+                CompleteAttackFollowUps(state, finishedAttack);
+            }
+            if (state.CompleteAfterDefeatEffects)
+            {
+                state.CompleteAfterDefeatEffects = false;
+                CompleteUnit(state, random, events);
+                continue;
+            }
             ResolveLootArrivals(state, events);
             if (state.DoorInProgress is not null) { state.Pending = CreateDecision(state); return; }
             if (state.ActiveToken is null)
@@ -482,6 +503,8 @@ public static partial class GameEngine
     private static DecisionRequest CreateDecisionCore(GameState state)
     {
         DicePool? pool = null;
+        if (state.BreakInProgress is { } breaking)
+            pool = BreakDicePool(breaking);
         if (state.DoorInProgress is { } door)
             pool = new(DiceFamily.D6, 1, door.UnitId, door.UnitId, door.ActionId, "Door check", Door: door.Door, SuccessCount: door.SuccessCount)
                 { AbilitySource = door.AbilitySource };
@@ -604,7 +627,11 @@ public static partial class GameEngine
                 AbilityName: attack.AbilityName, Attack: new(attack.AttackDice, attack.Hits, attack.Results))
                 { ActionId = attack.ActionId, SourceUnitId = attack.AttackerId, AbilitySource = attack.AbilitySource });
         state.AttackInProgress = null;
-        ResolveExplosions(state, events);
+        state.AttackAwaitingConsequences = attack;
+    }
+
+    private static void CompleteAttackFollowUps(GameState state, AttackContinuation attack)
+    {
         var attacker = state.Units.Single(u => u.Id == attack.AttackerId);
         var type = state.Types.Single(t => t.Id == attacker.TypeId);
         if (attacker.CurrentHp > 0 && state.IsUpright(attacker.Id))
@@ -674,10 +701,16 @@ public static partial class GameEngine
         if (pool.Family == DiceFamily.Attack)
             state.AttackInProgress = state.AttackInProgress! with { Hits = successes, Stage = AttackStage.DefenceRoll, AttackRoll = result };
         events.Add(new RulesEvent("DiceRolled", pool.OwnerUnitId, pool.TargetId, Door: pool.Door)
-            { SourceUnitId = pool.SourceUnitId, ActionId = pool.SourceActionId, Dice = result, AbilitySource = pool.AbilitySource });
+            { SourceUnitId = pool.SourceUnitId, ActionId = pool.SourceActionId, Dice = result, AbilitySource = pool.AbilitySource,
+                DefeatContext = pool.BreakTarget is not null ? state.BreakInProgress?.DefeatContext : null });
         if (pool.Family == DiceFamily.Defence) ResolveAttackTarget(state, successes, events);
         if (pool.Family == DiceFamily.D6)
         {
+            if (state.BreakInProgress is not null)
+            {
+                ProgressBreak(state, events, int.Parse(faces[0], System.Globalization.CultureInfo.InvariantCulture));
+                return;
+            }
             var door = state.DoorInProgress!;
             state.DoorInProgress = null;
             var roll = int.Parse(faces[0], System.Globalization.CultureInfo.InvariantCulture);
@@ -739,7 +772,8 @@ public static partial class GameEngine
         state.Units[index] = state.Units[index] with { Inventory = [] };
         state.DefeatedUnitIds.Add(unitId);
         state.Physical.Figures.RemoveAll(f => f.Id == unitId);
-        if (type.Mechanic<Explosion>() is not null) state.PendingExplosions.Add(context);
+        foreach (var ability in AbilityQueries.NativeAbilities(type, unitId).Where(a => a.Definition.Timing == AbilityTiming.WhenDefeated))
+            state.PendingDefeatEffects.Add(new(context, ability));
         return new("UnitDefeated", unitId)
             { SourceUnitId = sourceUnitId, ActionId = actionId, DefeatContext = context };
     }
@@ -747,11 +781,17 @@ public static partial class GameEngine
     // Concrete automatic consequence: finish each recipient set before draining the next defeat.
     private static void ResolveExplosions(GameState state, ResolutionEvents events)
     {
-        while (state.PendingExplosions.Count > 0)
+        while (state.PendingDefeatEffects.Count > 0 && state.BreakInProgress is null)
         {
-            var source = state.PendingExplosions[0];
-            state.PendingExplosions.RemoveAt(0);
-            var damage = source.Type.Mechanic<Explosion>()!.Damage;
+            var effect = state.PendingDefeatEffects[0];
+            state.PendingDefeatEffects.RemoveAt(0);
+            var source = effect.Context;
+            if (effect.Ability.Definition.Mechanic is BreakAdjacentObjects)
+            {
+                BeginBreak(state, source.Unit.Id, effect.Ability, BreakObjectRules.Targets(state, source.OccupiedCells, area: true), true, events, source);
+                continue;
+            }
+            var damage = ((Explosion)effect.Ability.Definition.Mechanic).Damage;
             var recipients = state.Physical.Figures
                 .Where(f => SpatialRules.AreFootprintsAdjacent(state.Physical.Board,
                     source.OccupiedCells, FootprintGeometry.OccupiedCells(state, f.Id)))
@@ -762,9 +802,9 @@ public static partial class GameEngine
                 if (!state.Physical.Figures.Any(f => f.Id == id)) continue;
                 DealDamage(state, id, damage,
                     new RulesEvent("ExplosionDamageResolved", source.Unit.Id, id, Damage: damage,
-                        AbilityName: source.Type.Ability<Explosion>()!.Name)
+                        AbilityName: effect.Ability.Definition.Name)
                         { SourceUnitId = source.Unit.Id,
-                            ActionId = new ResolvedAbility(source.Type.Ability<Explosion>()!, AbilitySourceKind.Unit, source.Type.Id, source.Unit.Id).EntryId,
+                            ActionId = effect.Ability.ActionId, AbilitySource = effect.Ability.SourceReference, DefeatContext = source,
                             Cell = source.Figure.Position }, events);
             }
         }
@@ -809,6 +849,7 @@ public static partial class GameEngine
     {
         ContentComposition.ValidateSnapshot(state);
         TerrainCatalog.Validate(state.Physical.Board.TerrainTypes, againstCanonical: false);
+        TerrainCatalog.ValidateDestructionReferences(state.Physical.Board.TerrainTypes);
         LootRules.Validate(state);
         ValidateWorldDeck(state);
         RouteRules.ValidateDefinitions(state);

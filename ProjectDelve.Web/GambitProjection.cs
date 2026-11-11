@@ -47,6 +47,8 @@ public sealed record GambitGlossary(string MOV, string RNG, string ATK, string D
 // Model observations need terrain rules, not artwork recipes or unused canonical definitions.
 public sealed record GambitTerrainDefinition(string Id, string Name, bool Passable, bool BlocksLos)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? DestroyedTerrainTypeId { get; init; }
     public bool BlocksVision { get; init; } = BlocksLos;
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<string>? Categories { get; init; }
@@ -70,7 +72,7 @@ public sealed record GambitActivation(
     bool CleavePending,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GambitAttackContext? Attack,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DoorContinuation? Door,
-    IReadOnlyList<GambitDefeatContext> PendingExplosions)
+    IReadOnlyList<GambitDefeatContext> PendingDefeatConsequences)
 {
     public int MovesCompleted { get; init; }
     public int MovesAvailable { get; init; }
@@ -111,6 +113,10 @@ public sealed record GambitCandidate(string Key, ActivationChoiceKind Kind, bool
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? MachineId = null)
 {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public BreakTarget? BreakTarget { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? SuccessThreshold { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ObjectId { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? AccountingId { get; init; }
@@ -125,7 +131,11 @@ public sealed record GambitRoll(DiceFamily Family, int Count, string OwnerUnitId
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<string>? TargetIds,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Cell? SelectedCell,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Edge? Door,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? SuccessCount);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? SuccessCount)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public BreakTarget? BreakTarget { get; init; }
+}
 public sealed record GambitDecision(DecisionKind Kind, string TypeId,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? UnitId,
     IReadOnlyList<GambitCandidate> Candidates, bool AllowsNone,
@@ -181,7 +191,11 @@ public sealed record GambitEvent(string Kind,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CellMarkerType? CellMarkerType = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? ReplenishedUses = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? TerrainTypeId = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? TerrainName = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? TerrainName = null)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<BreakOutcome>? BreakOutcomes { get; init; }
+}
 
 internal static class GambitProjection
 {
@@ -202,11 +216,13 @@ internal static class GambitProjection
         ContentDescriptions.EntryId(candidate), candidate.Destination, candidate.Path,
         candidate.Action, candidate.TargetId, candidate.TargetIds.IsDefaultOrEmpty ? null : candidate.TargetIds,
         candidate.Door, candidate.TryOpenDoor?.SuccessCount, candidate.FreeAction, candidate.MachineId)
-        { ObjectId = candidate.ObjectId, AccountingId = candidate.Ability?.AccountingId, AbilityName = candidate.Ability?.Definition.Name, ObjectContent = state?.CandidateObjectContent(candidate) };
+        { ObjectId = candidate.ObjectId, AccountingId = candidate.Ability?.AccountingId, AbilityName = candidate.Ability?.Definition.Name, ObjectContent = state?.CandidateObjectContent(candidate),
+            BreakTarget = candidate.BreakTarget, SuccessThreshold = candidate.Ability?.Definition.Mechanic switch
+            { BreakObject single => single.SuccessThreshold, BreakAdjacentObjects area => area.SuccessThreshold, _ => null } };
 
     private static GambitRoll Roll(DicePool pool) => new(pool.Family, pool.Count, pool.OwnerUnitId, pool.SourceUnitId,
         pool.SourceActionId, pool.Purpose, pool.TargetId, pool.TargetIds.IsDefaultOrEmpty ? null : pool.TargetIds,
-        pool.SelectedCell, pool.Door, pool.SuccessCount);
+        pool.SelectedCell, pool.Door, pool.SuccessCount) { BreakTarget = pool.BreakTarget };
 
     internal static GambitObservation Observation(GameState state) => Observation(state,
         state.Pending?.Token?.SideId ?? state.Objectives.FirstOrDefault()?.SideId ?? "",
@@ -253,7 +269,7 @@ internal static class GambitProjection
             state.ActionsUsedThisActivation, state.ActionsRemaining,
             new SortedDictionary<string, int>(state.BonusActionUseCountsThisActivation), state.ModifiersThisTurn.ToArray(),
             state.MoveAfterAttackAllowance, state.CleavePending, Context(state.AttackInProgress), state.DoorInProgress,
-            state.PendingExplosions.Select(Defeat).ToArray())
+            state.PendingDefeatEffects.Select(effect => Defeat(effect.Context)).ToArray())
             { MovesCompleted = state.MovesCompletedThisActivation, MovesAvailable = state.EffectiveMovesPerActivation,
                 WaypointAdvanced = state.WaypointAdvancedThisActivation };
         var world = BrowserProjection.WorldEffects(state);
@@ -261,12 +277,14 @@ internal static class GambitProjection
         var terrain = BrowserProjection.TerrainForPresentation(sourceBoard);
         var terrainReferences = terrain.Where(t => t.TypeId is not null ||
             sourceBoard.TerrainDefinition(t).BlocksVision != sourceBoard.TerrainDefinition(t).BlocksLos ||
-            !sourceBoard.TerrainDefinition(t).Categories.IsEmpty || sourceBoard.TerrainDefinition(t).Production is not null)
+            !sourceBoard.TerrainDefinition(t).Categories.IsEmpty || sourceBoard.TerrainDefinition(t).Production is not null ||
+            sourceBoard.TerrainDefinition(t).DestroyedTerrainTypeId is not null)
             .Select(t => sourceBoard.TerrainDefinition(t).Id).ToHashSet(StringComparer.Ordinal);
         var terrainTypes = sourceBoard.TerrainTypes.Where(t => terrainReferences.Contains(t.Id))
             .Select(t => new GambitTerrainDefinition(t.Id, t.Name, t.Passable, t.BlocksLos)
             {
                 BlocksVision = t.BlocksVision,
+                DestroyedTerrainTypeId = t.DestroyedTerrainTypeId,
                 Categories = t.Categories.IsEmpty ? null : t.Categories,
                 AllowsResourceMarkers = t.AllowsResourceMarkers ? null : false,
                 ProductionDescription = EnvironmentalProductionContent.Describe(t.Production, state.ResourceDefinitions)
@@ -432,7 +450,8 @@ internal static class GambitProjection
             value.Dice is null ? null : new(Roll(value.Dice.Pool), value.Dice.Faces, value.Dice.Successes),
             value.WorldCard, value.CycledWorldCard, value.ResourceType, value.StoredQuantity, value.MachineId,
             value.ConsumedResources.IsEmpty ? null : value.ConsumedResources.ToArray(), value.CellMarkerType, value.ReplenishedUses,
-            value.TerrainTypeId, value.TerrainName);
+            value.TerrainTypeId, value.TerrainName) { BreakOutcomes = value.BreakOutcomes.IsDefaultOrEmpty ? null :
+                value.BreakOutcomes.Select(o => o with { BeforeVisibleSideIds = [] }).ToArray() };
     }
 
     private static GambitAttackContext? Context(AttackContinuation? value) => value is null ? null : new(value.AttackerId,

@@ -50,7 +50,7 @@ public static class UnitAuthoring
         ProjectDelve.Engine.Cleave or ProjectDelve.Engine.MoveAfterAttack or ProjectDelve.Engine.AdvanceOnKill => AbilityTiming.AfterAttack,
         ProjectDelve.Engine.Explosion => AbilityTiming.WhenDefeated,
         ProjectDelve.Engine.Undying => AbilityTiming.InsteadOfDefeat,
-        ProjectDelve.Engine.RunRails => AbilityTiming.InsteadOfActivation,
+        ProjectDelve.Engine.RunRails or ProjectDelve.Engine.DefeatSelf => AbilityTiming.InsteadOfActivation,
         ProjectDelve.Engine.WaypointSlotMachine => AbilityTiming.EndActivation,
         ProjectDelve.Engine.ReshapeRoom or ProjectDelve.Engine.Swap or ProjectDelve.Engine.Displace or ProjectDelve.Engine.PlaceBananaPeel or SelfExtraMovesMechanic or SelfModifiersMechanic => AbilityTiming.BonusAction,
         ProjectDelve.Engine.OpenDoor => AbilityTiming.FreeAction,
@@ -101,6 +101,9 @@ public static class UnitAuthoring
     private static Entry Pattern(MovementPattern pattern) => new UpdateEntry(t => t with { MovementPattern = pattern });
 
     public static TryOpenDoor TryOpenDoor(int successes) => new(successes);
+    public static BreakObject BreakObject(int successThreshold) => new(successThreshold);
+    public static BreakAdjacentObjects BreakAdjacentObjects(int successThreshold) => new(successThreshold);
+    public static DefeatSelf DefeatSelf() => new();
     public static MoveAfterAttack MoveAfterAttack(int maxMove) => new(maxMove);
     public static Undying Undying() => new();
     public static Explosion Explosion(int damage) => new() { Damage = damage };

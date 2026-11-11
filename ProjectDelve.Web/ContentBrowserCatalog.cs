@@ -87,7 +87,7 @@ public static class ContentBrowserCatalog
     // Resolved, validated dependencies only: no scenario or runtime state.
     public static ContentBrowserResponse Definitions(IReadOnlyList<EquipmentDefinition> equipment,
         IReadOnlyList<ItemDefinition> items, IReadOnlyList<LootCardDefinition> loot,
-        IReadOnlyList<UnitType>? units = null, IReadOnlySet<string>? localUnitIds = null, ContentBundle? canonical = null)
+        IReadOnlyList<UnitType>? units = null, IReadOnlySet<string>? localUnitIds = null, ContentBundle? canonical = null, ContentBundle? terrainContent = null)
     {
         canonical ??= ContentBundle.Canonical();
         units ??= canonical.Units;
@@ -104,6 +104,7 @@ public static class ContentBrowserCatalog
             Availability = index >= canonical.LootCards.Length && canonical.LootCards.Any(row => row.Id == type.Id)
                 ? "legacy-collision" : null
         }));
+        entries.AddRange(Build(null, null, terrainContent ?? canonical).Entries.Where(e => e.Family is "terrain" or "terrainAssemblies" or "fixedComponents"));
         entries.AddRange(MechanicCatalog.All.Select(MechanicEntry));
         var resources = canonical.Resources.Concat(units.SelectMany(type => type.ResourceStorage?.Capacities.Select(c => c.Type) ?? []))
             .Concat(units.SelectMany(type => type.LocalAbilities.Select(ability => ability.Mechanic)
@@ -112,7 +113,7 @@ public static class ContentBrowserCatalog
             type, canonical.Resources.Contains(type) ? "canonical" : "scenario-override")));
         entries = MarkPublications(ResolveReferences(entries), canonical);
         return new(new("definitions", "Draft content"),
-            Families.Where(family => family.Id is "units" or "equipment" or "items" or "lootCards" or "mechanics" or "resources")
+            Families.Where(family => family.Id is "units" or "equipment" or "items" or "lootCards" or "mechanics" or "resources" or "terrain" or "terrainAssemblies" or "fixedComponents")
                 .Select(family => new ContentBrowserCategory(family.Id, family.Name, entries.Count(entry => entry.Family == family.Id))).ToArray(), entries, []);
     }
 
@@ -130,7 +131,7 @@ public static class ContentBrowserCatalog
     {
         if (references is null || references.Count == 0) return catalog;
         var families = new Dictionary<string, ContentFamily> { ["equipment"] = ContentFamily.Equipment, ["lootCards"] = ContentFamily.LootCard,
-            ["items"] = ContentFamily.Item, ["units"] = ContentFamily.Unit, ["resources"] = ContentFamily.Resource, ["terrain"] = ContentFamily.Terrain };
+            ["items"] = ContentFamily.Item, ["units"] = ContentFamily.Unit, ["resources"] = ContentFamily.Resource, ["terrain"] = ContentFamily.Terrain, ["terrainAssemblies"] = ContentFamily.Terrain };
         return catalog with { Entries = catalog.Entries.Select(entry =>
         {
             if (!families.TryGetValue(entry.Family, out var family)) return entry;
@@ -157,7 +158,7 @@ public static class ContentBrowserCatalog
         IReadOnlyList<WorldCardDefinition> world = state is null ? canonical.WorldCards : state.WorldCardDefinitions;
         var terrain = state?.Physical.Board.TerrainTypes ?? canonical.Terrain;
         var components = FixedComponentCatalog.Resolve(source?.FixedComponentTypes, canonical.FixedComponents);
-        var assemblies = canonical.Terrain.Where(t => t.Assembly is not null).Select(t => new TerrainAssemblyDefinition(t.Id, t.Name, t.Assembly!.Surface.Id) { Components = [.. t.Assembly.Components.Select(c => new FixedComponentPlacement(c.Slot, c.Definition.Id, c.QuarterTurns))] }).Concat(source?.TerrainAssemblies ?? []).ToArray();
+        var assemblies = terrain.Where(t => t.Assembly is not null).Select(t => new TerrainAssemblyDefinition(t.Id, t.Name, t.Assembly!.Surface.Id) { DestroyedTerrainTypeId = t.DestroyedTerrainTypeId, Components = [.. t.Assembly.Components.Select(c => new FixedComponentPlacement(c.Slot, c.Definition.Id, c.QuarterTurns))] }).ToArray();
 
         foreach (var type in units)
         {
@@ -224,6 +225,7 @@ public static class ContentBrowserCatalog
         {
             var authoredAssembly = assemblies.SingleOrDefault(a => a.Id == type.Id);
             List<ContentBrowserReference> refs = [];
+            if (type.DestroyedTerrainTypeId is { } destroyed) refs.Add(Reference("Destroyed result", "terrain", destroyed));
             if (type.Production is { } production) refs.AddRange(MechanicReferences(production));
             if (authoredAssembly is not null) refs.Add(Reference("Assembly declaration", "terrainAssemblies", type.Id));
             var local = source?.TerrainTypes?.Any(t => t.Id == type.Id) == true || source?.TerrainAssemblies?.Any(t => t.Id == type.Id) == true;
@@ -242,13 +244,14 @@ public static class ContentBrowserCatalog
             var entry = Entry("terrainAssemblies", assembly.Id, assembly.Name, assembly,
                 Local(source?.TerrainAssemblies?.Any(t => t.Id == assembly.Id) == true), references:
                 new[] { Reference("Surface", "terrain", assembly.SurfaceId), Reference("Resolved Terrain", "terrain", assembly.Id) }
-                    .Concat(assembly.Components.Select(c => Reference($"Component: {c.Slot}", "fixedComponents", c.ComponentId))));
+                    .Concat(assembly.Components.Select(c => Reference($"Component: {c.Slot}", "fixedComponents", c.ComponentId)))
+                    .Concat(assembly.DestroyedTerrainTypeId is { } result ? new[] { Reference("Destroyed result", "terrain", result) } : []));
             var resolved = terrain.Single(type => type.Id == assembly.Id);
             entries.Add(entry with
             {
                 Sections = [.. entry.Sections, new("Resolved Terrain", Fields(Element(new
                 {
-                    resolved.Passable, resolved.BlocksLos, resolved.BlocksVision, resolved.AllowsResourceMarkers, resolved.Categories,
+                    resolved.Passable, resolved.BlocksLos, resolved.BlocksVision, resolved.AllowsResourceMarkers, resolved.Categories, resolved.DestroyedTerrainTypeId,
                     resolved.Production, productionDescription = EnvironmentalProductionContent.Describe(resolved.Production, canonical.Resources), resolved.Presentation
                 })))]
             });
@@ -375,7 +378,7 @@ public static class ContentBrowserCatalog
         new("Terrain properties", Fields(Element(new
         {
             structure = type.Assembly is null ? "Atomic" : "Composed",
-            type.Passable, type.BlocksLos, type.BlocksVision, type.AllowsResourceMarkers, type.Categories
+            type.Passable, type.BlocksLos, type.BlocksVision, type.AllowsResourceMarkers, type.Categories, type.DestroyedTerrainTypeId
         }))),
         new("Presentation", Fields(Element(type.Presentation))),
         new("Production", Fields(Element(new { type.Production, description = EnvironmentalProductionContent.Describe(type.Production, resources) })))

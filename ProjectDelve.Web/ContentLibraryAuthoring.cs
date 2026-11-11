@@ -14,6 +14,9 @@ public static class ContentLibraryAuthoring
         var body = inspection.Content.Definitions;
         var catalog = ContentBrowserCatalog.Definitions(body.Equipment, body.Items, body.LootCards, body.Units, canonical: body);
         var owners = inspection.Revisions.SelectMany(revision => revision.Package.Definitions.Units.Select(d => ("units", d.Id))
+            .Concat(revision.Package.Definitions.Terrain.Select(d => ("terrain", d.Id)))
+            .Concat(revision.Package.Definitions.Assemblies.Select(d => ("terrainAssemblies", d.Id)))
+            .Concat(revision.Package.Definitions.Assemblies.Select(d => ("terrain", d.Id)))
             .Concat(revision.Package.Definitions.Equipment.Select(d => ("equipment", d.Id)))
             .Concat(revision.Package.Definitions.Items.Select(d => ("items", d.Id)))
             .Concat(revision.Package.Definitions.LootCards.Select(d => ("lootCards", d.Id)))
@@ -44,6 +47,8 @@ public static class ContentLibraryAuthoring
             }
             body = candidate switch
             {
+                TerrainDefinition terrain => body with { Terrain = Apply(body.Terrain, terrain, d => d.Id) },
+                TerrainAssemblyDefinition assembly => body with { Assemblies = Apply(body.Assemblies, assembly, d => d.Id) },
                 UnitType unit => body with { Units = Apply(body.Units, unit, d => d.Id) },
                 EquipmentDefinition equipment => body with { Equipment = Apply(body.Equipment, equipment, d => d.Id) },
                 ItemDefinition item => body with { Items = Apply(body.Items, item, d => d.Id) },
@@ -59,7 +64,7 @@ public static class ContentLibraryAuthoring
         catch (ContentCompositionException error)
         {
             return new(false, [.. error.Diagnostics.Select(d => new ContentEditorDiagnostic(
-                d.Owner.TypeId == request.Edit.Definition.GetProperty("id").GetString() && d.Owner.Family.ToString() == (request.Edit.Family == "units" ? "Unit" : request.Edit.Family == "equipment" ? "Equipment" : request.Edit.Family == "items" ? "Item" : "LootCard")
+                d.Owner.TypeId == request.Edit.Definition.GetProperty("id").GetString() && d.Owner.Family.ToString() == (request.Edit.Family == "units" ? "Unit" : request.Edit.Family == "equipment" ? "Equipment" : request.Edit.Family == "items" ? "Item" : request.Edit.Family is "terrain" or "terrainAssemblies" ? "Terrain" : "LootCard")
                     ? "definition" + (d.Path.Length == 0 ? "" : "." + d.Path) : (d.Source?.Path ?? "package") + "." + d.Path,
                 d.Code, d.Message))]);
         }

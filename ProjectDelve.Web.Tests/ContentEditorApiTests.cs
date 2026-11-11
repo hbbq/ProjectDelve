@@ -20,6 +20,78 @@ public sealed class ContentEditorApiTests
     { Converters = { new JsonStringEnumConverter() } };
 
     [Fact]
+    public void WorkspaceTerrainOverridesPreserveCompatibilityIdentityWhileScenarioDefinitionsCannotClaimIt()
+    {
+        var floor = TerrainCatalog.All.Single(t => t.Id == "stone-floor");
+        var edited = floor with { Name = "Edited floor" };
+        var context = new ContentEditorContext { TerrainTypes = [floor] };
+        var request = new ContentEditorRequest("terrain", JsonSerializer.SerializeToElement(edited, Json), floor.Id, context, "workspace");
+        var result = ContentEditorApi.Validate(request);
+        Assert.True(result.Valid, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(floor.LegacyKind, result.Definition!.Value.Deserialize<TerrainDefinition>(Json)!.LegacyKind);
+        Assert.False(ContentEditorApi.Validate(request with { Destination = "scenario" }).Valid);
+        Assert.False(ContentEditorApi.Validate(request with { Destination = "unknown" }).Valid);
+    }
+
+    [Fact]
+    public void AuthoredBombUsesOrderedDefeatAbilitiesAndGenericSummonPosture()
+    {
+        var bomb = new UnitType("authored-bomb", 0, 1, 0, 0, 1)
+        {
+            LocalAbilities = [
+                new("fuse", "Fuse", AbilityTiming.InsteadOfActivation, new DefeatSelf()),
+                new("blast", "Blast", AbilityTiming.WhenDefeated, new Explosion { Damage = 2 }),
+                new("break", "Break", AbilityTiming.WhenDefeated, new BreakAdjacentObjects(6))]
+        };
+        var validated = ContentEditorApi.Validate(new("units", JsonSerializer.SerializeToElement(bomb, Json)));
+        Assert.True(validated.Valid, string.Join("; ", validated.Diagnostics.Select(d => d.Message)));
+        var restored = validated.Definition!.Value.Deserialize<UnitType>(Json)!;
+        Assert.Equal(new[] { "fuse", "blast", "break" }, restored.LocalAbilities.Select(a => a.Key));
+        Assert.Equal(2, Assert.IsType<Explosion>(restored.LocalAbilities[1].Mechanic).Damage);
+        Assert.Equal(6, Assert.IsType<BreakAdjacentObjects>(restored.LocalAbilities[2].Mechanic).SuccessThreshold);
+        var kit = new EquipmentDefinition("authored-bomb-kit", "Bomb Kit") { LocalAbilities = [
+            new("place", "Place", AbilityTiming.Action, new AdjacentUnitSummonMechanic(bomb.Id, Posture.Lying)),
+            new("pick", "Pick", AbilityTiming.BonusAction, new BreakObject(3))] };
+        var kitResult = ContentEditorApi.Validate(new("equipment", JsonSerializer.SerializeToElement(kit, Json), Context: new() { UnitTypes = [bomb] }));
+        Assert.True(kitResult.Valid, string.Join("; ", kitResult.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(Posture.Lying, Assert.IsType<AdjacentUnitSummonMechanic>(kitResult.Definition!.Value.Deserialize<EquipmentDefinition>(Json)!.LocalAbilities[0].Mechanic).InitialPosture);
+        Assert.All(kitResult.Entry!.References, reference => Assert.True(reference.Exists));
+    }
+
+    [Fact]
+    public void TerrainAndAssembliesUseTypedContextReferencesAndPreserveOptionalDestruction()
+    {
+        var floor = new TerrainDefinition("author-floor", "Author Floor", true, false);
+        var rock = new TerrainDefinition("author-rock", "Author Rock", false, true)
+            { DestroyedTerrainTypeId = floor.Id };
+        var assembly = new TerrainAssemblyDefinition("author-table", "Author Table", floor.Id)
+            { Components = [new("furniture", "table", 2)], DestroyedTerrainTypeId = floor.Id };
+        var context = new ContentEditorContext { TerrainTypes = [floor, rock] };
+        ContentEditorResponse Validate(string family, object definition, ContentEditorContext? dependencies = null, string? existing = null)
+            => ContentEditorApi.Validate(new(family, JsonSerializer.SerializeToElement(definition, definition.GetType(), Json), existing, dependencies));
+
+        var result = Validate("terrainAssemblies", assembly, context);
+        Assert.True(result.Valid, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(floor.Id, result.Definition!.Value.GetProperty("destroyedTerrainTypeId").GetString());
+        Assert.All(result.Entry!.References, reference => Assert.True(reference.Exists));
+        var effective = result.Catalog!.Entries.Single(e => e.Family == "terrain" && e.Id == assembly.Id);
+        Assert.Equal(floor.Id, effective.Definition.GetProperty("destroyedTerrainTypeId").GetString());
+        Assert.False(effective.Definition.GetProperty("passable").GetBoolean());
+        Assert.Equal("local", result.Entry.Origin);
+
+        var savedContext = context with { TerrainAssemblies = [assembly] };
+        var edited = Validate("terrainAssemblies", assembly with { DestroyedTerrainTypeId = null }, savedContext, assembly.Id);
+        Assert.True(edited.Valid);
+        Assert.False(edited.Definition!.Value.TryGetProperty("destroyedTerrainTypeId", out _));
+        Assert.Equal(floor.Id, assembly.DestroyedTerrainTypeId);
+        Assert.False(Validate("terrain", rock with { DestroyedTerrainTypeId = "missing-result" }, new() { TerrainTypes = [floor] }).Valid);
+        Assert.False(Validate("terrainAssemblies", assembly with { SurfaceId = "missing-surface" }, context).Valid);
+        Assert.False(Validate("terrainAssemblies", assembly with { Components = [new("furniture", "missing-component")] }, context).Valid);
+        Assert.False(Validate("terrainAssemblies", assembly with { Id = "changed-identity" }, savedContext, assembly.Id).Valid);
+        Assert.True(Validate("terrain", floor).Valid);
+    }
+
+    [Fact]
     public async Task SwapAuthoringExposesRelationshipDefaultsBothTimingsAndTypedValidation()
     {
         await using var host = await Host.Start();
@@ -165,7 +237,7 @@ public sealed class ContentEditorApiTests
         response.EnsureSuccessStatusCode();
         var catalog = (await response.Content.ReadFromJsonAsync<ContentBrowserResponse>(Json))!;
         Assert.Equal("definitions", catalog.Context.Kind);
-        Assert.Equal(new[] { "units", "equipment", "items", "lootCards", "mechanics", "resources" }, catalog.Categories.Select(category => category.Id));
+        Assert.Equal(new[] { "units", "equipment", "items", "lootCards", "terrain", "fixedComponents", "terrainAssemblies", "mechanics", "resources" }, catalog.Categories.Select(category => category.Id));
         Assert.Contains(catalog.Entries, entry => entry.Id == equipment.Id && entry.Origin == "local");
         Assert.All(catalog.Entries.SelectMany(entry => entry.References), reference => Assert.True(reference.Exists));
         Assert.Contains(catalog.Entries, entry => entry.Family == "units" && entry.Id == UnitTypeIds.Grunt);

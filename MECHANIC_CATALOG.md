@@ -68,6 +68,9 @@ Each `Profiles` entry is one complete supported combination. Do not combine sour
 | `openDoor` | Action, FreeAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
 | `telekinesis`, `tryOpenDoor` | Action | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
 | `swap` | Action, BonusAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
+| `breakObject`, `breakAdjacentObjects` | Action, BonusAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
+| `breakAdjacentObjects` | WhenDefeated | Unlimited, native ordered consequence | Unsupported | Unsupported |
+| `defeatSelf` | InsteadOfActivation | Unlimited, native mandatory replacement | Unsupported | Unsupported |
 | `reshapeRoom`, `displace` | BonusAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
 | `adjacentUnitSummon`, `fireBreath`, `clawAttack`, `pickupResource`, `giveResource`, `operate`, `targetUnitAttack` | Action | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
 | `placeBananaPeel`, `selfExtraMoves` | BonusAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
@@ -179,3 +182,13 @@ Canonical JSON export and a dedicated runtime-editing interface remain separate 
 6. Add focused coverage for discriminator/registration agreement, metadata serialization, valid and invalid boundaries, supported contexts, field paths, and validation agreement. Add meaningful gameplay and JSON round-trip tests when integrating execution or authoring.
 
 `MechanicCatalog.Build` explicitly combines registration lists and rejects duplicate IDs or payload types. It never scans assemblies, registers authored content globally, reads rosters, or creates game state. Registration may inspect inert model defaults; it must not call a content catalog that validates through the mechanic catalog. Resource references resolve during validation after registration. This keeps catalog discovery independent of roster initialization.
+
+## Break and defeat mechanics
+
+`BreakObject(SuccessThreshold)` and `BreakAdjacentObjects(SuccessThreshold)` require an explicit integer 1–6. At 1–5 each eligible target receives an independent d6 roll, succeeding on the threshold or lower. At 6 success is guaranteed: no roll, RNG consumption or dice event. Active attempts use ordinary costs/source identity/limits even on failure. `BreakObject` exposes `CellOrEdge` selection; the area form has no target-selection prompt. Targets and per-target outcomes are typed transport data, never parsed candidate keys.
+
+Cell recipients are the footprint's eight-neighbor ring, excluding its occupied Cells, with LOS ignoring only the target terrain. Edge recipients border the footprint and use canonical shared identities. Both forms share validated destruction metadata and local state invariants. Area recipients are frozen, deduplicated and ordered Cells y/x then Edge endpoints; successful geometry changes are batched without recursively destroying results.
+
+Area preflight freezes candidates before rolls and accepts replacements in that order only when every possible success/failure subset remains valid. It considers both original terrain and previously accepted replacement terrain, without relying on another replacement or Edge removal succeeding. Conflicts are excluded before RNG consumption and produce no attempt/failure outcome. This applies equally at threshold 6; it does not defer conflict resolution until execution. Only successful accepted targets enter the geometry batch, preserving the existing observation and action-accounting boundaries.
+
+Native `Explosion` and `BreakAdjacentObjects` WhenDefeated declarations execute in content order through the FIFO defeat queue. Secondary deaths append behind all consequences of the current source. `DefeatSelf` uses ordinary defeat instead of an Upright activation, including Undying, and cannot coexist with another InsteadOfActivation declaration. Lying stand-up activations remain unchanged. See [rules](CONSTRAINTS.md#break-objects-and-defeat-consequences-v1) and [terrain metadata](TERRAIN_CONTENT.md#destruction-results).

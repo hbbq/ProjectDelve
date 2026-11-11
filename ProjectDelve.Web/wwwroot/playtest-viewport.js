@@ -58,7 +58,7 @@ export function boardCandidates(hit, decision, state, geometry, visible = () => 
   return [...(decision?.candidates ?? []), ...(decision?.noneChoice ? [decision.noneChoice] : [])].filter(candidate => {
     if (!visible(candidate)) return false;
     const reference = candidate.interaction;
-    if (hit.door) return reference.kind === 'Door' && boardEdgeKey(reference.door) === boardEdgeKey(hit.door);
+    if (hit.door) return ['Door', 'Edge'].includes(reference.kind) && boardEdgeKey(reference.edge ?? reference.door) === boardEdgeKey(hit.door);
     if (reference.kind === 'Position') return boardCellKey(reference.position) === boardCellKey(hit.cell);
     if (reference.kind === 'Unit') {
       const figure = state.physical.figures.find(f => f.id === reference.unitId);

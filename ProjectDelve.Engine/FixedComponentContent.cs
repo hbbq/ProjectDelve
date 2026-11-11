@@ -65,6 +65,8 @@ public sealed record TerrainAssemblyDefinition(
     [property: JsonRequired] string SurfaceId)
 {
     public ImmutableArray<FixedComponentPlacement> Components { get; init; } = [];
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? DestroyedTerrainTypeId { get; init; }
 }
 
 // Resolved snapshots contain their constituents. Rendering, replay and observed
@@ -85,7 +87,7 @@ internal static class TerrainAssemblyContent
     internal static void ValidateAuthoring(TerrainAssemblyDefinition assembly)
     {
         if (assembly is null || !TerrainContentKey.Valid(assembly.Id) || string.IsNullOrWhiteSpace(assembly.Name) ||
-            !TerrainContentKey.Valid(assembly.SurfaceId) || assembly.Components.IsDefault || assembly.Components.Length > 4 ||
+            !TerrainContentKey.Valid(assembly.SurfaceId) || assembly.DestroyedTerrainTypeId is { } result && (!TerrainContentKey.Valid(result) || result == assembly.Id) || assembly.Components.IsDefault || assembly.Components.Length > 4 ||
             assembly.Components.Any(c => c is null || !TerrainContentKey.Valid(c.Slot) ||
                 !TerrainContentKey.Valid(c.ComponentId) || c.QuarterTurns is < 0 or > 3) ||
             assembly.Components.Select(c => c.Slot).Distinct(StringComparer.Ordinal).Count() != assembly.Components.Length)
@@ -108,6 +110,7 @@ internal static class TerrainAssemblyContent
             Categories = surface.Categories,
             AllowsResourceMarkers = surface.AllowsResourceMarkers,
             Production = surface.Production,
+            DestroyedTerrainTypeId = assembly.DestroyedTerrainTypeId,
             Assembly = new(surface, resolved)
         };
     }

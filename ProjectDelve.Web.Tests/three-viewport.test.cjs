@@ -281,6 +281,37 @@ test('candidate mapping preserves opaque order, None, Cell accuracy under large 
   assert.deepEqual(boardCandidates({cell:{x:2,y:2}},decision,state,geometry,c=>c.key!=='z').map(c=>c.key),['a',null]);
   const door={a:{x:0,y:0},b:{x:1,y:0},kind:'OpenDoor'},candidate={key:'door',interaction:{kind:'Door',door}};
   assert.deepEqual(boardCandidates({door:{...door,a:door.b,b:door.a}},{candidates:[candidate]},state,geometry),[candidate]);
+  const breakChoice={key:'opaque-break',interaction:{kind:'Edge',edge:{...door,kind:'Wall'}}};
+  assert.deepEqual(boardCandidates({door:{...door,a:door.b,b:door.a,kind:'Wall'}},{candidates:[breakChoice]},state,geometry),[breakChoice]);
+});
+
+test('Break playback removes furniture, rock, light sources and Edges in both 3D presentations',async()=>{
+  for(const presentation of ['flat','tabletop']){
+    const before=fixture(8),board=before.state.physical.board;
+    board.terrainTypes=[{id:'camp',name:'Camp',assembly:componentAssembly('Grass','Campfire',0)},
+      {id:'table',name:'Table',assembly:componentAssembly('StoneFloor','Table',0)},
+      {id:'rock',name:'Rock',presentation:{recipe:'SolidRock'}},
+      {id:'gravel',name:'Gravel',presentation:{recipe:'Gravel'}},
+      {id:'grass',name:'Grass',presentation:{recipe:'Grass'}},
+      {id:'stone-floor',name:'Floor',presentation:{recipe:'StoneFloor'}}];
+    board.terrain=['camp','table','rock'].map((typeId,x)=>({typeId,position:{x,y:0}}));
+    const edge={a:{x:2,y:2},b:{x:3,y:2},kind:'Wall'};board.edges=[edge];
+    const h=await harness(before);try{
+      h.viewport.setPresentation(presentation);h.viewport.camera.setMode('full');h.viewport.settle();h.flush();
+      h.viewport.showInteraction({candidates:[{key:'opaque-edge',interaction:{kind:'Edge',edge}}]});h.flush();
+      assert.ok(h.viewport.pick(h.viewport.project({x:3,y:2.5})).door);
+      const scene=h.rendered.at(-1).scene,objects=scene.getObjectByName('objects');
+      assert.ok(objects.children.length>0);assert.equal(h.viewport.inspect().lighting.local.sources,1);
+      const after=structuredClone(before);after.state.physical.board.edges=[];
+      after.state.physical.board.terrain.forEach((tile,i)=>tile.typeId=['grass','stone-floor','gravel'][i]);
+      h.viewport.showInteraction({candidates:[]});h.viewport.renderFrame(after);h.viewport.settle();h.flush();
+      assert.equal(scene.getObjectByName('objects').children.length,0);
+      assert.equal(scene.getObjectByName('edges').children.length,0);
+      assert.equal(h.viewport.inspect().lighting.local.sources,0);
+      assert.equal(h.viewport.pick(h.viewport.project({x:3,y:2.5})).door,undefined);
+      assert.deepEqual(h.failures,[]);
+    }finally{h.cleanup();}
+  }
 });
 test('LOD hysteresis and logarithmic camera interpolation retain readable stable levels',async()=>{
   const{tokenDetail,interpolatePose}=await moduleAt('playtest-viewport.js');

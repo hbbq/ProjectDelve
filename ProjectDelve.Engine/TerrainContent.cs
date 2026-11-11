@@ -15,6 +15,8 @@ public sealed record TerrainDefinition([property: JsonRequired] string Id, [prop
     public bool BlocksVision { get; init; } = BlocksLos;
     public ImmutableArray<string> Categories { get; init; } = [];
     public bool AllowsResourceMarkers { get; init; } = true;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? DestroyedTerrainTypeId { get; init; }
     public TerrainPresentation Presentation { get; init; } = new("generic");
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ResolvedTerrainAssembly? Assembly { get; init; }
@@ -85,6 +87,7 @@ public static class TerrainCatalog
                 Find(definitions, assembly.SurfaceId), componentDefinitions));
         }
         Validate(definitions, againstCanonical: canonical is null);
+        ValidateDestructionReferences(definitions);
         if (canonical is not null && definitions.Any(d => d.Production is DirectionalResourceProduction production && !canonical.Resources.Any(r => r.Id == production.ResourceTypeId)))
             throw new ArgumentException("The Resource reference does not resolve in the selected content.");
         return definitions;
@@ -108,6 +111,8 @@ public static class TerrainCatalog
             if (d.Id == TerrainCompatibility.LegacyLavaId)
                 throw new ArgumentException("'lava' is a reserved legacy reference; use ordinary-lava or coal-lava.");
             EnvironmentalProductionContent.Validate(d.Production);
+            if (d.DestroyedTerrainTypeId is { } result && (!ValidKey(result) || result == d.Id))
+                throw new ArgumentException("Destroyed Terrain must reference a different valid Terrain Type ID.");
             if (againstCanonical && d.Production is DirectionalResourceProduction production && !ResourceTypes.All.Any(r => r.Id == production.ResourceTypeId))
                 throw new ArgumentException("The resource reference does not resolve.");
             TerrainAssemblyContent.ValidateResolved(d);
@@ -130,7 +135,7 @@ public static class TerrainCatalog
             if (againstCanonical && All.SingleOrDefault(c => c.Id == d.Id) is { } canonical &&
                 (d.LegacyKind != canonical.LegacyKind || d.Passable != canonical.Passable ||
                  d.BlocksLos != canonical.BlocksLos || d.BlocksVision != canonical.BlocksVision || d.AllowsResourceMarkers != canonical.AllowsResourceMarkers ||
-                 d.Production != canonical.Production || d.LegacyProductionIdentity != canonical.LegacyProductionIdentity ||
+                 d.Production != canonical.Production || d.LegacyProductionIdentity != canonical.LegacyProductionIdentity || d.DestroyedTerrainTypeId != canonical.DestroyedTerrainTypeId ||
                  !d.Categories.SequenceEqual(canonical.Categories)))
                 throw new ArgumentException("Canonical Terrain gameplay definitions cannot be replaced.");
         }
@@ -143,7 +148,24 @@ public static class TerrainCatalog
         a.Assembly is null && b.Assembly is null && a.Id == b.Id && a.Name == b.Name && a.Passable == b.Passable &&
         a.BlocksLos == b.BlocksLos && a.BlocksVision == b.BlocksVision && a.AllowsResourceMarkers == b.AllowsResourceMarkers &&
         a.Categories.SequenceEqual(b.Categories) && a.Production == b.Production && a.Presentation == b.Presentation &&
-        a.LegacyKind == b.LegacyKind && a.LegacyProductionIdentity == b.LegacyProductionIdentity;
+        a.LegacyKind == b.LegacyKind && a.LegacyProductionIdentity == b.LegacyProductionIdentity && a.DestroyedTerrainTypeId == b.DestroyedTerrainTypeId;
+
+    public static void ValidateDestructionReferences(IEnumerable<TerrainDefinition> definitions)
+    {
+        var catalog = definitions.ToDictionary(d => d.Id, StringComparer.Ordinal);
+        foreach (var definition in catalog.Values)
+        {
+            HashSet<string> path = new(StringComparer.Ordinal) { definition.Id };
+            var current = definition;
+            while (current.DestroyedTerrainTypeId is { } id)
+            {
+                if (!catalog.TryGetValue(id, out var result)) throw new ArgumentException($"Unknown destroyed Terrain Type ID '{id}'.");
+                if (!path.Add(id)) throw new ArgumentException("Circular Terrain destruction is not allowed.");
+                if (result.LegacyKind == TerrainKind.Rail) throw new ArgumentException("Destroyed Terrain cannot require Rail direction setup.");
+                current = result;
+            }
+        }
+    }
 
     internal static bool ValidKey(string? value) => TerrainContentKey.Valid(value);
 

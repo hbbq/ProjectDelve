@@ -103,7 +103,30 @@ public static class ContentComposition
             if (scopes.Skip(index + 1).Any(next => !next.DefaultWorldDeck.IsEmpty))
                 filtered = filtered with { DefaultWorldDeck = [] };
             return filtered;
-        });
+        }).ToArray();
+        // Retained resolved assemblies are derived declarations. Higher-scope
+        // edits to their constituents must flow through the same composition
+        // boundary as newly authored assemblies, without changing either source.
+        var surfaces = selected.SelectMany(scope => scope.Terrain).ToDictionary(t => t.Id, StringComparer.Ordinal);
+        var components = selected.SelectMany(scope => scope.FixedComponents).ToDictionary(c => c.Id, StringComparer.Ordinal);
+        for (var index = 0; index < selected.Length; index++)
+        {
+            var overridden = identities.Skip(index + 1).SelectMany(ids => ids).ToHashSet();
+            selected[index] = selected[index] with { Terrain = selected[index].Terrain.Select(terrain =>
+            {
+                if (terrain.Assembly is not { } assembly ||
+                    !overridden.Contains(new(ContentFamily.Terrain, assembly.Surface.Id)) &&
+                    !assembly.Components.Any(c => overridden.Contains(new(ContentFamily.FixedComponent, c.Definition.Id)))) return terrain;
+                var declaration = new TerrainAssemblyDefinition(terrain.Id, terrain.Name, assembly.Surface.Id)
+                {
+                    Components = [.. assembly.Components.Select(c => new FixedComponentPlacement(c.Slot, c.Definition.Id, c.QuarterTurns))],
+                    DestroyedTerrainTypeId = terrain.DestroyedTerrainTypeId
+                };
+                var updated = TerrainAssemblyContent.Compose(declaration, surfaces.GetValueOrDefault(assembly.Surface.Id) ?? assembly.Surface,
+                    assembly.Components.Select(c => components.GetValueOrDefault(c.Definition.Id) ?? c.Definition).DistinctBy(c => c.Id));
+                return updated with { LegacyKind = terrain.LegacyKind, LegacyProductionIdentity = terrain.LegacyProductionIdentity, Presentation = terrain.Presentation };
+            }).ToImmutableArray() };
+        }
         return Compose(selected);
     }
 
@@ -188,6 +211,7 @@ public static class ContentComposition
         foreach (var assembly in supplied.Select(d => d.Value).OfType<TerrainAssemblyDefinition>())
             terrain = terrain.Add(TerrainAssemblyContent.Compose(assembly, TerrainCatalog.Find(terrain, assembly.SurfaceId), components));
         if (!terrain.IsEmpty) TerrainCatalog.Validate(terrain, againstCanonical: false);
+        TerrainCatalog.ValidateDestructionReferences(terrain);
         foreach (var tile in terrain.Where(t => t.Assembly is not null))
         foreach (var component in tile.Assembly!.Components)
         {

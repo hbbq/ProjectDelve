@@ -25,7 +25,7 @@ spends timing and usage, consumes the selected Item, then pays Costs in authored
 order. No decisions or automatic consequences interleave those payments. The
 mechanic resolves afterward against the resulting state. Failed rolls and
 zero-effect attempts retain payment; rejected, stale, unaffordable or cancelled
-selections pay nothing. Pending Attack and Door rolls resume their existing
+selections pay nothing. Pending Attack, Door and selected Break rolls resume their existing
 concrete contexts without paying again, even if the source is Lying or its Item
 was consumed. Initial invocation eligibility is never rerun after payment.
 Content Designer edits ordered Costs through the shared Ability form using the Engine-owned Cost Catalog and recursive typed parameter fields. Unit, Equipment and Item sources use the same editor; unsupported contexts remain unavailable for Cost additions.

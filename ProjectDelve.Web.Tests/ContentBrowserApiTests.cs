@@ -19,6 +19,23 @@ public sealed class ContentBrowserApiTests
     { Converters = { new JsonStringEnumConverter() } };
 
     [Fact]
+    public void ScenarioAssemblyOverrideUsesOneEffectiveDeclarationAndPreservesCanonicalContent()
+    {
+        var definition = WebScenarioFixtures.Combat() with
+        {
+            TerrainAssemblies = [new("stone-floor-with-table", "Grass Table", "grass")
+                { Components = [new("furniture", "table")], DestroyedTerrainTypeId = "grass" }]
+        };
+        var catalog = ContentBrowserCatalog.Scenario(definition);
+        var assembly = Assert.Single(catalog.Entries, e => e.Family == "terrainAssemblies" && e.Id == "stone-floor-with-table");
+        Assert.Equal("grass", assembly.Definition.GetProperty("surfaceId").GetString());
+        Assert.Equal("grass", assembly.Definition.GetProperty("destroyedTerrainTypeId").GetString());
+        var terrain = Assert.Single(catalog.Entries, e => e.Family == "terrain" && e.Id == "stone-floor-with-table");
+        Assert.Equal("grass", terrain.Definition.GetProperty("assembly").GetProperty("surface").GetProperty("id").GetString());
+        Assert.Equal("stone-floor", TerrainCatalog.All.Single(t => t.Id == "stone-floor-with-table").DestroyedTerrainTypeId);
+    }
+
+    [Fact]
     public async Task CanonicalCatalogCoversEveryFamilyAndUsesTypedAbilityAndMechanicData()
     {
         await using var host = await Host.Start();
@@ -183,7 +200,7 @@ public sealed class ContentBrowserApiTests
         var assemblyEntry = Entry(catalog, "terrainAssemblies", assembly.Id);
         Assert.Contains(assemblyEntry.References, reference => reference.TargetKey == "fixedComponents:table" && reference.Exists);
         var resolvedFields = assemblyEntry.Sections.Single(section => section.Title == "Resolved Terrain").Fields;
-        Assert.Equal(new[] { "Passable", "Blocks LOS", "Blocks Vision", "Allows Resource Markers", "Categories", "Production", "Production Description", "Presentation" },
+        Assert.Equal(new[] { "Passable", "Blocks LOS", "Blocks Vision", "Allows Resource Markers", "Categories", "Destroyed Terrain Type Id", "Production", "Production Description", "Presentation" },
             resolvedFields.Select(field => field.Label));
         Assert.False(resolvedFields.Single(field => field.Label == "Passable").Value.GetBoolean());
         Assert.False(resolvedFields.Single(field => field.Label == "Blocks Vision").Value.GetBoolean());

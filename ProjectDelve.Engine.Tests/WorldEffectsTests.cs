@@ -146,7 +146,7 @@ public sealed class WorldEffectsTests
         Assert.True(result.State.IsCompleted);
         Assert.Equal(new[] { "red" }, result.State.Completion!.AchievedSideIds);
         Assert.DoesNotContain(result.State.Bag, t => t.TypeId is UnitTypeIds.BombImp or UnitTypeIds.Grunt);
-        Assert.Empty(result.State.PendingExplosions);
+        Assert.Empty(result.State.PendingDefeatEffects);
     }
 
     [Fact]

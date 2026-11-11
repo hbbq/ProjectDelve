@@ -372,3 +372,21 @@ test('same-Type groups retain separate Patrol and Follow Route progress when a s
   d.definition.orders[1].route.currentIndex=1;
   assert.equal(d.definition.orders[0].route.currentIndex,0);
 });
+
+
+test('scenario-local terrain and assemblies save independent typed definitions with destruction metadata', () => {
+  const { draft } = setup();
+  const surface = { id: 'test-surface', name: 'Surface', passable: true, blocksLos: false };
+  const table = { id: 'test-table', name: 'Table', surfaceId: surface.id, components: [{ slot: 'furniture', componentId: 'table' }], destroyedTerrainTypeId: surface.id };
+  draft.applyContentDefinition('terrain', surface);
+  draft.applyContentDefinition('terrainAssemblies', table);
+  table.components[0].componentId = 'mutated';
+  assert.equal(draft.definition.terrainAssemblies[0].components[0].componentId, 'table');
+  assert.equal(draft.definition.terrainAssemblies[0].destroyedTerrainTypeId, surface.id);
+  const updated = { ...draft.definition.terrainAssemblies[0] };
+  delete updated.destroyedTerrainTypeId;
+  draft.applyContentDefinition('terrainAssemblies', updated, updated.id);
+  assert.equal(Object.hasOwn(draft.snapshot().terrainAssemblies[0], 'destroyedTerrainTypeId'), false);
+  assert.deepEqual(plain(draft.snapshot().terrainTypes), [surface]);
+  assert.throws(() => draft.applyContentDefinition('terrainAssemblies', updated), /already uses ID/);
+});

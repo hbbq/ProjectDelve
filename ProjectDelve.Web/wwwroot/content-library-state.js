@@ -21,12 +21,12 @@ export class LibraryContentDraft {
   request() { return structuredClone({ package: this.package, expectedRevision: this.revision, bindings: this.bindings }); }
   context() {
     const body = this.package.definitions;
-    return structuredClone({ unitTypes: body.unitTypes ?? [], equipmentTypes: body.equipmentTypes ?? [], itemTypes: body.itemTypes ?? [], lootCardDefinitions: body.lootCardDefinitions ?? [] });
+    return structuredClone({ terrainTypes: body.terrainTypes ?? [], terrainAssemblies: body.terrainAssemblies ?? [], fixedComponentTypes: body.fixedComponentTypes ?? [], unitTypes: body.unitTypes ?? [], equipmentTypes: body.equipmentTypes ?? [], itemTypes: body.itemTypes ?? [], lootCardDefinitions: body.lootCardDefinitions ?? [] });
   }
   apply({ family, definition, existingId, expectedRevision }) {
     if (!this.editable || expectedRevision !== this.stamp) throw new Error('The package workspace changed. Cancel and reopen this definition.');
-    const field = { units: 'unitTypes', equipment: 'equipmentTypes', items: 'itemTypes', lootCards: 'lootCardDefinitions' }[family];
-    if (!field) throw new Error('This editor supports Units, Equipment, Single Use Items and Loot Cards.');
+    const field = { units: 'unitTypes', equipment: 'equipmentTypes', items: 'itemTypes', lootCards: 'lootCardDefinitions', terrain: 'terrainTypes', terrainAssemblies: 'terrainAssemblies' }[family];
+    if (!field) throw new Error('This editor supports Units, Equipment, Single Use Items, Loot Cards, Terrain and Terrain Assemblies.');
     const rows = this.package.definitions[field] ??= [];
     if (existingId) {
       const index = rows.findIndex(row => row.id === existingId);

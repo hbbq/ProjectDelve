@@ -87,7 +87,10 @@ public static class FogOfWar
         copy.CompletedUnitIds.RemoveAll(id => !visible.Contains(id));
         copy.AttackInProgress = ObserveAttack(state, side, state.AttackInProgress);
         if (copy.DoorInProgress is { } door && (!visible.Contains(door.UnitId) || !IsEdgeObservable(state, side, door.Door))) copy.DoorInProgress = null;
-        copy.PendingExplosions.Clear();
+        copy.PendingDefeatEffects.Clear();
+        copy.CompleteAfterDefeatEffects = false;
+        copy.BreakInProgress = null;
+        copy.AttackAwaitingConsequences = null;
         copy.Pending = ObserveDecision(state, side, state.Pending);
         if (copy.CurrentUnitId is null) copy.ModifiersThisTurn.Clear();
         copy.FogOfWarSides = [side!];
@@ -135,6 +138,8 @@ public static class FogOfWar
 
     private static DicePool? ObserveDicePool(GameState state, string? side, DicePool? pool) => pool is null ? null : pool with
     {
+        BreakTarget = pool.BreakTarget is { } breakTarget && (breakTarget.Cell is { } breakCell && IsExplored(state, side, breakCell) ||
+            breakTarget.Edge is { } breakEdge && IsEdgeObservable(state, side, breakEdge)) ? breakTarget : null,
         AbilitySource = IsUnitObservable(state, side, pool.SourceUnitId) ? pool.AbilitySource : null,
         SourceUnitId = IsUnitObservable(state, side, pool.SourceUnitId) ? pool.SourceUnitId : "",
         OwnerUnitId = IsUnitObservable(state, side, pool.OwnerUnitId) ? pool.OwnerUnitId : "",
@@ -145,10 +150,19 @@ public static class FogOfWar
 
     public static RulesEvent? ObserveEvent(GameState state, string? side, RulesEvent e)
     {
-        if (!IsEnabled(state, side)) return e;
-        bool Known(string? id) => id is not null && (IsUnitObservable(state, side, id) ||
+        if (!IsEnabled(state, side)) return e.BreakOutcomes.IsEmpty && e.BreakSourceVisibleSideIds.IsEmpty ? e : e with
+            { BreakOutcomes = e.BreakOutcomes.Select(o => o with { BeforeVisibleSideIds = [] }).ToImmutableArray(), BreakSourceVisibleSideIds = [] };
+        var isBreak = e.Kind is "ObjectBreakResolved" or "AdjacentObjectsBreakResolved";
+        bool Known(string? id) => id is not null && (!isBreak || id != e.SourceUnitId || e.BreakSourceVisibleSideIds.Contains(side!)) && (IsUnitObservable(state, side, id) ||
             e.DefeatContext is { } defeat && defeat.Unit.Id == id && defeat.OccupiedCells.Any(c => IsExplored(state, side, c)));
         var unit = Known(e.UnitId); var target = Known(e.TargetId);
+        var breakOutcomes = e.BreakOutcomes.Where(o => o.BeforeVisibleSideIds.Contains(side!) ||
+                (o.Target.Cell is { } breakCell ? IsExplored(state, side, breakCell) : o.Target.Edge is { } edge && IsEdgeObservable(state, side, edge)))
+            .Select(o => o.BeforeVisibleSideIds.Contains(side!) ? o with { BeforeVisibleSideIds = [] } : o with
+            {
+                BeforeVisibleSideIds = [], BeforeTerrainTypeId = null, BeforeEdgeKind = null,
+                Target = o.Target.Edge is { } edge ? o.Target with { Edge = edge with { Kind = o.AfterEdgeKind ?? EdgeKind.None } } : o.Target
+            }).ToImmutableArray();
         var cell = e.Cell is { } c && IsExplored(state, side, c);
         var door = e.Door is not null && IsEdgeObservable(state, side, e.Door);
         bool VisiblePosition(Cell position) => e.UnitId is { } id && state.Units.Any(u => u.Id == id)
@@ -178,6 +192,7 @@ public static class FogOfWar
         var result = e.Attack is null ? null : e.Attack with { Targets = e.Attack.Targets.Where(t => Known(t.TargetId)).ToImmutableArray() };
         var observable = e.Kind switch
         {
+            "ObjectBreakResolved" or "AdjacentObjectsBreakResolved" => !breakOutcomes.IsEmpty,
             "LootDropRolled" or "LootCardDrawn" => cell,
             "GameCompleted" or "RoundStarted" or "RoundCompleted" or "ActivationBagPopulated" or
             "WorldDeckShuffled" or "WorldDeckReshuffled" or "WorldDrawSkipped" or "WorldCardDrawn" or
@@ -190,12 +205,17 @@ public static class FogOfWar
             "AttackStarted" => attack is not null,
             "AttackResolved" => unit || target || result is { Targets.IsEmpty: false },
             "AttackTargetResolved" or "WorldDamageResolved" or "ExplosionDamageResolved" or "CleaveResolved" or "HealResolved" => target,
-            "DiceRolled" => unit,
+            "DiceRolled" => unit && (e.Dice?.Pool.BreakTarget is not { } rolledTarget ||
+                (rolledTarget.Cell is { } rolledCell ? IsExplored(state, side, rolledCell) :
+                    rolledTarget.Edge is { } rolledEdge && IsEdgeObservable(state, side, rolledEdge))),
             "ResourceCreated" or "LavaCoalRolled" or "FruitTreeRolled" or "TerrainProductionRolled" or "CellMarkerPlaced" => cell,
             _ => unit // Existing local abilities, resources, posture, creation and lifecycle events.
         };
         if (!observable) return null;
         return e with { Kind = fragmentedMovement ? "MovementObserved" : e.Kind,
+            BreakOutcomes = breakOutcomes,
+            BreakSourceVisibleSideIds = [],
+            ActionId = !isBreak || Known(e.SourceUnitId) ? e.ActionId : null,
             ObservedMovement = segments,
             UnitId = unit || path?.Count > 0 || segments?.Count > 0 ? e.UnitId : null, TargetId = target ? e.TargetId : null,
             SourceUnitId = Known(e.SourceUnitId) ? e.SourceUnitId : null,
@@ -363,6 +383,8 @@ public static class FogOfWar
 
     // Explicit selections are restricted; automatic recipient sets stay authoritative.
     internal static bool Allows(GameState state, string side, Candidate candidate) =>
+        (candidate.BreakTarget is null || candidate.BreakTarget.Cell is { } breakCell && IsExplored(state, side, breakCell) ||
+            candidate.BreakTarget.Edge is { } breakEdge && IsEdgeObservable(state, side, breakEdge)) &&
         (candidate.TargetId is null || IsUnitObservable(state, side, candidate.TargetId)) &&
         (candidate.MachineId is null || IsExplored(state, side, state.Physical.Board.Machines.Single(m => m.Id == candidate.MachineId).Position)) &&
         (candidate.Door is null || IsEdgeObservable(state, side, candidate.Door)) &&

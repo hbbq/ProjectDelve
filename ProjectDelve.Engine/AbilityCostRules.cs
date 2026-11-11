@@ -6,7 +6,7 @@ public static class AbilityCostRules
 {
     public static bool Supports(AbilityMechanic mechanic) => mechanic is
         RevealDistance or AdjacentUnitsPostureChangeMechanic or AdjacentUnitHealMechanic or FireballMechanic or AdjacentUnitPostureChangeMechanic or SelfModifiersMechanic or ExtraActionsMechanic or
-        OpenDoor or TryOpenDoor or Telekinesis or FireBreath or ClawAttack or TargetUnitAttackMechanic or
+        OpenDoor or TryOpenDoor or BreakObject or BreakAdjacentObjects or Telekinesis or FireBreath or ClawAttack or TargetUnitAttackMechanic or
         AdjacentUnitSummonMechanic or PickupResource or GiveResource or Operate or
         PlaceBananaPeel or SelfExtraMovesMechanic or Swap or Displace or ReshapeRoom;
 

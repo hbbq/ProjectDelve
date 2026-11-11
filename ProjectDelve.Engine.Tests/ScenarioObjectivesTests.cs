@@ -103,7 +103,7 @@ public sealed class ScenarioObjectivesTests
         Assert.All(result.State.Units, unit => Assert.Equal(0, unit.CurrentHp)); Assert.Empty(result.State.Physical.Figures);
         Assert.Equal(new[] { "amber", "violet" }, result.State.Completion!.AchievedSideIds);
         Assert.True(result.Events.FindIndex(e => e.Kind == "ExplosionDamageResolved") < result.Events.FindIndex(e => e.Kind == "GameCompleted"));
-        Assert.Empty(result.State.PendingExplosions);
+        Assert.Empty(result.State.PendingDefeatEffects);
         Assert.All(result.ResolutionSteps.Where(s => result.Events[s.EventIndex].Kind != "GameCompleted"), s => Assert.Null(s.StateAfter.Completion));
     }
 
@@ -160,7 +160,7 @@ public sealed class ScenarioObjectivesTests
         var result = GameEngine.StartRound(state, new Dice(), false);
         Assert.Equal(new[] { "amber" }, result.State.Completion!.AchievedSideIds);
         Assert.Equal(4, result.State.Units.Single(u => u.Id == "actor").CurrentHp);
-        Assert.Empty(result.State.PendingExplosions);
+        Assert.Empty(result.State.PendingDefeatEffects);
         var explosion = result.Events.FindIndex(e => e.Kind == "ExplosionDamageResolved");
         var heal = result.Events.FindIndex(e => e.Kind == "HealResolved");
         var completion = result.Events.FindIndex(e => e.Kind == "GameCompleted");

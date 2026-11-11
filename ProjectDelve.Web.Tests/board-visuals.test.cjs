@@ -23,6 +23,18 @@ test('assemblies reuse component artwork independently of their surface and iden
   assert.equal(run("Object.hasOwn(boardVisuals.terrain,'unheard-of')"),false);
 });
 
+test('terrain replacement checkpoints remove fixed components and replace rock artwork without legacy residue', () => {
+  const run=catalog();
+  run(`const board={terrainTypes:[{id:'table',name:'Table',assembly:{surface:{presentation:{recipe:'StoneFloor'}},components:[{slot:'furniture',definition:{presentation:{recipe:'Table',layer:'Object'}}}]}},
+    {id:'floor',name:'Floor',presentation:{recipe:'StoneFloor'}},{id:'rock',name:'Rock',presentation:{recipe:'SolidRock'}},{id:'gravel',name:'Gravel',presentation:{recipe:'Gravel'}}]};
+    const layers=id=>{const display=terrainDisplay(board,{typeId:id});return terrainLayers(display.kind,{assembly:display.assembly});};`);
+  assert.equal(run('layers("table").components.length'),1);
+  assert.equal(run('layers("floor").components?.length??0'),0);
+  assert.equal(run('layers("floor").object'),null);
+  assert.match(run('layers("rock").base.image'),/solid-rock/);
+  assert.match(run('layers("gravel").base.image'),/gravel/);
+});
+
 test('canonical Table and Tree assemblies preserve every existing sampled layer', () => {
   const run = catalog();
   for(const [recipe,surface,component] of [['StoneFloorWithTable','StoneFloor','Table'],['Tree','Grass','Tree']])

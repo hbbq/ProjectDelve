@@ -63,16 +63,16 @@ export function mountContentEditor(root, options) {
     control.setAttribute('aria-describedby', error.id); controls.set(key, control); errors.set(key, error);
     row.append(label, control); if (help) row.append(text(help)); row.append(error); return row;
   }
-  function referenceField(title, family, path) {
+  function referenceField(title, family, path, optional = false) {
     const current = state.get(path) ?? '', values = state.references(family), box = node('div', 'ce-reference-picker');
-    const choice = select([], current, value => set(path, value));
+    const choice = select([], current, value => set(path, optional && !value ? undefined : value));
     const search = input('search', '', () => refresh()); search.placeholder = 'Find by name or ID';
     search.setAttribute('aria-label', `Find ${contentLabel(family)}`);
     function refresh() {
       const query = search.value.trim().toLocaleLowerCase();
       const selected = state.get(path) ?? '';
       const shown = values.filter(value => value.id === selected || `${value.name} ${value.id}`.toLocaleLowerCase().includes(query));
-      choice.replaceChildren(option('', 'Choose a definition'), ...shown.map(value => option(value.id, `${value.name} · ${value.id}`)));
+      choice.replaceChildren(option('', optional ? 'Indestructible (no result)' : 'Choose a definition'), ...shown.map(value => option(value.id, `${value.name} · ${value.id}`)));
       if (selected && !values.some(value => value.id === selected)) choice.append(option(selected, `${selected} · unavailable`));
       choice.value = selected;
     }
@@ -296,16 +296,35 @@ export function mountContentEditor(root, options) {
     }
     form.append(stats, movement, capabilities); renderEquipment(); form.append(loot, resources, automation);
   }
+  function renderTerrain() {
+    const section = group('Terrain', text('The Engine validates these properties and resolves assembly components.'));
+    if (state.family === 'terrainAssemblies') {
+      section.append(referenceField('Surface', 'terrain', ['surfaceId']));
+      section.append(parameter({ name: 'components', kind: 'List', required: true, maximumItems: 4, item: {
+        kind: 'Object', required: true, members: [
+          { name: 'slot', kind: 'String', required: true },
+          { name: 'componentId', kind: 'Reference', required: true, referenceCatalog: 'fixedComponents' },
+          { name: 'quarterTurns', kind: 'Integer', required: false, minimum: 0, maximum: 3 }
+        ] } }, ['components'], 'Components'));
+    } else {
+      for (const [key, label] of [['passable', 'Passable'], ['blocksLos', 'Blocks Line of Sight'], ['blocksVision', 'Blocks Vision'], ['allowsResourceMarkers', 'Allows Resource Markers']])
+        section.append(parameter({ name: key, kind: 'Boolean', required: true }, [key], label));
+      section.append(parameter({ name: 'categories', kind: 'List', required: true, item: { kind: 'String', required: true } }, ['categories'], 'Categories'));
+      section.append(parameter({ name: 'recipe', kind: 'String', required: true }, ['presentation', 'recipe'], 'Presentation recipe'));
+    }
+    section.append(referenceField('Destroyed result', 'terrain', ['destroyedTerrainTypeId'], true), text('No result makes this Type indestructible. A successful Break replaces the whole Cell with the selected Terrain Type.'));
+    form.append(section);
+  }
   function render() {
     if (!opened) return;
     controls = new Map(); errors = new Map(); serial = 0; form.replaceChildren();
-    heading.replaceChildren(node('p', 'ce-eyebrow', (typeof options.destinationLabel === 'function' ? options.destinationLabel() : options.destinationLabel) ?? 'CONTENT DEFINITION'), node('h3', '', `${state.existingId ? 'Edit' : 'New'} ${state.family === 'units' ? 'Unit' : state.family === 'equipment' ? 'Equipment' : state.family === 'items' ? 'Single Use Item' : 'Loot Card'}`));
+    heading.replaceChildren(node('p', 'ce-eyebrow', (typeof options.destinationLabel === 'function' ? options.destinationLabel() : options.destinationLabel) ?? 'CONTENT DEFINITION'), node('h3', '', `${state.existingId ? 'Edit' : 'New'} ${state.family === 'units' ? 'Unit' : state.family === 'equipment' ? 'Equipment' : state.family === 'items' ? 'Single Use Item' : state.family === 'terrain' ? 'Terrain' : state.family === 'terrainAssemblies' ? 'Terrain Assembly' : 'Loot Card'}`));
     const id = input('text', state.definition.id, value => set(['id'], value)); id.id = 'content-editor-id'; id.readOnly = !!state.existingId; id.autocomplete = 'off';
     const nameField = state.family === 'units' ? 'displayName' : 'name';
     const name = input('text', state.definition[nameField], value => set([nameField], value)); name.id = 'content-editor-name';
     const identity = node('div', 'ce-two-columns'); identity.append(field(state.family === 'lootCards' ? 'Card ID' : 'Type ID', id, ['id'], state.existingId ? 'Existing identity stays fixed.' : 'Choose a new, stable ID distinct from canonical content.'), field('Name', name, [nameField]));
     form.append(group('Identity', identity));
-    if (state.family === 'units') renderUnit(); else if (['equipment', 'items'].includes(state.family)) renderEquipment(); else renderLoot();
+    if (['terrain', 'terrainAssemblies'].includes(state.family)) renderTerrain(); else if (state.family === 'units') renderUnit(); else if (['equipment', 'items'].includes(state.family)) renderEquipment(); else renderLoot();
     renderDiagnostics(); renderPreview(); updateStatus();
   }
   function renderDiagnostics() {

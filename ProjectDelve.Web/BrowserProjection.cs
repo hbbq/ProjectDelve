@@ -2,9 +2,9 @@ using ProjectDelve.Engine;
 
 namespace ProjectDelve.Web;
 
-public enum InteractionKind { Direct, Unit, Position, Door }
+public enum InteractionKind { Direct, Unit, Position, Door, Edge }
 public sealed record ChoiceInteraction(InteractionKind Kind, string? UnitId = null,
-    Cell? Position = null, Edge? Door = null);
+    Cell? Position = null, Edge? Door = null, Edge? Edge = null);
 public sealed record BoardChoiceVisual(string Kind, string Preview, string? Icon = null);
 public sealed record BrowserChoice(string? Key, string Label, string? EntryId,
     bool Relevant, ChoiceInteraction Interaction, IReadOnlyList<string> AffectedUnitIds)
@@ -79,6 +79,7 @@ public sealed record BrowserOutcome(OutcomeRole Role, string Text, string? UnitI
     public string? DisplayText { get; init; }
     public IReadOnlyList<List<Cell>>? MovementSegments { get; init; }
     public MovementAppearance? MovingFigure { get; init; }
+    public IReadOnlyList<BreakOutcome> BreakOutcomes { get; init; } = [];
 }
 public sealed record BrowserResolutionStep(int EventIndex, IReadOnlyDictionary<string, UnitCard> Cards)
 {
@@ -319,6 +320,8 @@ public static class BrowserProjection
             var entry = entryId is null ? null : entries.GetValueOrDefault(entryId);
             var interaction = c.Kind == ActivationChoiceKind.SelectUnit
                 ? new ChoiceInteraction(InteractionKind.Unit, UnitId: c.Key)
+                : c.BreakTarget?.Cell is { } breakCell ? new(InteractionKind.Position, Position: breakCell)
+                : c.BreakTarget?.Edge is { } breakEdge ? new(InteractionKind.Edge, Edge: breakEdge)
                 : c.Door is not null ? new(InteractionKind.Door, Door: c.Door)
                 : c.Kind == ActivationChoiceKind.Stay ? new(InteractionKind.Unit, UnitId: request.UnitId)
                 : c.MachineId is not null ? new(InteractionKind.Position, Position: state.Physical.Board.Machines.Single(m => m.Id == c.MachineId).Position)
@@ -349,7 +352,9 @@ public static class BrowserProjection
                      c.Destination is not null ? $" → ({c.Destination.X},{c.Destination.Y})" :
                      c.Door is not null ? $" → ({c.Door.A.X},{c.Door.A.Y})–({c.Door.B.X},{c.Door.B.Y})" : "")
             };
-            var label = Label(id => id);
+            string BreakLabel() => c.BreakTarget is { } target
+                ? $" → {BreakTargetLabel(target)}" + (c.Ability?.Definition.Mechanic is BreakObject { SuccessThreshold: 6 } ? " (guaranteed; no roll)" : "") : "";
+            var label = Label(id => id) + BreakLabel();
             IReadOnlyList<string> affected = !c.TargetIds.IsEmpty ? c.TargetIds.ToArray()
                 : c.TargetId is not null ? [c.TargetId] : [];
             return new BrowserChoice(c.Key, label, entryId, c.Relevant, interaction, affected)
@@ -362,9 +367,9 @@ public static class BrowserProjection
                     ActivationChoiceKind.Stay => new("stay", $"Stay — {PlayerName(state, request.UnitId, individualNames)}", "Ⅱ"),
                     _ when c.Action == UnitAction.NormalAttack => new("attack", $"Attack {PlayerName(state, c.TargetId, individualNames)}", "⌖"),
                     _ when c.Action == UnitAction.Fireball => new("special", $"{c.Ability?.Definition.Name ?? entry?.Name ?? "Fireball"} at ({c.Destination!.X},{c.Destination.Y})", "🔥"),
-                    _ => new("special", Label(id => PlayerName(state, id, individualNames)), "◆")
+                    _ => new("special", Label(id => PlayerName(state, id, individualNames)) + BreakLabel(), "◆")
                 },
-                DisplayLabel = Label(id => PlayerName(state, id, individualNames)),
+                DisplayLabel = Label(id => PlayerName(state, id, individualNames)) + BreakLabel(),
                 IsEndTurn = c.Kind == ActivationChoiceKind.EndTurn,
                 PlacementCells = c.Destination is null ? [] :
                     c.Kind == ActivationChoiceKind.Move
@@ -384,6 +389,7 @@ public static class BrowserProjection
                 : null;
         string Prompt(Func<string, string> name) => request.Roll is { } pool ? $"{name(pool.OwnerUnitId)}: roll {pool.Count} {pool.Family} dice ({pool.Purpose}, {pool.SourceActionId})"
                 + (pool.TargetId is null ? "" : $" against {name(pool.TargetId)}")
+                + (pool.BreakTarget is null ? "" : $" at {BreakTargetLabel(pool.BreakTarget)} ({pool.SuccessCount}/6)")
                 + (pool.Door is null ? "" : $" at door {pool.Door.A.X},{pool.Door.A.Y} – {pool.Door.B.X},{pool.Door.B.Y} ({pool.SuccessCount}/6)")
             : request.Kind == DecisionKind.SelectUnit ? "Choose a Unit"
             : continuation?.Name ?? "Choose an activation choice";
@@ -643,6 +649,15 @@ public static class BrowserProjection
                 role = OutcomeRole.DoorAttempt;
                 description = $"{name(e.UnitId)} tried door {CellLabel(e.Door!.A)} ↔ {CellLabel(e.Door.B)}: D6 {e.DieRoll}, {e.SuccessCount}/6 → {(e.Succeeded == true ? "success" : "failed; door stays closed")} (Action consumed)";
                 break;
+            case "ObjectBreakResolved":
+            case "AdjacentObjectsBreakResolved":
+                description = $"{subject}: " + string.Join("; ", e.BreakOutcomes.Select(outcome =>
+                    $"{BreakTargetLabel(outcome.Target)}: " +
+                    (outcome.DieRoll is { } die ? $"D6 {die}, {outcome.SuccessThreshold}/6 — " : "guaranteed (no roll) — ") +
+                    (outcome.Succeeded ? outcome.AfterTerrainTypeId is { } terrainId
+                        ? $"replaced with {state.Physical.Board.TerrainTypes.FirstOrDefault(t => t.Id == terrainId)?.Name ?? terrainId}"
+                        : "Edge removed" : "failed; unchanged")));
+                break;
             case "DoorOpened":
                 role = OutcomeRole.DoorOpened;
                 description = $"{(e.WorldCard is null ? name(e.UnitId) : subject)} opened door {CellLabel(e.Door!.A)} ↔ {CellLabel(e.Door.B)}";
@@ -667,6 +682,11 @@ public static class BrowserProjection
                 FootprintGeometry.OccupiedCells(state, mover.Id).Max(c => c.X) - figure.Position.X + 1, mover.CurrentHp, type.Hp);
         }
         return new(role, description, e.UnitId, e.TargetId, e.Path, e.Door, e.Hits, e.Blocks, e.Damage)
-        { MovementSegments = e.ObservedMovement, MovingFigure = appearance };
+        { MovementSegments = e.ObservedMovement, MovingFigure = appearance,
+            BreakOutcomes = e.BreakOutcomes.Select(o => o with { BeforeVisibleSideIds = [] }).ToArray() };
     }
+
+    private static string BreakTargetLabel(BreakTarget target) => target.Cell is { } cell
+        ? $"Cell ({cell.X},{cell.Y})" : target.Edge is { } edge
+            ? $"Edge ({edge.A.X},{edge.A.Y})–({edge.B.X},{edge.B.Y})" : "object";
 }

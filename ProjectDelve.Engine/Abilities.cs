@@ -37,6 +37,9 @@ public sealed record AbilityUsage(int? MaxUses = null);
 [JsonDerivedType(typeof(TargetUnitAttackMechanic), "targetUnitAttack")]
 [JsonDerivedType(typeof(WaypointSlotMachine), "waypointSlotMachine")]
 [JsonDerivedType(typeof(TryOpenDoor), "tryOpenDoor")]
+[JsonDerivedType(typeof(BreakObject), "breakObject")]
+[JsonDerivedType(typeof(BreakAdjacentObjects), "breakAdjacentObjects")]
+[JsonDerivedType(typeof(DefeatSelf), "defeatSelf")]
 [JsonDerivedType(typeof(FireBreath), "fireBreath")]
 [JsonDerivedType(typeof(ClawAttack), "clawAttack")]
 [JsonDerivedType(typeof(Phase), "phase")]
@@ -88,6 +91,8 @@ public static class AbilityContent
     {
         if (abilities.IsDefault)
             throw ScenarioValidationContext.At(new ArgumentException("Local Abilities cannot be null."), path);
+        if (abilities.Count(a => a?.Timing == AbilityTiming.InsteadOfActivation) > 1)
+            throw ScenarioValidationContext.At(new ArgumentException("Only one InsteadOfActivation Ability may replace an activation."), path);
         HashSet<string> seen = new(StringComparer.Ordinal);
         HashSet<Type> nativeMechanics = [];
         for (var index = 0; index < abilities.Length; index++)

@@ -1228,7 +1228,7 @@ function renderSnapshot() {
   boardChoiceKeys.clear();
   attackContext = state.attackInProgress ?? null;
   focusedUnitId = state.currentUnitId;
-  focusedDoor = snapshot.presentation.decision?.roll?.door ?? state.doorInProgress?.door;
+  focusedDoor = snapshot.presentation.decision?.roll?.breakTarget?.edge ?? snapshot.presentation.decision?.roll?.door ?? state.doorInProgress?.door;
   renderState(state, false);
   ui.auto.checked = snapshot.autoChooseSingleRelevantChoice;
   const decision = snapshot.presentation.decision;
@@ -1255,7 +1255,7 @@ function bindDisplayedBoardChoices(decision, dom = !threeActive()) {
       const reference = candidate.interaction, board = state.physical.board;
       const mounted = reference.kind === "Unit" ? state.physical.figures.some(figure => figure.id === reference.unitId)
         : reference.kind === "Position" ? reference.position.x >= 0 && reference.position.x < board.width && reference.position.y >= 0 && reference.position.y < board.height
-        : reference.kind === "Door" && board.edges.some(edge => edge.kind !== "None" && edgeKey(edge) === edgeKey(reference.door));
+        : ["Door", "Edge"].includes(reference.kind) && board.edges.some(edge => edge.kind !== "None" && edgeKey(edge) === edgeKey(reference.edge ?? reference.door));
       if (mounted) boardChoiceKeys.add(candidate.key);
     }
     return;
@@ -1283,8 +1283,8 @@ function bindDisplayedBoardChoices(decision, dom = !threeActive()) {
           else figures.get(figure.id).style.pointerEvents = "none";
         }
       }
-    } else if (selection.kind === "Door") {
-      offer(edges.get(edgeKey(selection.door)), candidate);
+    } else if (selection.kind === "Door" || selection.kind === "Edge") {
+      offer(edges.get(edgeKey(selection.edge ?? selection.door)), candidate);
     }
   }
   for (const [node, choices] of boardChoices) {
@@ -1339,7 +1339,7 @@ function bindBoardChoice(node, candidates) {
     boardChooser = candidates;
     boardChooserOrigin = node;
     const reference = candidates[0].interaction;
-    const location = reference.position ?? reference.door?.a ?? displayedState?.physical.figures.find(figure => figure.id === reference.unitId)?.position;
+    const location = reference.position ?? reference.edge?.a ?? reference.door?.a ?? displayedState?.physical.figures.find(figure => figure.id === reference.unitId)?.position;
     if (location) positionDecisionPanel(location);
     clearAffectedPreview();
     renderChoicePanel();
@@ -2242,7 +2242,7 @@ function prepareOccurrence(occurrence, outcome) {
       if (occurrence.sourceUnitId) ui.effect.textContent += ` (from ${unitName(occurrence.sourceUnitId)})`;
       break;
     case "ActionUsed":
-      focusedDoor = occurrence.door ?? null;
+      focusedDoor = occurrence.dice?.pool?.breakTarget?.edge ?? occurrence.door ?? null;
       if (combatDice && !combatDice.finished) clearDice();
       if (occurrence.targetId) ui.effect.textContent += ` \u2192 ${unitName(occurrence.targetId)}`;
       if (occurrence.cell) ui.effect.textContent += ` \u2192 (${occurrence.cell.x},${occurrence.cell.y})`;

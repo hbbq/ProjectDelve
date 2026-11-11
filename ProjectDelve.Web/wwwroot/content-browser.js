@@ -2,8 +2,8 @@ import { ContentBrowserState, contentLabel, contentUsage } from './content-brows
 import { mountContentEditor } from './content-editor.js';
 import { boardVisuals } from './board-visuals.js';
 
-const definitionFields = { units: 'unitTypes', equipment: 'equipmentTypes', items: 'itemTypes', lootCards: 'lootCardDefinitions' };
-const families = { units: 'Unit', equipment: 'Equipment', items: 'Item', lootCards: 'LootCard' };
+const definitionFields = { units: 'unitTypes', equipment: 'equipmentTypes', items: 'itemTypes', lootCards: 'lootCardDefinitions', terrain: 'terrainTypes', terrainAssemblies: 'terrainAssemblies' };
+const families = { units: 'Unit', equipment: 'Equipment', items: 'Item', lootCards: 'LootCard', terrain: 'Terrain', terrainAssemblies: 'Terrain' };
 export function mountContentBrowser(root, options = {}) {
   const document = root.ownerDocument ?? globalThis.document;
   const request = options.fetch ?? globalThis.fetch.bind(globalThis);
@@ -46,13 +46,13 @@ export function mountContentBrowser(root, options = {}) {
     return data;
   }
   async function run(action) { try { status.textContent = ''; await action(); } catch(error) { status.textContent = error.message; } }
-  const workspaceContext = () => Object.fromEntries(Object.values(definitionFields).map(field => [field, structuredClone(workspace?.definitions?.[field] ?? [])]));
+  const workspaceContext = () => Object.fromEntries([...Object.values(definitionFields), 'fixedComponentTypes'].map(field => [field, structuredClone(workspace?.definitions?.[field] ?? [])]));
   const editor = mountContentEditor(editorRoot, {
     destinationLabel: () => editScope === 'workspace' ? 'Workspace' : 'Scenario-local',
     catalog: () => catalog,
     validate: payload => editCopy && catalog.entries.some(e=>e.family === payload.family && e.id === payload.definition.id)
       ? Promise.resolve({valid:false,diagnostics:[{path:'definition.id',code:'duplicateIdentity',message:'A copy requires a new Type ID.'}]})
-      : call('/api/content/validate', payload),
+      : call('/api/content/validate', { ...payload, destination: editScope === 'workspace' ? 'workspace' : 'scenario' }),
     save: async payload => {
       if (editScope !== 'workspace') return target.save({...payload, expectedRevision:editToken});
       const definitions = structuredClone(workspace.definitions); const field = definitionFields[payload.family];
@@ -358,7 +358,7 @@ export function mountContentBrowser(root, options = {}) {
     root.setAttribute('aria-busy', String(loading));
     actions.replaceChildren();
     actions.append(authoringButton('Loot Management',()=>manage('loot'),'content-loot-management'),authoringButton('Workspace Management',()=>manage('workspace'),'content-workspace-management'));
-    for (const [family,label] of Object.entries({units:'Unit',equipment:'Equipment',items:'Item',lootCards:'Loot Card'})) actions.append(authoringButton(`Create ${label}`, () => open(null,false,context === 'draft' ? 'draft':'workspace',false,family), `content-create-${family}`));
+    for (const [family,label] of Object.entries({units:'Unit',equipment:'Equipment',items:'Item',lootCards:'Loot Card',terrain:'Terrain',terrainAssemblies:'Terrain Assembly'})) actions.append(authoringButton(`Create ${label}`, () => open(null,false,context === 'draft' ? 'draft':'workspace',false,family), `content-create-${family}`));
     if(context === 'workspace') actions.append(authoringButton('Empty Workspace', async () => {
       promotion.hidden=false;promotion.replaceChildren(node('p','Delete all Workspace definitions?'));
       promotion.append(authoringButton('Confirm empty Workspace',async () => { await call('/api/content-workspace',{expectedToken:workspace.token},'DELETE');globalThis.dispatchEvent?.(new Event('delve:canonical-content-changed')); await refresh(); }));
@@ -376,7 +376,7 @@ export function mountContentBrowser(root, options = {}) {
     if(entry.abilities?.length) detail.append(section(`Owned abilities \u00b7 ${entry.abilities.length}`,...entry.abilities.map(renderAbility)));
     if(entry.mechanic) renderMechanic(entry.mechanic);
     for(const reference of entry.references ?? []) {const target=state.entries.find(e=>e.key===reference.targetKey);detail.append(target && reference.exists ? linkTo(target.key,target.name) : node('span',`${reference.id} \u00b7 unavailable`,'cb-missing'));}
-    if(definitionFields[entry.family]) {
+    if(definitionFields[entry.family] && !(entry.family === 'terrain' && entry.definition?.assembly)) {
       detail.append(authoringButton('Create Copy', () => open(entry,true), 'content-copy-definition'));
       if(context === 'canonical') detail.append(authoringButton('Edit in Workspace', () => open(entry,false,'workspace',true),'content-edit-in-workspace'));
       const local = (context === 'workspace' ? workspaceContext() : target?.getContext())?.[definitionFields[entry.family]]?.some(d => d.id === entry.id);

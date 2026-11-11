@@ -400,7 +400,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       let positions=[];
       if(ref.kind==='Position')positions=[ref.position];
       else if(ref.kind==='Unit'){const f=figures.find(f=>f.id===ref.unitId);if(f)positions=frame.presentation.figures?.[f.id]?.occupiedCells??[f.position];}
-      else if(ref.kind==='Door'){const p=edgePlacement(ref.door);add(`door:${candidate.key}`,outline(p.x-(p.vertical?.12:.5),p.z-(p.vertical?.5:.12),p.vertical?.24:1,p.vertical?1:.24,color));}
+      else if(['Door','Edge'].includes(ref.kind)){const p=edgePlacement(ref.edge??ref.door);add(`edge:${candidate.key}`,outline(p.x-(p.vertical?.12:.5),p.z-(p.vertical?.5:.12),p.vertical?.24:1,p.vertical?1:.24,color));}
       for(const p of positions){add(`${candidate.key}:${boardCellKey(p)}`,['activate','attack'].includes(kind)?brackets(p.x+.07,p.y+.07,.86,.86,color):outline(p.x+.07,p.y+.07,.86,.86,color,heights.feedback,.035));
         if(candidate.boardVisual?.icon)add(`icon:${candidate.key}:${boardCellKey(p)}`,plane(glyph(candidate.boardVisual.icon),p.x+.75,p.y+.76,.27,.27,heights.feedback+.02));}
     }
@@ -427,7 +427,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       const ref=candidate.interaction,kind=candidate.boardVisual?.kind??'special';let positions=[];
       if(ref.kind==='Position')positions=[ref.position];
       else if(ref.kind==='Unit'){const f=figures.find(f=>f.id===ref.unitId);if(f)positions=frame.presentation.figures?.[f.id]?.occupiedCells??[f.position];}
-      else if(ref.kind==='Door')door(ref.door,'door');
+      else if(['Door','Edge'].includes(ref.kind))door(ref.edge??ref.door,'door');
       for(const p of positions){if(kind!=='stay'||ref.unitId!==frame.state.currentUnitId)cell(p,kind);
         // Preserve authored action symbols; the surrounding mark is shared.
         const icon=candidate.boardVisual?.icon,key=`${boardCellKey(p)}:${icon}`;
@@ -610,8 +610,8 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     if(!frame||!active||lost)return null;updateCamera();const rect=canvas.getBoundingClientRect();if(!rect.width||!rect.height)return null;
     raycaster.setFromCamera(new THREE.Vector2(point.x/rect.width*2-1,1-point.y/rect.height*2),camera);
     const grounded=raycaster.ray.intersectPlane(ground,intersection);const cell=grounded?{x:Math.floor(intersection.x),y:Math.floor(intersection.z)}:{x:-1,y:-1},board=frame.state.physical.board;
-    // Door hit proxies include the transparent open passage. Only supplied Door choices compete.
-    const doors=(view.candidates??[]).filter(c=>c.interaction.kind==='Door').map(c=>c.interaction.door);
+    // Edge hit proxies include open passages. Only authoritative supplied choices compete.
+    const doors=(view.candidates??[]).filter(c=>['Door','Edge'].includes(c.interaction.kind)).map(c=>c.interaction.edge??c.interaction.door);
     let door,nearest=Infinity;for(const candidate of doors){const p=edgePlacement(candidate),a=cameraControl.screen({x:p.x-(p.vertical?0:.5),y:p.z-(p.vertical?.5:0)}),b=cameraControl.screen({x:p.x+(p.vertical?0:.5),y:p.z+(p.vertical?.5:0)}),dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((point.x-a.x)*dx+(point.y-a.y)*dy)/(dx*dx+dy*dy)));
       let distance=Math.hypot(point.x-a.x-t*dx,point.y-a.y-t*dy);
       if(presentation==='tabletop'&&candidate.kind!=='OpenDoor'){

@@ -173,10 +173,12 @@ public static class ContentDefinitions
             case WorldDeckDefinition x when !x.Composition.IsDefault:
                 for (int i = 0; i < x.Composition.Length; i++) if (x.Composition[i] is {} row) Add(ContentFamily.WorldCard, row.TypeId, $"composition[{i}].typeId"); break;
             case TerrainAssemblyDefinition x:
+                if (x.DestroyedTerrainTypeId is { } destroyedAssembly) Add(ContentFamily.Terrain, destroyedAssembly, "destroyedTerrainTypeId");
                 Add(ContentFamily.Terrain, x.SurfaceId, "surfaceId");
                 if (!x.Components.IsDefault) for (int i = 0; i < x.Components.Length; i++)
                     if (x.Components[i] is {} component) Add(ContentFamily.FixedComponent, component.ComponentId, $"components[{i}].componentId"); break;
             case TerrainDefinition x:
+                if (x.DestroyedTerrainTypeId is { } destroyedTerrain) Add(ContentFamily.Terrain, destroyedTerrain, "destroyedTerrainTypeId");
                 if (x.Production is DirectionalResourceProduction production) Add(ContentFamily.Resource, production.ResourceTypeId, "production.resourceTypeId");
                 if (x.Assembly is {} assembly)
                 {

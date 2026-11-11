@@ -294,7 +294,7 @@ public sealed partial class DelveChessTests
         var result = Attack(state);
         Assert.Equal(DecisionKind.Move, result.NextInput!.Kind);
         Assert.Contains(result.Events, e => e.Kind == "UnitDefeated" && e.UnitId == "t");
-        Assert.Empty(result.State.PendingExplosions);
+        Assert.Empty(result.State.PendingDefeatEffects);
     }
 
     [Fact]

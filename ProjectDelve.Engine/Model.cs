@@ -56,6 +56,7 @@ public enum DiceFamily { Attack, Defence, D6 }
 public sealed record DicePool(DiceFamily Family, int Count, string OwnerUnitId, string SourceUnitId,
     string SourceActionId, string Purpose, string? TargetId = null, Edge? Door = null, int? SuccessCount = null)
 {
+    public BreakTarget? BreakTarget { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public AbilitySourceReference? AbilitySource { get; init; }
     public Cell? SelectedCell { get; init; }
@@ -152,6 +153,9 @@ public sealed record WaypointSlotMachine(ResourceOutputTable OutputTable) : Abil
 public sealed record TerrainRestrictedMovement(TerrainKind Terrain);
 public sealed record Telekinesis : AbilityMechanic;
 public sealed record TryOpenDoor(int SuccessCount) : AbilityMechanic;
+public sealed record BreakObject([property: JsonRequired] int SuccessThreshold) : AbilityMechanic;
+public sealed record BreakAdjacentObjects([property: JsonRequired] int SuccessThreshold) : AbilityMechanic;
+public sealed record DefeatSelf : AbilityMechanic;
 public sealed record MoveAfterAttack(int MaxSteps) : AbilityMechanic;
 public sealed record Undying : AbilityMechanic;
 public sealed record Explosion : AbilityMechanic
@@ -367,6 +371,7 @@ public sealed record Candidate(string Key, Cell? Destination = null, List<Cell>?
     ActivationChoiceKind Kind = ActivationChoiceKind.Action, UnitFreeAction? FreeAction = null,
     bool Relevant = true)
 {
+    public BreakTarget? BreakTarget { get; init; }
     public ResolvedAbility? Ability { get; init; }
     public string? ItemTypeId { get; init; }
     public string? ObjectId { get; init; }
@@ -394,6 +399,8 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
     bool IsMoveAfterAttack = false, string? AbilityName = null, int Healing = 0,
     AttackResult? Attack = null, Posture? Posture = null)
 {
+    public ImmutableArray<BreakOutcome> BreakOutcomes { get; init; } = [];
+    public ImmutableArray<string> BreakSourceVisibleSideIds { get; init; } = [];
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public AbilitySourceReference? AbilitySource { get; init; }
     public OwnedObject? ObjectCard { get; init; }
@@ -515,8 +522,11 @@ public sealed class GameState
         ?? throw new InvalidOperationException("Decision has no controlling group."));
     public AttackContinuation? AttackInProgress { get; set; }
     public DoorContinuation? DoorInProgress { get; set; }
+    public BreakContinuation? BreakInProgress { get; set; }
+    public AttackContinuation? AttackAwaitingConsequences { get; set; }
+    public List<DefeatEffect> PendingDefeatEffects { get; set; } = [];
+    public bool CompleteAfterDefeatEffects { get; set; }
     // FIFO defeat consequences, retained across dice boundaries only until resolution completes.
-    public List<DefeatContext> PendingExplosions { get; set; } = [];
     public int MovesCompletedThisActivation { get; set; }
     public int MoveOpportunityModifierThisActivation { get; set; }
     public int EffectiveMovesPerActivation => (int)Math.Clamp(1L + MoveOpportunityModifierThisActivation, 0, int.MaxValue);
@@ -698,12 +708,14 @@ public sealed class GameState
         ActiveToken = ActiveToken, ResolvingTokenUnitIds = new(ResolvingTokenUnitIds, StringComparer.Ordinal), Controllers = [.. Controllers], Orders = [.. Orders], Waypoints = [.. Waypoints], Routes = [.. Routes],
         MovesCompletedThisActivation = MovesCompletedThisActivation, MoveOpportunityModifierThisActivation = MoveOpportunityModifierThisActivation,
         WaypointAdvancedThisActivation = WaypointAdvancedThisActivation,
-        AttackInProgress = AttackInProgress, DoorInProgress = DoorInProgress, ActionDone = ActionDone,
+        AttackInProgress = AttackInProgress, DoorInProgress = DoorInProgress, BreakInProgress = BreakInProgress,
+        AttackAwaitingConsequences = AttackAwaitingConsequences,
+        PendingDefeatEffects = [.. PendingDefeatEffects], CompleteAfterDefeatEffects = CompleteAfterDefeatEffects, ActionDone = ActionDone,
         CompletedUnitIds = [.. CompletedUnitIds],
         ModifiersThisTurn = [.. ModifiersThisTurn],
         CurrentUnitId = CurrentUnitId, MoveAfterAttackAllowance = MoveAfterAttackAllowance,
         AdvanceOnKillCells = AdvanceOnKillCells,
-        CleavePending = CleavePending, PendingExplosions = [.. PendingExplosions],
+        CleavePending = CleavePending,
         Pending = Pending is null ? null : Pending with { Candidates = Pending.Candidates.Select(candidate =>
             candidate with { Path = candidate.Path is null ? null : [.. candidate.Path] }).ToList() },
         RoundComplete = RoundComplete

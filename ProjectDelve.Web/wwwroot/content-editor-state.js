@@ -66,7 +66,7 @@ export class ContentEditorState {
     [costs[costIndex], costs[next]] = [costs[next], costs[costIndex]]; this.version++; return true;
   }
   references(family) {
-    const field = { units: 'unitTypes', equipment: 'equipmentTypes', items: 'itemTypes', lootCards: 'lootCardDefinitions' }[family];
+    const field = { units: 'unitTypes', equipment: 'equipmentTypes', items: 'itemTypes', lootCards: 'lootCardDefinitions', terrain: 'terrainTypes', terrainAssemblies: 'terrainAssemblies', fixedComponents: 'fixedComponentTypes' }[family];
     const combined = new Map(this.entries.filter(entry => entry.family === family).map(entry => [entry.id, { id: entry.id, name: entry.name }]));
     for (const definition of this.context?.[field] ?? []) combined.set(definition.id, { id: definition.id, name: definition.displayName ?? definition.name ?? definition.id });
     if (family === 'units' && this.family === 'units' && this.definition?.id?.trim())
@@ -76,8 +76,11 @@ export class ContentEditorState {
   open({ family, definition, existingId, copy = false, newId, context = {} }) {
     this.family = family; this.existingId = copy ? undefined : existingId;
     this.context = cloneContent(context);
-    this.definition = cloneContent(definition ?? (family === 'units' ? this.catalog.unitAuthoring?.defaults ?? { id: '', displayName: '', localAbilities: [] } : ['equipment', 'items'].includes(family) ? { id: '', name: '', localAbilities: [] } : { id: '', name: '', equipmentTypeId: '' }));
-    if (copy) this.definition.id = newId ?? '';
+    this.definition = cloneContent(definition ?? (family === 'terrain' ? { id: '', name: '', passable: true, blocksLos: false, blocksVision: false, allowsResourceMarkers: true, categories: [], presentation: { recipe: 'generic' } } : family === 'terrainAssemblies' ? { id: '', name: '', surfaceId: '', components: [] } : family === 'units' ? this.catalog.unitAuthoring?.defaults ?? { id: '', displayName: '', localAbilities: [] } : ['equipment', 'items'].includes(family) ? { id: '', name: '', localAbilities: [] } : { id: '', name: '', equipmentTypeId: '' }));
+    if (copy) {
+      this.definition.id = newId ?? '';
+      if (family === 'terrain') { delete this.definition.legacyKind; delete this.definition.legacyProductionIdentity; delete this.definition.assembly; }
+    }
     if (['equipment', 'items', 'units'].includes(family)) this.definition.localAbilities ??= [];
     this.usedKeys = new Set(this.definition.localAbilities?.map(ability => ability.key) ?? []);
     this.existingAbilities = new WeakSet(this.existingId ? this.definition.localAbilities ?? [] : []);

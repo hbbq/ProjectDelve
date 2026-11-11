@@ -33,6 +33,13 @@ public static partial class GameEngine
 
             switch (ability.Definition.Mechanic)
             {
+                case BreakObject:
+                    foreach (var target in BreakObjectRules.Targets(state, FootprintGeometry.OccupiedCells(state, unit.Id)))
+                        yield return Bind(new($"{ability.CandidatePrefix}:{target.Key}") { BreakTarget = target });
+                    break;
+                case BreakAdjacentObjects:
+                    yield return Bind(new(ability.CandidatePrefix));
+                    break;
                 case AdjacentUnitHealMechanic heal:
                     foreach (var target in AbilityQueries.AdjacentRecipients(state, unit, heal.Selector)
                                  .Where(target => target.CurrentHp < state.Types.Single(type => type.Id == target.TypeId).Hp))
@@ -139,6 +146,12 @@ public static partial class GameEngine
             EmitActionUsed(request, choice.Key, events);
         switch (ability.Definition.Mechanic)
         {
+            case BreakObject:
+                BeginBreak(state, request.UnitId!, ability, [choice.BreakTarget!], false, events);
+                break;
+            case BreakAdjacentObjects:
+                BeginBreak(state, request.UnitId!, ability, BreakObjectRules.Targets(state, FootprintGeometry.OccupiedCells(state, request.UnitId!), area: true), true, events);
+                break;
             case AdjacentUnitsPostureChangeMechanic posture:
                 foreach (var targetId in choice.TargetIds)
                     if (state.Physical.Figures.Any(figure => figure.Id == targetId))

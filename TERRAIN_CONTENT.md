@@ -10,7 +10,7 @@ Open **Home → Test Scenarios → Fixed Furniture - Shared Components → Play 
 
 Start a round, wait for the Wizard and choose **Stay**. Its ordinary Attack can target the eastern Practice Dummy across the Table; the southern Dummy is screened by the Statue. The Dummies have Do Nothing Orders, and there is no victory condition, World Deck or random Loot. **View & camera → Full Board** shows the complete arrangement. Each assembly occupies one Cell and represents one physical tile, including all its fixed furniture.
 
-**Details → Open in Designer** exposes the assembled name, effective movement/LOS properties, surface, fixed component names and orientation. Choose an assembly in the Terrain palette to paint it; use **Use default (remove override)** to remove a placement. Undo/redo, saved drafts, recovery, JSON/DELVE1 import/export and **Test scenario** preserve the authored references. Creating a new component or assembly uses JSON in this milestone. Tests use dedicated fixtures, not this mutable example's layout.
+**Details → Open in Designer** exposes the assembled name, effective movement/LOS properties, surface, fixed component names and orientation. Choose an assembly in the Terrain palette to paint it; use **Use default (remove override)** to remove a placement. Undo/redo, saved drafts, recovery, JSON/DELVE1 import/export and **Test scenario** preserve the authored references. Content forms create and edit assemblies using existing fixed components; new component definitions can use JSON. Tests use dedicated fixtures, not this mutable example's layout.
 
 ## Playable example: Environmental Production - Three Sources
 
@@ -32,7 +32,7 @@ Open **Home → Test Scenarios → Local Terrain - Curiosity Room → Play scena
 
 Start a round and wait for the Wizard's activation. Neither the Plinth immediately to the east nor the Column immediately to the south is a legal stopping Cell. Choose **Stay**, then inspect the ordinary Attack choices: the eastern Practice Dummy can be attacked across the Plinth; the southern Dummy is hidden from that attack by the Column. The Dummies do not move or attack. There is no victory condition, World Deck or random Loot. Restart restores the initial setup.
 
-Use **Details → Open in Designer** to select these Terrain Types by name and paint more Cells. **Test scenario** plays the exported draft; **Menu → Back to Designer** returns to the authoring workspace. Import/export, recovery and undo/redo preserve the definitions and their references. Creating or changing a Terrain definition itself uses scenario JSON in this milestone.
+Use **Details → Open in Designer** to select these Terrain Types by name and paint more Cells. **Test scenario** plays the exported draft; **Menu → Back to Designer** returns to the authoring workspace. Import/export, recovery and undo/redo preserve the definitions and their references. The Content editor creates and edits atomic terrain and assemblies through typed forms.
 
 These authored coordinates explain the current demonstration, not a test contract. Regression tests use dedicated test-owned scenarios; library checks only require valid loading and instantiation.
 
@@ -319,4 +319,16 @@ Resolved runtime catalogs and snapshots retain production data. Runtime Boards w
 
 `legacyKind` is compatibility metadata for canonical content, not a way for local definitions to acquire Rail behavior or other specialized mechanics. Selecting a Lava, Fruit Tree or Rail visual recipe does not grant production or movement rules. Production requires a typed declaration.
 
-This milestone does not implement inheritance, Create Variant, Create Copy, nested assemblies, multiple raised furniture objects or producers on one Cell, generic environmental Actions or runtime terrain mutation. Future inheritance and copy operations should remain authoring transformations that resolve to the same immutable Terrain definition boundary. They must not mutate a running game's catalog or turn presentation recipes into game rules.
+Nested assemblies, multiple raised furniture objects or producers on one Cell and generic environmental scripting remain unsupported. Authoring copies resolve to ordinary immutable Terrain definitions; they never mutate a running game's content catalog or turn appearance into rules.
+
+## Destruction results
+
+Atomic `TerrainDefinition` and `TerrainAssemblyDefinition` declarations accept optional `destroyedTerrainTypeId`. The resolved effective terrain carries that same explicit reference. Omit it for indestructibility. An assembly may name its surface or another valid Type; assemblies are not implicitly destructible. Content validation/dependency closure includes destruction references, rejects missing/self/cyclic replacements and rejects results needing unsupported placement setup such as Rail direction.
+
+Canonical mappings are Tree → Grass, Fruit Tree → Grass, Solid Rock → Gravel, Stone Floor with Table → Stone Floor, and Campfire → Grass. For Table on Grass declare Grass explicitly; for Campfire on Gravel declare Gravel. There is no hidden ground stack to recover. Wall, either Door posture and Wall with Window use the small shared Edge-to-None mapping.
+
+Break uses narrow authoritative replacement with local validity checks; it clears old tile metadata and preserves other physical layers. Geometry changes invalidate ordinary vision through existing geometry reconciliation, update movement/LOS queries, and publish typed outcomes with event-time observation. Area changes share one mutation boundary. Permanent exploration shows current explored geometry, while unknown geometry and unknown before-state remain hidden. Generation shell/room reservations do not restrict runtime destruction.
+
+Content Designer exposes atomic terrain and assembly forms with optional **Destroyed terrain** selection. Copy/edit, local validation, Workspace/library dependency closure, publication and scenario export use the same typed content as C# declarations. Model art and recipe controls remain presentation only.
+
+Area destruction conservatively preflights the frozen candidates in deterministic order. Every possible subset of accepted replacements must preserve validity, because attempts can independently fail. Two dry Cells configured to become Water across a Wall therefore cannot both be accepted: the later candidate is excluded before rolling, even if the earlier attempt later fails. Existing Water cannot be assumed to disappear just because an earlier accepted replacement would remove it. Excluded candidates consume no RNG and emit no attempt/failure outcome. Threshold 6 uses the same preflight without dice. Successful accepted replacements are applied together; ordinary observation, replay and action accounting remain unchanged.

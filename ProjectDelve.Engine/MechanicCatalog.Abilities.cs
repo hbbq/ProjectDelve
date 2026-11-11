@@ -6,6 +6,28 @@ public static partial class MechanicCatalog
 {
     private static partial IEnumerable<MechanicRegistration> AbilityRegistrations()
     {
+        var threshold = new MechanicParameter("successThreshold", MechanicParameterKind.Integer) { Minimum = 1, Maximum = 6 };
+        yield return MechanicRegistration.Create<BreakObject>(AbilityContract("breakObject", "Break Object",
+            [MechanicTiming.Action, MechanicTiming.BonusAction], MechanicContext.ActingUnit,
+            new(MechanicTargetSelection.CellOrEdge, "One safely destructible neighboring Cell outside the source footprint using LOS ignoring only target Terrain, or one structure Edge bordering the footprint."),
+            "Choose a neighboring destructible object or bordering structure. Roll a d6; break it on {successThreshold} or less. A success threshold of 6 succeeds without rolling.", ["successThreshold"], ["terrain", "edges", "lineOfSight", "dice"])
+            with { Parameters = [threshold] },
+            (payload, path, errors) => MechanicChecks.Integer(errors, threshold, payload.SuccessThreshold, path + ".successThreshold"));
+        var adjacent = AbilityContract("breakAdjacentObjects", "Break Adjacent Objects",
+            [MechanicTiming.Action, MechanicTiming.BonusAction], MechanicContext.ActingUnit,
+            new(MechanicTargetSelection.None, "Every safely destructible neighboring Cell outside the source footprint using target-only Terrain LOS exemption, and every structure Edge bordering it. Freeze recipients before resolving."),
+            "Break every neighboring destructible object and bordering structure on a separate d6 result of {successThreshold} or less. A success threshold of 6 succeeds without rolling.", ["successThreshold"], ["terrain", "edges", "lineOfSight", "dice"]);
+        yield return MechanicRegistration.Create<BreakAdjacentObjects>(adjacent with
+        {
+            Parameters = [threshold],
+            ContextRequirements = "Active uses require an Upright acting Unit and the declared Action or Bonus Action opportunity. Native WhenDefeated uses the captured defeat footprint and source Ability through the FIFO consequence queue.",
+            Profiles = adjacent.Profiles.Add(new(MechanicSource.Unit, MechanicTiming.WhenDefeated, MechanicUsageSupport.UnlimitedOnly)),
+            Description = adjacent.Description with { TimingTemplates = [new(MechanicTiming.WhenDefeated, "When this Unit is defeated, break every neighboring destructible object and bordering structure on a separate d6 result of {successThreshold} or less. A success threshold of 6 succeeds without rolling.")] }
+        }, (payload, path, errors) => MechanicChecks.Integer(errors, threshold, payload.SuccessThreshold, path + ".successThreshold"));
+        var defeatSelf = SpecializedMarker<DefeatSelf>("defeatSelf", "Defeat Self", MechanicTiming.InsteadOfActivation,
+            "Instead of this Upright Unit's activation, defeat it.");
+        yield return defeatSelf with { Descriptor = defeatSelf.Descriptor with
+            { Dependencies = ["uprightSource", "activationSelection", "defeatReplacement", "defeatConsequences"] } };
         var selector = RelationshipSelectorParameter();
         var posture = new MechanicParameter("newPosture", MechanicParameterKind.Enum) { AllowedValues = ["Upright", "Lying"] };
         yield return MechanicRegistration.Create<AdjacentUnitsPostureChangeMechanic>(AbilityContract("adjacentUnitsPostureChange", "Adjacent Units Posture Change",
@@ -160,6 +182,11 @@ public static partial class MechanicCatalog
 
     internal static string AbilityDescriptionTemplate(LocalAbilityDefinition ability)
     {
+        if (ability.Mechanic is BreakObject { SuccessThreshold: 6 })
+            return "Choose a neighboring destructible object or bordering structure. Break it without rolling.";
+        if (ability.Mechanic is BreakAdjacentObjects { SuccessThreshold: 6 })
+            return (ability.Timing == AbilityTiming.WhenDefeated ? "When this Unit is defeated, break" : "Break") +
+                " every neighboring destructible object and bordering structure without rolling.";
         var descriptor = FindByPayload(ability.Mechanic)
             ?? throw new ArgumentException("Unsupported ability mechanic.");
         var timing = AbilityTimingContext(ability.Timing);
