@@ -17,6 +17,7 @@
           "hp": 2,
           "actions": "NormalAttack",
           "behaviors": "None",
+          "sightDistance": 5,
           "canHaveItems": true,
           "canHaveEquipment": true,
           "lootDropSuccesses": 1,
@@ -61,6 +62,46 @@
               "usage": {
                 "maxUses": 2
               }
+            }
+          ]
+        },
+        {
+          "id": "demolition-imp",
+          "mov": 3,
+          "rng": 1,
+          "atk": 2,
+          "def": 2,
+          "hp": 1,
+          "actions": "NormalAttack",
+          "behaviors": "PreferHostileAdjacency, ProtectWithoutAdjacency",
+          "sightDistance": 5,
+          "canHaveItems": false,
+          "canHaveEquipment": false,
+          "lootDropSuccesses": 1,
+          "attackDefinitionOrder": [],
+          "unique": false,
+          "footprint": "OneByOne",
+          "displayName": "Demolition Imp",
+          "localAbilities": [
+            {
+              "key": "explosion",
+              "name": "Explosion",
+              "timing": "WhenDefeated",
+              "mechanic": {
+                "kind": "explosion",
+                "damage": 1
+              },
+              "usage": {}
+            },
+            {
+              "key": "ability-1",
+              "name": "Break Adjacent Objects",
+              "timing": "WhenDefeated",
+              "mechanic": {
+                "kind": "breakAdjacentObjects",
+                "successThreshold": 6
+              },
+              "usage": {}
             }
           ]
         }
@@ -524,7 +565,24 @@
               "name": "Swap",
               "timing": "BonusAction",
               "mechanic": {
-                "kind": "swap"
+                "kind": "swap",
+                "selector": "Enemies"
+              },
+              "usage": {}
+            }
+          ]
+        },
+        {
+          "id": "stonebreaker",
+          "name": "Stonebreaker",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Break Object",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "breakObject",
+                "successThreshold": 4
               },
               "usage": {}
             }
@@ -699,6 +757,21 @@
           "id": "last-resort-fireball",
           "name": "Last Resort Fireball",
           "itemTypeId": "last-resort-fireball"
+        },
+        {
+          "id": "binoculars",
+          "name": "Binoculars",
+          "equipmentTypeId": "binoculars"
+        },
+        {
+          "id": "stonebreaker",
+          "name": "Stonebreaker",
+          "equipmentTypeId": "stonebreaker"
+        },
+        {
+          "id": "swim-tube",
+          "name": "Swim Tube",
+          "equipmentTypeId": "swim-tube"
         }
       ],
       "lootPresets": [],
