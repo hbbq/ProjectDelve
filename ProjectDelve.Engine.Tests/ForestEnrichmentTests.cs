@@ -7,6 +7,133 @@ namespace ProjectDelve.Engine.Tests;
 public sealed class ForestEnrichmentTests
 {
     [Fact]
+    public void EnclosedClearingConnectsToOutsideGroundRatherThanItsOwnPocket()
+    {
+        var rows = EnrichmentFixtures.Mass('T', 30);
+        for (var y = 14; y < 19; y++) rows[y] = rows[y][..14] + "....." + rows[y][19..];
+        var c = EnrichmentFixtures.Create(rows);
+        var pocket = Assert.Single(c.OriginalAnalysis!.Opportunities.Where(o => o.Kind == "clearing"));
+        Assert.NotEqual(c.OriginalAnalysis.WalkableLabels[0], c.OriginalAnalysis.WalkableLabels[pocket.AnchorIndex]);
+
+        ForestEnricher.Apply(c, EnrichmentFixtures.Step(WorldStepKind.ForestEnrichment, intensity: 3), ContentBundle.Canonical());
+
+        var after = TerrainAnalyzer.Analyze(c.Window, c.Samples);
+        Assert.Equal(after.WalkableLabels[0], after.WalkableLabels[pocket.AnchorIndex]);
+        Assert.Contains(c.FeatureOpportunities, o => o.AnchorIndex == pocket.AnchorIndex);
+        Assert.All(c.FeatureOpportunities, o => Assert.Equal(after.WalkableLabels[0], after.WalkableLabels[o.AnchorIndex]));
+        var reuse = c.Features.Single(f => f.Id == c.FeatureOpportunities.Single(o => o.AnchorIndex == pocket.AnchorIndex).FeatureId);
+        Assert.Contains(reuse.EntranceIndices, e => c.OriginalAnalysis.WalkableLabels[c.Entrances[e].OutsideIndex] == c.OriginalAnalysis.WalkableLabels[0]);
+    }
+
+    [Fact]
+    public void DeepForestUsesSeveralInteriorRegionsWithinTheOriginalCeiling()
+    {
+        var c = EnrichmentFixtures.Create(EnrichmentFixtures.Mass('T', 80));
+        var before = c.OriginalAnalysis!;
+        ForestEnricher.Apply(c, EnrichmentFixtures.Step(WorldStepKind.ForestEnrichment, intensity: 3), ContentBundle.Canonical());
+        var after = TerrainAnalyzer.Analyze(c.Window, c.Samples);
+        // Conservative quality floors for this dedicated square fixture, not universal map guarantees.
+        Assert.True(c.Features.Count > 6);
+        Assert.True(after.Depth.Where((_, i) => c.Samples[i].TerrainTypeId == "tree").Max() < 30);
+        Assert.True(after.Depth.Where((d, i) => d >= 6 && c.Samples[i].TerrainTypeId == "tree").Count() <
+            before.Depth.Count(d => d >= 6) * .75);
+        Assert.Equal(4, c.FeatureOpportunities.Select(o => (o.AnchorIndex % 84 >= 42, o.AnchorIndex / 84 >= 42)).Distinct().Count());
+        Assert.All(c.FeatureOpportunities, o => Assert.Equal(after.WalkableLabels[0], after.WalkableLabels[o.AnchorIndex]));
+        Assert.InRange(c.Features.Sum(f => f.ChangedCells), 400, 6400 * 18 / 100);
+        Assert.InRange(c.Features.Count, 1, 2 + 6400 / 250);
+        Assert.InRange(c.RoutingSearches, 1, (16 + (2 + 6400 / 250) * 4) * 6);
+        Assert.InRange(c.RoutingVisitedCells, 1, 2_000_000);
+    }
+
+    [Fact]
+    public void SeparateMeaningfulApproachRegionsBothReceiveForestFeatures()
+    {
+        // A Water partition keeps the smaller right region permanently separate. Neither
+        // region is required to join a universal component to justify exploring its forest.
+        var rows = Enumerable.Range(0, 30).Select(y => string.Concat(Enumerable.Range(0, 64).Select(x =>
+            x is 35 or 36 ? 'W' : y >= 4 && y < 24 && (x >= 4 && x < 28 || x >= 40 && x < 60) ? 'T' : '.'))).ToArray();
+        var c = EnrichmentFixtures.Create(rows);
+        ForestEnricher.Apply(c, EnrichmentFixtures.Step(WorldStepKind.ForestEnrichment, intensity: 3), ContentBundle.Canonical());
+        var after = TerrainAnalyzer.Analyze(c.Window, c.Samples);
+        Assert.NotEqual(after.WalkableLabels[0], after.WalkableLabels[63]);
+        Assert.Contains(c.FeatureOpportunities, o => after.WalkableLabels[o.AnchorIndex] == after.WalkableLabels[0]);
+        Assert.Contains(c.FeatureOpportunities, o => after.WalkableLabels[o.AnchorIndex] == after.WalkableLabels[63]);
+        Assert.All(Enumerable.Range(0, c.Samples.Length).Where(i => c.OriginalSamples[i].TerrainTypeId == "water"),
+            i => Assert.Equal(c.OriginalSamples[i], c.Samples[i]));
+    }
+
+    [Theory]
+    [InlineData("wet-grass", true)]
+    [InlineData("rocky-water", true)]
+    [InlineData("water", false)]
+    public void EntranceEligibilityUsesLandPermissionsAndPreservesApproachTerrain(string approach, bool accessible)
+    {
+        var c = EnrichmentFixtures.Create(EnrichmentFixtures.Mass('T'));
+        for (var i = 0; i < c.Samples.Length; i++)
+            if (c.Samples[i].TerrainTypeId == "grass") c.OriginalSamples[i] = c.Samples[i] = c.Samples[i] with { TerrainTypeId = approach };
+        c.OriginalAnalysis = c.CurrentAnalysis = TerrainAnalyzer.Analyze(c.Window, c.Samples);
+        ForestEnricher.Apply(c, EnrichmentFixtures.Step(WorldStepKind.ForestEnrichment), ContentBundle.Canonical());
+        Assert.Equal(accessible, c.Features.Count > 0);
+        Assert.All(c.Entrances, e => Assert.Equal(approach, c.Samples[e.OutsideIndex].TerrainTypeId));
+        Assert.All(Enumerable.Range(0, c.Samples.Length).Where(i => c.OriginalSamples[i].TerrainTypeId == approach),
+            i => Assert.Equal(c.OriginalSamples[i], c.Samples[i]));
+    }
+
+    [Fact]
+    public void InfeasibleFullConnectionLeavesNoPartialClearingOrMetadata()
+    {
+        var c = EnrichmentFixtures.Create(EnrichmentFixtures.Mass('T'));
+        // Previous steps left five Cells: enough to attempt work, but insufficient
+        // for any complete clearing plus connection in this fixture.
+        var core = Enumerable.Range(0, c.Samples.Length).Where(i => c.OriginalSamples[i].TerrainTypeId == "tree").Take(47).ToArray();
+        foreach (var i in core) c.Samples[i] = c.Samples[i] with { TerrainTypeId = "dirt" };
+        var before = c.Samples.ToArray();
+        ForestEnricher.Apply(c, EnrichmentFixtures.Step(WorldStepKind.ForestEnrichment), ContentBundle.Canonical());
+        Assert.True(c.RoutingSearches > 0);
+        Assert.Equal(before, c.Samples); Assert.Empty(c.Features); Assert.Empty(c.Entrances); Assert.Empty(c.FeatureOpportunities);
+    }
+
+    [Fact]
+    public void SecondMouthBenefitUsesActualWalkIncludingProposedMainTrail()
+    {
+        // The small pocket is separated from the exterior by two Tree columns.
+        var c = EnrichmentFixtures.Create([".......", ".TTTTT.", ".T...T.", ".TTTTT.", "......."]);
+        var geometry = new ForestGeometry(new EnrichmentTerrain(c, ContentBundle.Canonical()));
+        var center = 2 * 7 + 3;
+        HashSet<int> main = [2 * 7 + 1];
+        // A neighboring mouth offers an existing short walk, even before committing the main trail.
+        Assert.True(geometry.HasShortPath(center, 7, 8, main));
+        // A useful opposite mouth saves a real detour around the whole mass.
+        Assert.False(geometry.HasShortPath(center, 2 * 7 + 6, 6, main));
+        Assert.True(geometry.HasShortPath(center, 2 * 7 + 6, 6, new HashSet<int>(main) { 2 * 7 + 5 }));
+        Assert.Equal(c.OriginalSamples, c.Samples);
+    }
+
+    [Theory]
+    [InlineData(30, 24, 1)]
+    [InlineData(60, 50, 42)]
+    [InlineData(120, 120, 42)]
+    public void ForestOnlyRegressionCorpusIsDeterministicBudgetedAndEngineValid(int width, int height, ulong seed)
+    {
+        var recipe = new WorldGenerationRecipe(new(-17, -13, width, height), new(60, 8, 8), seed,
+            new(Intensity: 3, Rock: false, Water: false, Grassland: false));
+        var a = WorldGenerator.Generate(recipe); var b = WorldGenerator.Generate(recipe);
+        Assert.Equal(a.Fingerprint, b.Fingerprint);
+        Assert.Equal(JsonSerializer.Serialize(a.Preview), JsonSerializer.Serialize(b.Preview));
+        Assert.NotNull(GameEngine.CreateGame(a.Definition));
+        Assert.Equal(ScenarioDefinitionJson.ToJson(a.Definition),
+            ScenarioDefinitionJson.ToJson(ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(a.Definition))));
+        var original = a.Context.OriginalAnalysis!;
+        foreach (var group in Enumerable.Range(0, a.Context.Samples.Length).GroupBy(i => original.FormationLabels[i]))
+        {
+            var edits = group.Where(i => a.Context.OriginalSamples[i].TerrainTypeId != a.Context.Samples[i].TerrainTypeId).ToArray();
+            Assert.InRange(edits.Length, 0, original.Formations[group.Key].CoreArea * 18 / 100);
+            Assert.All(edits, i => Assert.Equal("tree", a.Context.OriginalSamples[i].TerrainTypeId));
+        }
+        Assert.InRange(a.Context.RoutingVisitedCells, 0, 2_000_000);
+    }
+
+    [Fact]
     public void DenseForestGainsClearingAndTraversableTrailWithoutChangingNaturalSource()
     {
         var c = EnrichmentFixtures.Create(EnrichmentFixtures.Mass('T')); var source = c.OriginalSamples.ToArray();

@@ -74,6 +74,14 @@ open land and Water regions, a principal reference root/area, Site port and dung
 entrance/room anchor membership, completion and work. These open-region labels
 are separate from the historical doors-openable construction-policy region.
 
+Early Forest Enrichment uses a separate decision-local land-component index to
+rank natural openings and paths (see [Forest Phase 2](TERRAIN_ENRICHMENT.md#forest-selection-phase-2)).
+It is a terrain-authoring policy, not a new acceptance condition in these advisory
+audits. Generator formation and construction-policy graphs treat ordinary Closed
+Doors as potential passages equivalent to Open Doors; they never change gameplay
+Door state. Actor-specific and open-region audits retain their explicitly named
+Door assumptions. Forest runs before any construction Edges exist.
+
 `WorldPreviewFrame.UnitAccessibility` appears after Population and before final
 publication. Each entry identifies the Unit, encounter and actual start, effective
 profile, ordinary/conditional stopping counts, principal membership/access, Door

@@ -86,8 +86,12 @@ public sealed class TerrainAnalysisTests
         var samples = Samples("..."); var window = new WorldWindow(Width: 3, Height: 1);
         var wall = TerrainAnalyzer.Analyze(window, samples, edges: [new(new(0, 0), EdgeDirection.Right, EdgeKind.Wall)]);
         Assert.Equal(2, wall.Connectivity.ComponentCount);
-        var door = TerrainAnalyzer.Analyze(window, samples, edges: [new(new(0, 0), EdgeDirection.Right, EdgeKind.ClosedDoor)]);
+        EdgeDefinition[] closed = [new(new(0, 0), EdgeDirection.Right, EdgeKind.ClosedDoor)];
+        var door = TerrainAnalyzer.Analyze(window, samples, edges: closed);
         Assert.Equal(1, door.Connectivity.ComponentCount);
+        var open = TerrainAnalyzer.Analyze(window, samples, edges: [closed[0] with { Kind = EdgeKind.OpenDoor }]);
+        Assert.Equal(open.WalkableLabels, door.WalkableLabels);
+        Assert.Equal(EdgeKind.ClosedDoor, closed[0].Kind);
         var windowWall = TerrainAnalyzer.Analyze(window, samples, edges: [new(new(0, 0), EdgeDirection.Right, EdgeKind.WallWithWindow)]);
         Assert.Equal(2, windowWall.Connectivity.ComponentCount);
         Assert.Throws<ArgumentException>(() => TerrainAnalyzer.Analyze(window, samples,

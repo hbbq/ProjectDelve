@@ -87,24 +87,31 @@ public sealed class SiteConnectionsTests
     [Fact]
     public void AutomaticAccessPrefersUsableGroundOverWaterFacingPorts()
     {
-        var world = WorldGenerator.Generate(new WorldGenerationRecipe(new(-121, -1, 21, 55), new(35, 10, 15), 991, new(), new(),
-            new(Profile: RouteProfileKind.ForestTrail)));
-        var checkedSites = 0;
-        foreach (var site in world.Context.Sites)
+        // Exercise the surface-Site publisher directly: natural generation can now
+        // also place a dungeon, whose anchored access needs no surface route request.
+        var footprint = Enumerable.Range(2, 3).SelectMany(y => Enumerable.Range(2, 3).Select(x => y * 7 + x)).ToArray();
+        var exterior = footprint.Where(i => i != 24).ToArray();
+        var groundApproach = 5 * 7 + 3;
+        var board = new PlanningBoard(new ScenarioDefinition
         {
-            var board = world.Context.ConstructionBoard!;
-            if (!site.AccessPorts.Any(p => board.Passable(p.OutwardIndex))) continue;
-            checkedSites++;
-            if (site.ConnectionRequests.Count == 0)
+            Board = new()
             {
-                Assert.All(site.AccessPorts, p => Assert.True(board.IsRouteCorridor(p.OutwardIndex) && board.Passable(p.OutwardIndex)));
-                continue;
-            }
-            var request = Assert.Single(site.ConnectionRequests);
-            var selected = site.AccessPorts.Single(p => p.Id == request.PortId);
-            Assert.True(board.Passable(selected.OutwardIndex));
-        }
-        Assert.True(checkedSites > 0);
+                Width = 7, Height = 7, DefaultTerrain = TerrainKind.Water,
+                Cells = footprint.Append(groundApproach).Select(i => new CellDefinition(new(i % 7, i / 7), TerrainKind.Grass)).ToList()
+            },
+            UnitTypeIds = [], Units = [], Agency = [], Loot = LootSettings.Empty
+        }, ContentBundle.Canonical());
+        var draft = board.BeginDraft(new(0, 0, 7, 7), "surface-site", new());
+        var site = new SiteInfo("surface-site", GeneratedSiteKind.Campsite, GeneratedArea.From("footprint", footprint, 7),
+            GeneratedArea.From("exterior", exterior, 7), [],
+            [new("entrance", "surface-site", 24, 17, EdgeKey.Between(24, 17, 7), EdgeKind.None)],
+            new(9, 9, true, true, 0), [], [], [], null, PreparationSummary.Empty);
+        var published = SiteRouteAccess.Publish(site, draft, new(PreferredApproach: CardinalSide.North));
+        Assert.Contains(published.AccessPorts, p => !draft.Passable(p.OutwardIndex));
+        var request = Assert.Single(published.ConnectionRequests);
+        var selected = Assert.Single(published.AccessPorts.Where(p => p.Id == request.PortId));
+        Assert.Equal(groundApproach, selected.OutwardIndex);
+        Assert.True(draft.Passable(selected.OutwardIndex));
     }
 
     [Fact]

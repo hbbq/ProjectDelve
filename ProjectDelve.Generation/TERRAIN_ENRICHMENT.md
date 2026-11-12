@@ -117,7 +117,7 @@ to current components while their original formation provenance is retained.
 
 | Family | Transformation | Cumulative intensity ceilings |
 | --- | --- | --- |
-| Forest | Prefer suitable existing clearings; add connected irregular grassy openings, exposed-soil trails and occasionally a separated second entrance creating branches/loops. | 8 / 13 / 18% of original formation core changed. |
+| Forest | Connect suitable existing clearings and deep irregular grassy openings to meaningful current land regions; add exposed-soil trails and measured useful branches/shortcuts. | 8 / 13 / 18% of original formation core changed. |
 | Rock | Interior irregular floor chambers, connected tunnels, selected mouths and occasional second-mouth mountain passes. | 7 / 10 / 13% excavated. |
 | Water | Interior irregular islands and occasional loose chains; shoreline anchors and bank-pair crossing candidates. | 3 / 5 / 7% converted. Original shoreline Water Cells remain unchanged. |
 | Grassland | Spaced tree pockets, rock outcrops, Dirt patches and nearby natural-landmark opportunities. | 4 / 6 / 8% changed overall; blocking additions limited to 1 / 1.5 / 2%. |
@@ -151,6 +151,73 @@ walkable area: preserving open space while adding occasional cover is intended.
 This stage creates local exploration connections within formations. Deliberate
 routes between future Sites remain the responsibility of Connections. No final
 scenario reachability or objective guarantee is made.
+
+### Forest selection, Phase 2
+
+Forest uses a decision-local index of ordinary cardinal land components. A
+meaningful approach has at least 64 Cells, or the area of the largest available
+approach if none reaches 64. This is a bounded authoring preference, not a new
+game rule or a requirement to join the world's largest component. Several
+disconnected meaningful regions can each receive features. Small isolated
+regions remain possible, and an all-Tree crop still has no fabricated mouth.
+
+Existing clearing candidates must route to a *different* current component;
+a mouth back into their own pocket cannot count as an external connection.
+New openings route to eligible approach regions using one deterministic
+multi-target weighted search. Mouth eligibility follows resolved ordinary land
+permissions, including Wet Grass and Rocky Water. Traversed ground is preserved;
+only still-Tree Cells of the original Forest core can be carved. An existing
+clearing already in a meaningful region is not credited again for a local loop.
+
+Tree candidates rank by `4 * remaining depth + original depth`, without the old
+depth-five plateau. Depth is recomputed over the formation's indexed core after
+acceptance. Existing disconnected clearings score `24 + min(40, usable area)`;
+the existing 4..80-Cell clearing candidate range is retained. Seeded ordering
+settles equal candidate scores; `(cost, Cell index)` settles route ties. A
+seven-Cell Manhattan exclusion around accepted centers (also from previous
+steps) and a three-Cell exclusion around attempted centers avoid repeated nearby
+selection. These are exclusion radii, not a uniform corridor grid. Irregular
+blobs and coherent route-cost variation retain seed-dependent shapes.
+
+After accessibility selects a main mouth, paths of at least ten Cells may use
+one additional search with the same soft sinusoidal guide used by ForestTrail
+route planning: lateral amplitude is at most four Cells and tapers to zero at
+both endpoints. The shaped path must fit the same remaining budget and contain
+at most `1.3 * original path Cell count + 4` Cells; otherwise the original
+connection is retained. Branch paths also use the soft guide. No mandatory
+waypoint, new seed domain or extra RNG draw is introduced. This avoids the
+long rectangular patterns seen with unshaped cardinal cheapest paths, while
+allowing straight segments where terrain or budget favors them.
+
+A separated second mouth is considered on one third of candidates. It must
+add terrain and either join a component not already touched by the proposal or
+shorten the actual pre-branch walk by more than eight steps. At most four
+alternatives are tried. The complete clearing and accepted paths must fit the
+remaining original disturbance allowance before any terrain or metadata writes.
+`RequiresConnection=false` describes that accepted local connection; it is not a
+promise of access from Quick Play's final start, or through later construction.
+
+Per formation the pass accepts at most `min(64, 2 + core area / 250)` features
+and tries at most `min(256, 16 + 4 * feature limit)` centers (integer division),
+with at most six route searches per center (main, shaping, four branches).
+Main/branch routing and shortcut checks share a two-million-Cell expansion cap
+per Forest step; exhausted work cannot certify a shortcut. Original membership
+and changed counts are grouped in one board scan. Incremental component unions,
+indexed spatial exclusions and reused route scratch arrays avoid per-candidate
+full-board analysis. Candidate/depth work is scoped to the indexed formation,
+bounded by the above limits; remaining-depth refresh runs only after acceptance.
+Search may stop with unused disturbance budget. Intensity still selects only
+the 8/13/18% ceilings; it does not promise monotonic feature counts or layouts.
+
+Forest remains an early sample transformation. Plan validation prohibits it
+after planning-board construction; it cannot edit Sites, reservations, Edges,
+Machines or Resources. Geographic formation analysis already treats ordinary
+Closed and Open Doors as equivalent potential passages, without changing Door
+state. Engine movement and actor-specific Accessibility Analysis V1 retain their
+separate semantics. No late pass or final connectivity repair is added.
+
+See [Phase 2 measurements](FOREST_ENRICHMENT_PHASE2_RESULTS.md) for the paired
+Forest-only corpus, performance, remaining limitations and verification.
 
 ## Inspection and evaluation
 

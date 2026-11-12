@@ -31,26 +31,49 @@ public sealed class AccessibilityGenerationTests
     }
 
     [Fact]
-    public void AuditPreservesDemonstratedIslandWorldFingerprint()
+    public void GenerationAuditPreservesCurrentWorldAndRemainsDeterministic()
     {
         var world = WorldGenerator.Generate(IslandRecipe, ContentBundle.Canonical());
-        Assert.Equal("EFF30A2AC22AF0ECDA458D1742C9DFA5D38CBF15838469972E8013605D0BD1C4", world.Fingerprint);
+        // Enrichment may deliberately change this recipe's geography. Audit non-mutation
+        // is the contract, rather than a fingerprint from an older terrain algorithm.
+        var before = ScenarioDefinitionJson.ToJson(world.Context.Materialize());
+        _ = WorldAccessibilityAudit.Geometry(world.Context, ContentBundle.Canonical());
+        Assert.Equal(before, ScenarioDefinitionJson.ToJson(world.Context.Materialize()));
         var audit = Assert.IsType<PopulationAccessibilityAudit>(world.Context.UnitAccessibility);
-        var island = audit.Units.Where(u => !u.InPrincipalRegion &&
-            world.Definition.Units.Single(p => p.UnitId == u.UnitId).UnitTypeId == UnitTypeIds.BombImp).ToArray();
-        Assert.Equal(3, island.Length);
-        Assert.All(island, u =>
-        {
-            Assert.Equal(6, u.StoppingPositions);
-            Assert.Equal(AccessibilityStatus.Disconnected, u.PrincipalAccess);
-            Assert.NotNull(u.EncounterId);
-        });
         Assert.NotNull(world.Preview.Frames.Single(f => f.Stage == "PostEnrichmentAnalysis").GeometryAccessibility);
         Assert.Null(world.Preview.Frames.Single(f => f.Stage == "PostEnrichmentAnalysis").UnitAccessibility);
         Assert.Same(audit, world.Preview.Frames[^1].UnitAccessibility);
         var repeated = WorldGenerator.Generate(IslandRecipe, ContentBundle.Canonical());
         Assert.Equal(world.Fingerprint, repeated.Fingerprint);
         Assert.Equal(JsonSerializer.Serialize(world.Preview), JsonSerializer.Serialize(repeated.Preview));
+    }
+
+    [Fact]
+    public void OptionalSixCellIslandReportsAllThreeOccupantsWithoutMovingThem()
+    {
+        var type = new UnitType("island-guard", 3, 0, 0, 0, 1);
+        var board = new Board(10, 3, [])
+        {
+            Terrain = Enumerable.Range(0, 3).Select(y => new TerrainTile(new(7, y), TerrainKind.SolidRock)).ToList()
+        };
+        var ids = new[] { "guard-1", "guard-2", "guard-3" };
+        var state = new GameState
+        {
+            Physical = new(board, [new(ids[0], new(8, 0)), new(ids[1], new(9, 1)), new(ids[2], new(8, 2))]),
+            Types = [type], Units = ids.Select(id => type.CreateUnit(id, "red")).ToList()
+        };
+        var encounter = new PopulationEncounter("island-encounter", "Wilderness", "island", [], [], [], [], []);
+        var before = JsonSerializer.Serialize(state);
+        var audit = WorldAccessibilityAudit.Units(state, ids, encounterFor: _ => encounter);
+        Assert.Equal(3, audit.Units.Count);
+        Assert.All(audit.Units, u =>
+        {
+            Assert.False(u.InPrincipalRegion);
+            Assert.Equal(6, u.StoppingPositions);
+            Assert.Equal(AccessibilityStatus.Disconnected, u.PrincipalAccess);
+            Assert.Equal(encounter.Id, u.EncounterId);
+        });
+        Assert.Equal(before, JsonSerializer.Serialize(state));
     }
 
     [Fact]
