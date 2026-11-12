@@ -10,7 +10,11 @@ public enum GeneratedSiteKind { Campsite, Settlement, MountainDungeon }
 public enum MountainDungeonProfile { TunnelNetwork, ChamberComplex, DeepPassage }
 public sealed record MountainDungeonInfo(MountainDungeonProfile Profile, IReadOnlyList<RoomInfo> Rooms,
     GeneratedArea Corridors, GeneratedArea ProtectedRock, GeneratedArea RequiredAccess, GeneratedArea Lava,
-    IReadOnlyList<GeneratedArea> TreasureAreas, int RockMassArea, int RockMassAnchor, int RoomCapacity);
+    IReadOnlyList<GeneratedArea> TreasureAreas, int RockMassArea, int RockMassAnchor, int RoomCapacity)
+{
+    // Stable authoring identity of the region selected when this dungeon was planned.
+    public int AccessRootIndex { get; init; } = -1;
+}
 public enum SettlementFamily { MarketVillage, RoadsideHamlet, Farmstead, InnCompound }
 public enum GeneratedObjectKind { Site, Building, Room, Space }
 public enum SiteTag { Camp, Residential, Constructed, ArtificialIsland }

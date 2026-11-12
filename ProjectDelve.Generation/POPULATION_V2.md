@@ -5,6 +5,11 @@ analysis. The output is an ordinary `ScenarioDefinition`. Neither encounter IDs,
 Site ownership nor Alert links become gameplay state. Engine Dormant, Alert,
 activation bags, legal choices and Orders retain their established semantics.
 
+After placement, [Accessibility Analysis V1](ACCESSIBILITY_ANALYSIS_V1.md) reports
+Unit-specific stopping reach, conditional Door access and principal-region membership.
+These read-only facts do not filter encounters, move occupants or reject optional
+isolation. A large dungeon guard's ability to fit its room does not promise an exit.
+
 ## Changed implementation boundaries
 
 | Files | Responsibility |

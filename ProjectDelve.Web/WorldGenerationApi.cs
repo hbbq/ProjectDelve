@@ -57,8 +57,8 @@ public static class WorldGenerationApi
             {
                 var canonical = app.Services.GetRequiredService<CanonicalContent>().Bundle;
                 var original = ScenarioDefinitionJson.Materialize(input.GetRawText(), limits.CheckScenario, canonical);
-                var temporary = WorldQuickPlay.PrepareValidated(original, canonical);
-                return Results.Ok(new { transport = ScenarioDefinitionTransport.Encode(temporary) });
+                var temporary = WorldQuickPlay.PrepareValidatedWithAccessibility(original, canonical);
+                return Results.Ok(new { transport = ScenarioDefinitionTransport.Encode(temporary.Definition), accessibility = temporary.Accessibility });
             }
             catch (Exception error) when (error is ArgumentException or FormatException or InvalidDataException or JsonException)
             { return Results.Problem(error.Message, statusCode: 400); }

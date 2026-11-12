@@ -95,11 +95,20 @@ change Alert connectivity, exactly as before.
 `PlayableWorldComponent` is the shared ephemeral doors-openable geometry query
 for dungeon entrances and Quick Play. It includes Machine blockers but ignores
 figures when choosing the largest component, breaking equal-size ties by the
-top-left Cell. Final geometry checks every dungeon entrance and usable room Cell
-against that component after later routes. Quick Play applies its existing free
+top-left Cell. Each dungeon retains that selected region's top-left Cell in
+`MountainDungeonInfo.AccessRootIndex`. Final geometry checks every dungeon entrance
+and usable room Cell against the region connected to that root after later routes.
+It still rejects a blocked root or real disconnection; later growth of another region
+does not reassign the root. Quick Play independently selects the final largest region and applies its existing free
 five-Hero compact cluster/open-Edge rule only within the chosen component, and
 fails clearly if no compatible cluster remains. It never falls back to a small
 isolated pocket merely because its Cells occur earlier in board order.
+
+The Lake Country 50×50, seed 13, offset (-17,-13) regression retains its original
+48-Cell region, expanded to 165 Cells including its dungeon, while Civilization
+creates a separate 423-Cell region. This is valid anchored access. The final-largest
+Quick Play policy still selects the 423-Cell region. See
+[Accessibility Analysis V1](ACCESSIBILITY_ANALYSIS_V1.md) for advisory actor-specific queries.
 
 ## Authoring and visualization
 

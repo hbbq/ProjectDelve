@@ -8,17 +8,24 @@ namespace ProjectDelve.Web;
 // Temporary authoring setup only; the generated world and its recipe remain untouched.
 public static class WorldQuickPlay
 {
+    public sealed record Preparation(ScenarioDefinition Definition, PopulationAccessibilityAudit Accessibility);
     private static readonly string[] HeroIds = [UnitTypeIds.Barbarian, UnitTypeIds.Rogue, UnitTypeIds.Wizard, UnitTypeIds.Cleric, UnitTypeIds.Beastmaster];
 
     public static ScenarioDefinition Prepare(ScenarioDefinition original, ContentBundle canonical)
+        => PrepareCore(original, canonical, null).Definition;
+
+    public static Preparation PrepareWithAccessibility(ScenarioDefinition original, ContentBundle canonical)
         => PrepareCore(original, canonical, null);
 
     // Only the HTTP handler passes its just-parsed, unmodified materialization.
     // The prepared version still crosses final authoritative validation below.
     internal static ScenarioDefinition PrepareValidated(ScenarioMaterialization source, ContentBundle canonical)
+        => PrepareCore(source.Definition, canonical, source.State.DetachedCopy()).Definition;
+
+    internal static Preparation PrepareValidatedWithAccessibility(ScenarioMaterialization source, ContentBundle canonical)
         => PrepareCore(source.Definition, canonical, source.State.DetachedCopy());
 
-    private static ScenarioDefinition PrepareCore(ScenarioDefinition original, ContentBundle canonical, GameState? materialized)
+    private static Preparation PrepareCore(ScenarioDefinition original, ContentBundle canonical, GameState? materialized)
     {
         ArgumentNullException.ThrowIfNull(original);
         ArgumentNullException.ThrowIfNull(canonical);
@@ -109,14 +116,16 @@ public static class WorldQuickPlay
         if (cluster is null)
             throw new ArgumentException("Quick Play needs five free passable Cells connected by open Edges in a compact starting cluster in the principal doors-openable world component. No compatible Hero start exists there; try another world window.", nameof(original));
 
+        List<string> partyIds = [];
         for (var i = 0; i < HeroIds.Length; i++)
         {
             var id = Reserve("quick-play-" + HeroIds[i]);
+            partyIds.Add(id);
             state.PlaceUnit(HeroIds[i], id, HeroesVsMonsters.Heroes, cluster[i], groupId: groupId);
             definition.Units.Add(new(HeroIds[i], HeroesVsMonsters.Heroes, cluster[i], UnitId: id, GroupId: groupId));
         }
-        _ = GameEngine.CreateGame(definition, canonical);
-        return definition;
+        var prepared = GameEngine.CreateGame(definition, canonical);
+        return new(definition, WorldAccessibilityAudit.Units(prepared, partyIds, playable));
     }
 
     private static (Cell, Cell) Key(Cell a, Cell b) => a.Y < b.Y || a.Y == b.Y && a.X < b.X ? (a, b) : (b, a);

@@ -152,6 +152,8 @@ public sealed record WorldPreviewFrame(string StepId, string Stage, string Terra
     public IReadOnlyList<ConstructionBatch> ConstructionBatches { get; init; } = [];
     public RouteNetworkSnapshot? RouteNetwork { get; init; }
     public PopulationSnapshot? Population { get; init; }
+    public GeometryAccessibilityAudit? GeometryAccessibility { get; init; }
+    public PopulationAccessibilityAudit? UnitAccessibility { get; init; }
     public IReadOnlyList<Machine> Machines { get; init; } = [];
     public IReadOnlyList<LootMarker> SiteLootMarkers { get; init; } = [];
 }
@@ -199,6 +201,8 @@ public sealed partial class WorldGenerationContext
     public int Revision { get; internal set; }
     public int RoutingSearches { get; internal set; }
     public int RoutingVisitedCells { get; internal set; }
+    public GeometryAccessibilityAudit? GeometryAccessibility { get; internal set; }
+    public PopulationAccessibilityAudit? UnitAccessibility { get; internal set; }
 }
 
 public static class WorldStepSeed
@@ -238,12 +242,16 @@ public static class WorldGenerationPipeline
                     context.CurrentAnalysis = context.OriginalAnalysis; break;
                 case WorldStepKind.PostEnrichmentAnalysis:
                     context.CurrentAnalysis = TerrainAnalyzer.Analyze(plan.Window, context.Samples, context.ConstructionBoard?.Content ?? content, context.Revision, context.ConstructionEdges(), context.ConstructionBoard?.State.Machines);
-                    DungeonSitePopulation.FinalizeGeometryAndLoot(context, context.ConstructionBoard?.Content ?? content); break;
+                    DungeonSitePopulation.FinalizeGeometryAndLoot(context, context.ConstructionBoard?.Content ?? content);
+                    context.GeometryAccessibility = WorldAccessibilityAudit.Geometry(context, context.ConstructionBoard?.Content ?? content); break;
                 case WorldStepKind.ForestEnrichment: ForestEnricher.Apply(context, step, content); break;
                 case WorldStepKind.RockEnrichment: RockEnricher.Apply(context, step, content); break;
                 case WorldStepKind.WaterEnrichment: WaterEnricher.Apply(context, step, content); break;
                 case WorldStepKind.GrasslandEnrichment: GrasslandEnricher.Apply(context, step, content); break;
-                case WorldStepKind.Population: PopulationGenerator.Apply(context, step, content); break;
+                case WorldStepKind.Population:
+                    PopulationGenerator.Apply(context, step, content);
+                    context.UnitAccessibility = WorldAccessibilityAudit.Population(context, GameEngine.CreateGame(context.Materialize(), content));
+                    break;
                 case WorldStepKind.Civilization:
                     CivilizationGenerator.Apply(context, step, content);
                     DungeonSitePopulation.PublishIntents(context);
@@ -290,12 +298,19 @@ public static class WorldGenerationPipeline
                 CampsiteDensity = context.CampsiteDensity, SettlementDensity = context.SettlementDensity,
                 ThroughRouteDensity = context.ThroughRouteDensity, ExplorationLinkDensity = context.ExplorationLinkDensity,
                 ConstructionBatches = context.ConstructionBatches.ToArray(), RouteNetwork = context.RouteNetwork, Population = context.Population,
+                GeometryAccessibility = context.GeometryAccessibility, UnitAccessibility = context.UnitAccessibility,
                 Machines = context.ConstructionBoard?.State.Machines.ToArray() ?? [], SiteLootMarkers = context.SiteLootMarkers.ToArray()
             });
             previous = terrain; previousEdges = edgeMap;
             measurements.Add(new(step.Id, step.Kind, timer.Elapsed.TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - allocated));
         }
         var original = context.OriginalAnalysis!;
+        // The no-Population path still publishes a completed empty instance audit.
+        if (context.UnitAccessibility is null)
+        {
+            context.UnitAccessibility = new([], true, 0);
+            frames[^1] = frames[^1] with { UnitAccessibility = context.UnitAccessibility };
+        }
         // Analysis is read-only, so its overlay also describes the preceding natural frame.
         frames[0] = frames[0] with
         {

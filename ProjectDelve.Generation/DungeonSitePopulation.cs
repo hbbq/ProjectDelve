@@ -38,17 +38,20 @@ internal static class DungeonSitePopulation
         var sites = context.Sites.Where(s => s.MountainDungeon is not null).ToArray();
         if (sites.Length == 0) return;
         var board = context.ConstructionBoard!; var width = board.Width;
-        var principal = PlayableWorldComponent.Select(board);
+        var regions = sites.Select(s => s.MountainDungeon!.AccessRootIndex).Distinct()
+            .ToDictionary(root => root, root => PlayableWorldComponent.FromRoot(board, root));
         foreach (var site in sites)
-            if (site.Entrances.Any(e => !principal.Contains(e.InsideIndex) || !principal.Contains(e.OutsideIndex)) ||
-                site.MountainDungeon!.Rooms.Any(r => r.Usable.Indices(width).Any(i => !principal.Contains(i))))
-                throw new ArgumentException("Final geometry disconnected a Mountain Dungeon from the principal doors-openable world component.");
+            if (site.Entrances.Any(e => !regions[site.MountainDungeon!.AccessRootIndex].Contains(e.InsideIndex) ||
+                    !regions[site.MountainDungeon.AccessRootIndex].Contains(e.OutsideIndex)) ||
+                site.MountainDungeon!.Rooms.Any(r => r.Usable.Indices(width).Any(i => !regions[site.MountainDungeon.AccessRootIndex].Contains(i))))
+                throw new ArgumentException("Final geometry disconnected a Mountain Dungeon from its anchored doors-openable world component.");
         if (context.Loot.ResolveComposition(content.LootCards, content.LootPresets).Count == 0) return;
         var used = context.SiteLootMarkers.Select(m => m.Position.Y * width + m.Position.X).ToHashSet();
         var maximum = context.Loot.Normalize(content.LootPresets).Composition is null ? 32 :
             context.Loot.ResolveComposition(content.LootCards, content.LootPresets).Sum(c => c.Count);
         foreach (var site in sites.OrderBy(s => s.Id, StringComparer.Ordinal))
         {
+            var principal = regions[site.MountainDungeon!.AccessRootIndex];
             var dungeon = site.MountainDungeon!; var access = dungeon.RequiredAccess.Indices(width).ToHashSet();
             var random = Pcg32.Stream(context.World.Seed, site.Id + "/treasure-loot");
             foreach (var treasure in dungeon.TreasureAreas)

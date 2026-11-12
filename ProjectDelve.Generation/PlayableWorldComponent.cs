@@ -6,6 +6,19 @@ namespace ProjectDelve.Generation;
 /// Doors are openable; figures do not change the selected geographic component.</summary>
 public static class PlayableWorldComponent
 {
+    /// <summary>The current region of a previously selected root; never reselects by size.</summary>
+    public static HashSet<int> FromRoot(IPlanningBoardView board, int root)
+    {
+        if (root < 0 || root >= board.Width * board.Height || !board.Passable(root)) return [];
+        HashSet<int> result = [root]; Queue<int> queue = new([root]);
+        while (queue.TryDequeue(out var current))
+            foreach (var next in PlanningBoard.Adjacent(current, board.Width, board.Height))
+                if (!result.Contains(next) && board.Passable(next) &&
+                    Openable(board.EdgeAt(EdgeKey.Between(current, next, board.Width))))
+                { result.Add(next); queue.Enqueue(next); }
+        return result;
+    }
+
     public static HashSet<int> Select(IPlanningBoardView board) => Select(board.Width, board.Height,
         board.Passable, (a, b) => Openable(board.EdgeAt(EdgeKey.Between(a, b, board.Width))));
 

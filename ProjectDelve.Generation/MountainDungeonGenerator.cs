@@ -213,7 +213,7 @@ public static class MountainDungeonGenerator
                 var metadata = new MountainDungeonInfo(profile, rooms, GeneratedArea.From(id + "/corridors", corridors.Except(roomCells), draft.Width),
                     GeneratedArea.From(id + "/shell", shell, draft.Width), GeneratedArea.From(id + "/required-access", required, draft.Width),
                     GeneratedArea.From(id + "/lava", lava, draft.Width),
-                    treasure, mass.Count, mass.Min(), roomCapacity);
+                    treasure, mass.Count, mass.Min(), roomCapacity) { AccessRootIndex = main.Min() };
                 var site = new SiteInfo(id, GeneratedSiteKind.MountainDungeon, GeneratedArea.From(id + "/footprint", floor.Concat(shell), draft.Width),
                     GeneratedArea.From(id + "/exterior", approach, draft.Width), [], [portal], new(usable.Count, connected.Count, true, false, SiteGeometry.TwoByTwo(draft, usable)),
                     [SiteTag.Constructed], [], [], null, summary)

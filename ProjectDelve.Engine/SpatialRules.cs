@@ -37,11 +37,19 @@ internal static class SpatialRules
                 yield return (a, b);
     }
 
-    internal static bool Fits(Board board, Footprint footprint, Cell anchor, MovementTraversal traversal = default) =>
-        FootprintGeometry.OccupiedCells(footprint, anchor)
-            .All(c => MovementRules.Inside(board, c) && traversal.CanTraverse(board.TerrainDefinitionAt(c)) &&
-                (traversal.IgnoreTerrainAndEdges || !board.Machines.Any(m => m.Position == c))) &&
-        InternalEdges(footprint, anchor).All(e => traversal.CanTraverse(board.EdgeBetween(e.A, e.B)));
+    internal static bool Fits(Board board, Footprint footprint, Cell anchor, MovementTraversal traversal = default,
+        AccessibilityGeometry? geometry = null)
+    {
+        // Indexed full-board analysis visits this case millions of times. A single
+        // Cell has no internal Edges and needs no allocated footprint/enumerators.
+        if (geometry is not null && footprint == Footprint.OneByOne)
+            return MovementRules.Inside(board, anchor) && traversal.CanTraverse(geometry.TerrainAt(anchor)) &&
+                (traversal.IgnoreTerrainAndEdges || !geometry.HasMachine(anchor));
+        return FootprintGeometry.OccupiedCells(footprint, anchor)
+            .All(c => MovementRules.Inside(board, c) && traversal.CanTraverse(geometry?.TerrainAt(c) ?? board.TerrainDefinitionAt(c)) &&
+                (traversal.IgnoreTerrainAndEdges || !(geometry?.HasMachine(c) ?? board.Machines.Any(m => m.Position == c)))) &&
+        InternalEdges(footprint, anchor).All(e => traversal.CanTraverse(geometry?.EdgeBetween(e.A, e.B) ?? board.EdgeBetween(e.A, e.B)));
+    }
 
     internal static bool CanPlaceUnit(GameState state, Cell cell) => CanPlaceUnit(state, Footprint.OneByOne, cell);
 

@@ -61,9 +61,9 @@ internal static class MovementRules
         return FindPatternPaths(state, moverId, from, maxSteps, ignoreCellMarkers, pattern, traversal);
     }
 
-    private static IReadOnlyDictionary<Cell, IReadOnlyList<Cell>> FindPatternPaths(
+    internal static IReadOnlyDictionary<Cell, IReadOnlyList<Cell>> FindPatternPaths(
         GameState state, string moverId, Cell from, int? maxSteps, bool ignoreCellMarkers, MovementPattern? pattern,
-        MovementTraversal traversal)
+        MovementTraversal traversal, AccessibilityGeometry? geometry = null, Action? spendWork = null)
     {
         if (pattern is MovementPattern.StraightOrthogonalOrDiagonalCorridor or MovementPattern.Adjacent)
         {
@@ -72,9 +72,9 @@ internal static class MovementRules
             var adjacent = pattern == MovementPattern.Adjacent;
             int? Limit(int allowance) => maxSteps is null ? allowance : Math.Min(maxSteps.Value, allowance);
             var cardinal = FindPatternPaths(state, moverId, from, adjacent ? Limit(1) : maxSteps,
-                ignoreCellMarkers, MovementPattern.StraightOrthogonal, traversal);
+                ignoreCellMarkers, MovementPattern.StraightOrthogonal, traversal, geometry, spendWork);
             var diagonal = FindPatternPaths(state, moverId, from, adjacent ? Limit(2) : maxSteps,
-                ignoreCellMarkers, MovementPattern.DiagonalCorridor, traversal);
+                ignoreCellMarkers, MovementPattern.DiagonalCorridor, traversal, geometry, spendWork);
             return new ReadOnlyDictionary<Cell, IReadOnlyList<Cell>>(cardinal.Concat(diagonal)
                 .DistinctBy(pair => pair.Key).ToDictionary(pair => pair.Key, pair => pair.Value));
         }
@@ -87,7 +87,14 @@ internal static class MovementRules
             .SelectMany(f => FootprintGeometry.OccupiedCells(state, f.Id).Select(c => (Cell: c, Figure: f)))
             .ToDictionary(p => p.Cell, p => p.Figure);
         var paths = new Dictionary<Cell, List<Cell>> { [from] = [from] };
-        bool CanEnter(Cell current, Cell to) => CanStep(state.Physical.Board, footprint, current, to, traversal) &&
+        // Analysis budgets include materialized path length, not just search nodes.
+        // Runtime callers have no callback and retain their existing work and paths.
+        void ChargePathCopy(int length)
+        {
+            if (spendWork is null) return;
+            for (var i = 0; i < length; i++) spendWork();
+        }
+        bool CanEnter(Cell current, Cell to) => CanStep(state.Physical.Board, footprint, current, to, traversal, geometry) &&
             FootprintGeometry.OccupiedCells(footprint, to).All(c => !occupants.TryGetValue(c, out var occupant) ||
                 state.Units.Single(u => u.Id == occupant.Id).SideId == unit.SideId);
         bool CanTransit(Cell cell) => ignoreCellMarkers || !CellMarkerRules.ContainsBananaPeel(state, footprint, cell);
@@ -98,11 +105,15 @@ internal static class MovementRules
                 foreach (var dx in new[] { -2, -1, 1, 2 })
                 foreach (var dy in new[] { -2, -1, 1, 2 })
                 {
+                    spendWork?.Invoke();
                     var landing = new Cell(from.X + dx, from.Y + dy);
                     if (Math.Abs(dx) + Math.Abs(dy) == 3 &&
                         FogOfWar.KnownFootprint(state, unit.SideId, footprint, landing) &&
-                        SpatialRules.Fits(state.Physical.Board, footprint, landing, traversal))
+                        SpatialRules.Fits(state.Physical.Board, footprint, landing, traversal, geometry))
+                    {
+                        ChargePathCopy(2);
                         paths[landing] = [from, landing];
+                    }
                 }
         }
         else if (pattern == MovementPattern.DiagonalCorridor)
@@ -113,6 +124,7 @@ internal static class MovementRules
                 var current = from;
                 for (var cost = 2; maxSteps is null || cost <= maxSteps; cost += 2)
                 {
+                    spendWork?.Invoke();
                     if (current != from && !CanTransit(current)) break;
                     var next = new Cell(current.X + dx, current.Y + dy);
                     // Same top/left/right/bottom ordering as ordinary BFS. The
@@ -121,6 +133,7 @@ internal static class MovementRules
                         .Where(c => CanEnter(current, c) && CanTransit(c) && CanEnter(c, next))
                         .Select(c => (Cell?)c).FirstOrDefault();
                     if (corner is null) break;
+                    ChargePathCopy(paths[current].Count + 2);
                     paths[next] = [.. paths[current], corner, next];
                     current = next;
                 }
@@ -132,6 +145,7 @@ internal static class MovementRules
             queue.Enqueue(from);
             while (queue.Count > 0)
             {
+                spendWork?.Invoke();
                 var current = queue.Dequeue();
                 if (paths[current].Count - 1 == maxSteps || current != from && !CanTransit(current)) continue;
                 foreach (var to in Neighbors(current)) // top, left, right, bottom
@@ -141,6 +155,7 @@ internal static class MovementRules
                         (to.X - current.X != Math.Sign(current.X - from.X) ||
                          to.Y - current.Y != Math.Sign(current.Y - from.Y))) continue;
                     if (paths.ContainsKey(to) || !CanEnter(current, to)) continue;
+                    ChargePathCopy(paths[current].Count + 1);
                     paths[to] = [.. paths[current], to];
                     queue.Enqueue(to);
                 }
@@ -150,17 +165,25 @@ internal static class MovementRules
         // Friendly and impassable terrain cells may be traversed but cannot be destinations.
         return new ReadOnlyDictionary<Cell, IReadOnlyList<Cell>>(paths
             .Where(pair => SpatialRules.Fits(state.Physical.Board, footprint, pair.Key,
-                    occupancy) &&
+                    occupancy, geometry) &&
                 FootprintGeometry.OccupiedCells(footprint, pair.Key).All(c => !occupants.ContainsKey(c)))
             .ToDictionary(pair => pair.Key,
                 pair => (IReadOnlyList<Cell>)pair.Value.AsReadOnly()));
     }
 
-    internal static bool CanStep(Board board, Footprint footprint, Cell from, Cell to, MovementTraversal traversal) =>
-        FootprintGeometry.OccupiedCells(footprint, to).All(c => traversal.KnownCells is null || traversal.KnownCells.Contains(c)) &&
-        SpatialRules.Fits(board, footprint, to, traversal) &&
+    internal static bool CanStep(Board board, Footprint footprint, Cell from, Cell to, MovementTraversal traversal,
+        AccessibilityGeometry? geometry = null)
+    {
+        if (geometry is not null && footprint == Footprint.OneByOne)
+            return (traversal.KnownCells is null || traversal.KnownCells.Contains(to)) &&
+                SpatialRules.Fits(board, footprint, to, traversal, geometry) &&
+                traversal.CanTraverse(geometry.EdgeBetween(from, to));
+        return FootprintGeometry.OccupiedCells(footprint, to).All(c => traversal.KnownCells is null || traversal.KnownCells.Contains(c)) &&
+        SpatialRules.Fits(board, footprint, to, traversal, geometry) &&
         FootprintGeometry.OccupiedCells(footprint, from).All(c =>
-            traversal.CanTraverse(board.EdgeBetween(c, new(c.X + to.X - from.X, c.Y + to.Y - from.Y))));
+            traversal.CanTraverse(geometry?.EdgeBetween(c, new(c.X + to.X - from.X, c.Y + to.Y - from.Y)) ??
+                board.EdgeBetween(c, new(c.X + to.X - from.X, c.Y + to.Y - from.Y))));
+    }
 
     internal static IEnumerable<Cell> Neighbors(Cell cell)
     {

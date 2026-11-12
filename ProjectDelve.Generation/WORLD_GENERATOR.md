@@ -1,6 +1,7 @@
 # World Generator
 
 Current abundance settings and scaling policy: [Density Scaling V1](DENSITY_SCALING_V1.md).
+Advisory Engine queries and diagnostics: [Accessibility Analysis V1](ACCESSIBILITY_ANALYSIS_V1.md).
 Current layout, controls and verification: [World Generator Designer](../WORLD_GENERATOR_DESIGNER.md).
 Mountain Sites and current acceptance results: [Mountain Dungeons V1](MOUNTAIN_DUNGEONS_V1.md).
 Mixed Water sampling, crossings and dual connectivity: [Mixed Water Terrain V1](MIXED_WATER_V1.md).

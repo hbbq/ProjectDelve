@@ -285,6 +285,14 @@ function renderPreview() {
     const d = frame.diagnostics;
     const operation = selected.construction?.find(operation => operation.id === selectedOperation);
     byId("diagnostics").textContent = `${stageName(frame)} · ${compareBefore ? "Before" : "After"}${operation ? ` ${operation.name} · server analysis describes the accepted stage` : ""} · selected step changes ${changed.size} · features added ${d.featuresAdded} · walkable ${d.walkableArea} · components ${d.componentCount} · largest ${d.largestComponentArea} · route searches ${d.routingSearches} · visited ${d.routingVisitedCells}`;
+    if (!operation && frame.geometryAccessibility) {
+      const a = frame.geometryAccessibility;
+      byId("diagnostics").textContent += ` · advisory access: ${a.landRegions.length} open land regions, ${a.waterRegions.length} open Water regions, principal area ${a.principalArea}${a.complete ? "" : " (partial; remaining access unknown)"}`;
+    }
+    if (!operation && frame.unitAccessibility) {
+      const a = frame.unitAccessibility;
+      byId("diagnostics").textContent += ` · ${a.units.filter(u => !u.inPrincipalRegion).length} Units outside principal region; ${a.units.filter(u => u.conditionalStoppingPositions > 0).length} with conditional Door access${a.complete ? "" : "; some access unknown"}. Isolation is advisory.`;
+    }
     byId("inspection").textContent = "Hover or click a Cell to inspect server analysis. Overlays: gold changes, cyan formation boundaries, coloured components, red chokepoints, white entrances, purple opportunities.";
   }
   renderResultSummary(result);
