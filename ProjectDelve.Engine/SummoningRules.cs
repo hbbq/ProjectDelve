@@ -32,6 +32,7 @@ public static class SummoningRules
         if (state.Types.SingleOrDefault(type => type.Id == summon.UnitTypeId) is not { } summonedType ||
             !state.CanPlaceUnitType(summonedType, unit.SideId)) yield break;
         var board = state.Physical.Board;
+        var placement = MovementTraversal.OccupancyFor(summonedType);
         var minX = 0;
         var minY = 0;
         var maxX = board.Width - 1;
@@ -59,7 +60,7 @@ public static class SummoningRules
         {
             var cell = new Cell(x, y);
             var footprint = FootprintGeometry.OccupiedCells(summonedType.Footprint, cell);
-            if (SpatialRules.CanPlaceUnit(state, summonedType, cell, lookup: lookup) &&
+            if (SpatialRules.CanPlaceUnit(state, summonedType.Footprint, cell, placement: placement, lookup: lookup) &&
                 footprint.All(c => TerrainCatalog.Accepts(summonedType, state.Physical.Board.TerrainDefinitionAt(c))) &&
                 SpatialRules.AreFootprintsAdjacent(board, sourceCells ?? FootprintGeometry.OccupiedCells(state, unit.Id), footprint))
                 yield return new($"{ability.CandidatePrefix}:{x},{y}",

@@ -76,7 +76,9 @@ export class ContentEditorState {
   open({ family, definition, existingId, copy = false, newId, context = {} }) {
     this.family = family; this.existingId = copy ? undefined : existingId;
     this.context = cloneContent(context);
-    this.definition = cloneContent(definition ?? (family === 'terrain' ? { id: '', name: '', passable: true, blocksLos: false, blocksVision: false, allowsResourceMarkers: true, categories: [], presentation: { recipe: 'generic' } } : family === 'terrainAssemblies' ? { id: '', name: '', surfaceId: '', components: [] } : family === 'units' ? this.catalog.unitAuthoring?.defaults ?? { id: '', displayName: '', localAbilities: [] } : ['equipment', 'items'].includes(family) ? { id: '', name: '', localAbilities: [] } : { id: '', name: '', equipmentTypeId: '' }));
+    this.definition = cloneContent(definition ?? (family === 'terrain' ? { id: '', name: '', movementPermissions: ['land'], blocksLos: false, blocksVision: false, allowsResourceMarkers: true, categories: [], presentation: { recipe: 'generic' } } : family === 'terrainAssemblies' ? { id: '', name: '', surfaceId: '', components: [] } : family === 'units' ? this.catalog.unitAuthoring?.defaults ?? { id: '', displayName: '', baseMovementCapabilities: ['land'], localAbilities: [] } : ['equipment', 'items'].includes(family) ? { id: '', name: '', localAbilities: [] } : { id: '', name: '', equipmentTypeId: '' }));
+    // Passable is an Engine-derived ordinary-land projection, never authored.
+    if (family === 'terrain') delete this.definition.passable;
     if (copy) {
       this.definition.id = newId ?? '';
       if (family === 'terrain') { delete this.definition.legacyKind; delete this.definition.legacyProductionIdentity; delete this.definition.assembly; }

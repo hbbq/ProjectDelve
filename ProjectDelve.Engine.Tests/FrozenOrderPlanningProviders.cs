@@ -219,7 +219,7 @@ internal sealed class FrozenDefaultAutomatedProvider : IDecisionProvider
                         {
                             Candidate = candidate,
                             Distance = queries.OpenRouteDistanceFromSummonPlacement(request.UnitId!,
-                                candidate.Destination!, orderedTargetIds)
+                                candidate, orderedTargetIds)
                         })
                         .Where(item => item.Distance.HasValue)
                         .OrderBy(item => item.Distance)

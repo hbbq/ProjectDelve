@@ -6,6 +6,59 @@ const vm = require("node:vm");
 
 const source = name => fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", name), "utf8");
 
+test('Designer flat terrain artwork follows shared recipes through painting and import and clears on fallback', async () => {
+  const recipes = ['WetGrass', 'RockyWater', 'SteppingStones'];
+  const definition = {
+    board: { width: 3, height: 2, defaultTerrain: 'Grass', cells: [], edges: [] },
+    unitTypeIds: [], units: [], agency: [],
+    terrainTypes: [...recipes, 'UnregisteredRecipe'].map((recipe, index) => ({
+      id: `fixture-terrain-${index}`, name: `Fixture ${index}`, movementPermissions: ['land', 'water'],
+      passable: true, blocksLos: false, presentation: { recipe }
+    })),
+    resources: [{ type: { id: 'coal', name: 'Coal' }, position: { x: 1, y: 1 } }],
+    cellMarkers: [{ type: { id: 'banana-peel', name: 'Banana Peel' }, position: { x: 1, y: 1 } }]
+  };
+  const h = harness(async operation => operation === 'import' ? structuredClone(definition) : { valid: true, errors: [] });
+  h.editor.draft.replace(definition); h.editor.render();
+  h.editor.setTool('Select'); h.down(h.cell(1, 1));
+  const mounted = h.cell(1, 1);
+  const verify = recipe => {
+    const node = h.cell(1, 1), layers = h.run(`terrainLayers(${JSON.stringify(recipe)}, {x:1,y:1})`);
+    assert.equal(node.dataset.terrainArtwork, 'true');
+    assert.equal(node.style['--visual-image'], `url(${JSON.stringify(layers.base.image)})`);
+    assert.equal(node.style['--visual-rotation'], `${layers.rotation}deg`);
+    assert.equal(node.style['--visual-fill'], layers.base.fill);
+    assert.equal(node.children[0].textContent, '1,1');
+    assert.equal(node.querySelectorAll('.resource-marker').length, 1);
+    assert.equal(node.querySelectorAll('.cell-marker').length, 1);
+  };
+  h.editor.setTool('Terrain');
+  for (const [index, recipe] of recipes.entries()) {
+    h.editor.ui.terrain.value = `type:fixture-terrain-${index}`; h.down(mounted); h.up();
+    assert.equal(h.cell(1, 1), mounted); verify(recipe);
+    assert.ok(mounted.classList.contains('editor-selected'));
+  }
+  // Painting an unsupported recipe must not retain the previous image or turn.
+  h.editor.ui.terrain.value = 'type:fixture-terrain-3'; h.down(mounted); h.up();
+  assert.equal(mounted.dataset.terrainArtwork, 'false');
+  assert.equal(mounted.style['--visual-image'], 'none');
+  assert.equal(mounted.style['--visual-rotation'], '0deg');
+  assert.equal(mounted.classList.contains('custom-terrain'), true);
+  // Existing layered presentation still supplies its own labels and Rail arrow.
+  for (const recipe of ['Tree', 'StoneFloorWithTable', 'Rail']) {
+    h.editor.ui.terrain.value = recipe; h.down(mounted); h.up();
+    assert.equal(mounted.dataset.terrainArtwork, 'false');
+    assert.equal(mounted.style['--visual-image'], 'none');
+    if (recipe === 'Rail') assert.equal(mounted.dataset.railDirection, h.editor.ui['rail-direction'].value);
+  }
+  definition.board.cells = [{ position: { x: 1, y: 1 }, terrainTypeId: 'fixture-terrain-0' }];
+  await h.click('import'); verify('WetGrass');
+  const image = h.cell(1, 1).style['--visual-image'], rotation = h.cell(1, 1).style['--visual-rotation'];
+  h.editor.loadDocument(JSON.stringify(h.editor.documentData()));
+  assert.equal(h.cell(1, 1).style['--visual-image'], image);
+  assert.equal(h.cell(1, 1).style['--visual-rotation'], rotation);
+});
+
 test('storage-free generated Machines open, render, edit, export, play and reopen without losing limits or uses', async () => {
   const definition = structuredClone(designerSetup);
   definition.machines = [{ id: 'beacon', position: { x: 5, y: 4 }, type: {
@@ -96,7 +149,7 @@ test("world handoff keeps terrain-only content, title, recipe and portable Dirt 
   const result = {title:'Generated world terrain',code:'WLD1-2x2-X-8-Y12-F0-W0-R0-KFine-HLakes-S000000000000002A',definition:{
     board:{width:2,height:2,defaultTerrain:'Grass',cells:[{position:{x:1,y:1},terrainTypeId:'dirt'}],edges:[]},
     unitTypeIds:[],units:[],agency:[],loot:{composition:[]},
-    terrainTypes:[{id:'dirt',name:'Captured Dirt',passable:true,blocksLos:false,presentation:{recipe:'Dirt'}}]}};
+    terrainTypes:[{id:'dirt',name:'Captured Dirt',movementPermissions:['land'],passable:true,blocksLos:false,presentation:{recipe:'Dirt'}}]}};
   h.context.generatedWorld=result;
   assert.equal(h.run('delveOpenGenerated(generatedWorld)'),true);
   assert.deepEqual(plain(h.editor.draft.snapshot()),result.definition);
@@ -1045,8 +1098,8 @@ test("imported legacy Lava remains paintable and survives export", async () => {
 test('scenario-local Terrain is named, paintable, inspectable and retained through undo, recovery and Playtest', async () => {
   const submitted=[], played=[];
   const h=harness(async(operation,body)=>{submitted.push({operation,body:plain(body)});return{transport:'DELVE1:local-terrain'};},async value=>{played.push(value);return true;});
-  const definitions=[{id:'velvet-puzzle',name:'An Unfamiliar Plinth',passable:false,blocksLos:false,presentation:{recipe:'StoneFloorWithTable'}},
-    {id:'moon-paper',name:'Moon Paper',passable:true,blocksLos:false,presentation:{recipe:'never-seen-before'}}];
+  const definitions=[{id:'velvet-puzzle',name:'An Unfamiliar Plinth',movementPermissions:[],passable:false,blocksLos:false,presentation:{recipe:'StoneFloorWithTable'}},
+    {id:'moon-paper',name:'Moon Paper',movementPermissions:['land'],passable:true,blocksLos:false,presentation:{recipe:'never-seen-before'}}];
   h.editor.draft.definition.terrainTypes=definitions;h.editor.draft.changed();h.editor.render();
   assert.ok(h.editor.ui.terrain.children.some(o=>o.value==='type:velvet-puzzle'&&o.textContent==='An Unfamiliar Plinth'));
   h.editor.setTool('Terrain');h.editor.ui.terrain.value='type:velvet-puzzle';h.down(h.cell(1,1));h.up();
@@ -1057,7 +1110,7 @@ test('scenario-local Terrain is named, paintable, inspectable and retained throu
   h.click('undo');assert.equal(h.editor.draft.definition.board.cells.length,0);
   h.click('redo');assert.equal(h.editor.draft.definition.board.cells[0].terrainTypeId,'velvet-puzzle');
   h.editor.setTool('Select');h.down(h.cell(1,1));
-  assert.match(h.editor.ui.properties.textContent,/Blocks movement.*Does not block LOS/);
+  assert.match(h.editor.ui.properties.textContent,/Movement: none.*Does not block LOS/);
   h.editor.draft.paintTerrain({x:2,y:1},'moon-paper');h.editor.render();
   assert.match(h.cell(2,1).className,/custom-terrain/);
   h.editor.loadDocument(JSON.stringify(h.editor.documentData()));
@@ -1070,7 +1123,7 @@ test('scenario-local Terrain is named, paintable, inspectable and retained throu
 
 test('typed default Terrain survives ordinary default changes without stale ID precedence', () => {
   const h=harness(),draft=h.editor.draft;
-  draft.definition.terrainTypes=[{id:'paper',name:'Paper',passable:true,blocksLos:false}];
+  draft.definition.terrainTypes=[{id:'paper',name:'Paper',movementPermissions:['land'],passable:true,blocksLos:false}];
   draft.setDefaultTerrain('paper');assert.equal(draft.terrainAt({x:0,y:0}),'paper');
   draft.setDefaultTerrain('Grass');assert.equal(draft.definition.board.defaultTerrainTypeId,undefined);
   assert.equal(draft.terrainAt({x:0,y:0}),'Grass');
@@ -1081,8 +1134,8 @@ test('fixed assemblies retain authoring references while Engine metadata supplie
   const submitted = [], played = [], projected = [], storage = memoryStorage();
   const component = {id:'fixture-bed',name:'Folded Bed',blocksMovement:true,blocksLos:false,presentation:{recipe:'UnfamiliarBed',layer:'Object'}};
   const assembly = {id:'fixture-grass-bed',name:'Grassy Rest',surfaceId:'grass',components:[{slot:'furniture',componentId:component.id,quarterTurns:1}]};
-  const grass = {id:'grass',name:'Grass',passable:true,blocksLos:false,presentation:{recipe:'Grass'}};
-  const resolved = {...grass,id:assembly.id,name:assembly.name,passable:false,
+  const grass = {id:'grass',name:'Grass',movementPermissions:['land'],passable:true,blocksLos:false,presentation:{recipe:'Grass'}};
+  const resolved = {...grass,id:assembly.id,name:assembly.name,movementPermissions:[],passable:false,
     assembly:{surface:grass,components:[{slot:'furniture',definition:component,quarterTurns:1}]}};
   const metadata = async body => { projected.push(plain(body)); return {unitTypes:catalog.unitTypes,unitIds:[],
     terrainDefinitions:[grass,...(body.terrainAssemblies.length ? [resolved] : [])],fixedComponentDefinitions:body.fixedComponentTypes}; };
@@ -1096,7 +1149,7 @@ test('fixed assemblies retain authoring references while Engine metadata supplie
   h.editor.setTool('Select'); h.down(h.cell(1,1));
   assert.match(h.editor.ui.properties.textContent,/Effective properties awaiting Engine validation/);
   await new Promise(setImmediate);
-  assert.match(h.editor.ui.properties.textContent,/Blocks movement.*Does not block LOS/);
+  assert.match(h.editor.ui.properties.textContent,/Movement: none.*Does not block LOS/);
   assert.match(h.editor.ui.properties.textContent,/Surface: Grass/);
   assert.match(h.editor.ui.properties.textContent,/Fixed furniture: Folded Bed.*90°/);
   assert.match(h.cell(1,1).className,/Grass/);
@@ -1125,7 +1178,7 @@ test('fixed assemblies retain authoring references while Engine metadata supplie
 
 test('production metadata is Engine-owned and local declarations survive editing, recovery, export and Playtest', async () => {
   const submitted = [], played = [];
-  const type = {id:'unfamiliar-cupboard',name:'Unexpected Cupboard',passable:false,blocksLos:false,
+  const type = {id:'unfamiliar-cupboard',name:'Unexpected Cupboard',movementPermissions:[],passable:false,blocksLos:false,
     production:{kind:'directionalResourceProduction',resourceTypeId:'banana',attempts:3,placement:'SurroundingCellD8',sourceLos:'RespectTerrain'}};
   const description = 'At Round Start, make 3 d8 attempts to place one Banana. Respect the producing Cell\'s LOS blocking.';
   const h = harness(async(operation,body) => {submitted.push(plain(body));return {transport:'DELVE1:producer'};},
@@ -1152,8 +1205,8 @@ test('separate typed Lava entries never acquire legacy Coal toggles and legacy r
   const saved = Object.fromEntries(keys.map(key => [key,catalog[key]]));
   try {
     catalog.terrainDefinitions = [
-      {id:'ordinary-lava',name:'Lava',passable:false,blocksLos:false,legacyKind:'Lava',presentation:{recipe:'Lava'}},
-      {id:'coal-lava',name:'Coal Lava',passable:false,blocksLos:false,legacyKind:'Lava',presentation:{recipe:'Lava'},
+      {id:'ordinary-lava',name:'Lava',movementPermissions:[],passable:false,blocksLos:false,legacyKind:'Lava',presentation:{recipe:'Lava'}},
+      {id:'coal-lava',name:'Coal Lava',movementPermissions:[],passable:false,blocksLos:false,legacyKind:'Lava',presentation:{recipe:'Lava'},
         production:{kind:'directionalResourceProduction',resourceTypeId:'coal',attempts:2}}];
     catalog.legacyTerrainMappings = [{kind:'Lava',terrainTypeId:'coal-lava'}, {kind:'Lava',terrainTypeId:'ordinary-lava',coalGeneration:false}];
     catalog.legacyTerrainTypeAliases = {lava:'Lava'};
@@ -1187,7 +1240,7 @@ test('a local Type ID matching a legacy Terrain spelling remains a distinct Desi
   try {
     catalog.terrainDefinitions=[{id:'grass',name:'Grass',legacyKind:'Grass',presentation:{recipe:'Grass'}}];
     const h=harness(),draft=h.editor.draft;
-    draft.definition.terrainTypes=[{id:'Grass',name:'Misleading Identity',passable:false,blocksLos:false,presentation:{recipe:'StoneFloorWithTable'}}];
+    draft.definition.terrainTypes=[{id:'Grass',name:'Misleading Identity',movementPermissions:[],passable:false,blocksLos:false,presentation:{recipe:'StoneFloorWithTable'}}];
     draft.setDefaultTerrain('Grass');h.editor.render();
     assert.equal(draft.terrainNameAt({x:0,y:0}),'Grass');
     h.editor.setTool('Terrain');h.editor.ui.terrain.value='type:Grass';h.down(h.cell(1,1));h.up();

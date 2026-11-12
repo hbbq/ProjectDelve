@@ -1,32 +1,38 @@
 using System.Collections.ObjectModel;
+using System.Collections.Immutable;
 
 namespace ProjectDelve.Engine;
 
 // Shared terrain/edge traversal parameters. Occupancy and stopping legality stay separate.
 internal readonly record struct MovementTraversal(bool IgnoreTerrainAndEdges = false,
     bool ClosedDoorsTraversable = false, TerrainKind? RequiredTerrain = null, IReadOnlySet<Cell>? KnownCells = null,
-    TerrainRestriction? Restriction = null, bool Amphibious = false)
+    TerrainRestriction? Restriction = null, ImmutableArray<string> Capabilities = default)
 {
     // Occupancy is intrinsic to the Type, including while Lying or externally moved.
     // Phase and hypothetical Closed Door traversal never authorize stopping there.
     // Terrain restrictions constrain ordinary Moves (and authored entry), not
     // externally relocated positions; e.g. a Kart may be displaced off Asphalt.
-    internal static MovementTraversal OccupancyFor(UnitType type) => new(Amphibious: type.Amphibious || type.Mechanic<Amphibious>() is not null);
-    internal static MovementTraversal OccupancyFor(GameState state, string unitId) => new(Amphibious: state.HasAmphibious(unitId));
+    internal static MovementTraversal OccupancyFor(UnitType type) => new(Capabilities: MovementCapabilities.For(type));
+    internal static MovementTraversal OccupancyFor(GameState state, string unitId) => new(Capabilities: state.EffectiveMovementCapabilitiesOf(unitId));
+    internal static MovementTraversal For(UnitType type, IReadOnlySet<Cell>? knownCells) => new(
+        IgnoreTerrainAndEdges: type.Mechanic<Phase>() is not null,
+        RequiredTerrain: type.TerrainRestrictedMovement?.Terrain, KnownCells: knownCells,
+        Restriction: type.TerrainRestriction, Capabilities: MovementCapabilities.For(type));
 
-    internal static MovementTraversal For(GameState state, string unitId, bool closedDoorsTraversable = false) =>
+    internal static MovementTraversal For(GameState state, string unitId, bool closedDoorsTraversable = false,
+        ImmutableArray<string> capabilities = default) =>
         new(state.HasPhase(unitId),
             closedDoorsTraversable,
             state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == unitId).TypeId).TerrainRestrictedMovement?.Terrain,
             FogOfWar.IsEnabled(state, state.Units.Single(u => u.Id == unitId).SideId)
                 ? state.ExploredCells.GetValueOrDefault(state.Units.Single(u => u.Id == unitId).SideId) ?? [] : null,
             state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == unitId).TypeId).TerrainRestriction,
-            state.HasAmphibious(unitId));
+            Capabilities: capabilities.IsDefault ? state.EffectiveMovementCapabilitiesOf(unitId) : capabilities);
 
     internal bool CanTraverse(TerrainDefinition terrain) =>
         (!RequiredTerrain.HasValue || TerrainCatalog.AcceptsLegacy(RequiredTerrain.Value, terrain)) &&
         (Restriction is null || Restriction.Accepts(terrain)) &&
-        (IgnoreTerrainAndEdges || terrain.Passable || Amphibious && terrain.LegacyKind == TerrainKind.Water);
+        (IgnoreTerrainAndEdges || MovementKinds.Intersects(Capabilities.IsDefault ? MovementKinds.Default : Capabilities, terrain.MovementPermissions));
     internal bool CanTraverse(EdgeKind edge) => IgnoreTerrainAndEdges || edge.Passable() ||
         ClosedDoorsTraversable && edge == EdgeKind.ClosedDoor;
 }
@@ -47,15 +53,17 @@ internal static class MovementRules
         GameState state, string moverId, Cell from, int? maxSteps = null, bool ignoreCellMarkers = false,
         bool ignoreMovementPattern = false)
     {
-        HypotheticalPosition.Validate(state, moverId, from);
+        var traversal = MovementTraversal.For(state, moverId);
+        HypotheticalPosition.Validate(state, moverId, from, new(Capabilities: traversal.Capabilities));
         if (maxSteps < 0) throw new ArgumentOutOfRangeException(nameof(maxSteps));
         var unit = state.Units.Single(u => u.Id == moverId);
         var pattern = ignoreMovementPattern ? null : state.Types.Single(t => t.Id == unit.TypeId).MovementPattern;
-        return FindPatternPaths(state, moverId, from, maxSteps, ignoreCellMarkers, pattern);
+        return FindPatternPaths(state, moverId, from, maxSteps, ignoreCellMarkers, pattern, traversal);
     }
 
     private static IReadOnlyDictionary<Cell, IReadOnlyList<Cell>> FindPatternPaths(
-        GameState state, string moverId, Cell from, int? maxSteps, bool ignoreCellMarkers, MovementPattern? pattern)
+        GameState state, string moverId, Cell from, int? maxSteps, bool ignoreCellMarkers, MovementPattern? pattern,
+        MovementTraversal traversal)
     {
         if (pattern is MovementPattern.StraightOrthogonalOrDiagonalCorridor or MovementPattern.Adjacent)
         {
@@ -64,16 +72,16 @@ internal static class MovementRules
             var adjacent = pattern == MovementPattern.Adjacent;
             int? Limit(int allowance) => maxSteps is null ? allowance : Math.Min(maxSteps.Value, allowance);
             var cardinal = FindPatternPaths(state, moverId, from, adjacent ? Limit(1) : maxSteps,
-                ignoreCellMarkers, MovementPattern.StraightOrthogonal);
+                ignoreCellMarkers, MovementPattern.StraightOrthogonal, traversal);
             var diagonal = FindPatternPaths(state, moverId, from, adjacent ? Limit(2) : maxSteps,
-                ignoreCellMarkers, MovementPattern.DiagonalCorridor);
+                ignoreCellMarkers, MovementPattern.DiagonalCorridor, traversal);
             return new ReadOnlyDictionary<Cell, IReadOnlyList<Cell>>(cardinal.Concat(diagonal)
                 .DistinctBy(pair => pair.Key).ToDictionary(pair => pair.Key, pair => pair.Value));
         }
         var unit = state.Units.Single(u => u.Id == moverId);
         var straight = pattern == MovementPattern.StraightOrthogonal;
-        var traversal = MovementTraversal.For(state, moverId);
         var footprint = FootprintGeometry.FootprintOf(state, moverId);
+        var occupancy = new MovementTraversal(Capabilities: traversal.Capabilities);
         // Relocate only the mover: its entire original footprint is now unoccupied.
         var occupants = state.Physical.Figures.Where(f => f.Id != moverId)
             .SelectMany(f => FootprintGeometry.OccupiedCells(state, f.Id).Select(c => (Cell: c, Figure: f)))
@@ -142,7 +150,7 @@ internal static class MovementRules
         // Friendly and impassable terrain cells may be traversed but cannot be destinations.
         return new ReadOnlyDictionary<Cell, IReadOnlyList<Cell>>(paths
             .Where(pair => SpatialRules.Fits(state.Physical.Board, footprint, pair.Key,
-                    MovementTraversal.OccupancyFor(state, unit.Id)) &&
+                    occupancy) &&
                 FootprintGeometry.OccupiedCells(footprint, pair.Key).All(c => !occupants.ContainsKey(c)))
             .ToDictionary(pair => pair.Key,
                 pair => (IReadOnlyList<Cell>)pair.Value.AsReadOnly()));
@@ -277,12 +285,13 @@ internal static class ApproachRules
 // This validates the hypothetical placement, not reachability or phase eligibility.
 internal static class HypotheticalPosition
 {
-    internal static void Validate(GameState state, string unitId, Cell from)
+    internal static void Validate(GameState state, string unitId, Cell from, MovementTraversal? occupancy = null)
     {
         var unit = state.Units.Single(u => u.Id == unitId);
         if (unit.CurrentHp <= 0 || !state.Physical.Figures.Any(f => f.Id == unitId))
             throw new ArgumentException("The querying unit must be alive and placed.", nameof(unitId));
-        if (!SpatialRules.CanPlaceUnit(state, unitId, from))
+        if (!SpatialRules.CanPlaceUnit(state, FootprintGeometry.FootprintOf(state, unitId), from, unitId,
+            occupancy ?? MovementTraversal.OccupancyFor(state, unitId)))
             throw new ArgumentException("The hypothetical footprint must be a normally legal placement, free of other figures.", nameof(from));
     }
 }

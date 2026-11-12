@@ -56,6 +56,8 @@ public static class RouteGenerator
             catch (ArgumentException e) { return Fail(PlacementFailureCode.InvalidRequest, e.Message); }
             var terrain = new string[n]; var passable = new bool[n];
             var definitions = draft.Content.Terrain.ToDictionary(t => t.Id, StringComparer.Ordinal);
+            var crossing = definitions.TryGetValue("stepping-stones", out var stones) && stones.Passable &&
+                stones.MovementPermissions.Contains(MovementKinds.Water) ? stones.Id : floor;
             if (!scope.Budget.Spend(n)) return Fail(PlacementFailureCode.BudgetExhausted, "Shared route indexing budget exhausted.");
             for (var i = 0; i < n; i++) { terrain[i] = draft.TerrainAt(i); passable[i] = definitions[terrain[i]].Passable; }
             IEnumerable<int> Square(int anchor)
@@ -101,7 +103,7 @@ public static class RouteGenerator
                     reuse &= draft.IsRouteCorridor(i);
                     cost += terrain[i] is "tree" or "fruit-tree" ? (request.ProfileKind == RouteProfileKind.ForestTrail ? 9 : 4) :
                         terrain[i] == "solid-rock" ? 16 : terrain[i] == "water" ? 45 : 0;
-                    if (request.ProfileKind == RouteProfileKind.RockPassage && draft.Neighbors(i).Any(j => terrain[j] == "water")) cost += 12;
+                    if (request.ProfileKind == RouteProfileKind.RockPassage && draft.Neighbors(i).Any(j => definitions[terrain[j]].Categories.Contains(TerrainCategories.Water))) cost += 12;
                     var x = i % width - a % width; var y = i / width - a / width;
                     if (x + 1 < r.Width && !EdgeAllowed(new(i, EdgeDirection.Right), true) ||
                         y + 1 < r.Width && !EdgeAllowed(new(i, EdgeDirection.Down), true)) { okay = false; break; }
@@ -170,8 +172,9 @@ public static class RouteGenerator
             {
                 foreach (var i in corridor.Order())
                     if (!passable[i] || draft.CanWrite(i) && terrain[i] != floor &&
+                        !definitions[terrain[i]].MovementPermissions.Contains(MovementKinds.Water) &&
                         definitions[terrain[i]] is { Assembly: null, Production: null, LegacyKind: not TerrainKind.Rail })
-                        draft.ReplaceTerrain(i, floor);
+                        draft.ReplaceTerrain(i, terrain[i] == "water" ? crossing : floor);
                 HashSet<EdgeKey> requiredEdges = [];
                 foreach (var a in path)
                     foreach (var i in Square(a))

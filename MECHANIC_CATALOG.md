@@ -4,6 +4,8 @@
 
 Every Ability is an owner-local `LocalAbilityDefinition` in a Unit, Equipment, or Item definition. Its key, name, timing, usage, and `AbilityMechanic` payload are the authoritative declaration. There is no global Ability catalog, grant-reference model, or native-field adapter. A mechanic ID identifies reusable semantics; an owner-local Ability key identifies that owner's authored Ability. Neither a key nor a display name selects an implementation. See [Ability authoring](ABILITY_CONTENT.md).
 
+`movementCapabilityGrant` is an unlimited Passive mechanic for Unit and Equipment sources. Its required nonempty `kinds` list contains distinct lowercase movement identifiers. It supplements Unit `baseMovementCapabilities`, persists while Lying and does not bypass footprints, Edges, Machines, ordinary Move restrictions or FoW. Amphibious supplies the `water` kind through the same effective capability resolution; Phase remains a separate traversal-only exception. Item, finite-use and active grants are invalid. Categories describe Terrain semantics independently of this mechanic.
+
 ## Discovery and validation
 
 `CostCatalog` separately exposes Engine-owned cost descriptors for `layDownSelf`

@@ -37,7 +37,7 @@ public sealed class ResourceProjectionTests
         }
         var observed = GambitProjection.Observation(source.Result.State);
         Assert.Equal(expected.Id, Assert.Single(observed.Board.Terrain).TypeId);
-        Assert.Equal(expected.ProductionDescription, Assert.Single(observed.Board.TerrainTypes!).ProductionDescription);
+        Assert.Equal(expected.ProductionDescription, Assert.Single(observed.Board.TerrainTypes!, t => t.Id == expected.Id).ProductionDescription);
         Assert.Equal(before, JsonSerializer.Serialize(source.Result));
         Assert.Equal(alias ? TerrainCompatibility.LegacyLavaId : null, Assert.Single(source.Result.State.Physical.Board.Terrain).TypeId);
         Assert.Equal(coalGeneration, Assert.Single(source.Result.State.Physical.Board.Terrain).CoalGeneration);

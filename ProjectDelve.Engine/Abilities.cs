@@ -44,6 +44,7 @@ public sealed record AbilityUsage(int? MaxUses = null);
 [JsonDerivedType(typeof(ClawAttack), "clawAttack")]
 [JsonDerivedType(typeof(Phase), "phase")]
 [JsonDerivedType(typeof(Amphibious), "amphibious")]
+[JsonDerivedType(typeof(MovementCapabilityGrant), "movementCapabilityGrant")]
 [JsonDerivedType(typeof(RevealDistance), "revealDistance")]
 [JsonDerivedType(typeof(TransportResource), "transportResource")]
 [JsonDerivedType(typeof(PickupResource), "pickupResource")]
@@ -52,6 +53,7 @@ public sealed record AbilityUsage(int? MaxUses = null);
 [JsonDerivedType(typeof(OpenDoor), "openDoor")]
 public abstract record AbilityMechanic;
 public sealed record Amphibious : AbilityMechanic;
+public sealed record MovementCapabilityGrant(ImmutableArray<string> Kinds) : AbilityMechanic;
 public sealed record RevealDistance([property: JsonRequired] int Distance) : AbilityMechanic;
 public sealed record AdjacentUnitsPostureChangeMechanic([property: JsonRequired] RelationshipSelector Selector, [property: JsonRequired] Posture NewPosture) : AbilityMechanic;
 public sealed record AdjacentUnitHealMechanic([property: JsonRequired] RelationshipSelector Selector, [property: JsonRequired] int Amount) : AbilityMechanic;

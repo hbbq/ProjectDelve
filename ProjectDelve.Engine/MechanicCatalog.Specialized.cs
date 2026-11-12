@@ -78,6 +78,21 @@ public static partial class MechanicCatalog
             "Attack an enemy with RNG {rng} and ATK {atk}.", MechanicUsageSupport.UnlimitedOnly,
             MechanicTargetSelection.Unit, "One living hostile Unit within the authored range and normal LOS.",
             (RequiredInteger("rng", 1), p => p.Rng), (RequiredInteger("atk", 1), p => p.Atk)));
+        var movementKinds = new MechanicParameter("kinds", MechanicParameterKind.List)
+        { MinimumItems = 1, Item = new("kind", MechanicParameterKind.String) };
+        yield return PersistentCapability(MechanicRegistration.Create<MovementCapabilityGrant>(SpecializedDescriptor(
+            "movementCapabilityGrant", "Movement Capability Grant", MechanicTiming.Passive,
+            "Traverse and occupy Terrain permitting any of: {kinds}. This capability persists while Lying.") with
+        {
+            Parameters = [movementKinds],
+            Description = new("Traverse and occupy Terrain permitting any of: {kinds}. This capability persists while Lying.", ["kinds"])
+        }, (payload, path, errors) =>
+        {
+            if (!MechanicChecks.List(errors, movementKinds, payload.Kinds.IsDefault,
+                payload.Kinds.IsDefault ? 0 : payload.Kinds.Length, path + ".kinds")) return;
+            if (!MovementKinds.Valid(payload.Kinds))
+                MechanicChecks.Error(errors, path + ".kinds", "invalidMovementKinds", "Movement kinds must be normalized, valid and distinct.");
+        }), "Persistent movement capability, including Equipment grants while Lying; does not bypass Edges or other obstacles.");
         yield return PersistentCapability(SpecializedMarker<Amphibious>("amphibious", "Amphibious", MechanicTiming.Passive,
             "Traverse and occupy Water, including while Lying.", equipment: true),
             "Persistent Water occupancy permission, independent of Posture; does not bypass Edges or other obstacles.");

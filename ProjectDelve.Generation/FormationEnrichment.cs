@@ -10,6 +10,8 @@ internal sealed class EnrichmentTerrain(WorldGenerationContext context, ContentB
     internal int Count => context.Samples.Length;
     private readonly Dictionary<string, TerrainDefinition> definitions = content.Terrain.ToDictionary(t => t.Id, StringComparer.Ordinal);
     internal bool Passable(int i) => definitions[context.Samples[i].TerrainTypeId].Passable;
+    internal bool Water(int i) => definitions[context.Samples[i].TerrainTypeId].Categories.Contains(TerrainCategories.Water);
+    internal bool OriginalWater(int i) => definitions[context.OriginalSamples[i].TerrainTypeId].Categories.Contains(TerrainCategories.Water);
     internal IEnumerable<int> Neighbors(int i)
     {
         if (i >= Width) yield return i - Width;

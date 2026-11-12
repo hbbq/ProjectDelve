@@ -20,6 +20,7 @@ public static class ContentDescriptions
         void Signed(string key, int value) => values[key] = value.ToString("+0;-0;0", CultureInfo.InvariantCulture);
         switch (ability.Mechanic)
         {
+            case MovementCapabilityGrant grant: values["kinds"] = string.Join(", ", grant.Kinds); break;
             case Swap swap: values["selector"] = Relationship(swap.Selector); break;
             case AdjacentUnitHealMechanic heal:
                 values["selector"] = Relationship(heal.Selector); Number("amount", heal.Amount); break;
@@ -82,6 +83,11 @@ public static class ContentDescriptions
     public static IReadOnlyList<CardEntryDescription> CardEntries(this UnitType type, IReadOnlyList<UnitType>? existingTypes = null)
     {
         List<CardEntryDescription> entries = [];
+        if (!type.BaseMovementCapabilities.SequenceEqual(MovementKinds.Default))
+            entries.Add(new("base-movement-capabilities", "Movement capabilities", "Capability",
+                type.BaseMovementCapabilities.IsEmpty
+                    ? "No base movement capabilities. Terrain occupancy requires a granted movement capability."
+                    : $"Traverse and occupy Terrain permitting any of: {string.Join(", ", type.BaseMovementCapabilities)}."));
         if (type.Amphibious)
             entries.Add(new("amphibious", "Amphibious", "Capability",
                 "May traverse and occupy Water as well as ordinarily legal terrain. Normal Edge, Machine, footprint and Unit occupancy restrictions apply."));

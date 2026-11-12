@@ -200,7 +200,7 @@ public sealed class ContentBrowserApiTests
         var assemblyEntry = Entry(catalog, "terrainAssemblies", assembly.Id);
         Assert.Contains(assemblyEntry.References, reference => reference.TargetKey == "fixedComponents:table" && reference.Exists);
         var resolvedFields = assemblyEntry.Sections.Single(section => section.Title == "Resolved Terrain").Fields;
-        Assert.Equal(new[] { "Passable", "Blocks LOS", "Blocks Vision", "Allows Resource Markers", "Categories", "Destroyed Terrain Type Id", "Production", "Production Description", "Presentation" },
+        Assert.Equal(new[] { "Movement Permissions", "Passable", "Blocks LOS", "Blocks Vision", "Allows Resource Markers", "Categories", "Destroyed Terrain Type Id", "Production", "Production Description", "Presentation" },
             resolvedFields.Select(field => field.Label));
         Assert.False(resolvedFields.Single(field => field.Label == "Passable").Value.GetBoolean());
         Assert.False(resolvedFields.Single(field => field.Label == "Blocks Vision").Value.GetBoolean());

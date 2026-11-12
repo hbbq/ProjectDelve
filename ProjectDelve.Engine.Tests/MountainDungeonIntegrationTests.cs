@@ -38,7 +38,8 @@ public sealed class MountainDungeonIntegrationTests
     [Fact]
     public void CurrentWldAndDelveRoundTripRetainLootWithoutPopulationAndEngineReplay()
     {
-        var world = WorldGenerator.Generate(Recipe()); Assert.Null(world.Context.Population);
+        // This test-owned seed includes optional treasure loot in the current generator.
+        var world = WorldGenerator.Generate(Recipe() with { Seed = 1 }); Assert.Null(world.Context.Population);
         Assert.Empty(world.Definition.Units); Assert.NotEmpty(world.Context.SiteLootMarkers);
         Assert.Equal(world.Context.SiteLootMarkers, world.Preview.Frames[^1].SiteLootMarkers);
         var repeated = WorldGenerator.Generate(world.Code); Assert.Equal(world.Fingerprint, repeated.Fingerprint);

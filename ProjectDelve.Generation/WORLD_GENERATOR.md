@@ -3,6 +3,7 @@
 Current abundance settings and scaling policy: [Density Scaling V1](DENSITY_SCALING_V1.md).
 Current layout, controls and verification: [World Generator Designer](../WORLD_GENERATOR_DESIGNER.md).
 Mountain Sites and current acceptance results: [Mountain Dungeons V1](MOUNTAIN_DUNGEONS_V1.md).
+Mixed Water sampling, crossings and dual connectivity: [Mixed Water Terrain V1](MIXED_WATER_V1.md).
 Older numerical recipe examples and performance corpora below describe historical configurations.
 
 World Generator is an authoring pipeline separate from DNG1-HVM and DNG2-OS.

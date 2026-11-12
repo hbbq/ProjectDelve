@@ -211,6 +211,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public ControllerKind? DefaultController { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool Amphibious { get; init; }
+    public ImmutableArray<string> BaseMovementCapabilities { get; init; } = MovementKinds.Default;
     public int SightDistance { get; init; } = 5;
     public int? WakeDistance { get; init; }
     public bool CanHaveItems { get; init; }
@@ -315,10 +316,10 @@ public sealed record Board : IJsonOnDeserialized
     private ImmutableArray<TerrainDefinition> terrainTypes = [];
     private ImmutableDictionary<string, TerrainDefinition> terrainIndex = ImmutableDictionary<string, TerrainDefinition>.Empty;
     // Current snapshots carry their complete Terrain definitions. Historical upgrades are unsupported.
-    [JsonRequired] public int TerrainContentVersion { get; init; } = 2;
+    [JsonRequired] public int TerrainContentVersion { get; init; } = 3;
     void IJsonOnDeserialized.OnDeserialized()
     {
-        if (TerrainContentVersion != 2) throw new ArgumentException("Unsupported Terrain content snapshot version.");
+        if (TerrainContentVersion != 3) throw new ArgumentException("Unsupported Terrain content snapshot version.");
     }
     [JsonRequired]
     public ImmutableArray<TerrainDefinition> TerrainTypes
@@ -473,7 +474,7 @@ public sealed class GameState
         if (summonerUnitId is not null && (string.IsNullOrWhiteSpace(summonerUnitId) || summonerUnitId == id) ||
             wakeDistance < 0 || Physical.Board.Machines.Any(m => m.Id == id) || Units.Any(u => u.Id == id || u.SummonerUnitId == id) || string.IsNullOrWhiteSpace(sideId) ||
             groupId is not null && string.IsNullOrWhiteSpace(groupId) ||
-            !Enum.IsDefined(posture) || !Enum.IsDefined(type.Footprint) || !SpatialRules.CanPlaceUnit(this, type.Footprint, cell, placement: new MovementTraversal(Amphibious: HasAmphibious(entering))) ||
+            !Enum.IsDefined(posture) || !Enum.IsDefined(type.Footprint) || !SpatialRules.CanPlaceUnit(this, type.Footprint, cell, placement: new MovementTraversal(Capabilities: MovementCapabilities.For(this, entering))) ||
             FootprintGeometry.OccupiedCells(type.Footprint, cell)
                 .Any(c => !TerrainCatalog.Accepts(type, Physical.Board.TerrainDefinitionAt(c))))
             throw new ArgumentException("Invalid Unit placement.");
@@ -565,6 +566,9 @@ public sealed class GameState
         this.ActiveEquipment(unitId).Any(e => e.Id == EquipmentCatalog.LegacyTypeId(kind));
     public bool HasPhase(string unitId) => Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Mechanic<Phase>() is not null ||
         this.AbilitiesOf(unitId).Any(ability => ability.SourceKind == AbilitySourceKind.Equipment && ability.Definition.Mechanic is Phase);
+    public ImmutableArray<string> EffectiveMovementCapabilitiesOf(string unitId) =>
+        MovementCapabilities.For(this, Units.Single(u => u.Id == unitId));
+
     public bool HasAmphibious(string unitId) => HasAmphibious(Units.Single(u => u.Id == unitId));
     private bool HasAmphibious(Unit unit)
     {

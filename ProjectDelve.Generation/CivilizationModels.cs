@@ -163,22 +163,24 @@ internal static class SiteGeometry
     {
         var trees = patch.TerrainChanges.Count(c => c.Before is "tree" or "fruit-tree" && c.After != c.Before);
         var rock = patch.TerrainChanges.Count(c => c.Before == "solid-rock" && c.After != c.Before);
-        var water = patch.TerrainChanges.Count(c => c.Before == "water" && c.After != c.Before);
+        bool Water(string id) => TerrainCatalog.Find(patch.Result.Content.Terrain, id).Categories.Contains(TerrainCategories.Water);
+        var water = patch.TerrainChanges.Count(c => Water(c.Before) && c.After != c.Before);
         return new(trees, rock, water, patch.TerrainChanges.Count, patch.EdgeChanges.Count,
-            patch.TerrainChanges.Sum(c => c.Before is "tree" or "fruit-tree" ? 2 : c.Before == "solid-rock" ? 4 : c.Before == "water" ? 6 : 1));
+            patch.TerrainChanges.Sum(c => c.Before is "tree" or "fruit-tree" ? 2 : c.Before == "solid-rock" ? 4 : Water(c.Before) ? 6 : 1));
     }
     internal static PreparationProblem? Prepare(BoardDraft d, IEnumerable<int> cells, string floor, PreparationPolicy policy)
     {
         policy.Validate(); var distinct = cells.Distinct().ToArray();
+        bool Water(int i) => TerrainCatalog.Find(d.Content.Terrain, d.TerrainAt(i)).Categories.Contains(TerrainCategories.Water);
         if (!d.Budget.Spend(distinct.Length)) return new(PlacementFailureCode.BudgetExhausted, "Shared planning budget exhausted.");
         var changes = distinct.Where(i => d.TerrainAt(i) != floor).ToArray();
         if (distinct.Any(i => !d.CanWrite(i))) return new(PlacementFailureCode.ReservationConflict, "Reserved or protected construction area.");
-        if (changes.Length > policy.MaxChangedCells || changes.Sum(i => d.TerrainAt(i) is "tree" or "fruit-tree" ? 2 : d.TerrainAt(i) == "solid-rock" ? 4 : d.TerrainAt(i) == "water" ? 6 : 1) > policy.MaxCost) return new(PlacementFailureCode.PreparationLimit, "Preparation allowance exceeded.");
+        if (changes.Length > policy.MaxChangedCells || changes.Sum(i => d.TerrainAt(i) is "tree" or "fruit-tree" ? 2 : d.TerrainAt(i) == "solid-rock" ? 4 : Water(i) ? 6 : 1) > policy.MaxCost) return new(PlacementFailureCode.PreparationLimit, "Preparation allowance exceeded.");
         foreach (var i in changes)
         {
             if (!d.CanWrite(i)) return new(PlacementFailureCode.ReservationConflict, "Reserved or protected construction area.");
             var id = d.TerrainAt(i);
-            if (id is "tree" or "fruit-tree" && !policy.ClearTrees || id == "solid-rock" && !policy.ExcavateRock || id == "water" && !policy.FillWater) return new(PlacementFailureCode.PreparationLimit, "Requested terrain preparation is disabled.");
+            if (id is "tree" or "fruit-tree" && !policy.ClearTrees || id == "solid-rock" && !policy.ExcavateRock || Water(i) && !policy.FillWater) return new(PlacementFailureCode.PreparationLimit, "Requested terrain preparation is disabled.");
             if (!d.Passable(i) && id is not ("tree" or "fruit-tree" or "solid-rock" or "water")) return new(PlacementFailureCode.ReservationConflict, "Existing fixed geometry is protected.");
         }
         var cellSet = distinct.ToHashSet();

@@ -232,7 +232,7 @@ public static class WorldGenerationPipeline
             var operationStart = context.Construction.Count;
             switch (step.Kind)
             {
-                case WorldStepKind.NaturalTerrain: context.SampleNaturalTerrain(); break;
+                case WorldStepKind.NaturalTerrain: context.SampleNaturalTerrain(content); break;
                 case WorldStepKind.TerrainAnalysis:
                     context.OriginalAnalysis = TerrainAnalyzer.Analyze(plan.Window, context.OriginalSamples, content);
                     context.CurrentAnalysis = context.OriginalAnalysis; break;

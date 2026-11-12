@@ -69,7 +69,7 @@
           {
             "id": "copper-orchard",
             "name": "Copper Orchard",
-            "passable": false,
+            "movementPermissions": [],
             "blocksLos": true,
             "presentation": { "recipe": "Tree" },
             "production": {
@@ -115,21 +115,21 @@
           {
             "id": "curiosity-velvet-plinth",
             "name": "Velvet Plinth",
-            "passable": false,
+            "movementPermissions": [],
             "blocksLos": false,
             "presentation": { "recipe": "StoneFloorWithTable" }
           },
           {
             "id": "curiosity-midnight-column",
             "name": "Midnight Column",
-            "passable": false,
+            "movementPermissions": [],
             "blocksLos": true,
             "presentation": { "recipe": "SolidRock" }
           },
           {
             "id": "curiosity-moon-paper",
             "name": "Moon Paper",
-            "passable": true,
+            "movementPermissions": ["land"],
             "blocksLos": false,
             "presentation": { "recipe": "unpublished-moon-pattern" }
           }

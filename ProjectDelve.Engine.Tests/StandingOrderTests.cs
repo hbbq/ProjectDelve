@@ -762,10 +762,11 @@ public sealed class StandingOrderTests
             new("toward", new(3, 2), [new(2, 2), new(3, 2)], Kind: ActivationChoiceKind.Move));
         Assert.Equal("away", new OrderAwareAutomatedProvider().Choose(attack, new GameplayQueries(shaman)));
 
+        TestGame.Author(shaman); // Include the receiving Type for typed summon route analysis.
         var summon = new DecisionRequest(DecisionKind.Act, shaman.Units[0].TypeId, "actor",
         [
-            new("top-left", new(1, 1), Action: UnitAction.AdjacentUnitSummon),
-            new("toward", new(3, 2), Action: UnitAction.AdjacentUnitSummon)
+            new("top-left", new(1, 1), Action: UnitAction.AdjacentUnitSummon) { Ability = shaman.AbilitiesOf("actor").Single(a => a.Definition.Mechanic is AdjacentUnitSummonMechanic) },
+            new("toward", new(3, 2), Action: UnitAction.AdjacentUnitSummon) { Ability = shaman.AbilitiesOf("actor").Single(a => a.Definition.Mechanic is AdjacentUnitSummonMechanic) }
         ], true);
         Assert.Equal("toward", new OrderAwareAutomatedProvider().Choose(summon, new GameplayQueries(shaman)));
 

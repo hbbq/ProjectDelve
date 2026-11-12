@@ -251,7 +251,7 @@ public static class ContentBrowserCatalog
             {
                 Sections = [.. entry.Sections, new("Resolved Terrain", Fields(Element(new
                 {
-                    resolved.Passable, resolved.BlocksLos, resolved.BlocksVision, resolved.AllowsResourceMarkers, resolved.Categories, resolved.DestroyedTerrainTypeId,
+                    resolved.MovementPermissions, resolved.Passable, resolved.BlocksLos, resolved.BlocksVision, resolved.AllowsResourceMarkers, resolved.Categories, resolved.DestroyedTerrainTypeId,
                     resolved.Production, productionDescription = EnvironmentalProductionContent.Describe(resolved.Production, canonical.Resources), resolved.Presentation
                 })))]
             });
@@ -368,7 +368,7 @@ public static class ContentBrowserCatalog
         new("Movement and structure", Fields(Element(new
         {
             type.Footprint, type.Unique, type.Actions, type.MovementPattern,
-            type.TerrainRestrictedMovement, type.TerrainRestriction, type.ResourceStorage, type.Amphibious
+            type.BaseMovementCapabilities, type.TerrainRestrictedMovement, type.TerrainRestriction, type.ResourceStorage, type.Amphibious
         }))),
         new("Loot", Fields(Element(new { type.CanHaveItems, type.CanHaveEquipment, type.LootDropSuccesses }))),
         new("Automated policies", Fields(Element(new { type.DefaultController, type.Behaviors, type.AttackDefinitionOrder })))
@@ -378,7 +378,7 @@ public static class ContentBrowserCatalog
         new("Terrain properties", Fields(Element(new
         {
             structure = type.Assembly is null ? "Atomic" : "Composed",
-            type.Passable, type.BlocksLos, type.BlocksVision, type.AllowsResourceMarkers, type.Categories, type.DestroyedTerrainTypeId
+            type.MovementPermissions, type.Passable, type.BlocksLos, type.BlocksVision, type.AllowsResourceMarkers, type.Categories, type.DestroyedTerrainTypeId
         }))),
         new("Presentation", Fields(Element(type.Presentation))),
         new("Production", Fields(Element(new { type.Production, description = EnvironmentalProductionContent.Describe(type.Production, resources) })))

@@ -54,7 +54,7 @@ internal static class WaterEnricher
                     context.FeatureOpportunities.Add(new(id + ":space", "island", center, terrain.Bounds(island), island.Count, formation.Id, id, -1, true));
                 }
             }
-            var shores = core.Where(Water).SelectMany(i => terrain.Neighbors(i).Where(terrain.Passable)).Distinct().Order().ToList();
+            var shores = core.Where(terrain.Water).SelectMany(i => terrain.Neighbors(i).Where(j => terrain.Passable(j) && !terrain.Water(j))).Distinct().Order().ToList();
             random.Shuffle(shores); List<int> selected = [];
             foreach (var shore in shores)
             {

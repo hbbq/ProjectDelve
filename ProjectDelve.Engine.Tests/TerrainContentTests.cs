@@ -162,7 +162,7 @@ public sealed class TerrainContentTests
         TerrainCatalog.Validate(restored);
         Assert.Equal(json, JsonSerializer.Serialize(restored));
         var first = Corridor(Tile(1, 0, Barrier.Id));
-        var alternate = Barrier with { Name = "Other Scenario", Passable = true };
+        var alternate = Barrier with { Name = "Other Scenario", MovementPermissions = [MovementKinds.Land] };
         var second = new Board(2, 1, []) { TerrainTypes = TerrainCatalog.Resolve([alternate]), Terrain = [Tile(1, 0, Barrier.Id)] };
         Assert.False(first.Physical.Board.TerrainDefinitionAt(new(1, 0)).Passable);
         Assert.True(second.TerrainDefinitionAt(new(1, 0)).Passable);
@@ -178,10 +178,10 @@ public sealed class TerrainContentTests
         Assert.Throws<ArgumentException>(() => TerrainCatalog.Resolve([Barrier with { Categories = ["track", "track"] }]));
         Assert.Throws<ArgumentException>(() => TerrainCatalog.Resolve([Barrier with { Presentation = null! }]));
         Assert.Throws<ArgumentException>(() => TerrainCatalog.Resolve([Barrier with { Name = " " }]));
-        Assert.Throws<ArgumentException>(() => TerrainCatalog.Resolve([Barrier with { Passable = true, AllowsResourceMarkers = false }]));
+        Assert.Throws<ArgumentException>(() => TerrainCatalog.Resolve([Barrier with { MovementPermissions = [MovementKinds.Land], AllowsResourceMarkers = false }]));
         Assert.Throws<ArgumentException>(() => Corridor(Tile(2, 0, "missing")).Physical.Board.TerrainDefinitionAt(new(2, 0)));
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<TerrainDefinition>(
-            """{"Id":"x","Name":"X","Passable":false,"BlocksLos":false,"UnrecognizedRule":true}"""));
+            """{"Id":"x","Name":"X","MovementPermissions":[],"BlocksLos":false,"UnrecognizedRule":true}"""));
     }
 
     [Fact]
@@ -204,7 +204,7 @@ public sealed class TerrainContentTests
         var state = Corridor();
         state.Physical = state.Physical with { Board = state.Physical.Board with
         {
-            TerrainTypes = TerrainCatalog.Resolve([forbidden with { Passable = false }]),
+            TerrainTypes = TerrainCatalog.Resolve([forbidden with { MovementPermissions = [] }]),
             Terrain = [Tile(2, 0, forbidden.Id)]
         } };
         Assert.Throws<ArgumentException>(() => state.PlaceResource(ResourceTypes.Coal, new(2, 0)));
@@ -214,8 +214,8 @@ public sealed class TerrainContentTests
 
     [Theory]
     [InlineData("""{"Id":"x","Name":"X","BlocksLos":false}""")]
-    [InlineData("""{"Id":"x","Name":"X","Passable":false}""")]
-    [InlineData("""{"Id":"x","Name":"X","Passable":false,"BlocksLos":false,"Presentation":{}}""")]
+    [InlineData("""{"Id":"x","Name":"X","MovementPermissions":[]}""")]
+    [InlineData("""{"Id":"x","Name":"X","MovementPermissions":[],"BlocksLos":false,"Presentation":{}}""")]
     public void MissingRequiredPropertiesAreRejectedEvenByTheRuntimeSaveSerializer(string json)
     {
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<TerrainDefinition>(json));

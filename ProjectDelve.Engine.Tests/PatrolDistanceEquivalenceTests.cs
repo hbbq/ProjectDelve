@@ -199,7 +199,7 @@ public sealed class PatrolDistanceEquivalenceTests
                 ClosedDoorsTraversable: sample % 2 == 0,
                 RequiredTerrain: sample % 5 == 0 ? TerrainKind.Asphalt : null,
                 KnownCells: sample % 3 == 0 ? Cells(board).Where(_ => random.Next(3) != 0).ToHashSet() : null,
-                Amphibious: sample % 2 != 0);
+                Capabilities: sample % 2 != 0 ? [MovementKinds.Land, MovementKinds.Water] : [MovementKinds.Land]);
             var areas = Cells(board).Select(c => new ObjectiveArea(c.X, c.Y, 1, 1))
                 .Concat([new(1, 1, 3, 2), new(-2, -2, 1, 1)]);
             foreach (var origin in Cells(board))

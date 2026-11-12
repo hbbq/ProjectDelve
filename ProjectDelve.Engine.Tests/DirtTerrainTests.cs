@@ -13,7 +13,7 @@ public sealed class DirtTerrainTests
         Assert.Equal(grass.Passable, dirt.Passable);
         Assert.Equal(grass.BlocksLos, dirt.BlocksLos);
         Assert.Equal(grass.AllowsResourceMarkers, dirt.AllowsResourceMarkers);
-        Assert.Empty(dirt.Categories);
+        Assert.Equal(new[] { TerrainCategories.Land }, dirt.Categories);
         Assert.Null(dirt.Production);
         Assert.Null(dirt.LegacyKind);
         Assert.Equal("Dirt", dirt.Presentation.Recipe);

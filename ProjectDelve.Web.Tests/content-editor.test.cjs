@@ -555,6 +555,24 @@ test('usage compatibility follows Cost metadata and supported mechanic changes p
 });
 
 
+test('Terrain form authors multiple permissions and independent categories without a writable Passable field', async () => {
+  const h = harness();
+  await h.editor.open({ family: 'terrain' });
+  h.change('definition.id', 'stream'); h.change('definition.name', 'Stream');
+  assert.equal(h.field('definition.passable'), undefined);
+  assert.equal(h.field('definition.movementPermissions[0]').value, 'land');
+  const add = title => h.root.all(e => e.tagName === 'h5' && e.textContent === title)[0]
+    .parentElement.parentElement.children.find(e => e.tagName === 'button' && e.textContent === 'Add entry').listeners.click();
+  add('Movement permissions');
+  h.change('definition.movementPermissions[1]', 'water');
+  add('Categories'); h.change('definition.categories[0]', 'rock');
+  add('Categories'); h.change('definition.categories[1]', 'constructed');
+  await h.editor.validate();
+  assert.deepEqual(h.validated[0].definition.movementPermissions, ['land', 'water']);
+  assert.deepEqual(h.validated[0].definition.categories, ['rock', 'constructed']);
+  assert.equal(Object.hasOwn(h.validated[0].definition, 'passable'), false);
+});
+
 test('Terrain and assembly forms author explicit optional results and referenced components without mutating copies', async () => {
   const terrainCatalog = { ...catalog, entries: [...catalog.entries,
     { family: 'terrain', id: 'floor', name: 'Floor' },
@@ -562,13 +580,14 @@ test('Terrain and assembly forms author explicit optional results and referenced
     { family: 'fixedComponents', id: 'table', name: 'Table' }
   ] };
   const h = harness({ callbacks: { catalog: terrainCatalog } });
-  const original = { id: 'rock', name: 'Rock', passable: false, blocksLos: true, legacyKind: 'SolidRock', destroyedTerrainTypeId: 'grass', presentation: { recipe: 'rock' } };
+  const original = { id: 'rock', name: 'Rock', movementPermissions: [], passable: false, blocksLos: true, legacyKind: 'SolidRock', destroyedTerrainTypeId: 'grass', presentation: { recipe: 'rock' } };
   await h.editor.open({ family: 'terrain', definition: original, copy: true, newId: 'custom-rock' });
   assert.equal(h.field('definition.destroyedTerrainTypeId').value, 'grass');
   h.change('definition.destroyedTerrainTypeId', '', 'change');
   await h.editor.validate();
   const copied = h.validated.at(-1).definition;
-  assert.equal(copied.id, 'custom-rock'); assert.equal(copied.passable, false);
+  assert.equal(copied.id, 'custom-rock'); assert.deepEqual(copied.movementPermissions, []);
+  assert.equal(Object.hasOwn(copied, 'passable'), false);
   assert.equal(Object.hasOwn(copied, 'destroyedTerrainTypeId'), false);
   assert.equal(Object.hasOwn(copied, 'legacyKind'), false);
   assert.equal(original.destroyedTerrainTypeId, 'grass');

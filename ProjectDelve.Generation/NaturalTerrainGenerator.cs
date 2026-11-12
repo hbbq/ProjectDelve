@@ -10,20 +10,26 @@ public sealed record NaturalTerrainSample(string TerrainTypeId, double Forest, d
 /// <summary>WLD1's stateless, absolute-coordinate sampler. No board edges, traversal order or sampled-window statistics enter its decisions.</summary>
 public sealed class NaturalTerrainSampler
 {
-    private readonly ulong forestSeed, rockSeed, opennessSeed, soilSeed, waterSeed;
+    private readonly ulong forestSeed, rockSeed, opennessSeed, soilSeed, waterSeed, mixedSeed;
     private readonly NaturalTerrainSettings settings;
     private readonly double scale, spacing;
-    public NaturalTerrainSampler(WorldDefinition world) : this(world.Validate().Seed, world.NaturalTerrain) { }
-    public NaturalTerrainSampler(ulong seed, NaturalTerrainSettings settings)
+    private readonly bool wetGrassAvailable, rockyWaterAvailable;
+    public NaturalTerrainSampler(WorldDefinition world, ContentBundle? content = null)
+        : this(world.Validate().Seed, world.NaturalTerrain, content) { }
+    public NaturalTerrainSampler(ulong seed, NaturalTerrainSettings settings, ContentBundle? content = null)
     {
         this.settings = settings.Validate();
+        // Capture catalog availability once; never fetch definitions or repair a sampled crop.
+        wetGrassAvailable = content is null || content.Terrain.Any(t => t.Id == "wet-grass");
+        rockyWaterAvailable = content is null || content.Terrain.Any(t => t.Id == "rocky-water");
         scale = settings.Scale switch { FeatureScale.Fine => 3, FeatureScale.Broad => 8, _ => 5 };
         spacing = scale * 8;
         forestSeed = DomainSeed(seed, 1); rockSeed = DomainSeed(seed, 2);
         opennessSeed = DomainSeed(seed, 3); soilSeed = DomainSeed(seed, 4); waterSeed = DomainSeed(seed, 5);
+        mixedSeed = DomainSeed(seed, 6);
     }
 
-    public NaturalTerrainSample Sample(int x, int y) => Sample(x, y, Features(x, y, x, y));
+    public NaturalTerrainSample Sample(int x, int y) => Sample(x, y, Features((long)x - 1, (long)y - 1, (long)x + 1, (long)y + 1));
 
     internal NaturalTerrainSample Sample(int x, int y, IReadOnlyList<WaterFeature> features)
     {
@@ -41,7 +47,34 @@ public sealed class NaturalTerrainSampler
         var terrain = water ? "water" : Below(rock, rockAmount) ? "solid-rock" :
             Below(forest * .85 + openness * .15, forestAmount) ? "tree" :
             soil > .64 && openness < .62 ? "dirt" : "grass";
+        if (settings.WaterCoverage is > 0 and < 100)
+        {
+            if (water && rockyWaterAvailable && Patch(x, y, 16, .15, 1)) terrain = "rocky-water";
+            else if (wetGrassAvailable && terrain is ("grass" or "dirt"))
+            {
+                var shore = features.Any(f => f.Contains((long)x - 1, y) || f.Contains((long)x + 1, y) ||
+                    f.Contains(x, (long)y - 1) || f.Contains(x, (long)y + 1));
+                if (shore && Unit(Hash(mixedSeed, x, y)) < .18 || Patch(x, y, 24, .08, 2)) terrain = "wet-grass";
+            }
+        }
         return new(terrain, forest, rock, openness, soil);
+    }
+
+    // Bounded world-owned patches. Check neighboring owners so a crop never clips a patch.
+    private bool Patch(int x, int y, int size, double chance, ulong domain)
+    {
+        var gx = (long)Math.Floor((double)x / size); var gy = (long)Math.Floor((double)y / size);
+        for (var yy = gy - 1; yy <= gy + 1; yy++)
+        for (var xx = gx - 1; xx <= gx + 1; xx++)
+        {
+            var h = Hash(DomainSeed(mixedSeed, domain), xx, yy);
+            if (Unit(h) >= chance) continue;
+            var cx = (xx + Unit(Mix(h + 1))) * size;
+            var cy = (yy + Unit(Mix(h + 2))) * size;
+            var radius = 1 + Unit(Mix(h + 3));
+            if ((x - cx) * (x - cx) + (y - cy) * (y - cy) <= radius * radius) return true;
+        }
+        return false;
     }
 
     private static bool Below(double field, double amount)
@@ -57,7 +90,7 @@ public sealed class NaturalTerrainSampler
 
     // Each stable owner square owns one bounded shape, with independent placement,
     // rotation and shape hashes. Owner squares never clip their features.
-    internal IReadOnlyList<WaterFeature> Features(int left, int top, int right, int bottom)
+    internal IReadOnlyList<WaterFeature> Features(long left, long top, long right, long bottom)
     {
         if (settings.WaterCoverage is 0 or 100) return [];
         List<WaterFeature> result = [];
@@ -165,10 +198,11 @@ public sealed partial class WorldGenerationContext
         World = world.Validate(); Window = window.Validate();
         Samples = new NaturalTerrainSample[window.Width * window.Height];
     }
-    public void SampleNaturalTerrain()
+    public void SampleNaturalTerrain(ContentBundle? content = null)
     {
-        var sampler = new NaturalTerrainSampler(World);
-        var features = sampler.Features(Window.OffsetX, Window.OffsetY, Window.OffsetX + Window.Width - 1, Window.OffsetY + Window.Height - 1);
+        var sampler = new NaturalTerrainSampler(World, content);
+        var features = sampler.Features((long)Window.OffsetX - 1, (long)Window.OffsetY - 1,
+            (long)Window.OffsetX + Window.Width, (long)Window.OffsetY + Window.Height);
         for (var y = 0; y < Window.Height; y++)
         for (var x = 0; x < Window.Width; x++)
             Samples[y * Window.Width + x] = sampler.Sample(Window.OffsetX + x, Window.OffsetY + y, features);

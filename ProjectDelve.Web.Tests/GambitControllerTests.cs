@@ -239,8 +239,10 @@ public sealed class GambitControllerTests
         Assert.Equal(JsonSerializer.Serialize(first), JsonSerializer.Serialize(second));
         Assert.Equal(EdgeKind.ClosedDoor, Assert.Single(first.Board.Edges).Kind);
         Assert.Equal(TerrainKind.Water, Assert.Single(first.Board.Terrain).Kind);
-        Assert.Null(first.Board.TerrainTypes);
+        Assert.Equal(new[] { "water" }, Assert.Single(first.Board.TerrainTypes!, t => t.Id == "water").MovementPermissions);
+        Assert.Contains(first.Board.TerrainTypes!, t => t.Id == "stone-floor");
         var unit = Assert.Single(first.Units, unit => unit.Id == "one");
+        Assert.Equal(new[] { "land" }, unit.MovementCapabilities);
         Assert.Equal(1, unit.MaximumHp); Assert.Equal(new GambitStats(1, 1, 2, 1), unit.EffectiveStats);
         Assert.Null(unit.OccupiedCells); Assert.Null(unit.CellSpan);
         var type = Assert.Single(first.Types);
@@ -369,10 +371,11 @@ public sealed class GambitControllerTests
         state.FogOfWarSides = ["amber"];
         FogOfWar.Refresh(state);
         var observation = GambitProjection.Observation(state);
-        var terrain = Assert.Single(observation.Board.TerrainTypes!);
+        var terrain = Assert.Single(observation.Board.TerrainTypes!, t => t.Id == local.Id);
         Assert.Equal(local.Id, terrain.Id);
         Assert.Equal(local.Name, terrain.Name);
         Assert.False(terrain.Passable); Assert.False(terrain.BlocksLos);
+        Assert.Empty(terrain.MovementPermissions);
         Assert.False(terrain.AllowsResourceMarkers);
         Assert.Equal("soft-ground", Assert.Single(terrain.Categories!));
         Assert.Contains("*-", observation.AsciiBoard);
@@ -383,7 +386,7 @@ public sealed class GambitControllerTests
         Assert.DoesNotContain("visual-only-secret", json);
         Assert.DoesNotContain("legacyKind", json);
         var restored = JsonSerializer.Deserialize<GambitObservation>(json, GambitJson.Options)!;
-        Assert.Equal(local.Id, Assert.Single(restored.Board.TerrainTypes!).Id);
+        Assert.Equal(local.Id, Assert.Single(restored.Board.TerrainTypes!, t => t.Id == local.Id).Id);
         Assert.Equal(local.Id, Assert.Single(restored.Board.Terrain).TypeId);
     }
 
@@ -395,11 +398,11 @@ public sealed class GambitControllerTests
         state.Physical.Figures[1] = state.Physical.Figures[1] with { Position = new(2, 0) };
         state.FogOfWarSides = ["amber"]; FogOfWar.Refresh(state);
         var observation = GambitProjection.Observation(state);
-        var tree = Assert.Single(observation.Board.TerrainTypes!);
+        var tree = Assert.Single(observation.Board.TerrainTypes!, t => t.Id == "tree");
         Assert.Equal("tree", tree.Id);
         Assert.True(tree.BlocksLos); Assert.False(tree.BlocksVision);
         var restored = JsonSerializer.Deserialize<GambitObservation>(JsonSerializer.Serialize(observation, GambitJson.Options), GambitJson.Options)!;
-        Assert.False(Assert.Single(restored.Board.TerrainTypes!).BlocksVision);
+        Assert.False(Assert.Single(restored.Board.TerrainTypes!, t => t.Id == "tree").BlocksVision);
         Assert.True(FogOfWar.IsUnitObservable(state, "amber", "two"));
     }
 

@@ -6,6 +6,8 @@ internal static class RouteCostField
     internal static int[] Build(RouteRequest request, GenerationScope scope, string[] terrain, bool[] reuse, int attempt)
     {
         var w = scope.Board.Width; var h = scope.Board.Height; var field = new int[terrain.Length];
+        var waterTypes = scope.Content.Terrain.Where(t => t.Categories.Contains(ProjectDelve.Engine.TerrainCategories.Water))
+            .Select(t => t.Id).ToHashSet(StringComparer.Ordinal);
         var random = RouteSeed.Stream(scope.RootSeed, scope.ObjectId(request.Key), "guide", attempt);
         var phase = random.Next(628) / 100.0;
         var sx = request.Start.Cells.Average(i => i % w); var sy = request.Start.Cells.Average(i => i / w);
@@ -25,7 +27,7 @@ internal static class RouteCostField
                 var kind = terrain[yy * w + xx];
                 if (kind is "tree" or "fruit-tree") trees++;
                 else if (kind == "solid-rock") rock++;
-                else if (kind == "water") water++;
+                else if (waterTypes.Contains(kind)) water++;
             }
             var natural = request.ProfileKind == RouteProfileKind.ForestTrail ? (trees is > 0 and < 7 ? 0 : 3) :
                 request.ProfileKind == RouteProfileKind.RockPassage ? rock * 2 : water is > 0 and < 5 ? 0 : 1;

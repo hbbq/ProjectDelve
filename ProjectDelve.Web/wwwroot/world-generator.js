@@ -458,13 +458,13 @@ function renderRoutes(root, frame, width, height, window) {
       for (const port of [route.start, route.end]) if (port) marker(port.anchorIndex, port.id, "port", `Accepted route port ${port.id} · ${port.kind} (${port.worldX}, ${port.worldY})${port.siteId ? ` · Site ${port.siteId}` : ""}`);
     }
     if (byId("route-crossings").checked) {
-      for (const crossing of route.crossings ?? []) area(crossing.footprint, route.id, "crossing", "Accepted ordinary terrain Water fill");
+      for (const crossing of route.crossings ?? []) area(crossing.footprint, route.id, "crossing", "Accepted constructed Water crossing");
       for (const mouth of route.tunnelEntrances ?? []) marker(mouth.anchorIndex, route.id, "mouth", `Excavated tunnel mouth · ${route.id} (${mouth.worldX}, ${mouth.worldY})`);
     }
     detail(`${route.id} · ${route.purpose} · ${route.profile}`, `Accepted corridor: ${route.corridor.area} Cells; width ${route.realizedWidth}; verified ${route.verifiedFootprint} × ${route.verifiedFootprint} footprint. ` +
       `Ports: ${route.start.id} (${route.start.worldX}, ${route.start.worldY}) → ${route.end.id} (${route.end.worldX}, ${route.end.worldY}). ` +
       `Surface ${route.surfaceTypeId ?? "server ground"}; realized ${(route.realizedSurfaceTypeIds ?? []).join(", ") || "server terrain"}. Requires opening Doors: ${route.requiresOpeningDoors ? "yes" : "no"}. Length ${s.length}; turns ${s.turns}; reused Cells ${s.reusedCells}; search cost ${s.searchCost}; attempts ${s.attempts}; expanded states ${s.expandedStates}; peak queue ${s.queuePeak}. ` +
-      `Preparation cost ${p.cost}; trees ${p.treesRemoved}; rock ${p.rockExcavated}; Water filled ${p.waterFilled}; terrain changes ${p.changedTerrain}; Edge changes ${p.changedEdges}. ` +
+      `Preparation cost ${p.cost}; trees ${p.treesRemoved}; rock ${p.rockExcavated}; Water Cells prepared ${p.waterFilled}; terrain changes ${p.changedTerrain}; Edge changes ${p.changedEdges}. ` +
       `Water crossing spans: ${(route.crossings ?? []).map(crossing => `${crossing.footprint.area} Cells`).join(", ") || "none"}; tunnel mouths: ${(route.tunnelEntrances ?? []).map(mouth => `(${mouth.worldX}, ${mouth.worldY})`).join(", ") || "none"}. ` +
       `Materialization ${route.materializationId}; source revision ${route.sourceRevision}.`, "route");
   }

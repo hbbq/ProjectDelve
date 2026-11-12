@@ -96,7 +96,7 @@ public static class ContentDefinitions
         t.AttackDefinitionOrder.Any(a => !UnitAuthoringSchema.AttackActions.Contains(a)) ||
         (t.MovementPattern is {} pattern && !Enum.IsDefined(pattern)) ||
         (t.TerrainRestrictedMovement is {} restriction && (!Enum.IsDefined(restriction.Terrain) || !restriction.Terrain.Passable())) ||
-        t.TerrainRestriction is { IsValid: false } || t.TerrainRestriction is not null && t.TerrainRestrictedMovement is not null;
+        !MovementKinds.Valid(t.BaseMovementCapabilities) || t.TerrainRestriction is { IsValid: false } || t.TerrainRestriction is not null && t.TerrainRestrictedMovement is not null;
     private static void ValidateUnitStructure(UnitType type)
     {
         void Require(bool valid, string path, string message)
@@ -119,6 +119,7 @@ public static class ContentDefinitions
         Require(type.MovementPattern is not {} pattern || Enum.IsDefined(pattern), "movementPattern", "Choose a supported movement pattern.");
         Require(type.TerrainRestrictedMovement is not {} restriction || Enum.IsDefined(restriction.Terrain) && restriction.Terrain.Passable(),
             "terrainRestrictedMovement.terrain", "A legacy Terrain restriction requires supported passable Terrain.");
+        Require(MovementKinds.Valid(type.BaseMovementCapabilities), "baseMovementCapabilities", "Movement capabilities must be normalized, valid and distinct.");
         Require(type.TerrainRestriction is not { IsValid: false }, "terrainRestriction.categories", "Terrain categories must be nonempty, valid and distinct.");
         Require(type.TerrainRestriction is null || type.TerrainRestrictedMovement is null, "terrainRestriction", "Choose either category or legacy Terrain restrictions.");
         Require(type.Mechanic<RunRails>() is null || type.Footprint == Footprint.OneByOne, "footprint", "Run Rails requires a one-Cell Footprint.");
@@ -186,6 +187,7 @@ public static class ContentDefinitions
                     for (int i = 0; i < assembly.Components.Length; i++) Add(ContentFamily.FixedComponent, assembly.Components[i].Definition.Id, $"assembly.components[{i}].definition", ContentDependencyKind.Embedded, assembly.Components[i].Definition);
                 } break;
             case MachineType x:
+                if (x.RequiredTerrainTypeId is { } requiredTerrain) Add(ContentFamily.Terrain, requiredTerrain, "requiredTerrainTypeId");
                 Storage(x.Storage, "storage");
                 if (x.Operation is {} operation)
                 {

@@ -72,7 +72,7 @@ public interface IGameplayQueries
     int EffectiveAttackDice(string unitId, Candidate candidate) => throw new NotSupportedException();
     bool IsUnlimitedAttack(string unitId, Candidate candidate) => throw new NotSupportedException();
     int AttackDefinitionOrder(string unitId, Candidate candidate) => throw new NotSupportedException();
-    int? OpenRouteDistanceFromSummonPlacement(string unitId, Cell placement,
+    int? OpenRouteDistanceFromSummonPlacement(string unitId, Candidate candidate,
         IReadOnlyCollection<string> targetIds) => throw new NotSupportedException();
 
     // Approach distance ignores Units and this activation's MOV. null means no supported attack
@@ -102,12 +102,13 @@ internal sealed partial class GameplayQueries : IGameplayQueries
                 Math.Max(area.Y - c.Y, Math.Max(0, c.Y - (area.Y + area.H - 1))));
     public int? WholeFootprintRouteDistanceToArea(string unitId, Cell position, ObjectiveArea area, bool closedDoorsTraversable = false)
     {
-        HypotheticalPosition.Validate(world, unitId, position);
+        HypotheticalPosition.Validate(world, unitId, position, OccupancyTraversal(unitId));
         var distances = areaReturnFields.GetOrAdd((unitId, area, closedDoorsTraversable), static (key, queries) => new(() =>
         {
             var board = queries.world.Physical.Board;
             var footprint = FootprintGeometry.FootprintOf(queries.world, key.Actor);
-            var traversal = MovementTraversal.For(queries.world, key.Actor, key.ClosedDoors);
+            var traversal = queries.Traversal(key.Actor, key.ClosedDoors);
+            var occupancy = queries.OccupancyTraversal(key.Actor);
             IEnumerable<Cell> Goals()
             {
                 for (var y = key.Area.Y; y < (long)key.Area.Y + key.Area.H; y++)
@@ -116,7 +117,7 @@ internal sealed partial class GameplayQueries : IGameplayQueries
                     var anchor = new Cell(x, y);
                     if (FootprintGeometry.OccupiedCells(footprint, anchor).All(c => RouteRules.Contains(key.Area, c) &&
                             (traversal.KnownCells is null || traversal.KnownCells.Contains(c))) &&
-                        SpatialRules.Fits(board, footprint, anchor, MovementTraversal.OccupancyFor(queries.world, key.Actor)) &&
+                        SpatialRules.Fits(board, footprint, anchor, occupancy) &&
                         SpatialRules.Fits(board, footprint, anchor, traversal))
                         yield return anchor;
                 }
@@ -132,7 +133,7 @@ internal sealed partial class GameplayQueries : IGameplayQueries
     public TerrainDefinition TerrainDefinitionAt(Cell cell) => world.Physical.Board.TerrainDefinitionAt(cell);
     public int? RouteDistanceToArea(string unitId, Cell position, ObjectiveArea area, bool closedDoorsTraversable = false)
     {
-        HypotheticalPosition.Validate(world, unitId, position);
+        HypotheticalPosition.Validate(world, unitId, position, OccupancyTraversal(unitId));
         var footprint = FootprintGeometry.FootprintOf(world, unitId);
         var key = (Actor: unitId, Area: area, ClosedDoors: closedDoorsTraversable);
         if (!patrolFields.TryGetValue(key, out var field))
@@ -141,7 +142,7 @@ internal sealed partial class GameplayQueries : IGameplayQueries
             // budget, never a route-distance cutoff: exhaustion falls back to an
             // exact field and later candidate queries share that completed work.
             if (ApproachRules.TryDistanceToArea(world.Physical.Board, position, area, out var nearby,
-                    MovementTraversal.For(world, unitId, closedDoorsTraversable), footprint, expansionBudget: 256))
+                    Traversal(unitId, closedDoorsTraversable), footprint, expansionBudget: 256))
                 return nearby;
             field = patrolFields.GetOrAdd(key, static (key, queries) => new(() =>
             {
@@ -161,7 +162,7 @@ internal sealed partial class GameplayQueries : IGameplayQueries
                     }
                 }
                 return ApproachRules.DistancesTo(board, Goals(),
-                    MovementTraversal.For(queries.world, key.Actor, key.ClosedDoors), footprint);
+                    queries.Traversal(key.Actor, key.ClosedDoors), footprint);
             }), this);
         }
         return field.Value.TryGetValue(position, out var distance) ? distance : null;
@@ -207,7 +208,7 @@ internal sealed partial class GameplayQueries : IGameplayQueries
 
     public IReadOnlyList<Candidate> ResourceActionsFrom(string unitId, Cell position, ResourceType? source)
     {
-        HypotheticalPosition.Validate(world, unitId, position);
+        HypotheticalPosition.Validate(world, unitId, position, OccupancyTraversal(unitId));
         if (!world.IsUpright(unitId)) return [];
         var projected = world.Copy();
         var index = projected.Physical.Figures.FindIndex(f => f.Id == unitId);
@@ -243,9 +244,9 @@ internal sealed partial class GameplayQueries : IGameplayQueries
 
     public int? RouteDistanceTo(string unitId, Cell position, Cell destination, bool closedDoorsTraversable = false)
     {
-        HypotheticalPosition.Validate(world, unitId, position);
+        HypotheticalPosition.Validate(world, unitId, position, OccupancyTraversal(unitId));
         var distances = ApproachRules.Distances(world.Physical.Board, position, destination,
-            traversal: MovementTraversal.For(world, unitId, closedDoorsTraversable),
+            traversal: Traversal(unitId, closedDoorsTraversable),
             footprint: FootprintGeometry.FootprintOf(world, unitId));
         return distances.TryGetValue(destination, out var distance) ? distance : null;
     }
@@ -266,14 +267,14 @@ internal sealed partial class GameplayQueries : IGameplayQueries
 
     public bool CanAttackAnyFrom(string unitId, Cell position, IReadOnlyCollection<string> targetIds)
     {
-        HypotheticalPosition.Validate(world, unitId, position);
+        HypotheticalPosition.Validate(world, unitId, position, OccupancyTraversal(unitId));
         return targetIds.Any(targetId => CanAttackTargetFrom(unitId, position, targetId));
     }
 
     public int? DistanceToAttackPositionFrom(string unitId, Cell position, IReadOnlyCollection<string> targetIds,
         bool closedDoorsTraversable = false)
     {
-        HypotheticalPosition.Validate(world, unitId, position);
+        HypotheticalPosition.Validate(world, unitId, position, OccupancyTraversal(unitId));
         int? best = null;
         foreach (var targetId in targetIds)
         {
@@ -290,6 +291,7 @@ internal sealed partial class GameplayQueries : IGameplayQueries
     {
         var board = world.Physical.Board;
         var footprint = FootprintGeometry.FootprintOf(world, unitId);
+        var occupancy = OccupancyTraversal(unitId);
         IEnumerable<Cell> AttackPositions()
         {
             foreach (var position in AttackOriginCandidates(unitId, targetId, targeted))
@@ -300,12 +302,12 @@ internal sealed partial class GameplayQueries : IGameplayQueries
                 if (targeted
                     ? FootprintGeometry.OccupiedCells(footprint, position).All(c => MovementRules.Inside(board, c)) &&
                         CanAttackTargetFrom(unitId, position, targetId!)
-                    : SpatialRules.Fits(board, footprint, position, MovementTraversal.OccupancyFor(world, unitId)) && CanAttackFrom(unitId, position))
+                    : SpatialRules.Fits(board, footprint, position, occupancy) && CanAttackFrom(unitId, position))
                     yield return position;
             }
         }
         return ApproachRules.DistancesTo(board, AttackPositions(),
-            MovementTraversal.For(world, unitId, closedDoorsTraversable), footprint);
+            Traversal(unitId, closedDoorsTraversable), footprint);
     }
 
     public bool IsLivingFriendlyUnit(string unitId, string targetId)
@@ -320,7 +322,7 @@ internal sealed partial class GameplayQueries : IGameplayQueries
 
     public bool AreUnitsAdjacentFrom(string unitId, Cell position, string targetId)
     {
-        HypotheticalPosition.Validate(world, unitId, position);
+        HypotheticalPosition.Validate(world, unitId, position, OccupancyTraversal(unitId));
         return SpatialRules.AreFootprintsAdjacent(world.Physical.Board,
             FootprintGeometry.OccupiedCells(world, unitId, position), OccupiedCellsOf(targetId));
     }
@@ -329,11 +331,11 @@ internal sealed partial class GameplayQueries : IGameplayQueries
         bool closedDoorsTraversable = false)
     {
         if (!Knows(unitId, targetId)) return null;
-        HypotheticalPosition.Validate(world, unitId, position);
+        HypotheticalPosition.Validate(world, unitId, position, OccupancyTraversal(unitId));
         var footprint = FootprintGeometry.FootprintOf(world, unitId);
         var targetCells = OccupiedCellsOf(targetId);
         return ApproachRules.Distances(world.Physical.Board, position,
-                traversal: MovementTraversal.For(world, unitId, closedDoorsTraversable), footprint: footprint)
+                traversal: Traversal(unitId, closedDoorsTraversable), footprint: footprint)
             .Where(pair => SpatialRules.AreFootprintsAdjacent(world.Physical.Board,
                 FootprintGeometry.OccupiedCells(footprint, pair.Key), targetCells))
             .Select(pair => (int?)pair.Value).Min();
@@ -351,13 +353,13 @@ internal sealed partial class GameplayQueries : IGameplayQueries
     public int? DistanceToDoorInteractionPositionFrom(string unitId, Cell position, DoorTarget door,
         bool closedDoorsTraversable = false)
     {
-        HypotheticalPosition.Validate(world, unitId, position);
+        HypotheticalPosition.Validate(world, unitId, position, OccupancyTraversal(unitId));
         if (!IsClosedDoor(door) || !CanInteractWithDoors(unitId)) return null;
         if (!FogOfWar.IsEdgeObservable(world, world.Units.Single(u => u.Id == unitId).SideId,
             new(door.A, door.B, EdgeKind.ClosedDoor))) return null;
         var footprint = FootprintGeometry.FootprintOf(world, unitId);
         return ApproachRules.Distances(world.Physical.Board, position,
-                traversal: MovementTraversal.For(world, unitId, closedDoorsTraversable), footprint: footprint)
+                traversal: Traversal(unitId, closedDoorsTraversable), footprint: footprint)
             .Where(pair => FootprintGeometry.OccupiedCells(footprint, pair.Key)
                 .Any(cell => cell == door.A || cell == door.B))
             .Select(pair => (int?)pair.Value).Min();
@@ -416,9 +418,9 @@ internal sealed partial class GameplayQueries : IGameplayQueries
         bool closedDoorsTraversable = false)
     {
         if (!Knows(unitId, targetId)) return null;
-        HypotheticalPosition.Validate(world, unitId, position);
+        HypotheticalPosition.Validate(world, unitId, position, OccupancyTraversal(unitId));
         var distances = ApproachRules.Distances(world.Physical.Board, position,
-            traversal: MovementTraversal.For(world, unitId, closedDoorsTraversable),
+            traversal: Traversal(unitId, closedDoorsTraversable),
             footprint: FootprintGeometry.FootprintOf(world, unitId));
         return OccupiedCellsOf(targetId).Select(cell =>
                 distances.TryGetValue(cell, out var distance) ? (int?)distance : null)
@@ -428,7 +430,7 @@ internal sealed partial class GameplayQueries : IGameplayQueries
     public bool IsWithinEffectiveRangeAndLos(string unitId, Cell position, string targetId)
     {
         if (!Knows(unitId, targetId)) return false;
-        HypotheticalPosition.Validate(world, unitId, position);
+        HypotheticalPosition.Validate(world, unitId, position, OccupancyTraversal(unitId));
         var range = world.EffectiveRngOf(unitId);
         return range > 0 && FootprintGeometry.OccupiedCells(world, unitId, position).Any(from =>
             OccupiedCellsOf(targetId).Any(to => from != to &&
@@ -439,7 +441,7 @@ internal sealed partial class GameplayQueries : IGameplayQueries
 
     public int CountAdjacentHostilesFrom(string unitId, Cell position)
     {
-        HypotheticalPosition.Validate(world, unitId, position);
+        HypotheticalPosition.Validate(world, unitId, position, OccupancyTraversal(unitId));
         var side = world.Units.Single(u => u.Id == unitId).SideId;
         return world.Units.Count(u => u.CurrentHp > 0 && Knows(unitId, u.Id) && world.AreHostile(side, u.SideId) &&
             SpatialRules.AreAdjacent(world, unitId, u.Id, position));
@@ -481,12 +483,25 @@ internal sealed partial class GameplayQueries : IGameplayQueries
         return index >= 0 ? index : int.MaxValue;
     }
 
-    public int? OpenRouteDistanceFromSummonPlacement(string unitId, Cell placement,
+    private readonly ConcurrentDictionary<(string Actor, string Type), MovementTraversal> summonTraversals = new();
+    public int? OpenRouteDistanceFromSummonPlacement(string unitId, Candidate candidate,
         IReadOnlyCollection<string> targetIds)
     {
+        if (candidate.Destination is not { } placement || candidate.Ability is not { } ability ||
+            SummoningRules.Placement(ability.Definition.Mechanic) is not { } summon)
+            throw new ArgumentException("A typed Summon placement candidate is required.", nameof(candidate));
+        var summonedType = world.Types.Single(t => t.Id == summon.UnitTypeId);
+        var traversal = summonTraversals.GetOrAdd((unitId, summonedType.Id), static (key, queries) =>
+            MovementTraversal.For(queries.world.Types.Single(t => t.Id == key.Type),
+                queries.Traversal(key.Actor).KnownCells), this);
+        // A target Cell is not necessarily a legal top-left anchor for a large figure.
+        // Measure to any fitting placement overlapping that Cell. Retain the existing
+        // 1x1 endpoint-distance convention, which may measure to a blocking target.
         return targetIds.Where(targetId => Knows(unitId, targetId)).SelectMany(targetId => OccupiedCellsOf(targetId).Select(targetCell =>
-                ApproachRules.Distance(world.Physical.Board, placement, targetCell,
-                    traversal: new(KnownCells: MovementTraversal.For(world, unitId).KnownCells))))
+                summonedType.Footprint == Footprint.OneByOne
+                    ? ApproachRules.Distance(world.Physical.Board, placement, targetCell, traversal: traversal)
+                    : ApproachRules.DistanceToArea(world.Physical.Board, placement,
+                        new(targetCell.X, targetCell.Y, 1, 1), traversal, summonedType.Footprint)))
             .Where(distance => distance.HasValue).Min();
     }
 
@@ -501,13 +516,13 @@ internal sealed partial class GameplayQueries : IGameplayQueries
 
     public bool CanAttackHostileFrom(string unitId, Cell position)
     {
-        HypotheticalPosition.Validate(world, unitId, position);
+        HypotheticalPosition.Validate(world, unitId, position, OccupancyTraversal(unitId));
         return CanAttackFrom(unitId, position);
     }
 
     public int? DistanceToNearestAttackableHostileFrom(string unitId, Cell position)
     {
-        HypotheticalPosition.Validate(world, unitId, position);
+        HypotheticalPosition.Validate(world, unitId, position, OccupancyTraversal(unitId));
         return world.Units
             .Where(target => CanAttackTargetFrom(unitId, position, target.Id))
             .Select(target => (int?)SpatialRules.ManhattanDistance(
@@ -517,7 +532,7 @@ internal sealed partial class GameplayQueries : IGameplayQueries
 
     public int? DistanceToAttackPositionFrom(string unitId, Cell position, bool closedDoorsTraversable = false)
     {
-        HypotheticalPosition.Validate(world, unitId, position);
+        HypotheticalPosition.Validate(world, unitId, position, OccupancyTraversal(unitId));
         var distances = approachFields.GetOrAdd((unitId, closedDoorsTraversable), static (key, queries) =>
             new(() => queries.BuildApproachField(key.Actor, key.ClosedDoors)), this).Value;
         return distances.TryGetValue(position, out var distance) ? distance : null;
@@ -525,7 +540,7 @@ internal sealed partial class GameplayQueries : IGameplayQueries
 
     public bool HasNearbyHostileThreatFrom(string unitId, Cell position)
     {
-        HypotheticalPosition.Validate(world, unitId, position);
+        HypotheticalPosition.Validate(world, unitId, position, OccupancyTraversal(unitId));
         var side = world.Units.Single(u => u.Id == unitId).SideId;
         return world.Units.Where(u => u.CurrentHp > 0 && Knows(unitId, u.Id) && world.AreHostile(side, u.SideId))
             .Any(hostile => SpatialRules.AreAdjacent(world, unitId, hostile.Id, position));
@@ -533,13 +548,13 @@ internal sealed partial class GameplayQueries : IGameplayQueries
 
     public int? DistanceToNearestHostileFrom(string unitId, Cell position, bool closedDoorsTraversable = false)
     {
-        HypotheticalPosition.Validate(world, unitId, position);
+        HypotheticalPosition.Validate(world, unitId, position, OccupancyTraversal(unitId));
         var side = world.Units.Single(u => u.Id == unitId).SideId;
         return world.Units.Where(u => u.CurrentHp > 0 && Knows(unitId, u.Id) && world.AreHostile(side, u.SideId))
             .SelectMany(u => FootprintGeometry.OccupiedCells(world, unitId, position)
                 .SelectMany(from => OccupiedCellsOf(u.Id).Select(to =>
                     ApproachRules.Distance(world.Physical.Board, from, to,
-                        traversal: MovementTraversal.For(world, unitId, closedDoorsTraversable)))))
+                        traversal: Traversal(unitId, closedDoorsTraversable)))))
             .Where(distance => distance.HasValue).Min();
     }
 }

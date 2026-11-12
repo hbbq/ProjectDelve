@@ -626,8 +626,8 @@ public sealed class PlaytestApiTests
     {
         await using var host = await Host.Start();
         var initial = await host.Read();
-        Assert.Equal(UnitType.SkeletonArcher(),
-            initial.Result.State.Types.Single(t => t.Id == "skeleton-archer-type"));
+        Assert.Equal(JsonSerializer.Serialize(UnitType.SkeletonArcher()),
+            JsonSerializer.Serialize(initial.Result.State.Types.Single(t => t.Id == "skeleton-archer-type")));
         var completed = await FinishRound(host, await host.Round(0));
         var move = Assert.Single(completed.Result.Events,
             e => e.Kind == "MovementCompleted" && e.UnitId == Archer1);

@@ -1,7 +1,7 @@
 import { DesignerDraft, DesignerRequests, DesignerHistory, draftDocument, readDraftDocument, draftStorageKey, sameCell } from "./designer-state.js";
 import { styleSide } from "./side-colors.js";
 import { prepareCover } from "./cover-upload.js";
-import { boardVisuals } from "./board-visuals.js";
+import { boardVisuals, terrainLayers } from "./board-visuals.js";
 
 const element = (tag, value = "") => {
   const node = document.createElement(tag); node.textContent = value;
@@ -589,7 +589,17 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   function refreshCell(node, cell) {
     const { x, y } = cell;
     node.replaceChildren();
-    node.className = `cell ${draft.terrainRecipeAt(cell)}`;
+    const recipe = draft.terrainRecipeAt(cell);
+    node.className = `cell ${recipe}`;
+    // Flat Cell artwork uses the same sampling as the play views. Layered
+    // terrain retains the Designer's component labels and directional Rail.
+    const visual = Object.hasOwn(boardVisuals.terrain, recipe) ? boardVisuals.terrain[recipe] : null;
+    const layers = visual && !visual.baseTerrain && !visual.object ? terrainLayers(recipe, { x, y }) : null;
+    node.dataset.terrainArtwork = String(!!layers);
+    node.style.setProperty("--visual-image", layers?.base.image ? `url(${JSON.stringify(layers.base.image)})` : "none");
+    node.style.setProperty("--visual-fill", layers?.base.fill ?? "transparent");
+    node.style.setProperty("--visual-detail", layers?.base.detail ?? "none");
+    node.style.setProperty("--visual-rotation", `${layers?.rotation ?? 0}deg`);
     node.dataset.railDirection = draft.railDirectionAt(cell) ?? "";
     node.dataset.editorHit = "cell"; node.dataset.x = x; node.dataset.y = y;
     node.tabIndex = 0; node.setAttribute("role", "button");
@@ -818,8 +828,8 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       const explicit = draft.definition.board.cells.find(cell => sameCell(cell.position, position));
       const terrain = field(form, "Override", explicit?.terrainTypeId != null ? draft.terrainTypeSelection(explicit.terrainTypeId) : explicit?.terrain ?? "", { entries: terrainOptions });
       const terrainDefinition = draft.terrainDefinitionAt(position);
-      if (terrainDefinition) form.append(element('p', `${terrainDefinition.name} · Type ${terrainDefinition.id} · ${typeof terrainDefinition.passable === 'boolean' && typeof terrainDefinition.blocksLos === 'boolean'
-        ? `${terrainDefinition.passable ? 'Passable' : 'Blocks movement'} · ${terrainDefinition.blocksLos ? 'Blocks LOS' : 'Does not block LOS'}` : 'Effective properties awaiting Engine validation'}`));
+      if (terrainDefinition) form.append(element('p', `${terrainDefinition.name} · Type ${terrainDefinition.id} · ${Array.isArray(terrainDefinition.movementPermissions) && typeof terrainDefinition.blocksLos === 'boolean'
+        ? `Movement: ${terrainDefinition.movementPermissions.join(', ') || 'none'} · Categories: ${(terrainDefinition.categories ?? []).join(', ') || 'none'} · ${terrainDefinition.blocksLos ? 'Blocks LOS' : 'Does not block LOS'}` : 'Effective properties awaiting Engine validation'}`));
       const surface = draft.terrainSurfaceAt(position), components = draft.terrainComponentsAt(position);
       if (surface) form.append(element('p', `Surface: ${surface.name} · Type ${surface.id}`));
       for (const component of components) form.append(element('p', `Fixed ${component.slot}: ${component.name} · Type ${component.componentId}${component.quarterTurns != null ? ` · ${component.quarterTurns * 90}°` : ''}`));

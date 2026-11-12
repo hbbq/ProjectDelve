@@ -31,7 +31,7 @@ internal static class ExternalMovementRules
         if (maxMove == 0) yield break;
         foreach (var destination in MovementRules.Neighbors(figure.Position))
             if (MovementRules.CanStep(state.Physical.Board, footprint, figure.Position, destination, placement) &&
-                SpatialRules.CanPlaceUnit(state, affectedId, destination))
+                SpatialRules.CanPlaceUnit(state, footprint, destination, affectedId, placement))
                 yield return destination;
     }
 

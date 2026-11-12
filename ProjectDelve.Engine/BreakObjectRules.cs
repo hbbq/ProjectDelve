@@ -56,28 +56,15 @@ public static class BreakObjectRules
                 : occupied.Contains(edge.A) || occupied.Contains(edge.B))
             .Select(CanonicalEdge).Distinct().OrderBy(e => e.A.Y).ThenBy(e => e.A.X).ThenBy(e => e.B.Y).ThenBy(e => e.B.X)
             .Select(edge => new BreakTarget(Edge: edge)).Where(target => CanBreak(state, target));
-        var candidates = cells.Concat(edges).ToImmutableArray();
-        if (!area) return candidates;
-        // Freeze before rolling. Accept only a set safe for EVERY success/failure
-        // subset, not just the all-success board. Other invariants are Cell-local;
-        // Water/Wall compatibility must consider both original and accepted result
-        // terrain. Edge removal only relaxes restrictions and is never relied on.
-        // No speculative GameState or vision copy is needed.
-        Dictionary<Cell, TerrainDefinition> proposed = [];
-        List<BreakTarget> safe = [];
-        foreach (var target in candidates)
-        {
-            if (!CanBreak(state, target, proposed)) continue;
-            safe.Add(target);
-            if (target.Cell is { } cell)
-                proposed[cell] = TerrainCatalog.Find(board.TerrainTypes, board.TerrainDefinitionAt(cell).DestroyedTerrainTypeId!);
-        }
-        return [.. safe];
+        // Freeze before rolling. Each Cell must be safe against the original state,
+        // without relying on any other success. Terrain no longer constrains adjacent
+        // Edge types, so all remaining replacement invariants are Cell-local and Edge
+        // removal only relaxes restrictions. This proves every success subset safe
+        // for both selected and area Break without speculative state copies.
+        return cells.Concat(edges).ToImmutableArray();
     }
 
-    public static bool CanBreak(GameState state, BreakTarget target) => CanBreak(state, target, null);
-
-    private static bool CanBreak(GameState state, BreakTarget target, IReadOnlyDictionary<Cell, TerrainDefinition>? proposed)
+    public static bool CanBreak(GameState state, BreakTarget target)
     {
         var board = state.Physical.Board;
         if (target.Cell is { } cell && target.Edge is null)
@@ -90,9 +77,6 @@ public static class BreakObjectRules
             if (state.Resources.Any(r => r.Position == cell) && (!result.Passable || !result.AllowsResourceMarkers)) return false;
             if (state.CellMarkers.Any(m => m.Position == cell) && !result.Passable) return false;
             if (board.Machines.Any(m => m.Position == cell && m.Type.RequiredTerrainTypeId is { } required && required != resultId)) return false;
-            if (result.LegacyKind == TerrainKind.Water && board.Edges.Any(e =>
-                e.Kind is EdgeKind.Wall or EdgeKind.WallWithWindow &&
-                (e.A == cell && MayBeWater(e.B) || e.B == cell && MayBeWater(e.A)))) return false;
             return true;
         }
         if (target.Edge is { } edge && target.Cell is null)
@@ -101,8 +85,6 @@ public static class BreakObjectRules
                 board.EdgeBetween(edge.A, edge.B) == edge.Kind && DestroyedEdgeKind(edge.Kind) is not null;
         return false;
 
-        bool MayBeWater(Cell position) => board.TerrainDefinitionAt(position).LegacyKind == TerrainKind.Water ||
-            proposed?.GetValueOrDefault(position)?.LegacyKind == TerrainKind.Water;
     }
 
     internal static BreakOutcome Outcome(GameState state, BreakTarget target, int threshold, int? roll)

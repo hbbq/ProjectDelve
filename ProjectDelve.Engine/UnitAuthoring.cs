@@ -46,7 +46,7 @@ public static class UnitAuthoring
     // mechanic with several supported timings, author a LocalAbility directly.
     private static AbilityTiming TimingFor(AbilityMechanic mechanic) => mechanic switch
     {
-        ProjectDelve.Engine.Amphibious or ProjectDelve.Engine.Fury or ProjectDelve.Engine.Backstab or ProjectDelve.Engine.Phase or ProjectDelve.Engine.TransportResource or AdjacentUnitsStatModifiersMechanic => AbilityTiming.Passive,
+        MovementCapabilityGrant or ProjectDelve.Engine.Amphibious or ProjectDelve.Engine.Fury or ProjectDelve.Engine.Backstab or ProjectDelve.Engine.Phase or ProjectDelve.Engine.TransportResource or AdjacentUnitsStatModifiersMechanic => AbilityTiming.Passive,
         ProjectDelve.Engine.Cleave or ProjectDelve.Engine.MoveAfterAttack or ProjectDelve.Engine.AdvanceOnKill => AbilityTiming.AfterAttack,
         ProjectDelve.Engine.Explosion => AbilityTiming.WhenDefeated,
         ProjectDelve.Engine.Undying => AbilityTiming.InsteadOfDefeat,
@@ -61,6 +61,7 @@ public static class UnitAuthoring
     public static Entry Unique() => new UpdateEntry(t => t with { Unique = true });
     public static Entry DefaultController(ControllerKind controller) => new UpdateEntry(t => Enum.IsDefined(controller)
         ? t with { DefaultController = controller } : throw new ArgumentOutOfRangeException(nameof(controller)));
+    public static Entry BaseMovementCapabilities(params string[] kinds) => new UpdateEntry(t => t with { BaseMovementCapabilities = [.. kinds] });
     public static Entry Amphibious() => new UpdateEntry(t => t with { Amphibious = true });
     public static Entry WakeDistance(int distance) => new UpdateEntry(t => distance >= 0
         ? t with { WakeDistance = distance } : throw new ArgumentOutOfRangeException(nameof(distance)));

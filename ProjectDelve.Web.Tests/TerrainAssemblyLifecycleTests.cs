@@ -33,7 +33,7 @@ public sealed class TerrainAssemblyLifecycleTests
           "presentation": { "recipe": "unpublished-sculpture", "layer": "Object" } }
       ],
       "terrainTypes": [
-        { "id": "fixture-hidden-basalt", "name": "Hidden Basalt", "passable": true, "blocksLos": false,
+        { "id": "fixture-hidden-basalt", "name": "Hidden Basalt", "movementPermissions": ["land"], "blocksLos": false,
           "presentation": { "recipe": "StoneFloor" } }
       ],
       "terrainAssemblies": [

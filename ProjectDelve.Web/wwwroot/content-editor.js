@@ -276,7 +276,7 @@ export function mountContentEditor(root, options) {
     const fields = metadata.fields ?? [];
     const sections = { unique: stats, footprint: movement, movementPattern: movement, terrainRestrictedMovement: movement,
       terrainRestriction: movement, wakeDistance: capabilities, canHaveItems: capabilities, canHaveEquipment: capabilities, lootDropSuccesses: loot,
-      resourceStorage: resources, attackDefinitionOrder: automation, defaultController: automation, amphibious: movement };
+      resourceStorage: resources, attackDefinitionOrder: automation, defaultController: automation, amphibious: movement, baseMovementCapabilities: movement };
     for (const schema of fields) (sections[schema.name] ?? stats).append(parameter(schema, [schema.name]));
     // Metadata owns enum choices and bounds; these controls only select declarations.
     if (!fields.some(schema => schema.name === 'footprint')) movement.append(parameter({ name: 'footprint', kind: 'Enum', required: true, allowedValues: metadata.footprints }, ['footprint']));
@@ -307,9 +307,12 @@ export function mountContentEditor(root, options) {
           { name: 'quarterTurns', kind: 'Integer', required: false, minimum: 0, maximum: 3 }
         ] } }, ['components'], 'Components'));
     } else {
-      for (const [key, label] of [['passable', 'Passable'], ['blocksLos', 'Blocks Line of Sight'], ['blocksVision', 'Blocks Vision'], ['allowsResourceMarkers', 'Allows Resource Markers']])
+      section.append(parameter({ name: 'movementPermissions', kind: 'List', required: true, item: { kind: 'String', required: true } }, ['movementPermissions'], 'Movement permissions'),
+        text('A Unit needs a matching movement capability to traverse or occupy this terrain. An empty list blocks ordinary movement. Use land, water, or a custom movement kind.'));
+      for (const [key, label] of [['blocksLos', 'Blocks Line of Sight'], ['blocksVision', 'Blocks Vision'], ['allowsResourceMarkers', 'Allows Resource Markers']])
         section.append(parameter({ name: key, kind: 'Boolean', required: true }, [key], label));
       section.append(parameter({ name: 'categories', kind: 'List', required: true, item: { kind: 'String', required: true } }, ['categories'], 'Categories'));
+      section.append(text('Categories describe the terrain independently of movement: land, water, rock, vegetation, constructed, racing-ground, or custom categories.'));
       section.append(parameter({ name: 'recipe', kind: 'String', required: true }, ['presentation', 'recipe'], 'Presentation recipe'));
     }
     section.append(referenceField('Destroyed result', 'terrain', ['destroyedTerrainTypeId'], true), text('No result makes this Type indestructible. A successful Break replaces the whole Cell with the selected Terrain Type.'));

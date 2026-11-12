@@ -19,6 +19,11 @@ public sealed class BoardPlanningTests
         UnitTypeIds = [], Units = [], Agency = [], Loot = LootSettings.Empty
     };
     private static PlanningBoard Board(ScenarioDefinition? scenario = null) => new(scenario ?? Scenario(), ContentBundle.Canonical());
+    private static ScenarioDefinition LargeFigureScenario() => Scenario() with
+    {
+        UnitTypeIds = [UnitTypeIds.RedDragon], Units = [new(UnitTypeIds.RedDragon, "red", new(0, 0))],
+        Agency = [new(UnitTypeIds.RedDragon, "red", ControllerKind.Human)]
+    };
     private static BoardDraft Draft(PlanningBoard board, string owner = "site", PlanningBudget? budget = null) =>
         board.BeginDraft(new(0, 0, board.Width, board.Height), owner, budget ?? new());
 
@@ -122,15 +127,17 @@ public sealed class BoardPlanningTests
     }
 
     [Fact]
-    public void InvalidWaterWallCommitIsAtomicAndPreparedFloorAllowsWall()
+    public void InvalidEdgeCommitIsAtomicAndWaterAllowsWall()
     {
-        var board = Board(Scenario() with { Board = Scenario().Board with { DefaultTerrain = TerrainKind.Water } });
-        var invalid = Draft(board); invalid.SetTerrain(4, "grass"); invalid.SetEdge(new(0, EdgeDirection.Right), EdgeKind.Wall);
+        var board = Board(LargeFigureScenario());
+        var invalid = Draft(board); invalid.SetTerrain(11, "gravel"); invalid.SetEdge(new(0, EdgeDirection.Right), EdgeKind.Wall);
         Assert.False(board.TryCommit(invalid.BuildPatch(), out var error)); Assert.NotNull(error);
-        Assert.Equal("water", board.TerrainAt(4)); Assert.Equal(0, board.Revision);
-        var valid = Draft(board); valid.SetTerrain(0, "stone-floor"); valid.SetTerrain(1, "stone-floor");
+        Assert.Equal("grass", board.TerrainAt(11)); Assert.Equal(0, board.Revision);
+        var water = Board(Scenario() with { Board = Scenario().Board with { DefaultTerrain = TerrainKind.Water } });
+        var valid = Draft(water);
         valid.SetEdge(new(0, EdgeDirection.Right), EdgeKind.Wall);
-        Assert.True(board.TryCommit(valid.BuildPatch(), out error), error); Assert.True(board.Passable(0));
+        Assert.True(water.TryCommit(valid.BuildPatch(), out error), error); Assert.False(water.Passable(0));
+        Assert.Equal(EdgeKind.Wall, water.EdgeAt(new(0, EdgeDirection.Right)));
     }
 
     [Fact]
@@ -262,11 +269,11 @@ public sealed class BoardPlanningTests
         Assert.True(board.TryCommit(winner.BuildPatch(), out _)); Assert.False(board.TryCommit(stale, out _));
         Assert.False(board.IsRouteCorridor(0)); Assert.Equal(new[] { "winner" }, board.RouteMemberships(2));
 
-        var water = Board(Scenario() with { Board = Scenario().Board with { DefaultTerrain = TerrainKind.Water } });
-        var invalid = Draft(water); invalid.EnableRoutePlanning();
-        invalid.SetTerrain(4, "grass"); invalid.ReserveRoute([4], "uncommitted");
+        var occupied = Board(LargeFigureScenario());
+        var invalid = Draft(occupied); invalid.EnableRoutePlanning();
+        invalid.SetTerrain(11, "gravel"); invalid.ReserveRoute([11], "uncommitted");
         invalid.SetEdge(new(0, EdgeDirection.Right), EdgeKind.Wall);
-        Assert.False(water.TryCommit(invalid.BuildPatch(), out _));
-        Assert.False(water.IsRouteCorridor(4)); Assert.Equal("water", water.TerrainAt(4));
+        Assert.False(occupied.TryCommit(invalid.BuildPatch(), out _));
+        Assert.False(occupied.IsRouteCorridor(11)); Assert.Equal("grass", occupied.TerrainAt(11));
     }
 }

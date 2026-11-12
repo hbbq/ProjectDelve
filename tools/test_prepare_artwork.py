@@ -22,6 +22,45 @@ spec.loader.exec_module(pipeline)
 
 
 class CompositeArtworkTests(unittest.TestCase):
+    def test_terrain_selection_preserves_unrelated_exports_and_previews(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, output = root / 'source', root / 'runtime'
+            (source / 'terrain').mkdir(parents=True)
+            assets = []
+            for slot in range(1, 4):
+                Image.new('RGB', (64, 64), (slot * 60, 100, 120)).save(source / f'terrain/fixture-{slot}.png')
+                assets.append((f'terrain/fixture-{slot}.png', f'terrain/fixture/{slot:02}.webp', 256))
+            assets.append(('terrain/unrelated.png', 'terrain/unrelated/01.webp', 256))
+            with patch.multiple(pipeline, ROOT=root, SOURCE=source, OUTPUT=output, ASSETS=assets), \
+                 patch('sys.argv', ['prepare-artwork.py', '--terrain', 'fixture']):
+                pipeline.main()
+            self.assertEqual(sorted(p.relative_to(output).as_posix() for p in output.rglob('*.webp')),
+                             [f'terrain/fixture/{slot:02}.webp' for slot in range(1, 4)])
+            self.assertEqual([p.name for p in (root / 'assets/previews').iterdir()], ['terrain-fixture.png'])
+
+    def test_mixed_water_exports_preserve_opaque_composition_profile_and_explicit_slots(self):
+        for family in ('wet-grass', 'rocky-water', 'stepping-stones'):
+            for slot in range(1, 4):
+                source = f'terrain/{family}-{slot:02}.png'
+                if family == 'stepping-stones' and slot == 2:
+                    source = 'terrain/stepping-stonew-02.png'
+                destination = f'terrain/{family}/{slot:02}.webp'
+                with self.subTest(source=source):
+                    self.assertIn((source, destination, 256), pipeline.ASSETS)
+                    with Image.open(pipeline.SOURCE / source) as original:
+                        original.load()
+                        expected = ImageOps.exif_transpose(original).convert('RGB').resize((256, 256), Image.Resampling.LANCZOS)
+                        buffer = BytesIO()
+                        expected.save(buffer, 'WEBP', quality=85, method=6, exact=True)
+                    with Image.open(buffer) as encoded, Image.open(pipeline.OUTPUT / destination) as actual:
+                        encoded.load(); actual.load()
+                        self.assertEqual(actual.size, (256, 256))
+                        self.assertEqual(actual.format, 'WEBP')
+                        self.assertEqual(actual.convert('RGB').tobytes(), encoded.convert('RGB').tobytes())
+                        self.assertEqual(actual.convert('RGBA').getchannel('A').getextrema(), (255, 255))
+                        self.assertEqual(ImageCms.getProfileName(ImageCms.ImageCmsProfile(BytesIO(actual.info['icc_profile']))).strip(), 'sRGB built-in')
+
     def test_unit_selection_leaves_other_assets_and_previews_untouched(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

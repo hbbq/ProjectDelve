@@ -26,6 +26,7 @@ public sealed record GambitUnit(string Id, string TypeId, string SideId, GambitA
     public IReadOnlyList<ObjectDisplay>? Inventory { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<GambitGrantedAbility>? Abilities { get; init; }
+    public IReadOnlyList<string> MovementCapabilities { get; init; } = [];
 }
 public sealed record GambitAbility(string Id, string Name, string Category, string Description,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? MaximumUses);
@@ -47,6 +48,7 @@ public sealed record GambitGlossary(string MOV, string RNG, string ATK, string D
 // Model observations need terrain rules, not artwork recipes or unused canonical definitions.
 public sealed record GambitTerrainDefinition(string Id, string Name, bool Passable, bool BlocksLos)
 {
+    public IReadOnlyList<string> MovementPermissions { get; init; } = [];
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? DestroyedTerrainTypeId { get; init; }
     public bool BlocksVision { get; init; } = BlocksLos;
@@ -257,6 +259,7 @@ internal static class GambitProjection
                 new(state.EffectiveMovOf(unit.Id), state.EffectiveRngOf(unit.Id), state.EffectiveAtkOf(unit.Id), state.EffectiveDefOf(unit.Id)), uses)
                 { SummonerUnitId = unit.SummonerUnitId, GroupId = unit.GroupId, Dormant = unit.Dormant, WakeDistance = unit.WakeDistance,
                     Abilities = individualAbilities.Length == 0 ? null : individualAbilities,
+                    MovementCapabilities = state.EffectiveMovementCapabilitiesOf(unit.Id),
                     Inventory = unit.Inventory.IsEmpty ? null : unit.Inventory.Select(o => BrowserProjection.Object(state, o)).ToArray() };
         }).ToArray();
         var types = state.Types.Where(type => state.Units.Any(unit => unit.TypeId == type.Id)).Select(type => new GambitType(type.Id, type.DisplayName ?? type.Id, type.Footprint,
@@ -280,10 +283,12 @@ internal static class GambitProjection
             !sourceBoard.TerrainDefinition(t).Categories.IsEmpty || sourceBoard.TerrainDefinition(t).Production is not null ||
             sourceBoard.TerrainDefinition(t).DestroyedTerrainTypeId is not null)
             .Select(t => sourceBoard.TerrainDefinition(t).Id).ToHashSet(StringComparer.Ordinal);
+        terrainReferences.Add("stone-floor"); // Implicit Cells use the captured default terrain definition.
         var terrainTypes = sourceBoard.TerrainTypes.Where(t => terrainReferences.Contains(t.Id))
             .Select(t => new GambitTerrainDefinition(t.Id, t.Name, t.Passable, t.BlocksLos)
             {
                 BlocksVision = t.BlocksVision,
+                MovementPermissions = t.MovementPermissions,
                 DestroyedTerrainTypeId = t.DestroyedTerrainTypeId,
                 Categories = t.Categories.IsEmpty ? null : t.Categories,
                 AllowsResourceMarkers = t.AllowsResourceMarkers ? null : false,
@@ -294,7 +299,7 @@ internal static class GambitProjection
             { TerrainTypes = terrainTypes.Length == 0 ? null : terrainTypes };
         var glossary = terrainTypes.Length == 0 ? Glossary : Glossary with
         {
-            Board = Glossary.Board + " A terrain typeId references terrainTypes and overrides kind; omitted allowsResourceMarkers means true."
+            Board = Glossary.Board + " A terrain typeId references terrainTypes and overrides kind; implicit Cells use stone-floor. Terrain categories describe semantics independently of movementPermissions. Ordinary terrain eligibility requires a match with the Unit's movementCapabilities; authoritative choices also enforce all other movement rules. Passable is the derived land-permission projection used by ground placement and production. Omitted allowsResourceMarkers means true."
         };
         return new(board, units, types, bag, activation,
             world is null ? null : new(world.CardsPerRound, world.Cycling, world.DrawPileCount, world.DiscardPileCount,

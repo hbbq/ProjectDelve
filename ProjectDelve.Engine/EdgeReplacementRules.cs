@@ -12,9 +12,6 @@ public static class EdgeReplacementRules
         if (!MovementRules.Inside(board, replacement.A) || !MovementRules.Inside(board, replacement.B) ||
             Math.Abs(replacement.A.X - replacement.B.X) + Math.Abs(replacement.A.Y - replacement.B.Y) != 1 ||
             !Enum.IsDefined(replacement.Kind)) return false;
-        if (replacement.Kind is EdgeKind.Wall or EdgeKind.WallWithWindow &&
-            board.TerrainAt(replacement.A) == TerrainKind.Water && board.TerrainAt(replacement.B) == TerrainKind.Water)
-            return false;
         // Figure placement is physical: neither Lying nor Phase bypasses internal-edge restrictions.
         return replacement.Kind.Passable() || !lookup.SpansEdge(replacement.A, replacement.B);
     }

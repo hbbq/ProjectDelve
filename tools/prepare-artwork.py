@@ -34,7 +34,10 @@ ASSETS = [
     ("units/demolition-imp/reference/character-sheet.png", "units/demolition-imp/reference/character-sheet.webp", (1536, 1024)),
     ("units/demolition-imp/reference/full-body.png", "units/demolition-imp/reference/full-body.webp", (1024, 1536)),
     *[(f"terrain/{name}-{i:02}.png", f"terrain/{name}/{i:02}.webp", 256)
-      for name in ("stone-floor", "grass", "dirt", "water", "lava", "gravel", "asphalt", "solid-rock") for i in range(1, 4)],
+      for name in ("stone-floor", "grass", "dirt", "water", "lava", "gravel", "asphalt", "solid-rock", "wet-grass", "rocky-water") for i in range(1, 4)],
+    # Original variant 02 has a spelling difference. Preserve its immutable filename.
+    *[(f"terrain/{source}.png", f"terrain/stepping-stones/{i:02}.webp", 256)
+      for i, source in enumerate(("stepping-stones-01", "stepping-stonew-02", "stepping-stones-03"), 1)],
     *[(f"terrain/objects/{name}-{i:02}.png", f"terrain/objects/{name}/{i:02}.webp", 256)
       for name in ("tree", "table", "fruit-tree") for i in range(1, 4)],
     *[(f"resources/{name}.png", f"resources/{name}.webp", 128) for name in ("coal", "diamond", "fruit", "banana", "mushroom", "shell")],
@@ -52,15 +55,21 @@ def main():
     selection.add_argument("--unit", choices=[Path(a[0]).stem for a in ASSETS
                           if Path(a[0]).parent.as_posix() == "units"],
                           help="Export one registered Unit portrait and its reference images")
+    selection.add_argument("--terrain", nargs="+", choices=sorted({Path(a[1]).parent.name for a in ASSETS
+                          if Path(a[0]).parent.as_posix() == "terrain"}),
+                          help="Export only these registered flat terrain families and their rotation preview")
     args = parser.parse_args()
     assets = [asset for asset in ASSETS if not args.edges_only or asset[0].startswith("edges/")]
     if args.unit:
         assets = [a for a in assets if a[0] == f"units/{args.unit}.png"
                   or a[0].startswith(f"units/{args.unit}/reference/")]
+    if args.terrain:
+        assets = [a for a in assets if Path(a[0]).parent.as_posix() == "terrain"
+                  and Path(a[1]).parent.name in args.terrain]
     assert features.check("webp"), "Pillow requires WebP support"
     hashes = {path: sha256(path.read_bytes()).digest()
               for path in SOURCE.rglob("*") if path.is_file()}
-    if not args.edges_only and not args.unit:
+    if not args.edges_only and not args.unit and not args.terrain:
         for name in ("sleeper", "rail"):
             with Image.open(SOURCE / f"railway/{name}.png") as original:
                 original.load()
@@ -136,9 +145,9 @@ def main():
         print(f"Export {destination}: {dimensions[0]}x{dimensions[1]}, {target.stat().st_size:,} bytes")
 
     # Roughly 50px portraits (circular UI clip) and 60px Cells, plus larger references.
-    if not args.unit:
+    if not args.unit and not args.terrain:
         edge_preview([image for asset, image in zip(assets, decoded) if asset[0].startswith("edges/")])
-    if not args.edges_only and not args.unit:
+    if not args.edges_only and not args.unit and not args.terrain:
         solid_rock_preview(assets, decoded)
         composite_preview(assets, decoded)
         court_preview(assets, decoded)
@@ -148,6 +157,9 @@ def main():
         preview_tracks(SOURCE, OUTPUT, ROOT / "assets/previews/railway.png")
     assert all(sha256(path.read_bytes()).digest() == digest
                for path, digest in hashes.items()), "Source images changed"
+    if args.terrain:
+        terrain_preview(assets, decoded, args.terrain)
+        return
     if args.edges_only:
         return
     square_assets = [(asset, image) for asset, image in zip(assets, decoded)
@@ -170,6 +182,25 @@ def main():
             mask = mask.resize((50, 50), Image.Resampling.LANCZOS)
         sheet.paste(thumb, (x + 106, y + 40), mask)
     preview = ROOT / "assets/previews" / (f"unit-{args.unit}.png" if args.unit else "artwork-pack-01.png")
+    preview.parent.mkdir(parents=True, exist_ok=True)
+    sheet.save(preview, optimize=True)
+
+
+def terrain_preview(assets, images, families):
+    """Fixed surfaces at 60px and 100px, every variant and cosmetic quarter-turn."""
+    catalog = {asset[1]: image for asset, image in zip(assets, images)}
+    sheet = Image.new("RGB", (1224, len(families) * 210 + 24), "#202630")
+    draw = ImageDraw.Draw(sheet)
+    for row, family in enumerate(families):
+        top = 12 + row * 210
+        draw.text((12, top), f"{family} | three variants x four turns | 60px / 100px", fill="white")
+        for slot in range(1, 4):
+            for turn in range(4):
+                tile = catalog[f"terrain/{family}/{slot:02}.webp"].rotate(-turn * 90)
+                x = 12 + ((slot - 1) * 4 + turn) * 100
+                for size, y in ((60, top + 24), (100, top + 88)):
+                    sheet.paste(tile.resize((size, size), Image.Resampling.LANCZOS), (x, y))
+    preview = ROOT / "assets/previews" / ("terrain-" + "-".join(families) + ".png")
     preview.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(preview, optimize=True)
 

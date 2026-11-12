@@ -12,8 +12,8 @@ public sealed class LargeMapAppearanceTests
     {
         var world = WorldGenerator.Generate(new WorldGenerationRecipe(new(-17, -13, 120, 100), new(), 0x123456789ABCDEF0));
         var board = GameEngine.CreateGame(world.Definition).Physical.Board;
-        // Captured by the detached baseline before replacing the repeated linear lookup.
-        const string expected = "board-v1:738661fafc682646472657805b2b7ed97bcb70b0247e9c5671c00fefdc12e244";
+        // Fixed generator fixture updated for Mixed Water V1; appearance hashing is unchanged.
+        const string expected = "board-v1:4bcc3c6e2f480d6c29497a1d278212c4c715f93aec6e630dde9ce46f3062b263";
         Assert.Equal(expected, BoardAppearance.DeriveSeed("benchmark", board));
         var imported = ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(world.Definition));
         Assert.Equal(expected, BoardAppearance.DeriveSeed("benchmark", GameEngine.CreateGame(imported).Physical.Board));

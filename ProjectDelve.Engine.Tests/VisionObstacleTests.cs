@@ -145,7 +145,7 @@ public sealed class VisionObstacleTests
     public void OmittedVisionPropertiesKeepExistingLocalBlockersOpaque()
     {
         var terrain = JsonSerializer.Deserialize<TerrainDefinition>(
-            """{"Id":"test-legacy-terrain","Name":"Old Blocker","Passable":false,"BlocksLos":true}""")!;
+            """{"Id":"test-legacy-terrain","Name":"Old Blocker","MovementPermissions":[],"BlocksLos":true}""")!;
         var component = JsonSerializer.Deserialize<FixedComponentDefinition>(
             """{"Id":"test-legacy-component","Name":"Old Component","BlocksMovement":true,"BlocksLos":true}""")!;
         Assert.True(terrain.BlocksVision); Assert.True(component.BlocksVision);

@@ -101,7 +101,7 @@ public sealed class TerrainAssemblyTests
         var catalog = TerrainCatalog.Resolve(null, [Assembly("decorated-road", "asphalt", mark.Id),
             Assembly("decorated-coal", "coal-lava", mark.Id)], [mark]);
         Assert.True(Find(catalog, "decorated-road").Passable);
-        Assert.Equal(new[] { TerrainCategories.RacingGround }, Find(catalog, "decorated-road").Categories);
+        Assert.Equal(new[] { TerrainCategories.Land, TerrainCategories.Constructed, TerrainCategories.RacingGround }, Find(catalog, "decorated-road").Categories);
         var lava = Find(catalog, "decorated-coal");
         Assert.False(lava.Passable); Assert.False(lava.AllowsResourceMarkers);
         Assert.Equal(TerrainCatalog.Find(TerrainCatalog.All, "coal-lava").Production, lava.Production);
@@ -150,18 +150,28 @@ public sealed class TerrainAssemblyTests
     }
 
     [Fact]
-    public void VersionTwoAtomicTreeAndTableSavesRemainValid()
+    public void CurrentAtomicTreeAndTableSnapshotsRemainValidWithoutAssemblyMetadata()
     {
         var board = new Board(3, 1, []) { Terrain = [new(new(0, 0), TerrainKind.Tree), new(new(1, 0), TerrainKind.StoneFloorWithTable)] };
         var saved = JsonSerializer.SerializeToNode(board)!;
         foreach (var definition in saved["TerrainTypes"]!.AsArray()) definition!.AsObject().Remove("Assembly");
         var restored = JsonSerializer.Deserialize<Board>(saved.ToJsonString())!;
         TerrainCatalog.Validate(restored.TerrainTypes);
-        Assert.Equal(2, restored.TerrainContentVersion);
+        Assert.Equal(3, restored.TerrainContentVersion);
         Assert.Null(restored.TerrainDefinitionAt(new(0, 0)).Assembly);
         Assert.False(restored.TerrainDefinitionAt(new(0, 0)).Passable);
         Assert.True(restored.TerrainDefinitionAt(new(0, 0)).BlocksLos);
         Assert.False(restored.TerrainDefinitionAt(new(1, 0)).BlocksLos);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void HistoricalTerrainSnapshotsAreRejectedRatherThanMigrated(int version)
+    {
+        var saved = JsonSerializer.SerializeToNode(new Board(1, 1, []))!;
+        saved["TerrainContentVersion"] = version;
+        Assert.Throws<ArgumentException>(() => JsonSerializer.Deserialize<Board>(saved.ToJsonString()));
     }
 
     [Fact]
@@ -231,7 +241,7 @@ public sealed class TerrainAssemblyTests
         var component = new FixedComponentDefinition("local-piece", "Local Piece", true, false);
         var catalog = TerrainCatalog.Resolve(null, [Assembly(component: component.Id), Assembly("other", component: component.Id)], [component]);
         var terrain = Find(catalog);
-        Assert.Throws<ArgumentException>(() => TerrainCatalog.Validate(catalog.Replace(terrain, terrain with { Passable = true })));
+        Assert.Throws<ArgumentException>(() => TerrainCatalog.Validate(catalog.Replace(terrain, terrain with { MovementPermissions = [MovementKinds.Land] })));
         var changedComponent = terrain with { Assembly = terrain.Assembly! with
             { Components = [new("furniture", component with { Name = "Inconsistent Name" })] } };
         Assert.Throws<ArgumentException>(() => TerrainCatalog.Validate(catalog.Replace(terrain, changedComponent)));

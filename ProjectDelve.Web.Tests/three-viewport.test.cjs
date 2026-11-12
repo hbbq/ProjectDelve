@@ -5,6 +5,31 @@ const path=require('node:path');
 const {pathToFileURL}=require('node:url');
 const moduleAt=name=>import(pathToFileURL(path.resolve(__dirname,'../ProjectDelve.Web/wwwroot',name)).href);
 
+test('mixed-water surfaces share fixed artwork in flat and tabletop without raised objects',async()=>{
+  const f=fixture(),board=f.state.physical.board;
+  const entries=[['wet-grass','WetGrass'],['rocky-water','RockyWater'],['stepping-stones','SteppingStones']];
+  board.terrainTypes=entries.map(([id,recipe])=>({id,name:id,movementPermissions:['land','water'],presentation:{recipe}}));
+  board.terrain=entries.map(([id],x)=>({position:{x,y:0},typeId:id}));
+  const {observedTerrain}=await moduleAt('three-viewport.js');
+  const {terrainLayers}=await moduleAt('board-visuals.js');
+  for(let x=0;x<3;x++){
+    const kind=observedTerrain(f).kindAt(x,0);
+    assert.equal(kind,entries[x][1]);
+    const layer=terrainLayers(kind,{seed:'fixture',x,y:0});
+    assert.match(layer.base.image,new RegExp(`/terrain/${entries[x][0]}/`));
+    assert.equal(layer.object,null);
+  }
+  const h=await harness(f);try{
+    for(const mode of ['flat','tabletop']){
+      h.viewport.setPresentation(mode);h.viewport.settle();h.flush();
+      const scene=h.rendered.at(-1).scene;
+      assert.ok(scene.getObjectByName('terrain').children.some(mesh=>mesh.count>0));
+      assert.equal(scene.getObjectByName('objects').children.length,0);
+      assert.deepEqual(h.failures,[]);
+    }
+  }finally{h.cleanup();}
+});
+
 for(const presentation of ['flat','tabletop'])test(`${presentation} Beacon rotates without lights and releases owned resources on replacement`,async()=>{
   const f=fixture();f.presentation.machines=[{id:'beacon',typeId:'beacon',name:'Beacon',position:{x:3,y:3},resourceStorage:[]}];
   const h=await harness(f);try{

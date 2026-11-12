@@ -21,8 +21,9 @@ public static partial class GameEngine
                 RailDirection.West => new Cell(figure.Position.X - 1, figure.Position.Y),
                 _ => throw new InvalidOperationException("Invalid Rail direction.")
             };
+            var placement = MovementTraversal.OccupancyFor(state, unitId);
             if (board.TerrainAt(destination) != TerrainKind.Rail ||
-                !MovementRules.CanStep(board, Footprint.OneByOne, figure.Position, destination, default)) break;
+                !MovementRules.CanStep(board, Footprint.OneByOne, figure.Position, destination, placement)) break;
 
             var occupant = FootprintGeometry.UnitAtCell(state, destination);
             if (occupant is not null)

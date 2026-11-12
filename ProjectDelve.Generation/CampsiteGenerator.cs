@@ -41,7 +41,7 @@ public static class CampsiteGenerator
         // Existing opportunities/preferences lead; otherwise score only a small sample of prepared ground.
         var ranked = possible.Select((i, order) => (Index: i, Order: order,
             Cost: SiteGeometry.Cells(new(i % scope.Draft.Width - r, i / scope.Draft.Width - r, 2 * r + 1, 2 * r + 1), scope.Draft.Width)
-                .Sum(j => scope.Draft.TerrainAt(j) is "tree" or "fruit-tree" ? 2 : scope.Draft.TerrainAt(j) == "solid-rock" ? 4 : scope.Draft.TerrainAt(j) == "water" ? 6 : 0)))
+                .Sum(j => scope.Draft.TerrainAt(j) is "tree" or "fruit-tree" ? 2 : scope.Draft.TerrainAt(j) == "solid-rock" ? 4 : TerrainCatalog.Find(scope.Content.Terrain, scope.Draft.TerrainAt(j)).Categories.Contains(TerrainCategories.Water) ? 6 : 0)))
             .OrderBy(c => request.Preferences?.PreferredAnchor == c.Index ? -10000 : c.Cost + SiteRouteAccess.ProximityCost(new(c.Index % scope.Draft.Width - r - 2, c.Index / scope.Draft.Width - r - 2, 2 * r + 5, 2 * r + 5), request.Preferences?.RouteAnchors, scope.Draft.Width)).ThenBy(c => c.Order);
         PlacementFailureCode lastCode = PlacementFailureCode.NoFootprint; var lastReason = "No campsite footprint fitted.";
         foreach (var candidate in ranked)

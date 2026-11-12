@@ -8,9 +8,14 @@ namespace ProjectDelve.Engine;
 public sealed record TerrainPresentation([property: JsonRequired] string Recipe);
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+[method: JsonConstructor]
 public sealed record TerrainDefinition([property: JsonRequired] string Id, [property: JsonRequired] string Name,
-    [property: JsonRequired] bool Passable, [property: JsonRequired] bool BlocksLos)
+    [property: JsonRequired] ImmutableArray<string> MovementPermissions, [property: JsonRequired] bool BlocksLos)
 {
+    public TerrainDefinition(string Id, string Name, bool Passable, bool BlocksLos)
+        : this(Id, Name, Passable ? [MovementKinds.Land] : [], BlocksLos) { }
+    // Ground-oriented marker and production consumers retain this derived projection.
+    public bool Passable => MovementPermissions.Contains(MovementKinds.Land);
     // Existing authored blockers remain opaque unless vision is explicitly different.
     public bool BlocksVision { get; init; } = BlocksLos;
     public ImmutableArray<string> Categories { get; init; } = [];
@@ -26,7 +31,7 @@ public sealed record TerrainDefinition([property: JsonRequired] string Id, [prop
     public string? ProductionDescription => EnvironmentalProductionContent.Describe(Production);
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public LegacyTerrainProductionIdentity? LegacyProductionIdentity { get; init; }
-    // Compatibility only for legacy serialization, artwork, Rail and Water rules.
+    // Compatibility only for legacy references, artwork and directional Rail rules.
     // Scenario-local Types cannot claim a legacy identity.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public TerrainKind? LegacyKind { get; init; }
@@ -34,6 +39,7 @@ public sealed record TerrainDefinition([property: JsonRequired] string Id, [prop
 
 public static class TerrainCategories
 {
+    public const string Land = "land", Water = "water", Rock = "rock", Vegetation = "vegetation", Constructed = "constructed";
     public const string RacingGround = "racing-ground";
 }
 
@@ -41,7 +47,7 @@ public static class TerrainCategories
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record TerrainRestriction(ImmutableArray<string> Categories)
 {
-    public bool Accepts(TerrainDefinition terrain) => Categories.Any(terrain.Categories.Contains);
+    public bool Accepts(TerrainDefinition terrain) => MovementKinds.Intersects(Categories, terrain.Categories);
     internal bool IsValid => !Categories.IsDefaultOrEmpty && Categories.All(TerrainCatalog.ValidKey) &&
         Categories.Distinct(StringComparer.Ordinal).Count() == Categories.Length;
 }
@@ -102,12 +108,12 @@ public static class TerrainCatalog
         foreach (var d in definitions)
         {
             if (d is null || !ValidKey(d.Id) || string.IsNullOrWhiteSpace(d.Name) || !ids.Add(d.Id) ||
-                d.Categories.IsDefault || d.Categories.Any(c => !ValidKey(c)) ||
+                !MovementKinds.Valid(d.MovementPermissions) || d.Categories.IsDefault || d.Categories.Any(c => !ValidKey(c)) ||
                 d.Categories.Distinct(StringComparer.Ordinal).Count() != d.Categories.Length ||
                 d.Presentation is null || !ValidKey(d.Presentation.Recipe))
                 throw new ArgumentException("Terrain Types require unique IDs, names, valid categories and a presentation recipe.");
-            if (d.Passable && !d.AllowsResourceMarkers)
-                throw new ArgumentException("Passable Terrain must allow Resource markers; Transport Resource requires a legal destination for its marker.");
+            if (!d.MovementPermissions.IsEmpty && !d.AllowsResourceMarkers)
+                throw new ArgumentException("Terrain permitting ordinary movement must allow Resource markers; Transport Resource requires a legal destination for its marker.");
             if (d.Id == TerrainCompatibility.LegacyLavaId)
                 throw new ArgumentException("'lava' is a reserved legacy reference; use ordinary-lava or coal-lava.");
             EnvironmentalProductionContent.Validate(d.Production);
@@ -133,7 +139,7 @@ public static class TerrainCatalog
             if (d.LegacyProductionIdentity is {} identity && (!Enum.IsDefined(identity) || againstCanonical && !All.Any(c => c.Id == d.Id && c.LegacyProductionIdentity == identity)))
                 throw new ArgumentException("Only the corresponding canonical Terrain may use a legacy production event identity.");
             if (againstCanonical && All.SingleOrDefault(c => c.Id == d.Id) is { } canonical &&
-                (d.LegacyKind != canonical.LegacyKind || d.Passable != canonical.Passable ||
+                (d.LegacyKind != canonical.LegacyKind || !d.MovementPermissions.SequenceEqual(canonical.MovementPermissions) ||
                  d.BlocksLos != canonical.BlocksLos || d.BlocksVision != canonical.BlocksVision || d.AllowsResourceMarkers != canonical.AllowsResourceMarkers ||
                  d.Production != canonical.Production || d.LegacyProductionIdentity != canonical.LegacyProductionIdentity || d.DestroyedTerrainTypeId != canonical.DestroyedTerrainTypeId ||
                  !d.Categories.SequenceEqual(canonical.Categories)))
@@ -145,7 +151,7 @@ public static class TerrainCatalog
     }
 
     private static bool EquivalentSurface(TerrainDefinition a, TerrainDefinition b) =>
-        a.Assembly is null && b.Assembly is null && a.Id == b.Id && a.Name == b.Name && a.Passable == b.Passable &&
+        a.Assembly is null && b.Assembly is null && a.Id == b.Id && a.Name == b.Name && a.MovementPermissions.SequenceEqual(b.MovementPermissions) &&
         a.BlocksLos == b.BlocksLos && a.BlocksVision == b.BlocksVision && a.AllowsResourceMarkers == b.AllowsResourceMarkers &&
         a.Categories.SequenceEqual(b.Categories) && a.Production == b.Production && a.Presentation == b.Presentation &&
         a.LegacyKind == b.LegacyKind && a.LegacyProductionIdentity == b.LegacyProductionIdentity && a.DestroyedTerrainTypeId == b.DestroyedTerrainTypeId;

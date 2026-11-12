@@ -10,9 +10,9 @@ public sealed class TerrainScenarioTests
     private const string Json = """
     {
       "terrainTypes": [
-        { "id": "unfamiliar-17", "name": "Velvet Horizon", "passable": false, "blocksLos": false,
+        { "id": "unfamiliar-17", "name": "Velvet Horizon", "movementPermissions": [], "blocksLos": false,
           "presentation": { "recipe": "not-an-installed-recipe" } },
-        { "id": "paper", "name": "Paper", "passable": true, "blocksLos": false }
+        { "id": "paper", "name": "Paper", "movementPermissions": ["land"], "blocksLos": false }
       ],
       "board": { "width": 4, "height": 3,
         "cells": [{ "position": { "x": 2, "y": 1 }, "terrainTypeId": "unfamiliar-17" }] },
@@ -108,7 +108,7 @@ public sealed class TerrainScenarioTests
         var node = JsonNode.Parse(Json)!;
         switch (failure)
         {
-            case "missing-property": node["terrainTypes"]![0]!.AsObject().Remove("passable"); break;
+            case "missing-property": node["terrainTypes"]![0]!.AsObject().Remove("movementPermissions"); break;
             case "unknown-property": node["terrainTypes"]![0]!["produce"] = "coal"; break;
             case "invalid-boolean": node["terrainTypes"]![0]!["blocksLos"] = "yes"; break;
             case "missing-reference": node["board"]!["cells"]![0]!.AsObject().Remove("terrainTypeId"); break;

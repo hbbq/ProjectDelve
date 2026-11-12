@@ -61,7 +61,7 @@ public sealed class LabyrinthShaperProjectionTests
         Assert.Equal(EdgeKind.None, board.EdgeBetween(new(3, 4), new(3, 5)));
         Assert.Equal(EdgeKind.None, board.EdgeBetween(new(4, 2), new(4, 3)));
         Assert.Equal(EdgeKind.Wall, board.EdgeBetween(new(2, 3), new(3, 3)));
-        Assert.Equal(EdgeKind.None, board.EdgeBetween(new(5, 3), new(6, 3)));
+        Assert.Equal(EdgeKind.Wall, board.EdgeBetween(new(5, 3), new(6, 3)));
         Assert.Equal(EdgeKind.WallWithWindow, board.EdgeBetween(new(7, 6), new(7, 7)));
         Assert.Contains("Reshape Room", round.Presentation.Events[reshapeIndex].Text);
         var restarted = game.Restart(round.Revision);

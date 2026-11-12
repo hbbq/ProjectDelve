@@ -38,25 +38,60 @@ These authored coordinates explain the current demonstration, not a test contrac
 
 ## Canonical declarations
 
+### Mixed Water terrain
+
+| Type ID | Categories | Movement permissions | Destruction result | Recipe |
+| --- | --- | --- | --- | --- |
+| `wet-grass` | land, water, vegetation | land, water | None | `WetGrass` |
+| `rocky-water` | land, water, rock | land, water | None | `RockyWater` |
+| `stepping-stones` | land, water, constructed | land, water | `water` | `SteppingStones` |
+
+All three explicitly allow Resource markers, block neither LOS nor vision, and have no production or fixed-component assembly. They use the same canonical catalog in the Designer, Content Browser, scenario transport, Quick Play and observation snapshots. Breaking Stepping Stones uses ordinary mutation preflight: for example, a land-only occupant prevents replacement by Water, while a water-capable occupant can remain if all other invariants hold.
+
+Each recipe is one opaque surface with three fixed variants and four cosmetic rotations. Enhanced 2D and Three.js consume the same deterministic recipe selection; the artwork adds no raised objects, directional metadata, shoreline blending or sub-Cell collision. See [mixed terrain generation policy](ProjectDelve.Generation/MIXED_WATER_V1.md) for placement frequencies and independent land/water analysis.
+
 Canonical content is declared in [TerrainRoster.cs](ProjectDelve.Engine/TerrainRoster.cs). [TerrainContent.cs](ProjectDelve.Engine/TerrainContent.cs) supplies the typed definitions, catalog resolution and validation. For example:
 
 ```csharp
 new TerrainDefinition("velvet-plinth", "Velvet Plinth",
-    Passable: false, BlocksLos: false)
+    MovementPermissions: [], BlocksLos: false)
 {
     Presentation = new("StoneFloorWithTable")
 };
 ```
 
-`Passable` describes terrain traversal and ordinary stopping before occupancy, Unit restrictions and other rules are considered. `BlocksLos` describes attack Line of Sight obstruction; `BlocksVision` separately describes ordinary Fog of War vision and exploration obstruction. None is inferred from a name, recipe, mesh, material or color. `BlocksVision` defaults to `BlocksLos` when omitted, preserving existing local blocking definitions. Canonical Tree components and Fruit Tree explicitly allow vision while retaining attack LOS blocking; Solid Rock and other existing solid blockers obstruct both. Composed terrain combines the surface and component blocking properties independently.
+`MovementPermissions` declares the kinds of movement the Terrain permits. Ordinary terrain eligibility requires an intersection with the receiving Unit's effective capabilities; an empty list blocks all ordinary movement. `Passable` is a read-only derived projection meaning that permissions include `land`, retained for existing ground placement and production rules. It is never authored separately. `BlocksLos` describes attack Line of Sight obstruction; `BlocksVision` separately describes ordinary Fog of War vision and exploration obstruction. None is inferred from a name, recipe, mesh, material or color. `BlocksVision` defaults to `BlocksLos` when omitted, preserving existing local blocking definitions. Canonical Tree components and Fruit Tree explicitly allow vision while retaining attack LOS blocking; Solid Rock and other existing solid blockers obstruct both. Composed terrain combines the surface and component blocking properties independently.
 
 Fog of War reuses the straight Cell-center geometry and corner passages with the vision obstacle policy. Ordinary sight discovers blocking destination Cells and passes through Trees, retaining its Manhattan range of 5. Phase vision ignores terrain, fixed objects, Walls and Doors within the same range, independently of movement permissions. Attacks continue using their existing LOS, range and corner rules. These are Type-level properties; no per-Cell settings or additional Designer controls are introduced.
 
-`AllowsResourceMarkers` defaults to `true`. It preserves the separate rule that Lava cannot hold a Resource marker. It is not a substitute for Resource-production eligibility: production additionally requires passable terrain, no Machine and no existing Resource. In particular, making a Cell impassable does not automatically forbid an authored Resource there. Passable Terrain must allow Resource markers in this milestone: Transport Resource has no established behavior for entering a passable Cell that forbids its carried marker. That unsupported combination is rejected instead of inventing a drop or movement rule.
+`AllowsResourceMarkers` defaults to `true`. It preserves the separate rule that Lava cannot hold a Resource marker. It is not a substitute for Resource-production eligibility: production additionally requires passable terrain, no Machine and no existing Resource. In particular, making a Cell impassable does not automatically forbid an authored Resource there. Any Terrain with nonempty movement permissions must allow Resource markers: Transport Resource has no established behavior for entering such a Cell while forbidding its carried marker. That unsupported combination is rejected instead of inventing a drop or movement rule.
 
 `Presentation.Recipe` references a visual recipe. Existing examples include `StoneFloor`, `Grass`, `StoneFloorWithTable` and `SolidRock`. Omission uses `generic`; an unknown recipe uses a generic visual fallback. Artwork never grants terrain properties. Lighting and aesthetic occlusion remain presentation-only and independent of gameplay LOS.
 
 The roster produces ordinary immutable data, with no delegates or executable content. Its resolved definitions can be serialized and deserialized as the same typed catalog, including canonical compatibility metadata. A future canonical JSON provider can supply this model without a second execution path. Scenario-local catalogs add new Types; they do not replace canonical entries.
+
+## Movement capabilities and semantic categories
+
+`categories` describes what a Cell contains independently of `movementPermissions`. The initial canonical vocabulary is `land`, `water`, `rock`, `vegetation`, `constructed` and `racing-ground`; additional category identifiers need no Engine branch. Categories never imply LOS, production, Machine requirements or movement. A mixed crossing can declare `["land", "water", "rock"]` categories and `["land", "water"]` permissions, while Solid Rock declares `rock` with no movement permissions. These declarations describe one Cell, not separate sub-Cell collision regions.
+
+Unit `baseMovementCapabilities` defaults to `["land"]`. Declare `["water"]` for a water-only Unit or both kinds for a Unit that supports both. Arbitrary additional movement kinds are supported; IDs must be lowercase, valid content keys and distinct. An empty base set is allowed, but a Unit still needs a matching effective capability for placement. Native or Equipment unlimited Passive Abilities can add capabilities:
+
+```json
+{
+  "key": "stream-walking",
+  "name": "Stream Walking",
+  "timing": "Passive",
+  "mechanic": { "kind": "movementCapabilityGrant", "kinds": ["water"] }
+}
+```
+
+Amphibious remains a supplemental `water` grant, including its intrinsic Unit field and native/Equipment sources. These persistent grants work while Lying, without authorizing ordinary Moves or Actions while Lying. Phase changes traversal, not otherwise illegal endpoints, attack LOS or its existing vision rules. Unit `terrainRestriction` remains an ordinary-Move/initial-entry restriction: an external relocation off racing-ground does not invalidate a Unit whose persistent capabilities permit its new terrain.
+
+The same resolved capability profile is used for complete footprints, hypothetical positions, initial Equipment, summoning, Swap, forced movement and restore. Automated Use Summon with Attack ranks legal placements using the summoned Type's traversal permissions, restrictions, Phase and footprint, with the summoner's explored-board knowledge. Large summoned figures measure to fitting anchors overlapping a target Cell, including targets at board borders. Matching is allocation-free inside movement scans; immutable profiles and indexed geometry are reused within a query. Profiles are derived from current immutable content and owned Equipment rather than persistent remembered state.
+
+Any valid internal Edge can contain any supported Wall/Door/Window independent of neighboring Terrain Types. Geometry and occupied-footprint checks still apply. Destruction rejects replacements that invalidate occupants or other layers, and never relocates or drowns Units. Machine requirements remain exact Type references and participate in dependency closure; Resource production and Cell Markers retain their ground placement rules.
+
+This core migration adds no mixed terrain artwork, generator placement or shoreline blending. Future mixed Terrain can use the existing three fixed visual variants and four cosmetic rotations; gameplay remains at Cell level.
 
 ## Scenario-local JSON
 
@@ -68,7 +103,7 @@ This complete scenario defines an unfamiliar obstruction using supported propert
     {
       "id": "velvet-plinth",
       "name": "An Unexpected Velvet Plinth",
-      "passable": false,
+      "movementPermissions": [],
       "blocksLos": false,
       "presentation": { "recipe": "StoneFloorWithTable" }
     }
@@ -125,7 +160,7 @@ Equivalent JSON fields are:
   "terrainTypes": [
     {
       "id": "practice-track", "name": "Practice Track",
-      "passable": true, "blocksLos": false,
+      "movementPermissions": ["land"], "blocksLos": false,
       "categories": ["racing-ground"],
       "presentation": { "recipe": "Asphalt" }
     }
@@ -209,7 +244,7 @@ var terrain = TerrainCatalog.Resolve(local: null,
     assemblies: [room], fixedComponents: [bed]);
 ```
 
-The Engine validates all references and resolves each assembly once. Effective passability is the surface's passability **and** the absence of a movement-blocking component. Effective LOS blocking is the surface's LOS blocking **or** any LOS-blocking component. Effective vision blocking independently uses the surface's vision blocking **or** any vision-blocking component. Surface categories, Resource-marker permission and environmental production are preserved. Production still runs once for the resulting Cell; components cannot declare another producer. Unit restrictions, Phase stopping, footprints, geometric LOS, FoW and Resource eligibility consume the resulting ordinary Terrain properties through their existing queries.
+The Engine validates all references and resolves each assembly once. Effective movement permissions are the surface's permissions when no component blocks movement, or the empty set when a component blocks movement. Effective LOS blocking is the surface's LOS blocking **or** any LOS-blocking component. Effective vision blocking independently uses the surface's vision blocking **or** any vision-blocking component. Surface categories, Resource-marker permission and environmental production are preserved. Production still runs once for the resulting Cell; components cannot declare another producer. Unit restrictions, Phase stopping, footprints, geometric LOS, FoW and Resource eligibility consume the resulting ordinary Terrain properties through their existing queries.
 
 Slots are stable keys within an assembly, not attachment points or free coordinates. Up to four distinct slots are supported, with at most one raised `Object` component; additional components must be flat `Decal` presentation layers. This prevents undefined furniture stacking. `quarterTurns` is optional presentation orientation from 0 through 3; it changes neither footprint nor rules. Omission keeps deterministic visual rotation. Invalid properties, duplicate IDs or slots, missing references and unsupported layers/orientations are rejected. Presentation may fall back for unknown recipes; component gameplay definitions must exist.
 
@@ -264,7 +299,7 @@ A scenario-local producer needs only a definition and a placement:
   "terrainTypes": [
     {
       "id": "copper-orchard", "name": "Copper Orchard",
-      "passable": false, "blocksLos": true,
+      "movementPermissions": [], "blocksLos": true,
       "presentation": { "recipe": "Tree" },
       "production": {
         "kind": "directionalResourceProduction",
@@ -309,7 +344,7 @@ Legacy enum-based scenario fields remain readable, including implicit Stone Floo
 
 Use the explicit new Type IDs for new content. The old `lava` reference is a reserved input alias retained for compatibility instead of silently changing earlier typed scenarios; it is not a third canonical definition and cannot be used as a local definition ID. New explicit `ordinary-lava` and `coal-lava` references reject the legacy `coalGeneration` setting. Legacy default Lava also retains production on every unspecified Cell; Stronghold's explicit `coalGeneration: false` continues to make no rolls. Legacy generator documents and their exact JSON fingerprints remain unchanged.
 
-Resolved runtime catalogs and snapshots retain production data. Runtime Boards write `terrainContentVersion: 2`. An older save with no version is treated as version 1: its former canonical `lava` and Fruit Tree definitions and legacy tile references migrate at the deserialization boundary. A former Lava definition supplies both resolved Lava types; unrelated definitions absent from an old filtered observation remain absent. Normal observations still include only discovered Terrain Types. The scenario format version stays unchanged. Migration does not change remaining Resources, round progress or random state, and never replays production merely because a save is loaded.
+Resolved runtime catalogs and snapshots retain permissions, categories and production data. Runtime Boards write `terrainContentVersion: 3`; older or missing versions are rejected. Atomic authored Terrain requires `movementPermissions`; unsupported development formats containing only `passable` must be updated explicitly. Existing passable terrain migrates to `["land"]`, canonical Water to `["water"]`, and other blockers to `[]`. Unit definitions default to `["land"]`; Amphibious adds `water`. Captured definitions, including assembly surfaces, remain authoritative after save/restore; canonical content is never fetched to repair an old snapshot. Current observations expose only discovered definitions, plus the implicit Stone Floor definition. No production, relocation or other effect is replayed on load.
 
 - Lava stays impassable. Omitted or `true` Coal generation still produces Coal; `false` still makes no rolls.
 - Fruit Tree production, its source-LOS exception and all production ordering remain unchanged.

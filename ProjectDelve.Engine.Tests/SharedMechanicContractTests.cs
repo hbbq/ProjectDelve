@@ -13,6 +13,7 @@ public sealed class SharedMechanicContractTests
         (new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying), [AbilityTiming.Action]),
         (new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2), [AbilityTiming.Action]),
         (new Amphibious(), [AbilityTiming.Passive]),
+        (new MovementCapabilityGrant([MovementKinds.Water]), [AbilityTiming.Passive]),
         (new RevealDistance(7), [AbilityTiming.Action, AbilityTiming.BonusAction, AbilityTiming.FreeAction]),
         (new FireballMechanic(), [AbilityTiming.Action, AbilityTiming.BonusAction, AbilityTiming.FreeAction]),
         (new SelfModifiersMechanic([new(Stat.Atk, 1)]), [AbilityTiming.BonusAction, AbilityTiming.Passive]),

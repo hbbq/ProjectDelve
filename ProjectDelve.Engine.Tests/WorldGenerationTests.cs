@@ -214,7 +214,7 @@ public sealed class WorldGenerationTests
     [Fact]
     public void Wld1RecipePinsItsAuthoredTerrainOutput()
     {
-        Assert.Equal("62E913C1166FB5F70FBD1849FBF73E34960FCCBF5402471797D13BE324139F3E",
+        Assert.Equal("8A138E613F11A5B51930DC48EA77158DA69EB916CF12110B9C1481EEF885AD9A",
             WorldGenerator.Generate(Recipe(new(-17, -13, 50, 50))).Fingerprint);
     }
 

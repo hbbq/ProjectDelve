@@ -17,7 +17,7 @@ internal static class RockEnricher
             var remaining = formation.CoreArea * (4 + 3 * intensity) / 100 - terrain.ChangedOriginal(f);
             if (remaining < 12) continue;
             bool Core(int i) => source.FormationLabels[i] == f && context.OriginalSamples[i].TerrainTypeId == "solid-rock";
-            bool Dry(int i) => !terrain.Neighbors(i).Any(j => context.OriginalSamples[j].TerrainTypeId == "water");
+            bool Dry(int i) => !terrain.Neighbors(i).Any(terrain.OriginalWater);
             var core = Enumerable.Range(0, terrain.Count).Where(Core).ToList();
             var entries = core.Where(i => Dry(i) && context.Samples[i].TerrainTypeId == "solid-rock")
                 .SelectMany(i => terrain.Neighbors(i).Where(j => context.OriginalSamples[j].TerrainTypeId is "grass" or "dirt" && terrain.Passable(j))

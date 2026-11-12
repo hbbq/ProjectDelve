@@ -4,6 +4,13 @@ namespace ProjectDelve.Engine;
 
 internal sealed partial class GameplayQueries
 {
+    private readonly ConcurrentDictionary<string, MovementTraversal> occupancyTraversals = new(StringComparer.Ordinal);
+    private MovementTraversal OccupancyTraversal(string actor) => occupancyTraversals.GetOrAdd(actor,
+        static (id, queries) => MovementTraversal.OccupancyFor(queries.world, id), this);
+    private readonly ConcurrentDictionary<(string Actor, bool Doors), MovementTraversal> movementTraversals = new();
+    private MovementTraversal Traversal(string actor, bool closedDoors = false) => movementTraversals.GetOrAdd(
+        (actor, closedDoors), static (key, queries) => MovementTraversal.For(queries.world, key.Actor, key.Doors,
+            queries.OccupancyTraversal(key.Actor).Capabilities), this);
     private readonly ConcurrentDictionary<string, Board> autonomousBoards = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<(string Actor, Cell Anchor), IReadOnlySet<Cell>> discovery = new();
     private readonly ConcurrentDictionary<(string Actor, string Target, bool Doors), IReadOnlyDictionary<Cell, int>> followFields = new();
@@ -22,7 +29,7 @@ internal sealed partial class GameplayQueries
 
     public int CountAdjacentFriendliesFrom(string unitId, Cell position)
     {
-        HypotheticalPosition.Validate(world, unitId, position);
+        HypotheticalPosition.Validate(world, unitId, position, OccupancyTraversal(unitId));
         var cells = FootprintGeometry.OccupiedCells(world, unitId, position);
         return KnownFriendlyUnitIds(unitId).Count(id =>
             SpatialRules.AreFootprintsAdjacent(AutonomousBoard(unitId), cells, OccupiedCellsOf(id)));
@@ -33,7 +40,7 @@ internal sealed partial class GameplayQueries
     public int? DistanceToFollowPositionFrom(string unitId, Cell position, string targetId, bool closedDoorsTraversable = false)
     {
         if (unitId == targetId || !IsLivingFriendlyUnit(unitId, targetId)) return null;
-        HypotheticalPosition.Validate(world, unitId, position);
+        HypotheticalPosition.Validate(world, unitId, position, OccupancyTraversal(unitId));
         var goals = followGoals.GetOrAdd((unitId, targetId), key =>
         {
             var board = AutonomousBoard(key.Actor);
@@ -56,13 +63,13 @@ internal sealed partial class GameplayQueries
         {
             var distances = followOriginDistances.GetOrAdd((unitId, closedDoorsTraversable), key =>
                 ApproachRules.Distances(AutonomousBoard(key.Actor), PositionOf(key.Actor),
-                    traversal: MovementTraversal.For(world, key.Actor, key.Doors),
+                    traversal: Traversal(key.Actor, key.Doors),
                     footprint: FootprintGeometry.FootprintOf(world, key.Actor)));
             return goals.Where(distances.ContainsKey).Select(p => (int?)distances[p]).DefaultIfEmpty().Min();
         }
         var field = followFields.GetOrAdd((unitId, targetId, closedDoorsTraversable), key =>
             ApproachRules.DistancesTo(AutonomousBoard(key.Actor), goals,
-                MovementTraversal.For(world, key.Actor, key.Doors), FootprintGeometry.FootprintOf(world, key.Actor)));
+                Traversal(key.Actor, key.Doors), FootprintGeometry.FootprintOf(world, key.Actor)));
         return field.TryGetValue(position, out var distance) ? distance : null;
     }
 
@@ -95,7 +102,7 @@ internal sealed partial class GameplayQueries
 
     public int? DistanceToExplorationPositionFrom(string unitId, Cell position, bool closedDoorsTraversable = false)
     {
-        HypotheticalPosition.Validate(world, unitId, position);
+        HypotheticalPosition.Validate(world, unitId, position, OccupancyTraversal(unitId));
         if (!FogOfWar.IsEnabled(world, world.Units.Single(u => u.Id == unitId).SideId)) return null;
         // Closed-door approach preferences never invent a productive exploration route.
         // Retain movement patterns and canonical routes while ignoring temporary figures.
@@ -123,9 +130,9 @@ internal sealed partial class GameplayQueries
         var unit = world.Units.Single(u => u.Id == actor);
         var type = world.Types.Single(t => t.Id == unit.TypeId);
         var cells = FootprintGeometry.OccupiedCells(type.Footprint, anchor);
-        var known = MovementTraversal.For(world, actor).KnownCells;
+        var known = FogOfWar.IsEnabled(world, unit.SideId) ? world.ExploredCells.GetValueOrDefault(unit.SideId) ?? [] : null;
         return cells.All(c => known is null || known.Contains(c)) &&
-            SpatialRules.Fits(AutonomousBoard(actor), type.Footprint, anchor, MovementTraversal.OccupancyFor(world, actor)) &&
+            SpatialRules.Fits(AutonomousBoard(actor), type.Footprint, anchor, OccupancyTraversal(actor)) &&
             !cells.Any(KnownOccupants(actor).Contains);
     }
 

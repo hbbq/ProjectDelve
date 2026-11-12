@@ -45,7 +45,9 @@ public sealed class SkeletonArcherTests
         Assert.Equal(UnitAction.NormalAttack, type.Actions);
         Assert.Null(type.Mechanic<TryOpenDoor>());
         Assert.Equal(UnitBehavior.MaximizeAttackDistance, type.Behaviors);
-        Assert.Equal(type, JsonSerializer.Deserialize<UnitType>(JsonSerializer.Serialize(type)));
+        var json = JsonSerializer.Serialize(type);
+        var restored = JsonSerializer.Deserialize<UnitType>(json)!;
+        Assert.Equal(json, JsonSerializer.Serialize(restored));
     }
 
     [Fact]

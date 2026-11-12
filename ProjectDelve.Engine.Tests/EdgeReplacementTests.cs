@@ -44,12 +44,12 @@ public sealed class EdgeReplacementTests
     }
 
     [Theory]
-    [InlineData(EdgeKind.Wall, false)]
-    [InlineData(EdgeKind.WallWithWindow, false)]
+    [InlineData(EdgeKind.Wall, true)]
+    [InlineData(EdgeKind.WallWithWindow, true)]
     [InlineData(EdgeKind.ClosedDoor, true)]
     [InlineData(EdgeKind.OpenDoor, true)]
     [InlineData(EdgeKind.None, true)]
-    public void WaterWaterRejectsOnlyWallKindsAndRetainsExactOldDoor(EdgeKind desired, bool allowed)
+    public void WaterWaterAllowsEveryEdgeKind(EdgeKind desired, bool allowed)
     {
         var state = World(); var old = new Edge(new(1, 1), new(2, 1), EdgeKind.ClosedDoor);
         state.Physical.Board.Edges.Add(old);
@@ -88,12 +88,13 @@ public sealed class EdgeReplacementTests
     [Theory]
     [InlineData(EdgeKind.Wall)]
     [InlineData(EdgeKind.WallWithWindow)]
-    public void InitialSetupRejectsWaterWaterWallsUsingSharedLegality(EdgeKind kind)
+    public void InitialSetupAllowsWaterWaterWallsUsingSharedLegality(EdgeKind kind)
     {
         var state = World(); var edge = new Edge(new(1, 1), new(2, 1), kind);
         state.Physical.Board.Edges.Add(edge);
         state.Physical.Board.Terrain.AddRange([new(edge.A, TerrainKind.Water), new(edge.B, TerrainKind.Water)]);
-        Assert.Throws<ArgumentException>(() => GameEngine.StartRound(state, new Dice()));
+        TestGame.Author(state);
+        GameEngine.ValidateScenario(state);
     }
 
     private sealed class Dice : IRandomProvider

@@ -32,6 +32,8 @@ public sealed record TerrainAnalysisSnapshot(WorldWindow Window, int Revision, i
     public string Version => "TAN1";
     public string SourceFingerprint { get; init; } = "";
     public IReadOnlyList<NarrowPassage> NarrowPassages { get; init; } = [];
+    public int[] WaterTravelLabels { get; init; } = [];
+    public ConnectivitySummary WaterConnectivity { get; init; } = new(0, 0, [], 0);
 }
 
 public static class TerrainAnalyzer
@@ -45,15 +47,16 @@ public static class TerrainAnalyzer
         var w = window.Width; var h = window.Height; var n = w * h;
         if (samples.Count != n) throw new ArgumentException("Supply exactly one sample per window cell.", nameof(samples));
         var definitions = (content ?? ContentBundle.Canonical()).Terrain.ToDictionary(t => t.Id, StringComparer.Ordinal);
-        var kinds = new NaturalFormationKind[n]; var passable = new bool[n]; var los = new bool[n];
+        var kinds = new NaturalFormationKind[n]; var passable = new bool[n]; var waterTravel = new bool[n]; var los = new bool[n];
         for (var i = 0; i < n; i++)
         {
             var sample = samples[i] ?? throw new ArgumentException("Samples cannot contain null.", nameof(samples));
             if (!definitions.TryGetValue(sample.TerrainTypeId, out var definition))
                 throw new ArgumentException($"Unknown terrain '{sample.TerrainTypeId}'.", nameof(samples));
             passable[i] = definition.Passable; los[i] = definition.BlocksLos;
+            waterTravel[i] = definition.MovementPermissions.Contains(MovementKinds.Water);
             // These are sampler landscape families, never gameplay legality or behavior dispatch.
-            kinds[i] = sample.TerrainTypeId switch
+            kinds[i] = definition.Categories.Contains(TerrainCategories.Water) ? NaturalFormationKind.WaterBody : sample.TerrainTypeId switch
             {
                 "tree" or "fruit-tree" => NaturalFormationKind.Forest,
                 "solid-rock" => NaturalFormationKind.RockMass,
@@ -66,7 +69,7 @@ public static class TerrainAnalyzer
         {
             if ((uint)machine.Position.X >= w || (uint)machine.Position.Y >= h) throw new ArgumentException("Machine must be within the analysis window.", nameof(machines));
             var index = machine.Position.Y * w + machine.Position.X;
-            passable[index] = false; los[index] = true;
+            passable[index] = false; waterTravel[index] = false; los[index] = true;
         }
         int Neighbor(int i, int d) => d switch
         {
@@ -91,7 +94,7 @@ public static class TerrainAnalyzer
         }
         // Stable source identity, independent of runtime hash randomization, culture and edge ordering.
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        var bytes = new byte[34];
+        var bytes = new byte[36];
         for (var i = 0; i < n; i++)
         {
             var name = Encoding.UTF8.GetBytes(samples[i].TerrainTypeId);
@@ -101,6 +104,8 @@ public static class TerrainAnalyzer
             BinaryPrimitives.WriteInt64LittleEndian(bytes.AsSpan(16), BitConverter.DoubleToInt64Bits(samples[i].Openness));
             BinaryPrimitives.WriteInt64LittleEndian(bytes.AsSpan(24), BitConverter.DoubleToInt64Bits(samples[i].Soil));
             bytes[32] = passable[i] ? (byte)1 : (byte)0; bytes[33] = los[i] ? (byte)1 : (byte)0;
+            bytes[34] = waterTravel[i] ? (byte)1 : (byte)0;
+            bytes[35] = (byte)kinds[i];
             hash.AppendData(bytes);
         }
         foreach (var wall in walls.OrderBy(e => e.Item1).ThenBy(e => e.Item2))
@@ -200,6 +205,24 @@ public static class TerrainAnalyzer
                 }
             }
             areas.Add(area);
+        }
+        // Water travel is a separate graph, not the complement of land travel.
+        var waterLabels = Enumerable.Repeat(-1, n).ToArray(); var waterAreas = new List<int>();
+        for (var start = 0; start < n; start++)
+        {
+            if (!waterTravel[start] || waterLabels[start] >= 0) continue;
+            var area = 0; waterLabels[start] = waterAreas.Count; queue.Enqueue(start);
+            while (queue.TryDequeue(out var i))
+            {
+                area++;
+                for (var d = 0; d < 4; d++)
+                {
+                    var j = Neighbor(i, d);
+                    if (j < 0 || !waterTravel[j] || waterLabels[j] >= 0 || !Linked(i, j)) continue;
+                    waterLabels[j] = waterLabels[i]; queue.Enqueue(j);
+                }
+            }
+            waterAreas.Add(area);
         }
         // Iterative Tarjan traversal keeps even a 14,400-cell path off the call stack.
         var discovered = new int[n]; var low = new int[n]; var predecessors = Enumerable.Repeat(-1, n).ToArray();
@@ -311,6 +334,7 @@ public static class TerrainAnalyzer
         return new(window, revision, labels, exact, depth, clearance, walk, boundary,
             Enumerable.Range(0, n).Where(i => articulation[i]).ToArray(), formations.AsReadOnly(), opportunities.AsReadOnly(),
             new(areas.Sum(), areas.Count, areas.AsReadOnly(), areas.Count == 0 ? 0 : areas.Max()))
-            { SourceFingerprint = fingerprint, NarrowPassages = passages.AsReadOnly() };
+            { SourceFingerprint = fingerprint, NarrowPassages = passages.AsReadOnly(), WaterTravelLabels = waterLabels,
+                WaterConnectivity = new(waterAreas.Sum(), waterAreas.Count, waterAreas.AsReadOnly(), waterAreas.Count == 0 ? 0 : waterAreas.Max()) };
     }
 }

@@ -103,7 +103,7 @@ internal static class TerrainAssemblyContent
         var resolved = assembly.Components.Select(c => new ResolvedFixedComponent(c.Slot,
             definitions.GetValueOrDefault(c.ComponentId) ?? throw new ArgumentException($"Unknown Fixed Component Type ID '{c.ComponentId}'."), c.QuarterTurns)).ToImmutableArray();
         ValidatePlacements(resolved);
-        return new(assembly.Id, assembly.Name, surface.Passable && !resolved.Any(c => c.Definition.BlocksMovement),
+        return new(assembly.Id, assembly.Name, resolved.Any(c => c.Definition.BlocksMovement) ? [] : surface.MovementPermissions,
             surface.BlocksLos || resolved.Any(c => c.Definition.BlocksLos))
         {
             BlocksVision = surface.BlocksVision || resolved.Any(c => c.Definition.BlocksVision),
@@ -121,7 +121,7 @@ internal static class TerrainAssemblyContent
         ValidateSurface(assembly.Surface);
         TerrainCatalog.Validate([assembly.Surface], againstCanonical: false);
         ValidatePlacements(assembly.Components);
-        if (terrain.Passable != (assembly.Surface.Passable && !assembly.Components.Any(c => c.Definition.BlocksMovement)) ||
+        if (!terrain.MovementPermissions.SequenceEqual(assembly.Components.Any(c => c.Definition.BlocksMovement) ? [] : assembly.Surface.MovementPermissions) ||
             terrain.BlocksLos != (assembly.Surface.BlocksLos || assembly.Components.Any(c => c.Definition.BlocksLos)) ||
             terrain.BlocksVision != (assembly.Surface.BlocksVision || assembly.Components.Any(c => c.Definition.BlocksVision)) ||
             terrain.AllowsResourceMarkers != assembly.Surface.AllowsResourceMarkers ||

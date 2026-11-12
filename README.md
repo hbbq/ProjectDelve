@@ -716,6 +716,22 @@ the existing artwork pipeline to three 256px sRGB WebPs under `art/terrain/dirt/
 The shared recipe reuses existing deterministic variants/rotations. Original
 artwork is unchanged; pre-existing runtime exports were preserved byte-for-byte.
 
+### Mixed Water artwork
+
+Wet Grass, Rocky Water and Stepping Stones use three opaque, full-Cell images each. The originals are 1254 × 1254 RGB PNGs under `assets/source/terrain/`; their entire square is resized to 256 × 256 sRGB WebP with Lanczos and quality 85/method 6. Originals remain unchanged.
+
+| Source filenames | Runtime directory under `ProjectDelve.Web/wwwroot/art/terrain/` | Recipe |
+| --- | --- | --- |
+| `wet-grass-01.png`, `wet-grass-02.png`, `wet-grass-03.png` | `wet-grass/01.webp` … `03.webp` | `WetGrass` |
+| `rocky-water-01.png`, `rocky-water-02.png`, `rocky-water-03.png` | `rocky-water/01.webp` … `03.webp` | `RockyWater` |
+| `stepping-stones-01.png`, `stepping-stonew-02.png`, `stepping-stones-03.png` | `stepping-stones/01.webp` … `03.webp` | `SteppingStones` |
+
+The second Stepping Stones source retains its original filename spelling; its explicit registration maps it to slot 02. `tools/prepare-artwork.py` is the source/export manifest and `wwwroot/board-visuals.js` is the shared runtime recipe catalog. Re-export only these families with `python tools/prepare-artwork.py --terrain wet-grass rocky-water stepping-stones`; this also creates `assets/previews/terrain-wet-grass-rocky-water-stepping-stones.png` with all twelve appearances at 60px and 100px. The existing full export remains supported.
+
+Designer, Enhanced 2D and Three.js use the same unchanged variant/rotation hashes. These recipes introduce no directional metadata, raised objects or neighbor-dependent transitions. See [terrain definitions](TERRAIN_CONTENT.md) and [generation policy and frequencies](ProjectDelve.Generation/MIXED_WATER_V1.md).
+
+Designer flat terrain previews use the shared artwork sampler with its stable default seed; its existing Rail and fixed-component representation is retained. Visual QA used the protected Edge dispatcher on an isolated 5081 host: a dedicated 12 × 6 terrain fixture at normal and smaller Cell sizes, and a generated 40 × 30 river world with 19 Wet Grass, 3 Rocky Water and 27 Stepping Stones Cells. Designer, Enhanced 2D and tabletop showed readable distinct materials, cosmetic rotations and intact fixed boundaries; Quick Play retained FoW. Successful inspections reported no request failures or console errors. Source verification checked all 418 originals unchanged and found no missing registered sources. No existing artwork exports were modified.
+
 ### Solid Rock artwork
 
 Three new opaque 1254 × 1254 RGB PNG originals map to the existing `terrain.SolidRock` catalog entry. They have no embedded color profiles, EXIF orientation or animation. The existing pipeline exports the entire square without cropping, using sRGB, Lanczos and WebP quality 85/method 6.

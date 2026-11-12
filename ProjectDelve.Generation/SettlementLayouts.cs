@@ -253,6 +253,9 @@ internal static class SettlementLayouts
     {
         if (!board.CanWrite(i)) return false;
         var terrain = board.TerrainAt(i);
+        var definition = TerrainCatalog.Find(board.Content.Terrain, terrain);
+        if (definition.Categories.Contains(TerrainCategories.Water)) return policy.FillWater &&
+            (terrain == "water" || definition is { Passable: true, Assembly: null, Production: null, LegacyKind: not TerrainKind.Rail });
         return terrain switch
         {
             "tree" or "fruit-tree" => policy.ClearTrees,
@@ -262,10 +265,11 @@ internal static class SettlementLayouts
                 { Passable: true, Assembly: null, Production: null, LegacyKind: not TerrainKind.Rail }
         };
     }
-    private static int PreparationCost(BoardDraft board, int i) => board.TerrainAt(i) switch
-    {
-        "tree" or "fruit-tree" => 2, "solid-rock" => 4, "water" => 6, _ => 0
-    };
+    private static int PreparationCost(BoardDraft board, int i) =>
+        TerrainCatalog.Find(board.Content.Terrain, board.TerrainAt(i)).Categories.Contains(TerrainCategories.Water) ? 6 : board.TerrainAt(i) switch
+        {
+            "tree" or "fruit-tree" => 2, "solid-rock" => 4, _ => 0
+        };
     private static Cell Face(CellBounds b, CardinalSide side, int offset) => side switch
     {
         CardinalSide.North => new(b.X + b.Width / 2 + offset, b.Y),

@@ -38,7 +38,7 @@ public sealed class BreakObjectTests
     [Fact]
     public void CanonicalMappingsAndEveryStructureAreExplicit()
     {
-        Assert.Equal(new Dictionary<string, string> { ["tree"] = "grass", ["fruit-tree"] = "grass", ["solid-rock"] = "gravel", ["stone-floor-with-table"] = "stone-floor", ["campfire"] = "grass" },
+        Assert.Equal(new Dictionary<string, string> { ["tree"] = "grass", ["fruit-tree"] = "grass", ["solid-rock"] = "gravel", ["stone-floor-with-table"] = "stone-floor", ["campfire"] = "grass", ["stepping-stones"] = "water" },
             TerrainCatalog.All.Where(t => t.DestroyedTerrainTypeId is not null).ToDictionary(t => t.Id, t => t.DestroyedTerrainTypeId!));
         foreach (var kind in Enum.GetValues<EdgeKind>()) Assert.Equal(kind == EdgeKind.None ? null : EdgeKind.None, BreakObjectRules.DestroyedEdgeKind(kind));
     }
@@ -168,7 +168,7 @@ public sealed class BreakObjectTests
         Assert.Single(Assert.Single(result.Events, e => e.Kind == "AdjacentObjectsBreakResolved").BreakOutcomes);
     }
 
-    private static GameState ConflictingWaterState(int threshold, bool reverse)
+    private static GameState WaterReplacementState(int threshold, bool reverse)
     {
         var state = State(new BreakAdjacentObjects(threshold));
         var basin = new TerrainDefinition("basin", "Dry Basin", true, false) { DestroyedTerrainTypeId = "water" };
@@ -208,32 +208,47 @@ public sealed class BreakObjectTests
     [InlineData(13)]
     [InlineData(14)]
     [InlineData(15)]
-    public void AreaPreflightExcludesConflictingWaterBeforeRollingForEveryAcceptedSubset(int successes)
+    [InlineData(16)]
+    [InlineData(17)]
+    [InlineData(18)]
+    [InlineData(19)]
+    [InlineData(20)]
+    [InlineData(21)]
+    [InlineData(22)]
+    [InlineData(23)]
+    [InlineData(24)]
+    [InlineData(25)]
+    [InlineData(26)]
+    [InlineData(27)]
+    [InlineData(28)]
+    [InlineData(29)]
+    [InlineData(30)]
+    [InlineData(31)]
+    public void AreaPreflightAcceptsWaterAcrossWallForEverySuccessSubsetAndInputOrder(int successes)
     {
         string? outcomes = null;
         foreach (var reverse in new[] { false, true })
         {
-            var state = ConflictingWaterState(3, reverse);
-            var excluded = new Cell(2, 0);
-            Assert.True(BreakObjectRules.CanBreak(state, new(Cell: excluded))); // Individually legal.
-            var rolls = Enumerable.Range(0, 4).Select(i => (successes & (1 << i)) != 0 ? 1 : 6).ToArray();
+            var state = WaterReplacementState(3, reverse);
+            var neighbor = new Cell(2, 0);
+            Assert.True(BreakObjectRules.CanBreak(state, new(Cell: neighbor)));
+            var rolls = Enumerable.Range(0, 5).Select(i => (successes & (1 << i)) != 0 ? 1 : 6).ToArray();
             var dice = new Dice(rolls);
             var result = Use(state, dice);
             var resolved = Assert.Single(result.Events, e => e.Kind == "AdjacentObjectsBreakResolved");
-            Assert.Equal(4, dice.Count);
-            Assert.Equal(new BreakTarget[] { new(Cell: new(1, 0)), new(Cell: new(0, 1)),
+            Assert.Equal(5, dice.Count);
+            Assert.Equal(new BreakTarget[] { new(Cell: new(1, 0)), new(Cell: neighbor), new(Cell: new(0, 1)),
                 new(Edge: new(new(1, 0), new(2, 0), EdgeKind.Wall)),
                 new(Edge: new(new(1, 1), new(1, 2), EdgeKind.OpenDoor)) }, resolved.BreakOutcomes.Select(o => o.Target));
             Assert.Equal(rolls.Select(r => r == 1), resolved.BreakOutcomes.Select(o => o.Succeeded));
             var diceEvents = result.Events.Where(e => e.Kind == "DiceRolled").ToArray();
-            Assert.Equal(4, diceEvents.Length);
-            Assert.DoesNotContain(diceEvents, e => e.Dice!.Pool.BreakTarget?.Cell == excluded);
-            Assert.DoesNotContain(resolved.BreakOutcomes, o => o.Target.Cell == excluded);
-            Assert.Equal("basin", result.State.Physical.Board.TerrainDefinitionAt(excluded).Id);
-            Assert.Equal((successes & 4) != 0 ? EdgeKind.None : EdgeKind.Wall, result.State.Physical.Board.EdgeBetween(new(1, 0), excluded));
+            Assert.Equal(5, diceEvents.Length);
+            Assert.Contains(diceEvents, e => e.Dice!.Pool.BreakTarget?.Cell == neighbor);
+            Assert.Equal((successes & 2) != 0 ? "water" : "basin", result.State.Physical.Board.TerrainDefinitionAt(neighbor).Id);
+            Assert.Equal((successes & 8) != 0 ? EdgeKind.None : EdgeKind.Wall, result.State.Physical.Board.EdgeBetween(new(1, 0), neighbor));
             Assert.Equal((successes & 1) != 0 ? "water" : "basin", result.State.Physical.Board.TerrainDefinitionAt(new(1, 0)).Id);
-            Assert.Equal((successes & 2) != 0 ? "water" : "basin", result.State.Physical.Board.TerrainDefinitionAt(new(0, 1)).Id);
-            Assert.Equal((successes & 8) != 0 ? EdgeKind.None : EdgeKind.OpenDoor,
+            Assert.Equal((successes & 4) != 0 ? "water" : "basin", result.State.Physical.Board.TerrainDefinitionAt(new(0, 1)).Id);
+            Assert.Equal((successes & 16) != 0 ? EdgeKind.None : EdgeKind.OpenDoor,
                 result.State.Physical.Board.EdgeBetween(new(1, 1), new(1, 2)));
             var batch = Assert.Single(result.ResolutionSteps, s => result.Events[s.EventIndex].Kind == resolved.Kind);
             Assert.True(batch.StateAfter.ActionDone);
@@ -249,26 +264,26 @@ public sealed class BreakObjectTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void GuaranteedAreaUsesTheSameConservativeWaterPreflightWithoutDice(bool reverse)
+    public void GuaranteedAreaAcceptsWaterAcrossWallWithoutDice(bool reverse)
     {
         var dice = new Dice();
-        var result = Use(ConflictingWaterState(6, reverse), dice);
+        var result = Use(WaterReplacementState(6, reverse), dice);
         Assert.Equal(0, dice.Count);
         Assert.DoesNotContain(result.Events, e => e.Kind == "DiceRolled");
         var resolved = Assert.Single(result.Events, e => e.Kind == "AdjacentObjectsBreakResolved");
-        Assert.Equal(4, resolved.BreakOutcomes.Length);
+        Assert.Equal(5, resolved.BreakOutcomes.Length);
         Assert.All(resolved.BreakOutcomes, o => { Assert.True(o.Succeeded); Assert.Null(o.DieRoll); });
-        Assert.DoesNotContain(resolved.BreakOutcomes, o => o.Target.Cell == new Cell(2, 0));
-        Assert.Equal("basin", result.State.Physical.Board.TerrainDefinitionAt(new(2, 0)).Id);
+        Assert.Contains(resolved.BreakOutcomes, o => o.Target.Cell == new Cell(2, 0));
+        Assert.Equal("water", result.State.Physical.Board.TerrainDefinitionAt(new(2, 0)).Id);
         GameEngine.ValidateScenario(result.State);
     }
 
     [Theory]
     [InlineData(1)]
     [InlineData(6)]
-    public void AreaPreflightDoesNotDependOnEarlierWaterRemovalSucceeding(int roll)
+    public void AreaWaterReplacementDoesNotRequireEarlierWaterOrWallRemovalSucceeding(int roll)
     {
-        var state = ConflictingWaterState(3, false);
+        var state = WaterReplacementState(3, false);
         var definitions = state.Physical.Board.TerrainTypes;
         var water = definitions.Single(t => t.Id == "water");
         definitions = definitions.SetItem(definitions.IndexOf(water), water with { DestroyedTerrainTypeId = "grass" });
@@ -276,15 +291,16 @@ public sealed class BreakObjectTests
         state.Physical.Board.Terrain.RemoveAll(t => t.Position == new Cell(0, 1));
         state.Physical.Board.Terrain[0] = new(new(1, 0)) { TypeId = "water" };
         state.Physical.Board.Edges.RemoveAll(e => e.Kind == EdgeKind.OpenDoor);
-        var dice = new Dice(roll, roll);
+        var dice = new Dice(roll, roll, roll);
         var result = Use(state, dice);
         var outcomes = Assert.Single(result.Events, e => e.Kind == "AdjacentObjectsBreakResolved").BreakOutcomes;
-        var outcome = Assert.Single(outcomes, o => o.Target.Cell is not null);
+        Assert.Equal(2, outcomes.Count(o => o.Target.Cell is not null));
+        var outcome = Assert.Single(outcomes, o => o.Target.Cell == new Cell(1, 0));
         Assert.Single(outcomes, o => o.Target.Edge is not null);
         Assert.Equal(new Cell(1, 0), outcome.Target.Cell);
-        Assert.Equal(2, dice.Count);
+        Assert.Equal(3, dice.Count);
         Assert.Equal(roll == 1 ? "grass" : "water", result.State.Physical.Board.TerrainDefinitionAt(new(1, 0)).Id);
-        Assert.Equal("basin", result.State.Physical.Board.TerrainDefinitionAt(new(2, 0)).Id);
+        Assert.Equal(roll == 1 ? "water" : "basin", result.State.Physical.Board.TerrainDefinitionAt(new(2, 0)).Id);
         GameEngine.ValidateScenario(result.State);
     }
 
@@ -572,6 +588,41 @@ public sealed class BreakObjectTests
         if (resource) state.Resources.Add(new(ResourceTypes.Coal, new(2, 1)));
         else state.CellMarkers.Add(new(CellMarkerTypes.BananaPeel, new(2, 1)));
         Assert.Empty(BreakObjectRules.Targets(state, [new(1, 1)]));
+    }
+
+    [Theory]
+    [InlineData("occupied")]
+    [InlineData("machine")]
+    [InlineData("resource")]
+    [InlineData("marker")]
+    public void AreaPreflightExcludesUnsafeReplacementWithoutConsumingItsDie(string obstruction)
+    {
+        var state = State(new BreakAdjacentObjects(3));
+        var box = new TerrainDefinition("box", "Box", true, false) { DestroyedTerrainTypeId = "ordinary-lava" };
+        state.Physical = state.Physical with { Board = state.Physical.Board with { TerrainTypes = TerrainCatalog.All.Add(box) } };
+        state.Physical.Board.Terrain[0] = new(new(2, 1)) { TypeId = box.Id };
+        state.Physical.Board.Terrain.Add(new(new(1, 0), TerrainKind.Tree));
+        switch (obstruction)
+        {
+            case "occupied":
+                var occupant = new UnitType("other-type", 0, 0, 0, 0, 1);
+                state.Types.Add(occupant); state.Units.Add(occupant.CreateUnit("other", "blue"));
+                state.Physical.Figures.Add(new("other", new(2, 1), Posture.Lying));
+                break;
+            case "machine":
+                state.Physical.Board.Machines.Add(new("machine", new(2, 1), MachineTypes.Beacon with { RequiredTerrainTypeId = box.Id }));
+                break;
+            case "resource": state.Resources.Add(new(ResourceTypes.Coal, new(2, 1))); break;
+            case "marker": state.CellMarkers.Add(new(CellMarkerTypes.BananaPeel, new(2, 1))); break;
+        }
+        var dice = new Dice(1);
+        var result = Use(state, dice);
+        Assert.Equal(1, dice.Count);
+        var resolved = Assert.Single(result.Events, e => e.Kind == "AdjacentObjectsBreakResolved");
+        Assert.Equal(new Cell(1, 0), Assert.Single(resolved.BreakOutcomes).Target.Cell);
+        Assert.Equal(new Cell(1, 0), Assert.Single(result.Events, e => e.Kind == "DiceRolled").Dice!.Pool.BreakTarget!.Cell);
+        Assert.Equal(box.Id, result.State.Physical.Board.TerrainDefinitionAt(new(2, 1)).Id);
+        GameEngine.ValidateScenario(result.State);
     }
 
     [Fact]

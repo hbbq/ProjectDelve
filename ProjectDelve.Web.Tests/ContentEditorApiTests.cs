@@ -20,6 +20,34 @@ public sealed class ContentEditorApiTests
     { Converters = { new JsonStringEnumConverter() } };
 
     [Fact]
+    public void MixedTerrainAndWaterOnlyUnitWithEquipmentGrantRoundTripThroughAuthoring()
+    {
+        var terrain = new TerrainDefinition("authored-crossing", "Crossing", ["land", "water"], false)
+            { Categories = ["land", "water", "rock", "constructed"] };
+        var result = ContentEditorApi.Validate(new("terrain", JsonSerializer.SerializeToElement(terrain, Json)));
+        Assert.True(result.Valid, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var restored = result.Definition!.Value.Deserialize<TerrainDefinition>(Json)!;
+        Assert.Equal(terrain.MovementPermissions.ToArray(), restored.MovementPermissions.ToArray());
+        Assert.Equal(terrain.Categories.ToArray(), restored.Categories.ToArray());
+        Assert.True(restored.Passable);
+        Assert.Contains(result.Entry!.Sections.SelectMany(s => s.Fields), f => f.Label == "Movement Permissions");
+
+        var unit = new UnitType("authored-swimmer", 3, 1, 1, 1, 1) { BaseMovementCapabilities = ["water"] };
+        var unitResult = ContentEditorApi.Validate(new("units", JsonSerializer.SerializeToElement(unit, Json)));
+        Assert.True(unitResult.Valid, string.Join("; ", unitResult.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(new[] { "water" }, unitResult.Definition!.Value.Deserialize<UnitType>(Json)!.BaseMovementCapabilities);
+        var kit = new EquipmentDefinition("shore-boots", "Shore Boots") { LocalAbilities = [
+            new("walk", "Walk Ashore", AbilityTiming.Passive, new MovementCapabilityGrant(["land", "private-mist"]))] };
+        var kitResult = ContentEditorApi.Validate(new("equipment", JsonSerializer.SerializeToElement(kit, Json)));
+        Assert.True(kitResult.Valid, string.Join("; ", kitResult.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(new[] { "land", "private-mist" }, Assert.IsType<MovementCapabilityGrant>(
+            kitResult.Definition!.Value.Deserialize<EquipmentDefinition>(Json)!.LocalAbilities[0].Mechanic).Kinds);
+        Assert.Contains("Lying", kitResult.Entry!.Abilities[0].Description);
+        var invalid = terrain with { MovementPermissions = ["Water"] };
+        Assert.False(ContentEditorApi.Validate(new("terrain", JsonSerializer.SerializeToElement(invalid, Json))).Valid);
+    }
+
+    [Fact]
     public void WorkspaceTerrainOverridesPreserveCompatibilityIdentityWhileScenarioDefinitionsCannotClaimIt()
     {
         var floor = TerrainCatalog.All.Single(t => t.Id == "stone-floor");

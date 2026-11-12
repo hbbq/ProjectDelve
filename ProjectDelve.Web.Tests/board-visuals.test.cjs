@@ -6,6 +6,26 @@ const vm = require("node:vm");
 const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/board-visuals.js"), "utf8").replace(/^export /gm, "");
 const catalog = () => { const context = vm.createContext({}); vm.runInContext(script, context); return code => vm.runInContext(code, context); };
 
+test('mixed water is one fixed surface with twelve deterministic appearances and no connectivity layer', () => {
+  const run = catalog(), reload = catalog();
+  for (const [id, recipe] of [['wet-grass','WetGrass'],['rocky-water','RockyWater'],['stepping-stones','SteppingStones']]) {
+    run(`var board={terrainTypes:[{id:'${id}',name:'Mixed fixture',presentation:{recipe:'${recipe}'}}]};`);
+    assert.equal(run(`terrainDisplay(board,{typeId:'${id}'}).kind`), recipe);
+    const samples = `JSON.stringify(Array.from({length:256},(_,i)=>{const l=terrainLayers('${recipe}',{seed:'mixed-water',x:i%16,y:Math.floor(i/16)});return [l.base.image,l.rotation,l.object];}))`;
+    assert.equal(run(samples), reload(samples));
+    const appearances = JSON.parse(run(samples));
+    assert.equal(new Set(appearances.map(([image,rotation])=>`${image}:${rotation}`)).size, 12);
+    for (const [image,rotation,object] of appearances) {
+      assert.match(image, new RegExp(`/terrain/${id}/0[123]\\.webp$`));
+      assert.ok([0,90,180,270].includes(rotation)); assert.equal(object,null);
+      assert.ok(fs.existsSync(path.join(__dirname,'../ProjectDelve.Web/wwwroot',image)));
+    }
+    assert.equal(run(`boardVisuals.terrain.${recipe}.tracks`),undefined);
+    assert.equal(run(`boardVisuals.terrain.${recipe}.directions`),undefined);
+    assert.equal(run(`boardVisuals.terrain.${recipe}.baseTerrain`),undefined);
+  }
+});
+
 test('assemblies reuse component artwork independently of their surface and identity', () => {
   const run = catalog();
   run(`const table={id:'a-table',name:'A Table',presentation:{recipe:'Table',layer:'Object'}};

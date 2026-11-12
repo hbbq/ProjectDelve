@@ -52,7 +52,9 @@ public sealed class UniqueUnitTypeTests
     {
         var type = UnitType.Define("test-type", "Test", Stats(0, 0, 0, 0, hp), Unique());
         Assert.True(type.Unique);
-        Assert.Equal(type, JsonSerializer.Deserialize<UnitType>(JsonSerializer.Serialize(type)));
+        var json = JsonSerializer.Serialize(type);
+        var restored = JsonSerializer.Deserialize<UnitType>(json)!;
+        Assert.Equal(json, JsonSerializer.Serialize(restored));
         Assert.True(TestGame.StartRound(Setup(type, "side"), new Random(), false).State.IsCompleted);
     }
 

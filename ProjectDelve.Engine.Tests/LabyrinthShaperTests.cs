@@ -86,14 +86,14 @@ public sealed class LabyrinthShaperTests
     }
 
     [Fact]
-    public void PatternKeepsForbiddenWaterWallDoorWhileOtherReplacementsProceed()
+    public void PatternReplacesWaterWaterDoorWithWall()
     {
         var world = World(); var door = new Edge(new(1, 2), new(2, 2), EdgeKind.OpenDoor);
         world.Physical.Board.Edges.Add(door);
         world.Physical.Board.Terrain.AddRange([new(door.A, TerrainKind.Water), new(door.B, TerrainKind.Water)]);
         var result = Pick(Start(world), Key);
-        Assert.Contains(door, result.State.Physical.Board.Edges);
-        Assert.Equal(7, result.State.Physical.Board.Edges.Count(e => e.Kind == EdgeKind.Wall));
+        Assert.Equal(EdgeKind.Wall, result.State.Physical.Board.EdgeBetween(door.A, door.B));
+        Assert.Equal(8, result.State.Physical.Board.Edges.Count(e => e.Kind == EdgeKind.Wall));
     }
 
     [Fact]
