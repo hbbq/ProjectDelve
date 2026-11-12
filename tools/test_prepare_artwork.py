@@ -7,6 +7,7 @@ import importlib.util
 from io import BytesIO
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 import tempfile
 import re
 import xml.etree.ElementTree as ET
@@ -21,8 +22,25 @@ spec.loader.exec_module(pipeline)
 
 
 class CompositeArtworkTests(unittest.TestCase):
+    def test_unit_selection_leaves_other_assets_and_previews_untouched(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, output = root / 'source', root / 'runtime'
+            (source / 'units/fixture/reference').mkdir(parents=True)
+            Image.new('RGB', (64, 64), 'red').save(source / 'units/fixture.png')
+            Image.new('RGB', (96, 64), 'blue').save(source / 'units/fixture/reference/character-sheet.png')
+            assets = [('units/fixture.png', 'units/fixture.webp', 512),
+                      ('units/fixture/reference/character-sheet.png', 'units/fixture/reference/character-sheet.webp', (96, 64)),
+                      ('units/unrelated.png', 'units/unrelated.webp', 512)]
+            with patch.multiple(pipeline, ROOT=root, SOURCE=source, OUTPUT=output, ASSETS=assets), \
+                 patch('sys.argv', ['prepare-artwork.py', '--unit', 'fixture']):
+                pipeline.main()
+            self.assertEqual(sorted(p.relative_to(output).as_posix() for p in output.rglob('*.webp')),
+                             ['units/fixture.webp', 'units/fixture/reference/character-sheet.webp'])
+            self.assertEqual([p.name for p in (root / 'assets/previews').iterdir()], ['unit-fixture.png'])
+
     def test_beastmaster_portraits_preserve_full_composition_and_standard_encoding(self):
-        for slug in ('beastmaster', 'jackalope', 'giant-toad', 'dire-bear', 'raptor', 'light-elemental'):
+        for slug in ('beastmaster', 'jackalope', 'giant-toad', 'dire-bear', 'raptor', 'light-elemental', 'demolition-imp'):
             with self.subTest(slug=slug):
                 source, destination = f'units/{slug}.png', f'units/{slug}.webp'
                 self.assertIn((source, destination, 512), pipeline.ASSETS)

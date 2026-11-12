@@ -112,6 +112,11 @@ test("racing assets use shared Grass, three stable rotating Fruit Tree objects a
 
 test("artwork catalog resolves registered local files while other content retains fallbacks", () => {
   const run = catalog();
+  const imp = JSON.parse(run('JSON.stringify(boardVisuals.unit["demolition-imp"])'));
+  assert.equal(imp.image, './art/units/demolition-imp.webp');
+  assert.equal(run('boardVisuals.unit["demolition-imp-type"]'), undefined);
+  for (const file of [imp.image, ...imp.references.map(r => r.image)])
+    assert.ok(fs.existsSync(path.join(__dirname, '../ProjectDelve.Web/wwwroot', file)));
   const names = ["barbarian", "zombie", "worker", "chief-mechanic", "diamond-kart", "geomancer", "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll",
     "cleric", "shaman", "ghost", "bomb-imp", "displacer-demon", "labyrinth-shaper", "red-dragon", "locomotive",
     "royal-peasant", "goblin-peasant", "castle-guard", "tower-troll",

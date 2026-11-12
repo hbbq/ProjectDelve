@@ -372,6 +372,17 @@ export function mountContentBrowser(root, options = {}) {
     const heading=node('h3',entry.name);heading.tabIndex=-1;
     appendPortrait(detail, entry);
     detail.append(heading,node('p',`${entry.id} \u00b7 ${entry.origin}`),node('p',entry.summary));
+    if (entry.family === 'units') {
+      for (const reference of boardVisuals.unit[entry.id]?.references ?? []) {
+        const disclosure = node('details'), image = node('img');
+        disclosure.dataset.unitReference = reference.label;
+        disclosure.append(node('summary', reference.label));
+        image.src = reference.image; image.alt = `${entry.name} — ${reference.label}`;
+        image.style.maxWidth = '100%'; image.style.height = 'auto'; image.loading = 'lazy';
+        image.addEventListener('error', () => { disclosure.hidden = true; });
+        disclosure.append(image); detail.append(disclosure);
+      }
+    }
     for(const group of entry.sections ?? []) if(group.fields?.length) detail.append(contentGroup(group.title,fields(group.fields)));
     if(entry.abilities?.length) detail.append(section(`Owned abilities \u00b7 ${entry.abilities.length}`,...entry.abilities.map(renderAbility)));
     if(entry.mechanic) renderMechanic(entry.mechanic);

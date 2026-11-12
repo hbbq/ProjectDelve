@@ -1,0 +1,56 @@
+{
+  "date": "2026-11-12",
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "inputs": [
+    "assets/source/units/demolition-imp/reference/full-body.png",
+    "assets/source/units/bomb-imp/reference/character-sheet.png",
+    "assets/source/units/bomb-imp.png"
+  ],
+  "characterSheet": {
+    "prompt": "Use case: stylized-concept. Asset type: Project Delve character reference turnaround. Input image 1 is the Demolition Imp full-body reference and PRIMARY identity authority. Input image 2 is Bomb Imp's sheet: FORMAT/style reference ONLY, do not copy its simpler costume. Create a new 1536x1024 landscape character sheet of exactly Demolition Imp: four separated complete full-body views FRONT, THREE-QUARTER, SIDE, REAR, no labels. Consistent anatomy, costume and equipment in every view. Preserve red-orange skin, amber eyes, wicked toothy tongue-out grin, swept dark horns, fiery orange-red spiked hair, brass goggles on forehead with skull and crossed-mark lenses, red scarf, black distressed leather armor/harness, metal buckles/spikes, red explosive canisters across chest and belt, large red-black explosive backpack, tattoo markings, patched dark trousers with yellow hazard markings, wrapped heavy boots and tufted red tail. Same handheld red plunger detonator held in his left hand near torso; keep decorative fuse spark small. Conservatively extrapolate hidden rear surfaces from backpack, no invented weapons/limbs. Compact neutral resting stance. All boots, tail, horns, backpack and equipment entirely visible with margins and no overlap between figures. Plain neutral medium-gray backdrop, subtle contact shadows, soft upper-left studio illumination, premium hand-painted fantasy tabletop artwork matching reference detail and materials. No typography, labels, scenery, UI, bases, platforms, additional characters or action spectacle.",
+    "output": "assets/source/units/demolition-imp/reference/character-sheet.png",
+    "review": "Four complete separated views with consistent goggles, fiery hair, horns, red scarf, backpack, explosives, boots and tail. Gray backdrop; no labels. Back unseen in source is conservatively extrapolated.",
+    "metadata": {
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "exifOrientation": null,
+      "embeddedColorProfile": false,
+      "sha256": "f1b615b4844fb9a2e1a876136270a663a2584fc1e6231491621218709382d223",
+      "bytes": 2577385
+    }
+  },
+  "portrait": {
+    "prompt": "Use case: stylized-concept. Asset type: Project Delve square Unit portrait for a small circular game token. Input 1 full-body Demolition Imp is PRIMARY identity authority; input 2 matching new character sheet fixes costume; input 3 Bomb Imp portrait is painterly lighting/background/framing style ONLY, do not copy Bomb Imp simpler design. Create ONE 1024x1024 head and upper torso portrait of the SAME Demolition Imp. Preserve orange-red skin, amber eyes, black soot markings, swept black ridged horns, fiery orange-red hair, brass goggles on forehead (skull-mark lens and red crossed-mark lens), gleeful sharp-toothed tongue-out grin, red scarf, distressed black leather harness and spiked shoulders. Hint explosive backpack behind shoulder and red plunger detonator low beside shoulder, never obscuring face. Rich controlled colors, hand-painted premium fantasy board game texture, soft directional light from upper left, subdued dark warm gray-brown atmospheric background. Center face and shoulders; keep key facial features/goggles inside central 70-75% so 50-pixel circular crop remains immediately readable. Generous horn/ear margins, avoid tiny clutter emphasis. Reserve lower area for UI nameplate without painting UI. No lettering, border, ring, nameplate, HP, labels, scenery, new gear, additional characters, fire spectacle or gore.",
+    "output": "assets/source/units/demolition-imp.png",
+    "review": "Reference identity and demolition gear preserved. Face, goggles and bright hair readable at 50px circular crop; UI owns ring/name/HP.",
+    "metadata": {
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "exifOrientation": null,
+      "embeddedColorProfile": false,
+      "sha256": "bf0e2cb3fa4d079179460fd9520a44d1452b9af3ae5d59a6fa505a1bc8597994",
+      "bytes": 2606097
+    }
+  },
+  "approval": "Agent visual inspection; not a claim of owner review.",
+  "inputHashes": {
+    "assets/source/units/demolition-imp/reference/full-body.png": "9520014fb242038ab0f3d4dbf36e3c900e65c4903814a414a08b08091db30e66",
+    "assets/source/units/bomb-imp/reference/character-sheet.png": "b7da51f62b62c5597780307315229fa8b01ebf59f40b7a9ea6c1d08f7faf037f",
+    "assets/source/units/bomb-imp.png": "fb0f74df2138098c526ab7a8fe235f1a5aafd35ff39b2bcd5623f3e49d8ed6c6"
+  },
+  "originalsVerification": {
+    "originalFilesChecked": 402,
+    "allUnchanged": true
+  }
+}

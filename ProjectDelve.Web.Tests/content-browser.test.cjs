@@ -18,7 +18,7 @@ test('omitted null usage limits render Unlimited in normalized Engine responses'
 class Element {
   constructor(tag, document) {
     this.tagName = tag; this.ownerDocument = document; this.children = []; this.dataset = {}; this.attributes = {};
-    this.listeners = {}; this.className = ''; this.hidden = false; this.value = '';
+    this.listeners = {}; this.className = ''; this.hidden = false; this.value = ''; this.style = {};
     this.classList = {
       add: name => { this.className = [...new Set([...this.className.split(' '), name])].filter(Boolean).join(' '); },
       remove: name => { this.className = this.className.split(' ').filter(value => value !== name).join(' '); },
@@ -117,6 +117,24 @@ test('Unit catalog, detail and reference portraits use registered artwork with t
   h.click(reference);
   assert.equal(h.byId('content-detail').children.some(node => node.tagName === 'img'), false);
   assert.match(h.byId('content-detail').textContent, /Sky Weaver/);
+});
+
+test('Unit reference sheets are optional disclosures with accessible labels and load-error fallback', async () => {
+  const h = harness();
+  h.run('boardVisuals.unit.weaver = { references: [{ label: "Character sheet", image: "./fixture-sheet.webp" }] }');
+  await h.viewer.showCanonical();
+  h.viewer.open('units:weaver');
+  const image = h.root.all(e => e.tagName === 'img' && e.src === './fixture-sheet.webp')[0];
+  assert.ok(image);
+  assert.equal(image.alt, 'Sky Weaver — Character sheet');
+  assert.equal(image.loading, 'lazy');
+  assert.equal(image.parentElement.tagName, 'details');
+  assert.equal(image.parentElement.children[0].textContent, 'Character sheet');
+  assert.equal(image.style.maxWidth, '100%');
+  image.listeners.error();
+  assert.equal(image.parentElement.hidden, true);
+  h.viewer.open('equipment:chime');
+  assert.equal(h.byId('content-detail').all(e => e.tagName === 'img').length, 0);
 });
 
 test('search, category and origin counts use actual data and reference navigation restores filters', () => {

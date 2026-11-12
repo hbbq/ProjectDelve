@@ -343,6 +343,15 @@
       "maxTriangles": 12000,
       "maxPrimitives": 2,
       "maxTextureDimension": 1024
+    },
+    {
+      "id": "demolition-imp/v1",
+      "approved": true,
+      "url": "./art/models/units/demolition-imp/v1/demolition-imp.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
     }
   ],
   "units": [
@@ -616,6 +625,13 @@
       "maximumRadius": 0.38,
       "baseRadius": 0.32,
       "model": "wizard/v1"
+    },
+    {
+      "typeId": "demolition-imp",
+      "targetHeight": 0.48,
+      "maximumRadius": 0.28,
+      "baseRadius": 0.24,
+      "model": "demolition-imp/v1"
     }
   ]
 }

@@ -82,6 +82,11 @@ export const boardVisuals = {
     "shaman-type": { image: "./art/units/shaman.webp" },
     "ghost-type": { image: "./art/units/ghost.webp" },
     "bomb-imp-type": { image: "./art/units/bomb-imp.webp" },
+    "demolition-imp": { image: "./art/units/demolition-imp.webp",
+      references: [
+        { label: "Full-body reference", image: "./art/units/demolition-imp/reference/full-body.webp" },
+        { label: "Character sheet", image: "./art/units/demolition-imp/reference/character-sheet.webp" }
+      ] },
     "displacer-demon-type": { image: "./art/units/displacer-demon.webp" },
     "labyrinth-shaper-type": { image: "./art/units/labyrinth-shaper.webp" },
     "red-dragon-type": { image: "./art/units/red-dragon.webp" },

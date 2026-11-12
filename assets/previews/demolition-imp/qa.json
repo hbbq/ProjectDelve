@@ -1,0 +1,94 @@
+{
+  "date": "2026-11-12",
+  "typeId": "demolition-imp",
+  "scope": "Assets and presentation only; no gameplay, Population, defeat effects, terrain, generator or authored scenario changes.",
+  "sourceAssets": [
+    "assets/source/units/demolition-imp/reference/full-body.png",
+    "assets/source/models/units/demolition-imp/original.glb"
+  ],
+  "generatedAssets": [
+    "assets/source/units/demolition-imp/reference/character-sheet.png",
+    "assets/source/units/demolition-imp.png"
+  ],
+  "runtimeAssets": [
+    "ProjectDelve.Web/wwwroot/art/units/demolition-imp.webp",
+    "ProjectDelve.Web/wwwroot/art/units/demolition-imp/reference/character-sheet.webp",
+    "ProjectDelve.Web/wwwroot/art/units/demolition-imp/reference/full-body.webp",
+    "ProjectDelve.Web/wwwroot/art/models/units/demolition-imp/v1/demolition-imp.glb"
+  ],
+  "mappings": [
+    "board-visuals.js: exact published ID; portrait + optional references",
+    "unit-visuals.json: demolition-imp -> demolition-imp/v1",
+    "content-browser.js: generic optional reference disclosures; existing Designer/shared portrait consumers reused"
+  ],
+  "visualQA": {
+    "characterSheet": "Four complete views match source; unseen back extrapolated conservatively.",
+    "portrait": "Goggles, orange-red hair, amber eyes and grin readable at 50px circular crop; actual Enhanced desktop/narrow reviewed.",
+    "designer": "Selected Demolition Imp displays shared portrait; existing board abbreviations retained.",
+    "model": "Front/side/rear rotation, lit comparison with Bomb Imp and Barbarian, unlit close views reviewed. Model ready; three embedded textures decoded, zero missing resources. Boots rest on base. Source mesh coarser than reference.",
+    "fog": "Hidden enemy Imp absent from scene/model cache; only visible Barbarian has model. Shared observation path unchanged.",
+    "quickPlay": "Existing DemolitionImpPopulationIntegrationTests passed generated-world, QuickPlay, transport and published effects checks. Dedicated browser fixture verifies same exact ID resolves portrait/model; World Generator Quick Play button not separately browser-tested.",
+    "successfulBrowserReports": [
+      "inspection-h6RPdj",
+      "inspection-93W0eL",
+      "inspection-LltW9r",
+      "inspection-75Zji1",
+      "inspection-peFH2X",
+      "inspection-8w1dZ7"
+    ],
+    "console": "No errors or failed requests in successful final captures; informational Edge lazy-image notice only.",
+    "captures": [
+      "content-sheet.png",
+      "designer.png",
+      "enhanced.png",
+      "enhanced-narrow.png",
+      "scale-comparison.png",
+      "model-detail.png",
+      "fog-hidden.png"
+    ]
+  },
+  "verification": {
+    "originalSourceFilesChecked": 402,
+    "originalSourcesUnchanged": true,
+    "sourceGlbUnchanged": true,
+    "khronos": {
+      "sourceErrors": 0,
+      "runtimeErrors": 0,
+      "runtimeWarnings": 1,
+      "warning": "MESH_PRIMITIVE_GENERATED_TANGENT_SPACE"
+    },
+    "build": {
+      "command": "dotnet build ProjectDelve.sln --no-restore --artifacts-path .playwright-cli",
+      "result": "passed",
+      "warning": "NU1900: cached NuGet vulnerability feed unavailable"
+    },
+    "focusedDotnet": {
+      "filter": "BoardAppearanceTests|UnitVisualCatalogTests|DemolitionImpPopulationIntegrationTests",
+      "passed": 7
+    },
+    "dotnet": {
+      "command": "dotnet test ProjectDelve.sln --no-build --no-restore --artifacts-path .playwright-cli",
+      "enginePassed": 3349,
+      "webPassed": 773,
+      "failed": 0
+    },
+    "client": {
+      "command": "node --test ProjectDelve.Web.Tests/*.test.cjs",
+      "passed": 1034,
+      "skipped": 1,
+      "failed": 0
+    },
+    "pythonArtwork": {
+      "command": "python -m unittest discover -s tools -p test_prepare_artwork.py",
+      "passed": 9,
+      "failed": 1,
+      "failure": "test_track_generation_reproduces_committed_assets: unrelated railway SVG embedded PNG/profile bytes differ in this encoder environment. Railway code/assets left untouched."
+    }
+  },
+  "limitations": [
+    "Static source mesh has coarser geometry/painted detail than reference; not regenerated.",
+    "9,856 triangles exceed recommended 8,000; 4,043,872 bytes exceed preferred 3 MiB; hard renderer limits pass.",
+    "Original generator/version/plan/rights evidence not supplied; facts remain unknown in provenance.",
+    "No commits created."
+  ]
+}

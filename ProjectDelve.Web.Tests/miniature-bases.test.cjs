@@ -6,9 +6,15 @@ test('canonical production base radii are explicit and unknown Types retain proc
   const disk=JSON.parse(fs.readFileSync(path.join(__dirname,'../ProjectDelve.Web/wwwroot/art/models/unit-visuals.json')));
   const ids=fs.readFileSync(path.join(__dirname,'../ProjectDelve.Engine/UnitContent.cs'),'utf8').split('public static class UnitRoster')[0];
   const canonical=[...ids.matchAll(/const string \w+ = "([^"]+)"/g)].map(m=>({unitTypeId:m[1],cellSpan:m[1]==='red-dragon-type'?2:1}));
-  assert.deepEqual(disk.units.map(u=>u.typeId).sort(),canonical.map(t=>t.unitTypeId).sort());
+  // Runtime validates against the effective published catalog, including JSON-authored Types.
+  // Full package resolution and footprints are checked by UnitVisualCatalogTests.
+  for (const type of canonical) assert.ok(disk.units.some(u=>u.typeId===type.unitTypeId));
+  const publication=JSON.parse(fs.readFileSync(path.join(__dirname,'../ProjectDelve.Web/Content/Canonical/workspace-publication.bundle')));
+  for (const type of publication.package.definitions.unitTypes)
+    if (!canonical.some(t=>t.unitTypeId===type.id)) canonical.push({unitTypeId:type.id,cellSpan:type.footprint==='TwoByTwo'?2:1});
+  for (const unit of disk.units) assert.ok(canonical.some(t=>t.unitTypeId===unit.typeId));
   const c=validateUnitVisualCatalog(disk,[...canonical,{unitTypeId:'fixture-unregistered-type',cellSpan:1}]);
-  assert.equal(Object.keys(c.units).length,canonical.length);assert.equal(c.units['zombie-type'].baseRadius,.25);assert.equal(c.units['troll-type'].baseRadius,.44);
+  assert.equal(c.units['demolition-imp'].baseRadius,.24);assert.equal(c.units['zombie-type'].baseRadius,.25);assert.equal(c.units['troll-type'].baseRadius,.44);
   for(const id of ['beastmaster-type','jackalope-type','giant-toad-type','dire-bear-type','raptor-type','light-elemental-type']){
     assert.ok(canonical.some(type=>type.unitTypeId===id));assert.equal(c.cellSpans[id],1);
     assert.equal(resolveUnitModel(c,id,1)?.id,id.replace(/-type$/,'')+'/v1');

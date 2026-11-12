@@ -15,10 +15,11 @@ public sealed class UnitVisualCatalogTests
         var catalog = document.RootElement;
         Assert.Equal(1, catalog.GetProperty("schemaVersion").GetInt32());
         var types = CanonicalUnitTypes.All.ToArray();
+        var publishedTypes = new CanonicalContent(Path.Combine(root, "ProjectDelve.Web/Content/Canonical")).Bundle.Units;
         var units = catalog.GetProperty("units").EnumerateArray().ToArray();
         var ids = units.Select(u => u.GetProperty("typeId").GetString()).ToArray();
         Assert.Equal(ids.Length, ids.Distinct().Count());
-        Assert.All(ids, id => Assert.Contains(types, t => t.Id == id));
+        Assert.All(ids, id => Assert.Contains(publishedTypes, t => t.Id == id));
         var constants = typeof(UnitTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).Where(f => f.IsLiteral && f.FieldType == typeof(string)).Select(f => (string)f.GetRawConstantValue()!);
         Assert.Equal(constants.Order(), types.Select(t => t.Id).Order());
         // Catch a new authored factory forgotten by the assembled canonical registry too.
@@ -47,7 +48,7 @@ public sealed class UnitVisualCatalogTests
             Assert.True(double.IsFinite(radius) && radius > 0);
             var baseRadius = u.GetProperty("baseRadius").GetDouble();
             Assert.True(double.IsFinite(baseRadius) && baseRadius > 0);
-            var cells = FootprintGeometry.OccupiedCells(types.Single(t => t.Id == u.GetProperty("typeId").GetString()).Footprint, new(0, 0));
+            var cells = FootprintGeometry.OccupiedCells(publishedTypes.Single(t => t.Id == u.GetProperty("typeId").GetString()).Footprint, new(0, 0));
             var width = cells.Max(c => c.X) - cells.Min(c => c.X) + 1;
             var depth = cells.Max(c => c.Y) - cells.Min(c => c.Y) + 1;
             Assert.True(radius <= (width == 2 && depth == 2 ? 1.25 : .92));

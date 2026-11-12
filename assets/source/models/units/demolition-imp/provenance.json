@@ -1,0 +1,366 @@
+{
+  "schemaVersion": 1,
+  "status": "integrated-owner-supplied",
+  "generator": "Tripo",
+  "generationModel": "unknown",
+  "plan": "unknown",
+  "generationDate": "unknown",
+  "generationSettings": "unknown",
+  "savedLicenseOrExportRecord": "not supplied",
+  "projectConceptReferences": [
+    "assets/source/units/demolition-imp/reference/full-body.png"
+  ],
+  "portraitUsedAsGenerationInput": "unknown",
+  "commerciallyCleared": null,
+  "redistributionRightsConfirmed": null,
+  "rightsReview": {
+    "basis": "User supplied this exact GLB and requested integration. No asset-specific paid-plan confirmation, license or redistribution evidence was supplied; Bomb Imp provenance is not evidence for this export."
+  },
+  "original": {
+    "path": "assets/source/models/units/demolition-imp/original.glb",
+    "sha256": "67ded7de8e91bea87f495580ed64a5c0108833f04360aa86be678052e4f8fa55",
+    "bytes": 4633836,
+    "preservedUnchanged": true
+  },
+  "runtime": {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/demolition-imp/v1/demolition-imp.glb",
+    "sha256": "e6b6cbaac9665fe095f71f57d33fd998b2f818f04d4f7648838bb1b71a4bd75a",
+    "bytes": 4043872
+  },
+  "preparation": {
+    "tool": "tools/prepare-unit-model.cjs",
+    "version": 1,
+    "node": "v22.23.2",
+    "textureLimit": 1024,
+    "rotationYDegrees": 0,
+    "python": "3.14.7",
+    "pillow": "13.0.0",
+    "zlib": "1.3.1.zlib-ng",
+    "steps": [
+      "Verify source SHA-256; archive the authoritative source as original.glb with bytes unchanged",
+      "Remove unused extension declarations; add deterministic source metadata",
+      "Downsample all three embedded maps to maximum 1024 using Pillow LANCZOS, lossless PNG compression 9",
+      "Preserve geometry, material bindings, authored nodes and transform",
+      "Runtime uniformly normalizes to target height and ground-centers at procedural base top"
+    ],
+    "orientation": "Source +Y up and +Z forward retained. Four-angle comparison with Bomb Imp and close browser inspection showed consistent facing, upright pose and base contact; no axis correction needed."
+  },
+  "validation": {
+    "validator": "Khronos glTF Validator",
+    "version": "2.0.0-dev.3.10",
+    "source": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "runtime": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "sourceReport": "assets/source/models/units/demolition-imp/validation-source.json",
+    "runtimeReport": "assets/source/models/units/demolition-imp/validation-runtime.json",
+    "warning": "Generated tangent space warning retained; runtime-generated normal-map tangents may vary between implementations. Unused source FB_ngon_encoding declaration removed."
+  },
+  "inspection": {
+    "file": "assets/source/models/units/demolition-imp/original.glb",
+    "bytes": 4633836,
+    "sha256": "67ded7de8e91bea87f495580ed64a5c0108833f04360aa86be678052e4f8fa55",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo"
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2028
+      },
+      {
+        "type": 5130562,
+        "length": 4631780
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9856,
+    "materials": [
+      {
+        "name": "tripo_material_89bee51f-8589-47cb-80af-ef527b7de82f",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bytes": 1077242,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "d2308cae72e2a217e074e7eca2934a1f4a5f210b8adc0466f00c4b2433ac1c84"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bytes": 1105271,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "7948c7f9fce2d10b04be1c9dd6d4024422327a8a2eed5e4d74bcf88d4d88c071"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 2078893,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "183488c749b4f6e7adfc6556efb91e81bcea6bf9c6608d2db8c36def36938245"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_89bee51f-8589-47cb-80af-ef527b7de82f",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [
+      "KHR_materials_volume",
+      "FB_ngon_encoding"
+    ],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.2590484619140625,
+        0,
+        -0.2412566840648651
+      ],
+      "max": [
+        0.2590484619140625,
+        0.99871826171875,
+        0.2412566840648651
+      ],
+      "dimensions": [
+        0.518096923828125,
+        0.99871826171875,
+        0.4825133681297302
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.48,
+      "scale": 0.48061602395648717,
+      "maximumRadius": 0.15191778472463985,
+      "contact": {
+        "radius": 0.141391302476997,
+        "minX": -0.11694919320647192,
+        "maxX": 0.1198166810219703,
+        "minZ": 0.0014290292468622044,
+        "maxZ": 0.09171423333129622,
+        "bandHeight": 0.036,
+        "samples": 301
+      },
+      "dimensions": [
+        0.24900568355436042,
+        0.48,
+        0.23190365649636374
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "runtimeInspection": {
+    "file": "ProjectDelve.Web/wwwroot/art/models/units/demolition-imp/v1/demolition-imp.glb",
+    "bytes": 4043872,
+    "sha256": "e6b6cbaac9665fe095f71f57d33fd998b2f818f04d4f7648838bb1b71a4bd75a",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo",
+      "extras": {
+        "preparation": "ProjectDelve core static GLB v1",
+        "sourceSha256": "67ded7de8e91bea87f495580ed64a5c0108833f04360aa86be678052e4f8fa55",
+        "runtimeTextureLimit": 1024
+      }
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2124
+      },
+      {
+        "type": 5130562,
+        "length": 4041720
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9856,
+    "materials": [
+      {
+        "name": "tripo_material_89bee51f-8589-47cb-80af-ef527b7de82f",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/png",
+        "bytes": 1508489,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "2b7b8b19917288aa5b5050cf08408731de8a63c4f8168eb5c932d4d459a65884"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/png",
+        "bytes": 1432898,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "5f572468a3ff81c3d9fe5048dc8cbfda1b07ef431ffcacb745da24965087c2a5"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 729960,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "09b6b18628f995c9f01c0786fd4cc0d2cc8a114e4cf1928dfb47f22802e9e18a"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_89bee51f-8589-47cb-80af-ef527b7de82f",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.2590484619140625,
+        0,
+        -0.2412566840648651
+      ],
+      "max": [
+        0.2590484619140625,
+        0.99871826171875,
+        0.2412566840648651
+      ],
+      "dimensions": [
+        0.518096923828125,
+        0.99871826171875,
+        0.4825133681297302
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.48,
+      "scale": 0.48061602395648717,
+      "maximumRadius": 0.15191778472463985,
+      "contact": {
+        "radius": 0.141391302476997,
+        "minX": -0.11694919320647192,
+        "maxX": 0.1198166810219703,
+        "minZ": 0.0014290292468622044,
+        "maxZ": 0.09171423333129622,
+        "bandHeight": 0.036,
+        "samples": 301
+      },
+      "dimensions": [
+        0.24900568355436042,
+        0.48,
+        0.23190365649636374
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "compatibility": {
+    "typeId": "demolition-imp",
+    "targetHeight": 0.48,
+    "maximumRadius": 0.28,
+    "baseRadius": 0.24,
+    "measuredMaximumRadius": 0.15191778472463985,
+    "contact": {
+      "radius": 0.141391302476997,
+      "minX": -0.11694919320647192,
+      "maxX": 0.1198166810219703,
+      "minZ": 0.0014290292468622044,
+      "maxZ": 0.09171423333129622,
+      "bandHeight": 0.036,
+      "samples": 301
+    },
+    "base": {
+      "radius": 0.24,
+      "maximumRadius": 0.45,
+      "requestedRadius": 0.24,
+      "requiredRadius": 0.181391302476997,
+      "margin": 0.098608697523003,
+      "shortfall": 0,
+      "fitsContact": true,
+      "warning": null
+    },
+    "logicalFootprint": "unchanged",
+    "comparison": "Uses the same small-Imp presentation dimensions as Bomb Imp; no gameplay changes."
+  },
+  "visualReview": {
+    "status": "agent-browser-reviewed",
+    "limitations": "9,856 triangles exceed advisory 8,000 target; runtime transfer exceeds preferred 3 MiB. Hard 12,000-triangle / two-primitive / 1024 texture limits pass. No geometry decimation or material edits performed.",
+    "date": "2026-11-12",
+    "evidence": "assets/previews/demolition-imp/qa.json",
+    "findings": [
+      "Matches Bomb Imp height .48 and base radius .24; Barbarian remains larger.",
+      "Boots contact the procedural base; contact margin .098609 Cell.",
+      "Backpack, goggles, red hair, handheld detonator and red/charcoal palette remain recognizable; source mesh has coarser detail than illustration.",
+      "All three embedded maps decode; production model ready; no missing textures or resources.",
+      "Hidden enemy Imp has no scene model/cache entry in the Fog of War fixture."
+    ]
+  }
+}

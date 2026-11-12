@@ -25,12 +25,14 @@ ASSETS = [
     *[(f"units/{name}.png", f"units/{name}.webp", 512)
       for name in ("barbarian", "zombie", "worker", "chief-mechanic", "diamond-kart", "geomancer",
                    "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll",
-                   "cleric", "shaman", "ghost", "bomb-imp", "displacer-demon",
+                   "cleric", "shaman", "ghost", "bomb-imp", "demolition-imp", "displacer-demon",
                    "labyrinth-shaper", "red-dragon", "locomotive",
                    "royal-peasant", "goblin-peasant", "castle-guard", "tower-troll",
                    "royal-bishop", "goblin-bishop", "royal-knight", "hobby-knight",
                    "royal-queen", "witch-queen", "royal-king", "goblin-king",
                    "beastmaster", "jackalope", "giant-toad", "dire-bear", "raptor", "light-elemental")],
+    ("units/demolition-imp/reference/character-sheet.png", "units/demolition-imp/reference/character-sheet.webp", (1536, 1024)),
+    ("units/demolition-imp/reference/full-body.png", "units/demolition-imp/reference/full-body.webp", (1024, 1536)),
     *[(f"terrain/{name}-{i:02}.png", f"terrain/{name}/{i:02}.webp", 256)
       for name in ("stone-floor", "grass", "dirt", "water", "lava", "gravel", "asphalt", "solid-rock") for i in range(1, 4)],
     *[(f"terrain/objects/{name}-{i:02}.png", f"terrain/objects/{name}/{i:02}.webp", 256)
@@ -45,13 +47,20 @@ ASSETS = [
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--edges-only", action="store_true", help="Export only the reviewed Edge batch")
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--edges-only", action="store_true", help="Export only the reviewed Edge batch")
+    selection.add_argument("--unit", choices=[Path(a[0]).stem for a in ASSETS
+                          if Path(a[0]).parent.as_posix() == "units"],
+                          help="Export one registered Unit portrait and its reference images")
     args = parser.parse_args()
     assets = [asset for asset in ASSETS if not args.edges_only or asset[0].startswith("edges/")]
+    if args.unit:
+        assets = [a for a in assets if a[0] == f"units/{args.unit}.png"
+                  or a[0].startswith(f"units/{args.unit}/reference/")]
     assert features.check("webp"), "Pillow requires WebP support"
     hashes = {path: sha256(path.read_bytes()).digest()
               for path in SOURCE.rglob("*") if path.is_file()}
-    if not args.edges_only:
+    if not args.edges_only and not args.unit:
         for name in ("sleeper", "rail"):
             with Image.open(SOURCE / f"railway/{name}.png") as original:
                 original.load()
@@ -59,11 +68,13 @@ def main():
                 assert original.getchannel("A").getextrema() == (0, 255)
                 assert getattr(original, "n_frames", 1) == 1
     # Inspect every original before exporting anything; require review if composition changes.
-    for name, _, _ in assets:
+    for name, _, size in assets:
         with Image.open(SOURCE / name) as original:
             original.load()
             print(f"Source {name}: {original.size}, {original.mode}, {original.format}")
-            if not name.startswith("edges/"):
+            if "/reference/" in name:
+                assert original.size == size, f"Review changed reference composition: {name}"
+            elif not name.startswith("edges/"):
                 assert original.width == original.height, f"Review non-square source: {name}"
                 if name.startswith("terrain/") and not name.startswith("terrain/objects/"):
                     assert original.convert("RGBA").getchannel("A").getextrema() == (255, 255), f"Review transparent terrain: {name}"
@@ -125,8 +136,9 @@ def main():
         print(f"Export {destination}: {dimensions[0]}x{dimensions[1]}, {target.stat().st_size:,} bytes")
 
     # Roughly 50px portraits (circular UI clip) and 60px Cells, plus larger references.
-    edge_preview([image for asset, image in zip(assets, decoded) if asset[0].startswith("edges/")])
-    if not args.edges_only:
+    if not args.unit:
+        edge_preview([image for asset, image in zip(assets, decoded) if asset[0].startswith("edges/")])
+    if not args.edges_only and not args.unit:
         solid_rock_preview(assets, decoded)
         composite_preview(assets, decoded)
         court_preview(assets, decoded)
@@ -138,7 +150,8 @@ def main():
                for path, digest in hashes.items()), "Source images changed"
     if args.edges_only:
         return
-    square_assets = [(asset, image) for asset, image in zip(assets, decoded) if not asset[0].startswith("edges/")]
+    square_assets = [(asset, image) for asset, image in zip(assets, decoded)
+                     if not asset[0].startswith("edges/") and "/reference/" not in asset[0]]
     sheet = Image.new("RGB", (720, 50 + ((len(square_assets) + 3) // 4) * 150), "#202630")
     draw = ImageDraw.Draw(sheet)
     draw.text((16, 12), "Artwork catalog | 50px portrait / 60px Cell + larger references", fill="white")
@@ -156,7 +169,7 @@ def main():
             ImageDraw.Draw(mask).ellipse((0, 0, 199, 199), fill=255)
             mask = mask.resize((50, 50), Image.Resampling.LANCZOS)
         sheet.paste(thumb, (x + 106, y + 40), mask)
-    preview = ROOT / "assets/previews/artwork-pack-01.png"
+    preview = ROOT / "assets/previews" / (f"unit-{args.unit}.png" if args.unit else "artwork-pack-01.png")
     preview.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(preview, optimize=True)
 
