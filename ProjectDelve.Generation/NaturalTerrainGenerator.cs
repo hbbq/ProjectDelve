@@ -49,12 +49,12 @@ public sealed class NaturalTerrainSampler
             soil > .64 && openness < .62 ? "dirt" : "grass";
         if (settings.WaterCoverage is > 0 and < 100)
         {
-            if (water && rockyWaterAvailable && Patch(x, y, 16, .15, 1)) terrain = "rocky-water";
+            if (water && rockyWaterAvailable && Patch(x, y, 16, .35, 1)) terrain = "rocky-water";
             else if (wetGrassAvailable && terrain is ("grass" or "dirt"))
             {
                 var shore = features.Any(f => f.Contains((long)x - 1, y) || f.Contains((long)x + 1, y) ||
                     f.Contains(x, (long)y - 1) || f.Contains(x, (long)y + 1));
-                if (shore && Unit(Hash(mixedSeed, x, y)) < .18 || Patch(x, y, 24, .08, 2)) terrain = "wet-grass";
+                if (shore && Unit(Hash(mixedSeed, x, y)) < .30 || Patch(x, y, 24, .20, 2)) terrain = "wet-grass";
             }
         }
         return new(terrain, forest, rock, openness, soil);
@@ -71,7 +71,7 @@ public sealed class NaturalTerrainSampler
             if (Unit(h) >= chance) continue;
             var cx = (xx + Unit(Mix(h + 1))) * size;
             var cy = (yy + Unit(Mix(h + 2))) * size;
-            var radius = 1 + Unit(Mix(h + 3));
+            var radius = 1.25 + Unit(Mix(h + 3));
             if ((x - cx) * (x - cx) + (y - cy) * (y - cy) <= radius * radius) return true;
         }
         return false;

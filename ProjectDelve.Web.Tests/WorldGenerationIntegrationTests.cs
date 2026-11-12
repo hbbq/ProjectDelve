@@ -76,6 +76,9 @@ public sealed class WorldGenerationIntegrationTests
         var catalog = await host.Client.GetFromJsonAsync<JsonElement>("/api/world-generation/catalog");
         Assert.Equal(120, catalog.GetProperty("maxBoardSize").GetInt32());
         Assert.Equal(WorldGenerationPresets.All.Select(p => p.Id), catalog.GetProperty("presets").EnumerateArray().Select(p => p.GetProperty("id").GetString()));
+        foreach (var preset in catalog.GetProperty("presets").EnumerateArray())
+            Assert.Equal(preset.GetProperty("id").GetString() is "LakeCountry" or "RiverValley",
+                preset.GetProperty("routes").GetProperty("waterCrossings").GetBoolean());
         using var fresh = await host.Client.PostAsJsonAsync("/api/world-generation", new { code = Code[..Code.LastIndexOf("-S", StringComparison.Ordinal)] });
         fresh.EnsureSuccessStatusCode();
         var completed = (await fresh.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString()!;

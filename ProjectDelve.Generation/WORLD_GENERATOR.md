@@ -37,6 +37,13 @@ Optional [Connections and route networks](ROUTE_NETWORKS.md) now add WindowLocal
 Through Routes, Site branches, selected alternatives, tunnels and ordinary-terrain
 Water crossings, with shared atomic planning and multi-stage inspection.
 
+Lake Country and River Valley enable **Allow limited crossings (Stepping Stones)**
+by default. Grassland, Woodland and Rocky Wilds preserve Water by default; all
+other route defaults retain their existing values. The control permits bounded
+crossing construction when a route needs it; it guarantees neither a crossing nor
+connected islands. Override it independently after selecting a preset. The
+explicit `-U0` / `-U1` recipe field preserves that choice on copy and reload.
+
 ## World and window
 
 `WorldDefinition` contains the completed root seed and Natural Terrain settings;

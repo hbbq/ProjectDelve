@@ -126,8 +126,9 @@ public sealed class MixedWaterGenerationTests
             Assert.Equal(whole.Samples[(y + 41) * 120 + x + 37], sample);
             Assert.Equal(sampler.Sample(x - 23, y - 19), sample);
         }
-        Assert.InRange(whole.Samples.Count(s => s.TerrainTypeId == "rocky-water"), 1, 250);
-        Assert.InRange(whole.Samples.Count(s => s.TerrainTypeId == "wet-grass"), 1, 750);
+        // Pin this test-owned crop's first frequency pass, not a per-world quota.
+        Assert.Equal(61, whole.Samples.Count(s => s.TerrainTypeId == "rocky-water"));
+        Assert.Equal(138, whole.Samples.Count(s => s.TerrainTypeId == "wet-grass"));
         Assert.DoesNotContain(whole.Samples, s => s.TerrainTypeId == "stepping-stones");
     }
 

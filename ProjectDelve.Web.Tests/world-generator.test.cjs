@@ -614,9 +614,38 @@ test("catalog route settings preserve world inputs and HTML declares enabled con
   assert.match(html,/id="world-generator-throughRoutes">.*?<option value="Low" selected>/);
   assert.match(html,/<option value="MinorPath" selected>/);
   assert.match(html,/id="world-generator-waterCrossings"><option value="false">Preserve Water/);
+  assert.match(html,/<option value="true">Allow limited crossings \(Stepping Stones\)<\/option>/);
+  assert.match(html,/permits Stepping Stones within construction limits; it does not guarantee crossings or connected islands/);
   for(const id of ['route-intents','route-centerlines','route-corridors','route-junctions','route-crossings','route-access'])
     assert.match(html,new RegExp(`id="world-generator-${id}"`));
   assert.match(html,/<summary>Routes: requests, costs and connection quality<\/summary>/);
+});
+
+test("water preset crossing permission can be overridden and survives recipe reload and preview submission", async () => {
+  for (const id of ['LakeCountry', 'RiverValley']) {
+    const h = harness(); h.opened.click();
+    await h.accept(0, {maxBoardSize:120, presets:[{id, name:id, settings:{},
+      enrichment:{enabled:true, intensity:2, forest:true, rock:true, water:true, grassland:true},
+      civilization:{enabled:true, campsites:'Low', settlements:'Medium', preparationIntensity:2},
+      population:{density:'Medium', difficulty:3}, routes:{
+      enabled:true, throughRoutes:'Low', profile:'MinorPath', connectSites:true,
+      alternatives:'Low', waterCrossings:true, intensity:2
+    }}]});
+    h.get('world-generator-preset').value = id; h.get('world-generator-preset').listeners.change();
+    assert.equal(h.get('world-generator-waterCrossings').value, 'true');
+    assert.match(h.get('world-generator-prefix').value, /-Q1-TLow-JMinorPath-L1-ALow-U1-Z2/);
+    h.enter('waterCrossings', 'false'); h.get('world-generator-waterCrossings').listeners.change();
+    assert.equal(h.get('world-generator-preset').value, '');
+    const overridden = h.get('world-generator-prefix').value;
+    assert.match(overridden, /-Q1-TLow-JMinorPath-L1-ALow-U0-Z2/);
+    h.enter('code-input', overridden + '-S0123456789ABCDEF'); h.click('load');
+    assert.equal(h.get('world-generator-waterCrossings').value, 'false');
+    assert.equal(h.get('world-generator-offsetX').value, '-8');
+    h.click('preview');
+    assert.equal(h.requests[1].body.code, overridden + '-S0123456789ABCDEF');
+    await h.accept(1, h.result(h.requests[1].body.code));
+    assert.equal(h.get('world-generator-waterCrossings').value, 'false');
+  }
 });
 
 test("invalid route controls reject submission without changing the retained preview", async () => {

@@ -105,8 +105,8 @@ public static class WorldGenerationPresets
     {
         new("Grassland", "Grassland", new(10, 4, 5, FeatureScale.Broad, WaterForm.Lakes)) { Routes = new(Profile: RouteProfileKind.Road) },
         new("Woodland", "Woodland", new(60, 8, 8)) { Routes = new(Profile: RouteProfileKind.ForestTrail) },
-        new("LakeCountry", "Lake Country", new(25, 30, 10, FeatureScale.Broad, WaterForm.Lakes)),
-        new("RiverValley", "River Valley", new(25, 15, 10, FeatureScale.Balanced, WaterForm.River)),
+        new("LakeCountry", "Lake Country", new(25, 30, 10, FeatureScale.Broad, WaterForm.Lakes)) { Routes = new(WaterCrossings: true) },
+        new("RiverValley", "River Valley", new(25, 15, 10, FeatureScale.Balanced, WaterForm.River)) { Routes = new(WaterCrossings: true) },
         new("RockyWilds", "Rocky Wilds", new(15, 8, 50, FeatureScale.Broad, WaterForm.Mixed)) { Routes = new(Profile: RouteProfileKind.RockPassage) }
     });
 }
