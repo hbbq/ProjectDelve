@@ -1,0 +1,20 @@
+{
+  "baselineRevision": "22a1c4ebfa938ee28c5eac43a400222f19393b5f",
+  "configuration": "Debug",
+  "runtime": "10.0.12",
+  "tieredCompilation": false,
+  "terrainWarmups": 2,
+  "terrainSamples": 5,
+  "dungeonSamples": 2,
+  "dungeonWarmups": 0,
+  "sources": {
+    "ProjectDelve.Generation/RockEnrichment.cs": "FA6D7869446E26D806D6543822DB6C555495EFC9B51B7DA45A683547AC313958",
+    "ProjectDelve.Generation/RockOpportunityGuard.cs": "91C0DAFF9E5524F555F505BCA972E0676AD82294FFA8A497A8DA18844B646E63",
+    "ProjectDelve.Generation/MountainDungeonGenerator.cs": "0E0A9F91059D2165E2AC27974EA09AF192089A3F688CC1091E7E9D338543ABFF",
+    "ProjectDelve.Generation/CivilizationGenerator.cs": "08E9FC85EB7F1556DC88C8A1D3B2F0BA6773F525E58CB5C03A783408D17C985F",
+    "ProjectDelve.Generation/ForestGeometry.cs": "75CF7A09BFA8BBDA1D09CA69C97AFD74132421BD52296229B060919896C85D66",
+    "ProjectDelve.Generation/ForestEnrichment.cs": "BA93EF35A6A0A15F7911BF00DA97A8B56E3986352B74D32470D29282347F4F86"
+  },
+  "baselineGenerationAssembly": "649DB39FAD9384F118D1109FAF31A1487F80BD9FB725E14B642432AD50DE19CA",
+  "finalGenerationAssembly": "76EB37AC1E199364D3B5ABD263950439742E94721E99B8B9C9673205728D3B79"
+}

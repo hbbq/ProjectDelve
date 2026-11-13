@@ -78,7 +78,7 @@ public static class CivilizationGenerator
         {
             var key = $"mountain-dungeon-{i}";
             var draft = board.BeginDraft(area, path + "/" + key, budget);
-            var result = MountainDungeonGenerator.Plan(new(key, area, policy, ExcludedRockCells: usedRock), new(context.World.Seed, path, draft));
+            var result = MountainDungeonGenerator.Plan(new(key, area, policy, ExcludedRockCells: usedRock, OriginalAnalysis: context.OriginalAnalysis, OriginalSamples: context.OriginalSamples), new(context.World.Seed, path, draft));
             // Capture the entire pre-excavation cardinal mass, not an analyzer formation.
             // Subsequent excavations cannot disguise a split remainder as another mountain.
             if (result is Planned<SitePlan> planned && planned.Plan.Site.MountainDungeon is { } dungeon)

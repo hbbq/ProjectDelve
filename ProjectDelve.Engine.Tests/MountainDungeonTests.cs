@@ -6,6 +6,211 @@ namespace ProjectDelve.Engine.Tests;
 
 public sealed class MountainDungeonTests
 {
+    private static NaturalTerrainSample[] OriginalSamples(PlanningBoard board) =>
+        Enumerable.Range(0, board.Width * board.Height).Select(i => new NaturalTerrainSample(board.TerrainAt(i), .2, .3, .4, .5)).ToArray();
+
+    private static int[] NaturalHoles(PlanningBoard board) => Enumerable.Range(0, 4).SelectMany(y =>
+        Enumerable.Range(0, 5).Select(x => (7 + y * 4) * board.Width + 7 + x * 4)).ToArray();
+
+    private static void CarveEarlierFloor(PlanningBoard board, IEnumerable<int> cells)
+    {
+        var earlier = board.BeginDraft(new(0, 0, board.Width, board.Height), "natural-floor", new());
+        foreach (var cell in cells) earlier.ReplaceTerrain(cell, "stone-floor");
+        Assert.True(board.TryCommit(earlier.BuildPatch(), out var error), error);
+    }
+
+    [Fact]
+    public void AbsorptionCannotPublishANaturalFloorBranchAtTheCropBoundary()
+    {
+        PlanningBoard CroppedRock()
+        {
+            var initial = Board().Export();
+            return new(initial with { Board = initial.Board with { Cells = initial.Board.Cells.Select(c =>
+                c with { Position = new(c.Position.X - 4, c.Position.Y) }).ToList() } }, ContentBundle.Canonical());
+        }
+        var board = CroppedRock(); var samples = OriginalSamples(board);
+        var analysis = TerrainAnalyzer.Analyze(new(Width: board.Width, Height: board.Height), samples);
+        var holes = NaturalHoles(board).Select(i => i - 4).ToArray();
+        var referenceBoard = CroppedRock(); CarveEarlierFloor(referenceBoard, holes);
+        var referenceScope = Scope(referenceBoard);
+        var reference = Assert.IsType<Planned<SitePlan>>(MountainDungeonGenerator.Plan(new("dungeon", referenceScope.Draft.AllowedArea, new(),
+            OriginalAnalysis: analysis, OriginalSamples: samples), referenceScope)).Plan;
+        var roomCell = reference.Site.MountainDungeon!.Rooms.SelectMany(r => r.Interior.Indices(board.Width))
+            .OrderBy(i => i % board.Width).ThenBy(i => i).First();
+        var branch = Enumerable.Range(0, roomCell % board.Width + 1).Select(x => roomCell / board.Width * board.Width + x).ToArray();
+        CarveEarlierFloor(board, holes.Concat(branch));
+        var before = ScenarioDefinitionJson.ToJson(board.Export()); var revision = board.Revision;
+        var scope = Scope(board);
+        // Perforation prevents intact-only rooms, so a candidate must use compatibility.
+        Assert.IsType<Rejected<SitePlan>>(MountainDungeonGenerator.Plan(new("intact-only", scope.Draft.AllowedArea, new()), scope));
+        var result = MountainDungeonGenerator.Plan(new("dungeon", scope.Draft.AllowedArea, new(),
+            OriginalAnalysis: analysis, OriginalSamples: samples), scope);
+        Assert.Equal(revision, board.Revision); Assert.Equal(before, ScenarioDefinitionJson.ToJson(board.Export()));
+        Assert.Empty(scope.Draft.BuildPatch().TerrainChanges); Assert.Empty(scope.Draft.BuildPatch().EdgeChanges);
+        Assert.Empty(scope.Draft.BuildPatch().Reservations);
+        if (result is Planned<SitePlan> planned)
+        {
+            Assert.DoesNotContain(planned.Plan.Patch.Reservations, r => r.Index == branch[0]);
+            Assert.True(scope.Draft.Accept(planned.Plan.Patch, out var error), error); Assert.True(board.TryCommit(scope.Draft.BuildPatch(), out error), error);
+            AssertCompleteShell(board, planned.Plan);
+        }
+        Assert.All(branch, i => Assert.Equal("stone-floor", board.TerrainAt(i)));
+    }
+
+    [Fact]
+    public void TouchingEarlierFloorBranchIsAbsorbedInsteadOfLeftAsAnExtraMouth()
+    {
+        var board = Board(); var samples = OriginalSamples(board);
+        var analysis = TerrainAnalyzer.Analyze(new(Width: board.Width, Height: board.Height), samples);
+        var referenceBoard = Board(); CarveEarlierFloor(referenceBoard, NaturalHoles(referenceBoard));
+        var referenceScope = Scope(referenceBoard);
+        var reference = Assert.IsType<Planned<SitePlan>>(MountainDungeonGenerator.Plan(new("dungeon", referenceScope.Draft.AllowedArea, new(),
+            OriginalAnalysis: analysis, OriginalSamples: samples), referenceScope)).Plan;
+        var dungeon = reference.Site.MountainDungeon!;
+        var roomCells = dungeon.Rooms.SelectMany(r => r.Interior.Indices(board.Width)).ToHashSet();
+        var branch = dungeon.ProtectedRock.Indices(board.Width).First(i => board.Neighbors(i).Any(roomCells.Contains) &&
+            board.Neighbors(i).All(j => board.TerrainAt(j) == "solid-rock"));
+        CarveEarlierFloor(board, NaturalHoles(board).Append(branch));
+        var scope = Scope(board);
+        var plan = Assert.IsType<Planned<SitePlan>>(MountainDungeonGenerator.Plan(new("dungeon", scope.Draft.AllowedArea, new(),
+            OriginalAnalysis: analysis, OriginalSamples: samples), scope)).Plan;
+        Assert.True(plan.Site.MountainDungeon!.Corridors.Contains(branch, board.Width));
+        Assert.DoesNotContain(plan.Patch.TerrainChanges, c => c.Index == branch);
+        Assert.True(scope.Draft.Accept(plan.Patch, out var error), error); Assert.True(board.TryCommit(scope.Draft.BuildPatch(), out error), error);
+        AssertCompleteShell(board, plan);
+    }
+
+    [Fact]
+    public void EarlierNaturalFloorIsAbsorbedWithOriginalProvenanceAndNeverRefilled()
+    {
+        var original = Board(); var samples = OriginalSamples(original);
+        var analysis = TerrainAnalyzer.Analyze(new(Width: original.Width, Height: original.Height), samples);
+        var labels = analysis.FormationLabels.ToArray();
+        var holes = NaturalHoles(original);
+        SitePlan Generate()
+        {
+            var board = Board(); CarveEarlierFloor(board, holes);
+            var scope = Scope(board);
+            var plan = Assert.IsType<Planned<SitePlan>>(MountainDungeonGenerator.Plan(new("dungeon", scope.Draft.AllowedArea, new(),
+                OriginalAnalysis: analysis, OriginalSamples: samples), scope)).Plan;
+            var reused = holes.First(i => plan.Site.MountainDungeon!.Rooms.Any(r => r.Interior.Contains(i, board.Width)));
+            Assert.DoesNotContain(plan.Patch.TerrainChanges, c => holes.Contains(c.Index));
+            Assert.Contains(plan.Patch.Reservations, r => r.Index == reused);
+            Assert.True(scope.Draft.Accept(plan.Patch, out var error), error); Assert.True(board.TryCommit(scope.Draft.BuildPatch(), out error), error);
+            Assert.Equal("stone-floor", board.TerrainAt(reused));
+            Assert.Equal(24 * 20 - holes.Length, plan.Site.MountainDungeon!.RockMassArea);
+            AssertCompleteShell(board, plan);
+            return plan;
+        }
+        Assert.Equal(JsonSerializer.Serialize(Generate()), JsonSerializer.Serialize(Generate()));
+        Assert.Equal(labels, analysis.FormationLabels);
+        Assert.All(holes, i => Assert.Equal("solid-rock", samples[i].TerrainTypeId));
+    }
+
+    [Theory]
+    [InlineData("route")]
+    [InlineData("machine")]
+    [InlineData("foreign-site")]
+    [InlineData("edge")]
+    public void EarlierFloorOwnershipRoutesAndMachinesRemainProtected(string protection)
+    {
+        var board = Board(); var samples = OriginalSamples(board);
+        var analysis = TerrainAnalyzer.Analyze(new(Width: board.Width, Height: board.Height), samples);
+        var reference = Plan(Board()); var cell = reference.Site.MountainDungeon!.Rooms[0].Interior.Indices(board.Width).First();
+        var earlier = board.BeginDraft(new(0, 0, board.Width, board.Height), "earlier-owner", new());
+        earlier.ReplaceTerrain(cell, "stone-floor");
+        if (protection == "route") { earlier.EnableRoutePlanning(); earlier.ReserveRoute([cell], "protected-route"); }
+        if (protection == "machine") earlier.PlaceMachine(new("protected-machine", new(cell % board.Width, cell / board.Width), MachineTypes.Beacon));
+        if (protection == "foreign-site") earlier.Reserve([cell]);
+        var wall = EdgeKey.Between(cell, cell + 1, board.Width);
+        if (protection == "edge") earlier.SetEdge(wall, EdgeKind.Wall);
+        Assert.True(board.TryCommit(earlier.BuildPatch(), out var error), error);
+        var scope = Scope(board);
+        var result = MountainDungeonGenerator.Plan(new("dungeon", scope.Draft.AllowedArea, new(),
+            OriginalAnalysis: analysis, OriginalSamples: samples), scope);
+        if (result is Planned<SitePlan> planned)
+        {
+            Assert.DoesNotContain(planned.Plan.Patch.TerrainChanges, c => c.Index == cell);
+            Assert.DoesNotContain(planned.Plan.Patch.Reservations, r => r.Index == cell);
+            Assert.True(scope.Draft.Accept(planned.Plan.Patch, out error), error); Assert.True(board.TryCommit(scope.Draft.BuildPatch(), out error), error);
+            AssertCompleteShell(board, planned.Plan);
+        }
+        else { Assert.Empty(scope.Draft.BuildPatch().TerrainChanges); Assert.Empty(scope.Draft.BuildPatch().Reservations); }
+        Assert.Equal("stone-floor", board.TerrainAt(cell));
+        if (protection == "route") Assert.Equal(new[] { "protected-route" }, board.RouteMemberships(cell));
+        if (protection == "machine") Assert.Equal("protected-machine", Assert.Single(board.Export().Machines!).Id);
+        if (protection == "foreign-site") Assert.True(board.IsReserved(cell));
+        if (protection == "edge") Assert.Equal(EdgeKind.Wall, board.EdgeAt(wall));
+    }
+
+    [Fact]
+    public void OriginalRockProvenanceCannotMergeTwoRemainingMassesThroughEarlierFloor()
+    {
+        var board = Board(9, 20); var samples = OriginalSamples(board);
+        var analysis = TerrainAnalyzer.Analyze(new(Width: board.Width, Height: board.Height), samples);
+        var cut = Enumerable.Range(4, 20).Select(y => y * board.Width + 8).ToArray();
+        CarveEarlierFloor(board, cut);
+        var before = ScenarioDefinitionJson.ToJson(board.Export()); var scope = Scope(board);
+        Assert.IsType<Rejected<SitePlan>>(MountainDungeonGenerator.Plan(new("dungeon", scope.Draft.AllowedArea, new(),
+            OriginalAnalysis: analysis, OriginalSamples: samples), scope));
+        Assert.Equal(before, ScenarioDefinitionJson.ToJson(board.Export()));
+        Assert.Empty(scope.Draft.BuildPatch().TerrainChanges); Assert.Empty(scope.Draft.BuildPatch().Reservations);
+        Assert.All(cut, i => Assert.Equal("stone-floor", board.TerrainAt(i)));
+        Assert.InRange(scope.Budget.Attempts, 0, 20);
+        Assert.InRange(scope.Budget.Work, 0, scope.Budget.MaxWork);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void ProvenanceNeverAuthorizesProtectedOrNonRockFloor(bool supplyProvenance, bool protect)
+    {
+        var original = Board(); var samples = OriginalSamples(original);
+        var reference = Plan(Board()); var reused = reference.Site.MountainDungeon!.Rooms[0].Interior.Indices(original.Width).First();
+        if (!protect) samples[reused] = samples[reused] with { TerrainTypeId = "grass" };
+        var analysis = TerrainAnalyzer.Analyze(new(Width: original.Width, Height: original.Height), samples);
+        var initial = original.Export();
+        var board = new PlanningBoard(initial with { Board = initial.Board with { Cells = initial.Board.Cells
+            .Select(c => c.Position.Y * original.Width + c.Position.X == reused ? c with { Terrain = TerrainKind.StoneFloor } : c).ToList() } },
+            ContentBundle.Canonical(), protect ? new HashSet<int> { reused } : null);
+        var scope = Scope(board);
+        var result = MountainDungeonGenerator.Plan(new("dungeon", scope.Draft.AllowedArea, new(),
+            OriginalAnalysis: supplyProvenance ? analysis : null, OriginalSamples: supplyProvenance ? samples : null), scope);
+        if (result is Planned<SitePlan> planned)
+        {
+            Assert.DoesNotContain(planned.Plan.Patch.Reservations, r => r.Index == reused);
+            Assert.DoesNotContain(planned.Plan.Patch.TerrainChanges, c => c.Index == reused);
+            Assert.True(scope.Draft.Accept(planned.Plan.Patch, out var error), error); Assert.True(board.TryCommit(scope.Draft.BuildPatch(), out error), error);
+            AssertCompleteShell(board, planned.Plan);
+        }
+        else { Assert.Empty(scope.Draft.BuildPatch().TerrainChanges); Assert.Empty(scope.Draft.BuildPatch().Reservations); }
+        Assert.Equal("stone-floor", board.TerrainAt(reused));
+    }
+
+    private static void AssertCompleteShell(PlanningBoard board, SitePlan plan)
+    {
+        var dungeon = plan.Site.MountainDungeon!;
+        var floor = dungeon.Rooms.SelectMany(r => r.Interior.Indices(board.Width)).Concat(dungeon.Corridors.Indices(board.Width)).ToHashSet();
+        var entrance = Assert.Single(plan.Site.Entrances);
+        foreach (var cell in floor)
+        for (var y = cell / board.Width - 1; y <= cell / board.Width + 1; y++)
+        for (var x = cell % board.Width - 1; x <= cell % board.Width + 1; x++)
+        {
+            Assert.InRange(x, 0, board.Width - 1); Assert.InRange(y, 0, board.Height - 1);
+            var adjacent = y * board.Width + x;
+            if (floor.Contains(adjacent)) continue;
+            if (board.TerrainAt(adjacent) == "solid-rock") Assert.True(dungeon.ProtectedRock.Contains(adjacent, board.Width));
+            else
+            {
+                Assert.Equal(entrance.InsideIndex, cell);
+                var dx = entrance.OutsideIndex % board.Width - cell % board.Width;
+                var dy = entrance.OutsideIndex / board.Width - cell / board.Width;
+                Assert.True((x - cell % board.Width) * dx + (y - cell / board.Width) * dy > 0);
+            }
+        }
+    }
+
     private static PlanningBoard Board(int rockWidth = 24, int rockHeight = 20, bool cave = false)
     {
         const int width = 34, height = 28;

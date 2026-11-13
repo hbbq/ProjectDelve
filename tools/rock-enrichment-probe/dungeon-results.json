@@ -1,0 +1,2147 @@
+{
+  "groups": {
+    "all": {
+      "before": {
+        "cases": 156,
+        "errors": 0,
+        "placements": 282,
+        "rooms": 938,
+        "usable": 33227,
+        "reusedFloor": 0,
+        "absorbingDungeons": 0,
+        "eligibleMasses": 578,
+        "packedRooms": 15600,
+        "shellIntact": true,
+        "stableRootAccess": true,
+        "totalMs": 117406.084,
+        "allocatedBytes": 41442347568,
+        "maxWork": 2000000,
+        "maxAttempts": 106
+      },
+      "after": {
+        "cases": 156,
+        "errors": 0,
+        "placements": 286,
+        "rooms": 900,
+        "usable": 30401,
+        "reusedFloor": 23,
+        "absorbingDungeons": 1,
+        "eligibleMasses": 795,
+        "packedRooms": 13809,
+        "shellIntact": true,
+        "stableRootAccess": true,
+        "totalMs": 141237.8849,
+        "allocatedBytes": 41779050280,
+        "maxWork": 2000000,
+        "maxAttempts": 97
+      }
+    },
+    "off-routes-False": {
+      "before": {
+        "cases": 18,
+        "errors": 0,
+        "placements": 30,
+        "rooms": 101,
+        "usable": 3529,
+        "reusedFloor": 0,
+        "absorbingDungeons": 0,
+        "eligibleMasses": 34,
+        "packedRooms": 2176,
+        "shellIntact": true,
+        "stableRootAccess": true,
+        "totalMs": 11991.9271,
+        "allocatedBytes": 3493452216,
+        "maxWork": 1627357,
+        "maxAttempts": 79
+      },
+      "after": {
+        "cases": 18,
+        "errors": 0,
+        "placements": 30,
+        "rooms": 101,
+        "usable": 3529,
+        "reusedFloor": 0,
+        "absorbingDungeons": 0,
+        "eligibleMasses": 34,
+        "packedRooms": 2176,
+        "shellIntact": true,
+        "stableRootAccess": true,
+        "totalMs": 14060.5426,
+        "allocatedBytes": 3496023080,
+        "maxWork": 1679491,
+        "maxAttempts": 79
+      }
+    },
+    "off-routes-True": {
+      "before": {
+        "cases": 18,
+        "errors": 0,
+        "placements": 34,
+        "rooms": 119,
+        "usable": 4879,
+        "reusedFloor": 0,
+        "absorbingDungeons": 0,
+        "eligibleMasses": 91,
+        "packedRooms": 2073,
+        "shellIntact": true,
+        "stableRootAccess": true,
+        "totalMs": 16147.2819,
+        "allocatedBytes": 6164800856,
+        "maxWork": 2000000,
+        "maxAttempts": 103
+      },
+      "after": {
+        "cases": 18,
+        "errors": 0,
+        "placements": 34,
+        "rooms": 117,
+        "usable": 4852,
+        "reusedFloor": 0,
+        "absorbingDungeons": 0,
+        "eligibleMasses": 91,
+        "packedRooms": 2073,
+        "shellIntact": true,
+        "stableRootAccess": true,
+        "totalMs": 19252.4807,
+        "allocatedBytes": 6139402168,
+        "maxWork": 2000000,
+        "maxAttempts": 85
+      }
+    },
+    "forest-routes-False": {
+      "before": {
+        "cases": 18,
+        "errors": 0,
+        "placements": 32,
+        "rooms": 110,
+        "usable": 3963,
+        "reusedFloor": 0,
+        "absorbingDungeons": 0,
+        "eligibleMasses": 40,
+        "packedRooms": 2176,
+        "shellIntact": true,
+        "stableRootAccess": true,
+        "totalMs": 11341.4141,
+        "allocatedBytes": 3555320656,
+        "maxWork": 1627628,
+        "maxAttempts": 77
+      },
+      "after": {
+        "cases": 18,
+        "errors": 0,
+        "placements": 31,
+        "rooms": 108,
+        "usable": 3903,
+        "reusedFloor": 0,
+        "absorbingDungeons": 0,
+        "eligibleMasses": 40,
+        "packedRooms": 2176,
+        "shellIntact": true,
+        "stableRootAccess": true,
+        "totalMs": 13245.0735,
+        "allocatedBytes": 3571301608,
+        "maxWork": 1679882,
+        "maxAttempts": 77
+      }
+    },
+    "forest-routes-True": {
+      "before": {
+        "cases": 18,
+        "errors": 0,
+        "placements": 34,
+        "rooms": 115,
+        "usable": 4381,
+        "reusedFloor": 0,
+        "absorbingDungeons": 0,
+        "eligibleMasses": 92,
+        "packedRooms": 2076,
+        "shellIntact": true,
+        "stableRootAccess": true,
+        "totalMs": 15842.6932,
+        "allocatedBytes": 6185409936,
+        "maxWork": 2000000,
+        "maxAttempts": 90
+      },
+      "after": {
+        "cases": 18,
+        "errors": 0,
+        "placements": 34,
+        "rooms": 115,
+        "usable": 4381,
+        "reusedFloor": 0,
+        "absorbingDungeons": 0,
+        "eligibleMasses": 92,
+        "packedRooms": 2076,
+        "shellIntact": true,
+        "stableRootAccess": true,
+        "totalMs": 19215.6492,
+        "allocatedBytes": 6182096064,
+        "maxWork": 2000000,
+        "maxAttempts": 90
+      }
+    },
+    "rock-routes-False": {
+      "before": {
+        "cases": 18,
+        "errors": 0,
+        "placements": 34,
+        "rooms": 111,
+        "usable": 3495,
+        "reusedFloor": 0,
+        "absorbingDungeons": 0,
+        "eligibleMasses": 43,
+        "packedRooms": 1722,
+        "shellIntact": true,
+        "stableRootAccess": true,
+        "totalMs": 11066.4483,
+        "allocatedBytes": 3656716512,
+        "maxWork": 1441307,
+        "maxAttempts": 67
+      },
+      "after": {
+        "cases": 18,
+        "errors": 0,
+        "placements": 34,
+        "rooms": 101,
+        "usable": 3177,
+        "reusedFloor": 0,
+        "absorbingDungeons": 0,
+        "eligibleMasses": 104,
+        "packedRooms": 1257,
+        "shellIntact": true,
+        "stableRootAccess": true,
+        "totalMs": 14509.4731,
+        "allocatedBytes": 3761315688,
+        "maxWork": 964978,
+        "maxAttempts": 74
+      }
+    },
+    "rock-routes-True": {
+      "before": {
+        "cases": 18,
+        "errors": 0,
+        "placements": 36,
+        "rooms": 122,
+        "usable": 4445,
+        "reusedFloor": 0,
+        "absorbingDungeons": 0,
+        "eligibleMasses": 108,
+        "packedRooms": 1648,
+        "shellIntact": true,
+        "stableRootAccess": true,
+        "totalMs": 17001.9397,
+        "allocatedBytes": 6618918968,
+        "maxWork": 921228,
+        "maxAttempts": 106
+      },
+      "after": {
+        "cases": 18,
+        "errors": 0,
+        "placements": 36,
+        "rooms": 102,
+        "usable": 3082,
+        "reusedFloor": 0,
+        "absorbingDungeons": 0,
+        "eligibleMasses": 156,
+        "packedRooms": 1208,
+        "shellIntact": true,
+        "stableRootAccess": true,
+        "totalMs": 20316.535,
+        "allocatedBytes": 6414459160,
+        "maxWork": 755354,
+        "maxAttempts": 94
+      }
+    },
+    "both-routes-False": {
+      "before": {
+        "cases": 18,
+        "errors": 0,
+        "placements": 35,
+        "rooms": 110,
+        "usable": 3555,
+        "reusedFloor": 0,
+        "absorbingDungeons": 0,
+        "eligibleMasses": 48,
+        "packedRooms": 1722,
+        "shellIntact": true,
+        "stableRootAccess": true,
+        "totalMs": 12073.9792,
+        "allocatedBytes": 3714425592,
+        "maxWork": 1441239,
+        "maxAttempts": 67
+      },
+      "after": {
+        "cases": 18,
+        "errors": 0,
+        "placements": 34,
+        "rooms": 100,
+        "usable": 3124,
+        "reusedFloor": 0,
+        "absorbingDungeons": 0,
+        "eligibleMasses": 106,
+        "packedRooms": 1267,
+        "shellIntact": true,
+        "stableRootAccess": true,
+        "totalMs": 14559.6751,
+        "allocatedBytes": 3922262592,
+        "maxWork": 1089824,
+        "maxAttempts": 69
+      }
+    },
+    "both-routes-True": {
+      "before": {
+        "cases": 18,
+        "errors": 0,
+        "placements": 36,
+        "rooms": 113,
+        "usable": 4131,
+        "reusedFloor": 0,
+        "absorbingDungeons": 0,
+        "eligibleMasses": 109,
+        "packedRooms": 1647,
+        "shellIntact": true,
+        "stableRootAccess": true,
+        "totalMs": 16988.5415,
+        "allocatedBytes": 6380110144,
+        "maxWork": 1033833,
+        "maxAttempts": 104
+      },
+      "after": {
+        "cases": 18,
+        "errors": 0,
+        "placements": 36,
+        "rooms": 106,
+        "usable": 3391,
+        "reusedFloor": 0,
+        "absorbingDungeons": 0,
+        "eligibleMasses": 149,
+        "packedRooms": 1221,
+        "shellIntact": true,
+        "stableRootAccess": true,
+        "totalMs": 20267.839500000002,
+        "allocatedBytes": 6491678720,
+        "maxWork": 799524,
+        "maxAttempts": 91
+      }
+    }
+  },
+  "losses": [
+    {
+      "code": "WLD1-60x50-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I3-B0100-C1-NLow-VMedium-P2-OEmpty-S0000000000000003",
+      "before": 2,
+      "after": 1
+    },
+    {
+      "code": "WLD1-60x50-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I3-B1100-C1-NLow-VMedium-P2-OEmpty-S0000000000000003",
+      "before": 2,
+      "after": 1
+    },
+    {
+      "code": "WLD1-60x50-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I3-B0100-C1-NLow-VMedium-P2-OEmpty-S000000000000002A",
+      "before": 2,
+      "after": 1
+    },
+    {
+      "code": "WLD1-60x50-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I3-B1100-C1-NLow-VMedium-P2-OEmpty-S000000000000002A",
+      "before": 2,
+      "after": 1
+    },
+    {
+      "code": "WLD1-60x50-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I3-B1000-C1-NLow-VMedium-P2-OEmpty-S0000000000003039",
+      "before": 2,
+      "after": 1
+    }
+  ],
+  "gains": [
+    {
+      "code": "WLD1-60x50-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I3-B0100-C1-NLow-VMedium-P2-OEmpty-S0000000000003039",
+      "before": 1,
+      "after": 2
+    },
+    {
+      "code": "WLD1-120x120-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I3-B0100-C1-NLow-VMedium-P2-OEmpty-S0000000000003039",
+      "before": 2,
+      "after": 3
+    },
+    {
+      "code": "WLD1-120x120-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I3-B1100-C1-NLow-VMedium-P2-OEmpty-S0000000000003039",
+      "before": 2,
+      "after": 3
+    },
+    {
+      "code": "WLD1-30x24-X0-Y0-F35-W20-R35-KFine-HMixed-E1-I3-B0100-C1-NLow-VMedium-P2-OEmpty-S0000000000000001",
+      "before": 0,
+      "after": 1
+    },
+    {
+      "code": "WLD1-30x24-X0-Y0-F35-W20-R35-KFine-HMixed-E1-I3-B1100-C1-NLow-VMedium-P2-OEmpty-S0000000000000001",
+      "before": 0,
+      "after": 1
+    },
+    {
+      "code": "WLD1-60x50-X-17-Y-13-F35-W20-R35-KFine-HMixed-E1-I3-B0100-C1-NLow-VMedium-P2-OEmpty-S000000000000002A",
+      "before": 0,
+      "after": 1
+    },
+    {
+      "code": "WLD1-120x120-X-17-Y-13-F35-W20-R35-KFine-HMixed-E1-I3-B0100-C1-NLow-VMedium-P2-OEmpty-S000000000000002A",
+      "before": 0,
+      "after": 2
+    },
+    {
+      "code": "WLD1-120x120-X-17-Y-13-F35-W20-R35-KFine-HMixed-E1-I3-B1100-C1-NLow-VMedium-P2-OEmpty-S000000000000002A",
+      "before": 2,
+      "after": 3
+    }
+  ],
+  "opportunities": [
+    {
+      "code": "WLD1-30x24-X0-Y0-F35-W20-R35-KFine-HMixed-E0-I3-B0000-C1-NLow-VMedium-P2-OEmpty-S0000000000000001",
+      "before": {
+        "fingerprint": "FBFC4E166134628BAC435D7E2B8FCB2905A4659BED7715BFC10C7FC0F41C4FC5",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 0,
+        "dungeons": [
+          {
+            "profile": "DeepPassage",
+            "accessRootIndex": 408,
+            "rockMassAnchor": 22,
+            "rockMassArea": 150,
+            "roomCapacity": 4,
+            "rooms": 3,
+            "usable": 45,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 20,
+          "work": 13976,
+          "sites": 2,
+          "campsites": 0,
+          "settlements": 1,
+          "buildings": 2,
+          "rooms": 7,
+          "changedTerrain": 188,
+          "changedEdges": 59,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 1,
+          "beaconAttempts": 96,
+          "beaconWork": 2400,
+          "dungeonsRequested": 1,
+          "dungeonsAccepted": 1,
+          "dungeonsOmitted": 0
+        },
+        "eligibleMasses": 1,
+        "packedRooms": 5,
+        "failureReasons": [
+          "ReservationConflict"
+        ],
+        "elapsedMs": 39.0026,
+        "allocatedBytes": 16436568
+      },
+      "after": {
+        "fingerprint": "FBFC4E166134628BAC435D7E2B8FCB2905A4659BED7715BFC10C7FC0F41C4FC5",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 0,
+        "dungeons": [
+          {
+            "profile": "DeepPassage",
+            "accessRootIndex": 408,
+            "rockMassAnchor": 22,
+            "rockMassArea": 150,
+            "roomCapacity": 4,
+            "rooms": 3,
+            "usable": 45,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 20,
+          "work": 15206,
+          "sites": 2,
+          "campsites": 0,
+          "settlements": 1,
+          "buildings": 2,
+          "rooms": 7,
+          "changedTerrain": 188,
+          "changedEdges": 59,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 1,
+          "beaconAttempts": 96,
+          "beaconWork": 2400,
+          "dungeonsRequested": 1,
+          "dungeonsAccepted": 1,
+          "dungeonsOmitted": 0
+        },
+        "eligibleMasses": 1,
+        "packedRooms": 5,
+        "failureReasons": [
+          "ReservationConflict"
+        ],
+        "elapsedMs": 41.2036,
+        "allocatedBytes": 16444168
+      }
+    },
+    {
+      "code": "WLD1-30x24-X0-Y0-F35-W20-R35-KFine-HMixed-E1-I3-B0100-C1-NLow-VMedium-P2-OEmpty-S0000000000000001",
+      "before": {
+        "fingerprint": "70EA68B56072B85730EE83FF92ABAB9801AD7B104720C3589034A8157B1EC898",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 16,
+        "dungeons": [],
+        "stats": {
+          "attempts": 12,
+          "work": 12560,
+          "sites": 2,
+          "campsites": 1,
+          "settlements": 1,
+          "buildings": 2,
+          "rooms": 4,
+          "changedTerrain": 189,
+          "changedEdges": 58,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 1,
+          "beaconAttempts": 96,
+          "beaconWork": 2400,
+          "dungeonsRequested": 1,
+          "dungeonsAccepted": 0,
+          "dungeonsOmitted": 1
+        },
+        "eligibleMasses": 0,
+        "packedRooms": 2,
+        "failureReasons": [
+          "NoFootprint"
+        ],
+        "elapsedMs": 40.464,
+        "allocatedBytes": 16717528
+      },
+      "after": {
+        "fingerprint": "FBFC4E166134628BAC435D7E2B8FCB2905A4659BED7715BFC10C7FC0F41C4FC5",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 0,
+        "dungeons": [
+          {
+            "profile": "DeepPassage",
+            "accessRootIndex": 408,
+            "rockMassAnchor": 22,
+            "rockMassArea": 150,
+            "roomCapacity": 4,
+            "rooms": 3,
+            "usable": 45,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 20,
+          "work": 15206,
+          "sites": 2,
+          "campsites": 0,
+          "settlements": 1,
+          "buildings": 2,
+          "rooms": 7,
+          "changedTerrain": 188,
+          "changedEdges": 59,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 1,
+          "beaconAttempts": 96,
+          "beaconWork": 2400,
+          "dungeonsRequested": 1,
+          "dungeonsAccepted": 1,
+          "dungeonsOmitted": 0
+        },
+        "eligibleMasses": 1,
+        "packedRooms": 5,
+        "failureReasons": [
+          "ReservationConflict"
+        ],
+        "elapsedMs": 46.1636,
+        "allocatedBytes": 17210272
+      }
+    },
+    {
+      "code": "WLD1-30x24-X0-Y0-F35-W20-R35-KFine-HMixed-E1-I3-B1100-C1-NLow-VMedium-P2-OEmpty-S0000000000000001",
+      "before": {
+        "fingerprint": "5188D7E4DF85F017380AB1418B1AFD86A3236B3F3EC4F64C1890D33BF167D3F5",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 16,
+        "dungeons": [],
+        "stats": {
+          "attempts": 13,
+          "work": 12563,
+          "sites": 2,
+          "campsites": 1,
+          "settlements": 1,
+          "buildings": 2,
+          "rooms": 4,
+          "changedTerrain": 166,
+          "changedEdges": 58,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 1,
+          "beaconAttempts": 96,
+          "beaconWork": 2400,
+          "dungeonsRequested": 1,
+          "dungeonsAccepted": 0,
+          "dungeonsOmitted": 1
+        },
+        "eligibleMasses": 0,
+        "packedRooms": 2,
+        "failureReasons": [
+          "NoFootprint"
+        ],
+        "elapsedMs": 39.0528,
+        "allocatedBytes": 17045840
+      },
+      "after": {
+        "fingerprint": "CA46AE3CD962D8061EC3E3E9D290CE8DB942E578630443349DE0EBFD4D69529F",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 0,
+        "dungeons": [
+          {
+            "profile": "DeepPassage",
+            "accessRootIndex": 105,
+            "rockMassAnchor": 22,
+            "rockMassArea": 150,
+            "roomCapacity": 4,
+            "rooms": 3,
+            "usable": 45,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 14,
+          "work": 15045,
+          "sites": 3,
+          "campsites": 1,
+          "settlements": 1,
+          "buildings": 2,
+          "rooms": 7,
+          "changedTerrain": 211,
+          "changedEdges": 59,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 1,
+          "beaconAttempts": 96,
+          "beaconWork": 2400,
+          "dungeonsRequested": 1,
+          "dungeonsAccepted": 1,
+          "dungeonsOmitted": 0
+        },
+        "eligibleMasses": 1,
+        "packedRooms": 5,
+        "failureReasons": [],
+        "elapsedMs": 50.3591,
+        "allocatedBytes": 19378960
+      }
+    },
+    {
+      "code": "WLD1-60x50-X-17-Y-13-F35-W20-R35-KFine-HMixed-E0-I3-B0000-C1-NLow-VMedium-P2-OEmpty-S000000000000002A",
+      "before": {
+        "fingerprint": "7055E9783E4686A0721D9E8DBA69C49C9C8BF7D284A3258367695478ED391517",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 0,
+        "dungeons": [
+          {
+            "profile": "DeepPassage",
+            "accessRootIndex": 263,
+            "rockMassAnchor": 27,
+            "rockMassArea": 148,
+            "roomCapacity": 3,
+            "rooms": 2,
+            "usable": 36,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 75,
+          "work": 105100,
+          "sites": 6,
+          "campsites": 2,
+          "settlements": 3,
+          "buildings": 9,
+          "rooms": 17,
+          "changedTerrain": 847,
+          "changedEdges": 228,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 1,
+          "beaconAttempts": 96,
+          "beaconWork": 2400,
+          "dungeonsRequested": 2,
+          "dungeonsAccepted": 1,
+          "dungeonsOmitted": 1
+        },
+        "eligibleMasses": 1,
+        "packedRooms": 17,
+        "failureReasons": [
+          "EntranceConstraint",
+          "ReservationConflict"
+        ],
+        "elapsedMs": 194.3276,
+        "allocatedBytes": 86253392
+      },
+      "after": {
+        "fingerprint": "7055E9783E4686A0721D9E8DBA69C49C9C8BF7D284A3258367695478ED391517",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 0,
+        "dungeons": [
+          {
+            "profile": "DeepPassage",
+            "accessRootIndex": 263,
+            "rockMassAnchor": 27,
+            "rockMassArea": 148,
+            "roomCapacity": 3,
+            "rooms": 2,
+            "usable": 36,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 75,
+          "work": 178770,
+          "sites": 6,
+          "campsites": 2,
+          "settlements": 3,
+          "buildings": 9,
+          "rooms": 17,
+          "changedTerrain": 847,
+          "changedEdges": 228,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 1,
+          "beaconAttempts": 96,
+          "beaconWork": 2400,
+          "dungeonsRequested": 2,
+          "dungeonsAccepted": 1,
+          "dungeonsOmitted": 1
+        },
+        "eligibleMasses": 1,
+        "packedRooms": 17,
+        "failureReasons": [
+          "EntranceConstraint",
+          "ReservationConflict"
+        ],
+        "elapsedMs": 204.0558,
+        "allocatedBytes": 86338968
+      }
+    },
+    {
+      "code": "WLD1-60x50-X-17-Y-13-F35-W20-R35-KFine-HMixed-E1-I3-B0100-C1-NLow-VMedium-P2-OEmpty-S000000000000002A",
+      "before": {
+        "fingerprint": "3FA3702D9597569A624874EA03744D40A4BD1786789A88473183452907708487",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 36,
+        "dungeons": [],
+        "stats": {
+          "attempts": 72,
+          "work": 96350,
+          "sites": 6,
+          "campsites": 3,
+          "settlements": 3,
+          "buildings": 9,
+          "rooms": 15,
+          "changedTerrain": 903,
+          "changedEdges": 232,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 1,
+          "beaconAttempts": 96,
+          "beaconWork": 2400,
+          "dungeonsRequested": 2,
+          "dungeonsAccepted": 0,
+          "dungeonsOmitted": 2
+        },
+        "eligibleMasses": 0,
+        "packedRooms": 11,
+        "failureReasons": [
+          "EntranceConstraint",
+          "EntranceConstraint"
+        ],
+        "elapsedMs": 200.5702,
+        "allocatedBytes": 87896392
+      },
+      "after": {
+        "fingerprint": "3EE918EDA78B188DCDFBF4B4E5A8E8D795C6C380EF574DA62BB6E7D44CA053EA",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 28,
+        "dungeons": [
+          {
+            "profile": "DeepPassage",
+            "accessRootIndex": 263,
+            "rockMassAnchor": 27,
+            "rockMassArea": 148,
+            "roomCapacity": 3,
+            "rooms": 2,
+            "usable": 36,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 75,
+          "work": 184686,
+          "sites": 6,
+          "campsites": 2,
+          "settlements": 3,
+          "buildings": 9,
+          "rooms": 17,
+          "changedTerrain": 847,
+          "changedEdges": 228,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 1,
+          "beaconAttempts": 96,
+          "beaconWork": 2400,
+          "dungeonsRequested": 2,
+          "dungeonsAccepted": 1,
+          "dungeonsOmitted": 1
+        },
+        "eligibleMasses": 1,
+        "packedRooms": 15,
+        "failureReasons": [
+          "EntranceConstraint",
+          "ReservationConflict"
+        ],
+        "elapsedMs": 283.8065,
+        "allocatedBytes": 91596256
+      }
+    },
+    {
+      "code": "WLD1-60x50-X-17-Y-13-F35-W20-R35-KFine-HMixed-E1-I3-B1100-C1-NLow-VMedium-P2-OEmpty-S000000000000002A",
+      "before": {
+        "fingerprint": "AEBC09D88EADC18F3D1EB7A2495A4D59FA07A1797CEA286B0F2B664C5BE3EB9F",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 36,
+        "dungeons": [
+          {
+            "profile": "DeepPassage",
+            "accessRootIndex": 193,
+            "rockMassAnchor": 1609,
+            "rockMassArea": 388,
+            "roomCapacity": 7,
+            "rooms": 2,
+            "usable": 24,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 79,
+          "work": 120091,
+          "sites": 6,
+          "campsites": 2,
+          "settlements": 3,
+          "buildings": 9,
+          "rooms": 17,
+          "changedTerrain": 864,
+          "changedEdges": 232,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 1,
+          "beaconAttempts": 96,
+          "beaconWork": 2400,
+          "dungeonsRequested": 2,
+          "dungeonsAccepted": 1,
+          "dungeonsOmitted": 1
+        },
+        "eligibleMasses": 1,
+        "packedRooms": 11,
+        "failureReasons": [
+          "EntranceConstraint",
+          "ReservationConflict"
+        ],
+        "elapsedMs": 213.5756,
+        "allocatedBytes": 92658176
+      },
+      "after": {
+        "fingerprint": "AA0AFB4B64B94CF11028F711FBBBD2E9AB745B0D76E48956930F328C415C97A2",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 28,
+        "dungeons": [
+          {
+            "profile": "DeepPassage",
+            "accessRootIndex": 193,
+            "rockMassAnchor": 27,
+            "rockMassArea": 148,
+            "roomCapacity": 3,
+            "rooms": 2,
+            "usable": 36,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 92,
+          "work": 340850,
+          "sites": 7,
+          "campsites": 3,
+          "settlements": 3,
+          "buildings": 9,
+          "rooms": 17,
+          "changedTerrain": 939,
+          "changedEdges": 228,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 1,
+          "beaconAttempts": 96,
+          "beaconWork": 2400,
+          "dungeonsRequested": 2,
+          "dungeonsAccepted": 1,
+          "dungeonsOmitted": 1
+        },
+        "eligibleMasses": 2,
+        "packedRooms": 15,
+        "failureReasons": [
+          "EntranceConstraint"
+        ],
+        "elapsedMs": 282.5296,
+        "allocatedBytes": 140150360
+      }
+    },
+    {
+      "code": "WLD1-120x120-X-17-Y-13-F35-W20-R35-KFine-HMixed-E0-I3-B0000-C1-NLow-VMedium-P2-OEmpty-S000000000000002A",
+      "before": {
+        "fingerprint": "DA7B3983A7265562EB0257FAB01100241C5D03D2048648C70C45A0028113843F",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 0,
+        "dungeons": [],
+        "stats": {
+          "attempts": 84,
+          "work": 626072,
+          "sites": 10,
+          "campsites": 5,
+          "settlements": 5,
+          "buildings": 17,
+          "rooms": 25,
+          "changedTerrain": 1344,
+          "changedEdges": 430,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 4,
+          "beaconAttempts": 384,
+          "beaconWork": 9600,
+          "dungeonsRequested": 3,
+          "dungeonsAccepted": 0,
+          "dungeonsOmitted": 3
+        },
+        "eligibleMasses": 1,
+        "packedRooms": 102,
+        "failureReasons": [
+          "EntranceConstraint",
+          "EntranceConstraint",
+          "EntranceConstraint"
+        ],
+        "elapsedMs": 1105.3618,
+        "allocatedBytes": 337519840
+      },
+      "after": {
+        "fingerprint": "DA7B3983A7265562EB0257FAB01100241C5D03D2048648C70C45A0028113843F",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 0,
+        "dungeons": [],
+        "stats": {
+          "attempts": 84,
+          "work": 1676417,
+          "sites": 10,
+          "campsites": 5,
+          "settlements": 5,
+          "buildings": 17,
+          "rooms": 25,
+          "changedTerrain": 1344,
+          "changedEdges": 430,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 4,
+          "beaconAttempts": 384,
+          "beaconWork": 9600,
+          "dungeonsRequested": 3,
+          "dungeonsAccepted": 0,
+          "dungeonsOmitted": 3
+        },
+        "eligibleMasses": 1,
+        "packedRooms": 102,
+        "failureReasons": [
+          "EntranceConstraint",
+          "EntranceConstraint",
+          "EntranceConstraint"
+        ],
+        "elapsedMs": 1228.2068,
+        "allocatedBytes": 338002176
+      }
+    },
+    {
+      "code": "WLD1-120x120-X-17-Y-13-F35-W20-R35-KFine-HMixed-E1-I3-B0100-C1-NLow-VMedium-P2-OEmpty-S000000000000002A",
+      "before": {
+        "fingerprint": "93598F493AE547A49A49EA49D4FF3225BA26A400792BDDB396C066763F657040",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 298,
+        "dungeons": [],
+        "stats": {
+          "attempts": 62,
+          "work": 610342,
+          "sites": 10,
+          "campsites": 5,
+          "settlements": 5,
+          "buildings": 17,
+          "rooms": 25,
+          "changedTerrain": 1277,
+          "changedEdges": 424,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 4,
+          "beaconAttempts": 384,
+          "beaconWork": 9600,
+          "dungeonsRequested": 3,
+          "dungeonsAccepted": 0,
+          "dungeonsOmitted": 3
+        },
+        "eligibleMasses": 0,
+        "packedRooms": 67,
+        "failureReasons": [
+          "EntranceConstraint",
+          "EntranceConstraint",
+          "EntranceConstraint"
+        ],
+        "elapsedMs": 1157.054,
+        "allocatedBytes": 345605392
+      },
+      "after": {
+        "fingerprint": "B207D67563D6C38ADC1B5F04FE546A948F151630EEFE02E37EB25C01007B591C",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 301,
+        "dungeons": [
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 661,
+            "rockMassAnchor": 58,
+            "rockMassArea": 574,
+            "roomCapacity": 4,
+            "rooms": 2,
+            "usable": 40,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          },
+          {
+            "profile": "DeepPassage",
+            "accessRootIndex": 661,
+            "rockMassAnchor": 2102,
+            "rockMassArea": 399,
+            "roomCapacity": 5,
+            "rooms": 2,
+            "usable": 39,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 87,
+          "work": 1097292,
+          "sites": 12,
+          "campsites": 5,
+          "settlements": 5,
+          "buildings": 17,
+          "rooms": 29,
+          "changedTerrain": 1415,
+          "changedEdges": 431,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 4,
+          "beaconAttempts": 384,
+          "beaconWork": 9600,
+          "dungeonsRequested": 3,
+          "dungeonsAccepted": 2,
+          "dungeonsOmitted": 1
+        },
+        "eligibleMasses": 2,
+        "packedRooms": 60,
+        "failureReasons": [
+          "EntranceConstraint"
+        ],
+        "elapsedMs": 1523.7425,
+        "allocatedBytes": 400221888
+      }
+    },
+    {
+      "code": "WLD1-120x120-X-17-Y-13-F35-W20-R35-KFine-HMixed-E1-I3-B1100-C1-NLow-VMedium-P2-OEmpty-S000000000000002A",
+      "before": {
+        "fingerprint": "521BEE444E7840622229C4F10EEB732D0C54206492615E82AB141A49A5B9E287",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 298,
+        "dungeons": [
+          {
+            "profile": "ChamberComplex",
+            "accessRootIndex": 6970,
+            "rockMassAnchor": 5291,
+            "rockMassArea": 241,
+            "roomCapacity": 5,
+            "rooms": 2,
+            "usable": 36,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          },
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 6367,
+            "rockMassAnchor": 5687,
+            "rockMassArea": 414,
+            "roomCapacity": 8,
+            "rooms": 4,
+            "usable": 105,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 67,
+          "work": 643863,
+          "sites": 12,
+          "campsites": 5,
+          "settlements": 5,
+          "buildings": 17,
+          "rooms": 31,
+          "changedTerrain": 1437,
+          "changedEdges": 425,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 4,
+          "beaconAttempts": 384,
+          "beaconWork": 9600,
+          "dungeonsRequested": 3,
+          "dungeonsAccepted": 2,
+          "dungeonsOmitted": 1
+        },
+        "eligibleMasses": 2,
+        "packedRooms": 67,
+        "failureReasons": [
+          "EntranceConstraint"
+        ],
+        "elapsedMs": 1347.4963,
+        "allocatedBytes": 394904680
+      },
+      "after": {
+        "fingerprint": "BAA08300D5FF7FD0A70A6C29D0032C665985B90D0AFAA4C65F40A72D187471B4",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 380,
+        "dungeons": [
+          {
+            "profile": "DeepPassage",
+            "accessRootIndex": 6486,
+            "rockMassAnchor": 6391,
+            "rockMassArea": 323,
+            "roomCapacity": 5,
+            "rooms": 3,
+            "usable": 52,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          },
+          {
+            "profile": "DeepPassage",
+            "accessRootIndex": 6486,
+            "rockMassAnchor": 13008,
+            "rockMassArea": 137,
+            "roomCapacity": 2,
+            "rooms": 2,
+            "usable": 50,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          },
+          {
+            "profile": "DeepPassage",
+            "accessRootIndex": 6486,
+            "rockMassAnchor": 5291,
+            "rockMassArea": 218,
+            "roomCapacity": 5,
+            "rooms": 3,
+            "usable": 53,
+            "reused": 23,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 97,
+          "work": 885013,
+          "sites": 13,
+          "campsites": 5,
+          "settlements": 5,
+          "buildings": 17,
+          "rooms": 33,
+          "changedTerrain": 1485,
+          "changedEdges": 444,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 4,
+          "beaconAttempts": 384,
+          "beaconWork": 9600,
+          "dungeonsRequested": 3,
+          "dungeonsAccepted": 3,
+          "dungeonsOmitted": 0
+        },
+        "eligibleMasses": 4,
+        "packedRooms": 59,
+        "failureReasons": [],
+        "elapsedMs": 1459.884,
+        "allocatedBytes": 421240704
+      }
+    },
+    {
+      "code": "WLD1-60x50-X37-Y-29-F15-W8-R50-KBroad-HMixed-E0-I3-B0000-C1-NLow-VMedium-P2-OEmpty-S123456789ABCDEF0",
+      "before": {
+        "fingerprint": "03DF70A8B96E28C8B0ECB0AF1186E1B4935445EAD1AC16F990ECD95F1E8FC4DF",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 0,
+        "dungeons": [
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 56,
+            "rockMassAnchor": 1112,
+            "rockMassArea": 558,
+            "roomCapacity": 22,
+            "rooms": 5,
+            "usable": 107,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          },
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 56,
+            "rockMassAnchor": 16,
+            "rockMassArea": 231,
+            "roomCapacity": 4,
+            "rooms": 3,
+            "usable": 53,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 67,
+          "work": 101232,
+          "sites": 7,
+          "campsites": 2,
+          "settlements": 3,
+          "buildings": 8,
+          "rooms": 25,
+          "changedTerrain": 828,
+          "changedEdges": 226,
+          "beaconsPlaced": 1,
+          "beaconsOmitted": 0,
+          "beaconAttempts": 25,
+          "beaconWork": 625,
+          "dungeonsRequested": 2,
+          "dungeonsAccepted": 2,
+          "dungeonsOmitted": 0
+        },
+        "eligibleMasses": 3,
+        "packedRooms": 32,
+        "failureReasons": [
+          "ReservationConflict"
+        ],
+        "elapsedMs": 195.8574,
+        "allocatedBytes": 87844600
+      },
+      "after": {
+        "fingerprint": "03DF70A8B96E28C8B0ECB0AF1186E1B4935445EAD1AC16F990ECD95F1E8FC4DF",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 0,
+        "dungeons": [
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 56,
+            "rockMassAnchor": 1112,
+            "rockMassArea": 558,
+            "roomCapacity": 22,
+            "rooms": 5,
+            "usable": 107,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          },
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 56,
+            "rockMassAnchor": 16,
+            "rockMassArea": 231,
+            "roomCapacity": 4,
+            "rooms": 3,
+            "usable": 53,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 67,
+          "work": 109301,
+          "sites": 7,
+          "campsites": 2,
+          "settlements": 3,
+          "buildings": 8,
+          "rooms": 25,
+          "changedTerrain": 828,
+          "changedEdges": 226,
+          "beaconsPlaced": 1,
+          "beaconsOmitted": 0,
+          "beaconAttempts": 25,
+          "beaconWork": 625,
+          "dungeonsRequested": 2,
+          "dungeonsAccepted": 2,
+          "dungeonsOmitted": 0
+        },
+        "eligibleMasses": 3,
+        "packedRooms": 32,
+        "failureReasons": [
+          "ReservationConflict"
+        ],
+        "elapsedMs": 222.7002,
+        "allocatedBytes": 87903544
+      }
+    },
+    {
+      "code": "WLD1-60x50-X37-Y-29-F15-W8-R50-KBroad-HMixed-E1-I3-B0100-C1-NLow-VMedium-P2-OEmpty-S123456789ABCDEF0",
+      "before": {
+        "fingerprint": "CBF07608CE8A7E2AB966BB34F32F23EEDEF302352D62EE9ACEEEE2EB0FCFF67A",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 72,
+        "dungeons": [
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 56,
+            "rockMassAnchor": 1112,
+            "rockMassArea": 530,
+            "roomCapacity": 18,
+            "rooms": 5,
+            "usable": 142,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          },
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 56,
+            "rockMassAnchor": 2269,
+            "rockMassArea": 182,
+            "roomCapacity": 4,
+            "rooms": 3,
+            "usable": 67,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 58,
+          "work": 98540,
+          "sites": 7,
+          "campsites": 2,
+          "settlements": 3,
+          "buildings": 8,
+          "rooms": 24,
+          "changedTerrain": 889,
+          "changedEdges": 234,
+          "beaconsPlaced": 1,
+          "beaconsOmitted": 0,
+          "beaconAttempts": 25,
+          "beaconWork": 625,
+          "dungeonsRequested": 2,
+          "dungeonsAccepted": 2,
+          "dungeonsOmitted": 0
+        },
+        "eligibleMasses": 2,
+        "packedRooms": 22,
+        "failureReasons": [
+          "ReservationConflict"
+        ],
+        "elapsedMs": 204.8118,
+        "allocatedBytes": 93406896
+      },
+      "after": {
+        "fingerprint": "A786D7BF40F0A30A8DBFD197A29AB27E9C70C5AC45BB31641424027FA254DCD4",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 96,
+        "dungeons": [
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 56,
+            "rockMassAnchor": 1112,
+            "rockMassArea": 488,
+            "roomCapacity": 12,
+            "rooms": 5,
+            "usable": 110,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          },
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 56,
+            "rockMassAnchor": 16,
+            "rockMassArea": 211,
+            "roomCapacity": 4,
+            "rooms": 3,
+            "usable": 59,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 68,
+          "work": 109262,
+          "sites": 6,
+          "campsites": 1,
+          "settlements": 3,
+          "buildings": 8,
+          "rooms": 24,
+          "changedTerrain": 800,
+          "changedEdges": 234,
+          "beaconsPlaced": 1,
+          "beaconsOmitted": 0,
+          "beaconAttempts": 25,
+          "beaconWork": 625,
+          "dungeonsRequested": 2,
+          "dungeonsAccepted": 2,
+          "dungeonsOmitted": 0
+        },
+        "eligibleMasses": 3,
+        "packedRooms": 20,
+        "failureReasons": [
+          "ReservationConflict",
+          "ReservationConflict"
+        ],
+        "elapsedMs": 207.8695,
+        "allocatedBytes": 88358320
+      }
+    },
+    {
+      "code": "WLD1-60x50-X37-Y-29-F15-W8-R50-KBroad-HMixed-E1-I3-B1100-C1-NLow-VMedium-P2-OEmpty-S123456789ABCDEF0",
+      "before": {
+        "fingerprint": "E0A2E28417CA13EB99F6B6D0CEFB67C1CCBFE9A3130BCE28E5BBF7E4525D34C5",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 72,
+        "dungeons": [
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 0,
+            "rockMassAnchor": 1112,
+            "rockMassArea": 530,
+            "roomCapacity": 18,
+            "rooms": 5,
+            "usable": 157,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          },
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 0,
+            "rockMassAnchor": 2269,
+            "rockMassArea": 182,
+            "roomCapacity": 4,
+            "rooms": 3,
+            "usable": 77,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 64,
+          "work": 98493,
+          "sites": 7,
+          "campsites": 2,
+          "settlements": 3,
+          "buildings": 8,
+          "rooms": 24,
+          "changedTerrain": 917,
+          "changedEdges": 234,
+          "beaconsPlaced": 1,
+          "beaconsOmitted": 0,
+          "beaconAttempts": 25,
+          "beaconWork": 625,
+          "dungeonsRequested": 2,
+          "dungeonsAccepted": 2,
+          "dungeonsOmitted": 0
+        },
+        "eligibleMasses": 2,
+        "packedRooms": 22,
+        "failureReasons": [
+          "ReservationConflict"
+        ],
+        "elapsedMs": 214.2849,
+        "allocatedBytes": 96903384
+      },
+      "after": {
+        "fingerprint": "6DB07124A9D28D0AAB29E5EA50A572AA27C5642E5689C5E1E356B8479CEC5BA8",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 96,
+        "dungeons": [
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 0,
+            "rockMassAnchor": 1112,
+            "rockMassArea": 434,
+            "roomCapacity": 11,
+            "rooms": 4,
+            "usable": 97,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          },
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 0,
+            "rockMassAnchor": 16,
+            "rockMassArea": 211,
+            "roomCapacity": 4,
+            "rooms": 3,
+            "usable": 59,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 64,
+          "work": 114894,
+          "sites": 7,
+          "campsites": 2,
+          "settlements": 3,
+          "buildings": 8,
+          "rooms": 24,
+          "changedTerrain": 812,
+          "changedEdges": 227,
+          "beaconsPlaced": 1,
+          "beaconsOmitted": 0,
+          "beaconAttempts": 25,
+          "beaconWork": 625,
+          "dungeonsRequested": 2,
+          "dungeonsAccepted": 2,
+          "dungeonsOmitted": 0
+        },
+        "eligibleMasses": 3,
+        "packedRooms": 20,
+        "failureReasons": [
+          "ReservationConflict"
+        ],
+        "elapsedMs": 260.095,
+        "allocatedBytes": 93665584
+      }
+    }
+  ],
+  "historicalAccessFailures": [
+    {
+      "code": "WLD1-30x24-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E0-I3-B0000-C1-NLow-VMedium-P2-OEmpty-S0000000000003039",
+      "before": {
+        "fingerprint": "DEE850D3E44E3403CC8B0AE313D9584DE8CA2486DC7DC2170145F1FA970EBFF8",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 0,
+        "dungeons": [
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 0,
+            "rockMassAnchor": 12,
+            "rockMassArea": 580,
+            "roomCapacity": 25,
+            "rooms": 3,
+            "usable": 71,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 19,
+          "work": 16875,
+          "sites": 2,
+          "campsites": 0,
+          "settlements": 1,
+          "buildings": 2,
+          "rooms": 7,
+          "changedTerrain": 287,
+          "changedEdges": 71,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 1,
+          "beaconAttempts": 96,
+          "beaconWork": 2400,
+          "dungeonsRequested": 1,
+          "dungeonsAccepted": 1,
+          "dungeonsOmitted": 0
+        },
+        "eligibleMasses": 1,
+        "packedRooms": 25,
+        "failureReasons": [
+          "ReservationConflict"
+        ],
+        "elapsedMs": 37.9296,
+        "allocatedBytes": 17928024
+      },
+      "after": {
+        "fingerprint": "DEE850D3E44E3403CC8B0AE313D9584DE8CA2486DC7DC2170145F1FA970EBFF8",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 0,
+        "dungeons": [
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 0,
+            "rockMassAnchor": 12,
+            "rockMassArea": 580,
+            "roomCapacity": 25,
+            "rooms": 3,
+            "usable": 71,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 19,
+          "work": 18743,
+          "sites": 2,
+          "campsites": 0,
+          "settlements": 1,
+          "buildings": 2,
+          "rooms": 7,
+          "changedTerrain": 287,
+          "changedEdges": 71,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 1,
+          "beaconAttempts": 96,
+          "beaconWork": 2400,
+          "dungeonsRequested": 1,
+          "dungeonsAccepted": 1,
+          "dungeonsOmitted": 0
+        },
+        "eligibleMasses": 1,
+        "packedRooms": 25,
+        "failureReasons": [
+          "ReservationConflict"
+        ],
+        "elapsedMs": 46.4732,
+        "allocatedBytes": 17959376
+      }
+    },
+    {
+      "code": "WLD1-30x24-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I3-B1000-C1-NLow-VMedium-P2-OEmpty-S0000000000003039",
+      "before": {
+        "fingerprint": "DEE850D3E44E3403CC8B0AE313D9584DE8CA2486DC7DC2170145F1FA970EBFF8",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 0,
+        "dungeons": [
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 0,
+            "rockMassAnchor": 12,
+            "rockMassArea": 580,
+            "roomCapacity": 25,
+            "rooms": 3,
+            "usable": 71,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 19,
+          "work": 16875,
+          "sites": 2,
+          "campsites": 0,
+          "settlements": 1,
+          "buildings": 2,
+          "rooms": 7,
+          "changedTerrain": 287,
+          "changedEdges": 71,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 1,
+          "beaconAttempts": 96,
+          "beaconWork": 2400,
+          "dungeonsRequested": 1,
+          "dungeonsAccepted": 1,
+          "dungeonsOmitted": 0
+        },
+        "eligibleMasses": 1,
+        "packedRooms": 25,
+        "failureReasons": [
+          "ReservationConflict"
+        ],
+        "elapsedMs": 37.7074,
+        "allocatedBytes": 18129232
+      },
+      "after": {
+        "fingerprint": "DEE850D3E44E3403CC8B0AE313D9584DE8CA2486DC7DC2170145F1FA970EBFF8",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 0,
+        "dungeons": [
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 0,
+            "rockMassAnchor": 12,
+            "rockMassArea": 580,
+            "roomCapacity": 25,
+            "rooms": 3,
+            "usable": 71,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 19,
+          "work": 18743,
+          "sites": 2,
+          "campsites": 0,
+          "settlements": 1,
+          "buildings": 2,
+          "rooms": 7,
+          "changedTerrain": 287,
+          "changedEdges": 71,
+          "beaconsPlaced": 0,
+          "beaconsOmitted": 1,
+          "beaconAttempts": 96,
+          "beaconWork": 2400,
+          "dungeonsRequested": 1,
+          "dungeonsAccepted": 1,
+          "dungeonsOmitted": 0
+        },
+        "eligibleMasses": 1,
+        "packedRooms": 25,
+        "failureReasons": [
+          "ReservationConflict"
+        ],
+        "elapsedMs": 55.8094,
+        "allocatedBytes": 18166968
+      }
+    },
+    {
+      "code": "WLD1-60x50-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E0-I3-B0000-C1-NLow-VMedium-P2-OEmpty-S0000000000000003",
+      "before": {
+        "fingerprint": "C03D9EFB8F45DC7EF9F3A0BC658D3DBC086B6854AD9E2BEC695C563D1CDA2E09",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 0,
+        "dungeons": [
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 300,
+            "rockMassAnchor": 0,
+            "rockMassArea": 1894,
+            "roomCapacity": 90,
+            "rooms": 2,
+            "usable": 47,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 44,
+          "work": 105725,
+          "sites": 7,
+          "campsites": 3,
+          "settlements": 3,
+          "buildings": 10,
+          "rooms": 19,
+          "changedTerrain": 918,
+          "changedEdges": 270,
+          "beaconsPlaced": 1,
+          "beaconsOmitted": 0,
+          "beaconAttempts": 11,
+          "beaconWork": 275,
+          "dungeonsRequested": 2,
+          "dungeonsAccepted": 1,
+          "dungeonsOmitted": 1
+        },
+        "eligibleMasses": 1,
+        "packedRooms": 91,
+        "failureReasons": [
+          "NoFootprint"
+        ],
+        "elapsedMs": 225.1118,
+        "allocatedBytes": 93850520
+      },
+      "after": {
+        "fingerprint": "C03D9EFB8F45DC7EF9F3A0BC658D3DBC086B6854AD9E2BEC695C563D1CDA2E09",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 0,
+        "dungeons": [
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 300,
+            "rockMassAnchor": 0,
+            "rockMassArea": 1894,
+            "roomCapacity": 90,
+            "rooms": 2,
+            "usable": 47,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 44,
+          "work": 117084,
+          "sites": 7,
+          "campsites": 3,
+          "settlements": 3,
+          "buildings": 10,
+          "rooms": 19,
+          "changedTerrain": 918,
+          "changedEdges": 270,
+          "beaconsPlaced": 1,
+          "beaconsOmitted": 0,
+          "beaconAttempts": 11,
+          "beaconWork": 275,
+          "dungeonsRequested": 2,
+          "dungeonsAccepted": 1,
+          "dungeonsOmitted": 1
+        },
+        "eligibleMasses": 1,
+        "packedRooms": 91,
+        "failureReasons": [
+          "NoFootprint"
+        ],
+        "elapsedMs": 384.7806,
+        "allocatedBytes": 93899856
+      }
+    },
+    {
+      "code": "WLD1-60x50-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I3-B1000-C1-NLow-VMedium-P2-OEmpty-S0000000000000003",
+      "before": {
+        "fingerprint": "8EA042258B51B57802C62665069F5F6689AC65DFD058F1C36F36E350934CF0B5",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 0,
+        "dungeons": [
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 1248,
+            "rockMassAnchor": 0,
+            "rockMassArea": 1894,
+            "roomCapacity": 90,
+            "rooms": 2,
+            "usable": 32,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 43,
+          "work": 110478,
+          "sites": 7,
+          "campsites": 3,
+          "settlements": 3,
+          "buildings": 9,
+          "rooms": 18,
+          "changedTerrain": 810,
+          "changedEdges": 243,
+          "beaconsPlaced": 1,
+          "beaconsOmitted": 0,
+          "beaconAttempts": 21,
+          "beaconWork": 525,
+          "dungeonsRequested": 2,
+          "dungeonsAccepted": 1,
+          "dungeonsOmitted": 1
+        },
+        "eligibleMasses": 1,
+        "packedRooms": 91,
+        "failureReasons": [
+          "NoFootprint"
+        ],
+        "elapsedMs": 216.3278,
+        "allocatedBytes": 91482672
+      },
+      "after": {
+        "fingerprint": "8EA042258B51B57802C62665069F5F6689AC65DFD058F1C36F36E350934CF0B5",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 0,
+        "dungeons": [
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 1248,
+            "rockMassAnchor": 0,
+            "rockMassArea": 1894,
+            "roomCapacity": 90,
+            "rooms": 2,
+            "usable": 32,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 43,
+          "work": 121717,
+          "sites": 7,
+          "campsites": 3,
+          "settlements": 3,
+          "buildings": 9,
+          "rooms": 18,
+          "changedTerrain": 810,
+          "changedEdges": 243,
+          "beaconsPlaced": 1,
+          "beaconsOmitted": 0,
+          "beaconAttempts": 21,
+          "beaconWork": 525,
+          "dungeonsRequested": 2,
+          "dungeonsAccepted": 1,
+          "dungeonsOmitted": 1
+        },
+        "eligibleMasses": 1,
+        "packedRooms": 91,
+        "failureReasons": [
+          "NoFootprint"
+        ],
+        "elapsedMs": 275.6548,
+        "allocatedBytes": 91536416
+      }
+    },
+    {
+      "code": "WLD1-60x50-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I3-B0100-C1-NLow-VMedium-P2-OEmpty-S0000000000000003",
+      "before": {
+        "fingerprint": "3EFA39AE5FC5B83850924275BBD9C8E401D828A4B58D85B28185BFD9C9515BC6",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 111,
+        "dungeons": [
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 203,
+            "rockMassAnchor": 0,
+            "rockMassArea": 1634,
+            "roomCapacity": 65,
+            "rooms": 2,
+            "usable": 53,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          },
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 203,
+            "rockMassAnchor": 736,
+            "rockMassArea": 120,
+            "roomCapacity": 2,
+            "rooms": 2,
+            "usable": 43,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 42,
+          "work": 109384,
+          "sites": 8,
+          "campsites": 3,
+          "settlements": 3,
+          "buildings": 9,
+          "rooms": 20,
+          "changedTerrain": 936,
+          "changedEdges": 248,
+          "beaconsPlaced": 1,
+          "beaconsOmitted": 0,
+          "beaconAttempts": 11,
+          "beaconWork": 275,
+          "dungeonsRequested": 2,
+          "dungeonsAccepted": 2,
+          "dungeonsOmitted": 0
+        },
+        "eligibleMasses": 2,
+        "packedRooms": 68,
+        "failureReasons": [],
+        "elapsedMs": 243.8831,
+        "allocatedBytes": 100165896
+      },
+      "after": {
+        "fingerprint": "1BE8F514330CA61AD77EF5FE2E1DD62DE1806533075C28A0D3C5F2B89CCD9810",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 196,
+        "dungeons": [
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 300,
+            "rockMassAnchor": 0,
+            "rockMassArea": 1698,
+            "roomCapacity": 58,
+            "rooms": 2,
+            "usable": 70,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 44,
+          "work": 114497,
+          "sites": 6,
+          "campsites": 2,
+          "settlements": 3,
+          "buildings": 10,
+          "rooms": 20,
+          "changedTerrain": 801,
+          "changedEdges": 271,
+          "beaconsPlaced": 1,
+          "beaconsOmitted": 0,
+          "beaconAttempts": 49,
+          "beaconWork": 1225,
+          "dungeonsRequested": 2,
+          "dungeonsAccepted": 1,
+          "dungeonsOmitted": 1
+        },
+        "eligibleMasses": 1,
+        "packedRooms": 59,
+        "failureReasons": [
+          "NoFootprint",
+          "ReservationConflict"
+        ],
+        "elapsedMs": 310.8826,
+        "allocatedBytes": 96217024
+      }
+    },
+    {
+      "code": "WLD1-60x50-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I3-B1100-C1-NLow-VMedium-P2-OEmpty-S0000000000000003",
+      "before": {
+        "fingerprint": "81B05D78C0099C83C89BAC36A04143329868A92058462B548930B08120171475",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 111,
+        "dungeons": [
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 203,
+            "rockMassAnchor": 0,
+            "rockMassArea": 1634,
+            "roomCapacity": 65,
+            "rooms": 2,
+            "usable": 53,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          },
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 203,
+            "rockMassAnchor": 736,
+            "rockMassArea": 120,
+            "roomCapacity": 2,
+            "rooms": 2,
+            "usable": 43,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 45,
+          "work": 109607,
+          "sites": 8,
+          "campsites": 3,
+          "settlements": 3,
+          "buildings": 9,
+          "rooms": 20,
+          "changedTerrain": 938,
+          "changedEdges": 248,
+          "beaconsPlaced": 1,
+          "beaconsOmitted": 0,
+          "beaconAttempts": 49,
+          "beaconWork": 1225,
+          "dungeonsRequested": 2,
+          "dungeonsAccepted": 2,
+          "dungeonsOmitted": 0
+        },
+        "eligibleMasses": 2,
+        "packedRooms": 68,
+        "failureReasons": [],
+        "elapsedMs": 254.3465,
+        "allocatedBytes": 101556104
+      },
+      "after": {
+        "fingerprint": "D990DF3EB97F480A4C03F5ACFFD771221191AA9CAF6C75C67E7E33EA690689B6",
+        "deterministic": true,
+        "engineValid": true,
+        "earlyRockEdits": 196,
+        "dungeons": [
+          {
+            "profile": "TunnelNetwork",
+            "accessRootIndex": 300,
+            "rockMassAnchor": 0,
+            "rockMassArea": 1698,
+            "roomCapacity": 58,
+            "rooms": 2,
+            "usable": 70,
+            "reused": 0,
+            "shellIntact": true,
+            "stableRootAccess": true
+          }
+        ],
+        "stats": {
+          "attempts": 46,
+          "work": 114643,
+          "sites": 6,
+          "campsites": 2,
+          "settlements": 3,
+          "buildings": 10,
+          "rooms": 20,
+          "changedTerrain": 802,
+          "changedEdges": 271,
+          "beaconsPlaced": 1,
+          "beaconsOmitted": 0,
+          "beaconAttempts": 49,
+          "beaconWork": 1225,
+          "dungeonsRequested": 2,
+          "dungeonsAccepted": 1,
+          "dungeonsOmitted": 1
+        },
+        "eligibleMasses": 1,
+        "packedRooms": 59,
+        "failureReasons": [
+          "NoFootprint",
+          "ReservationConflict"
+        ],
+        "elapsedMs": 249.5009,
+        "allocatedBytes": 96320432
+      }
+    }
+  ]
+}

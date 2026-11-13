@@ -105,6 +105,13 @@ uses `PlayableWorldComponent.FromRoot` to verify every entrance and usable room
 Cell. A blocked root or actual lost connection still fails. Selecting the final
 largest component remains Quick Play's independent start policy.
 
+Rock Enrichment's subsequent compatibility phase retains this invariant and
+reproduces all six Session B historical failures; see
+[Rock phase results](ROCK_ENRICHMENT_PHASE3_RESULTS.md). Changed enrichment can
+change the example's area counts below, so regression assertions protect the
+smaller retained region, complete dungeon access and rejection of a truly
+disconnected root rather than freezing the earlier generated layout.
+
 The regression recipe is:
 
 ```

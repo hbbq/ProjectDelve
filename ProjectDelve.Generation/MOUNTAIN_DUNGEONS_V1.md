@@ -19,17 +19,39 @@ target = min(4, ceil(E * L / 2400))
 Disabled Civilization or two None densities request none. Targets are requests;
 the generator never changes natural terrain parameters to guarantee placement.
 At most one Site uses each cardinally connected rock mass measured before its
-excavation. Existing enrichment and route excavations split those masses; original
-analyzer formation IDs are provenance, not suitability boundaries.
+excavation. Existing enrichment and route excavations split those masses. Original
+analyzer formation IDs can identify reusable natural floor, but do not grant
+construction permission or join separate remaining masses for new excavation.
 
 `MountainDungeonGenerator` surveys writable rock, an eight-neighbor interior core,
 packed minimum room capacity and entrances bordering the principal playable
-component. It considers at most 24 masses and five attempts per mass/request,
+component. It considers at most 24 masses and five intact-rock attempts per mass/request,
 within Civilization's existing 512-attempt / 2,000,000-work allowance. Each room
 tries at most 72 ranked centers with a small descending size list. Failed child
 drafts publish nothing. Final publication uses the existing authoritative
 `PlanningBoard.TryCommit` validation; room searches use local masks and bounded
 floods rather than repeated Engine scenario validation.
+
+If intact-rock planning cannot fit around earlier tunnels, a second mask permits
+up to five absorption attempts for that mass, within the same shared work and
+attempt allowance. Both masks retain the same three layout profiles and seeded
+ordering. The fallback requires original samples and analysis matching board
+dimensions: original exact Solid Rock in a formation represented by the selected
+mass, now ordinary Stone Floor, writable and free of reservations, route
+membership and Machines. Existing Edges still obey preparation policy and
+ownership; ordinary default preparation cannot replace them. Other current Solid Rock masses never
+enter the excavation mask. Calls without provenance retain intact-rock planning.
+
+After choosing rooms and passages, absorption includes the complete touching
+natural-floor cluster, including diagonal contacts, then validates actual
+cardinal floor connectivity. Every nonfloor eight-neighbor Cell must be writable
+Solid Rock, except the accepted entrance Cell's outward exterior face in the
+selected accessible region. Every floor Cell must have all eight neighbors within
+the Board, so a crop edge cannot substitute for missing shell. Extra tunnel mouths reject the candidate; no earlier
+floor is refilled or converted to Lava. The shell and absorbed floor are reserved
+atomically with the ordinary dungeon. Existing protections and preparation policy
+remain authoritative. A larger absorbable host never suppresses an otherwise
+valid intact-rock approach: that search runs first.
 
 One room-and-corridor carver has three profiles:
 

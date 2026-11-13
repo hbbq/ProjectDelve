@@ -18,8 +18,9 @@ public sealed class AccessibilityGenerationTests
         var dungeon = site.MountainDungeon!;
         var anchored = PlayableWorldComponent.FromRoot(board, dungeon.AccessRootIndex);
         var largest = PlayableWorldComponent.Select(board);
-        Assert.Equal(165, anchored.Count);
-        Assert.Equal(423, largest.Count);
+        // Enrichment changes area counts; the regression is component rank changing while
+        // every usable dungeon Cell retains access to its original, now smaller region.
+        Assert.True(anchored.Count > 0 && anchored.Count < largest.Count);
         Assert.DoesNotContain(dungeon.AccessRootIndex, largest);
         Assert.All(site.Entrances, e => { Assert.Contains(e.InsideIndex, anchored); Assert.Contains(e.OutsideIndex, anchored); });
         Assert.All(dungeon.Rooms.SelectMany(r => r.Usable.Indices(board.Width)), i => Assert.Contains(i, anchored));
@@ -28,6 +29,29 @@ public sealed class AccessibilityGenerationTests
         world.Context.Sites[siteIndex] = site with { MountainDungeon = dungeon with { AccessRootIndex = largest.Min() } };
         Assert.Contains("disconnected", Assert.Throws<ArgumentException>(() =>
             DungeonSitePopulation.FinalizeGeometryAndLoot(world.Context, ContentBundle.Canonical())).Message);
+    }
+
+    [Theory]
+    [InlineData(30, 24, 12345UL, false, false)]
+    [InlineData(30, 24, 12345UL, true, false)]
+    [InlineData(60, 50, 3UL, false, false)]
+    [InlineData(60, 50, 3UL, true, false)]
+    [InlineData(60, 50, 3UL, false, true)]
+    [InlineData(60, 50, 3UL, true, true)]
+    public void SessionBHistoricalAccessFailuresRetainThePlannedRoot(int width, int height, ulong seed, bool forest, bool rock)
+    {
+        var recipe = new WorldGenerationRecipe(new(-17,-13,width,height), new(15,8,50,FeatureScale.Broad,WaterForm.Mixed), seed,
+            new(Enabled:forest || rock,Intensity:3,Forest:forest,Rock:rock,Water:false,Grassland:false),new());
+        var world = WorldGenerator.Generate(recipe);
+        var sites = world.Context.Sites.Where(s => s.MountainDungeon is not null).ToArray();
+        Assert.NotEmpty(sites); // These regressions must not disappear merely by omitting the dungeon.
+        foreach (var site in sites)
+        {
+            var dungeon = site.MountainDungeon!;
+            var connected = PlayableWorldComponent.FromRoot(world.Context.ConstructionBoard!, dungeon.AccessRootIndex);
+            Assert.All(site.Entrances, e => { Assert.Contains(e.InsideIndex, connected); Assert.Contains(e.OutsideIndex, connected); });
+            Assert.All(dungeon.Rooms.SelectMany(r => r.Usable.Indices(width)), i => Assert.Contains(i, connected));
+        }
     }
 
     [Fact]

@@ -136,7 +136,8 @@ writes unchanged original Grass/Dirt. Fixed source masks and ordered commits
 resolve overlap deterministically.
 
 Rock keeps chamber buffers and avoids Water-adjacent excavation and incidental
-contacts with unrelated natural cavities. Caves are ordinary floor within the
+contacts with unrelated natural cavities. Explicit selected mouths may connect
+previously isolated natural spaces. Caves are ordinary floor within the
 single-layer board, not underground terrain beneath a second surface. Entrances
 are checked after carving. All-rock/all-forest crops do not invent entrances at
 their artificial map boundaries.
@@ -218,6 +219,49 @@ separate semantics. No late pass or final connectivity repair is added.
 
 See [Phase 2 measurements](FOREST_ENRICHMENT_PHASE2_RESULTS.md) for the paired
 Forest-only corpus, performance, remaining limitations and verification.
+
+### Rock selection and dungeon compatibility
+
+Rock shares the indexed land-component and bounded search implementation used by
+Forest, with its own Solid Rock source mask, dry-cell restrictions and seed domain.
+The Forest algorithm and output are unchanged. Meaningful approaches have at
+least 64 ordinary land Cells, or the largest available approach's area if none
+reaches 64. This preference does not force a single universal component.
+
+Candidates rank by `4 * remaining depth + original depth`, with seeded ties and
+depth refreshed after each accepted feature. Attempted centers exclude a radius
+of two Manhattan steps; accepted centers exclude seven, including earlier steps.
+Each feature combines an irregular chamber of at least seven Cells with a route
+to a meaningful mouth or an already accessible interior tunnel. The full edit
+must fit the original cumulative 7/10/13% ceiling before any terrain or metadata
+is committed. Reuse is cheaper than new excavation.
+
+Long paths can use a soft sinusoidal guide of amplitude at most three Cells;
+the shaped route must fit the same budget and length bound `1.3 * original + 4`.
+Only its selected endpoint may cross the original formation boundary. On half
+the candidates, up to four separated alternative mouths are considered, favoring
+other existing components. A same-component branch must shorten the actual walk
+by more than eight steps. A useful pass can reuse an earlier mouth; feature kind
+records the measured branch benefit, not merely two newly recorded entrances.
+
+A conservative local guard surveys exact remaining Rock masses. A mass initially
+offering two to four greedily packed buffered 3x3 room positions retains that
+capacity in one remaining mass; a larger opportunity retains at least two. This
+protects narrow candidates without reserving whole mountains. It is a geometric
+preference, not a promised dungeon: entrance geometry, room profiles, bounded
+layout search and construction permissions still determine actual placement.
+Mountain Dungeons can additionally absorb eligible earlier floor under the
+[controlled absorption policy](MOUNTAIN_DUNGEONS_V1.md).
+
+Per formation, accepted features are bounded by `min(48, 2 + core area / 300)`
+and candidate attempts by `min(192, 16 + 4 * feature limit)`. Main routing, shaping,
+branches and shortcut checks share two million visited Cells per Rock step.
+Original cores and changed counts are indexed once; depth and opportunity checks
+scan only the relevant formation/mass. Routing counters exclude those local
+survey/selection scans. No late enrichment or final connectivity repair is added.
+
+See [Rock phase measurements](ROCK_ENRICHMENT_PHASE3_RESULTS.md) for the paired
+corpus, thin-mountain regressions, runtime costs and remaining limitations.
 
 ## Inspection and evaluation
 

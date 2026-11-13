@@ -1,0 +1,2057 @@
+{
+  "definition": "Rock only; original principal top-left root retained; cardinal ordinary-land topology; no Civilization/routes/Population",
+  "groups": {
+    "intensity-0": {
+      "before": {
+        "cases": 45,
+        "newlyTraversable": 0,
+        "anchoredNewCells": 0,
+        "previousGroundConnected": 0,
+        "features": 0,
+        "anchoredFeatures": 0,
+        "usefulAnchoredFeatures": 0,
+        "newlyAnchoredNaturalClearings": 0,
+        "deepBlockingCells": 28242,
+        "blockingBeyondMainSightRange": 77701,
+        "maxRemainingDepth": 28,
+        "largestRemainingMass": 11675,
+        "nominalBudget": 0,
+        "usedBudget": 0,
+        "budgetUtilization": 0,
+        "occupiedSpatialBins": 1125,
+        "touchedSpatialBins": 0,
+        "routingSearches": 0,
+        "routingVisitedCells": 0,
+        "medianCaseMs": 22.2305,
+        "sumCaseMedianMs": 2101.8338,
+        "medianCaseAllocatedBytes": 9297168,
+        "sumCaseMedianAllocatedBytes": 773432032,
+        "sumRockStageMedianMs": 0,
+        "sumRockStageMedianAllocatedBytes": 0,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      },
+      "after": {
+        "cases": 45,
+        "newlyTraversable": 0,
+        "anchoredNewCells": 0,
+        "previousGroundConnected": 0,
+        "features": 0,
+        "anchoredFeatures": 0,
+        "usefulAnchoredFeatures": 0,
+        "newlyAnchoredNaturalClearings": 0,
+        "deepBlockingCells": 28242,
+        "blockingBeyondMainSightRange": 77701,
+        "maxRemainingDepth": 28,
+        "largestRemainingMass": 11675,
+        "nominalBudget": 0,
+        "usedBudget": 0,
+        "budgetUtilization": 0,
+        "occupiedSpatialBins": 1125,
+        "touchedSpatialBins": 0,
+        "routingSearches": 0,
+        "routingVisitedCells": 0,
+        "medianCaseMs": 23.3757,
+        "sumCaseMedianMs": 2477.3115,
+        "medianCaseAllocatedBytes": 9297224,
+        "sumCaseMedianAllocatedBytes": 773428696,
+        "sumRockStageMedianMs": 0,
+        "sumRockStageMedianAllocatedBytes": 0,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      }
+    },
+    "intensity-1": {
+      "before": {
+        "cases": 45,
+        "newlyTraversable": 3323,
+        "anchoredNewCells": 739,
+        "previousGroundConnected": 446,
+        "features": 95,
+        "anchoredFeatures": 28,
+        "usefulAnchoredFeatures": 28,
+        "newlyAnchoredNaturalClearings": 0,
+        "deepBlockingCells": 17693,
+        "blockingBeyondMainSightRange": 71424,
+        "maxRemainingDepth": 25,
+        "largestRemainingMass": 11183,
+        "nominalBudget": 5337,
+        "usedBudget": 3323,
+        "budgetUtilization": 0.6226344388233089,
+        "occupiedSpatialBins": 1125,
+        "touchedSpatialBins": 193,
+        "routingSearches": 799,
+        "routingVisitedCells": 173426,
+        "medianCaseMs": 27.8315,
+        "sumCaseMedianMs": 2803.666,
+        "medianCaseAllocatedBytes": 10811392,
+        "sumCaseMedianAllocatedBytes": 1044783720,
+        "sumRockStageMedianMs": 733.1367,
+        "sumRockStageMedianAllocatedBytes": 268441384,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      },
+      "after": {
+        "cases": 45,
+        "newlyTraversable": 4791,
+        "anchoredNewCells": 4007,
+        "previousGroundConnected": 7703,
+        "features": 145,
+        "anchoredFeatures": 107,
+        "usefulAnchoredFeatures": 107,
+        "newlyAnchoredNaturalClearings": 14,
+        "deepBlockingCells": 9975,
+        "blockingBeyondMainSightRange": 48721,
+        "maxRemainingDepth": 13,
+        "largestRemainingMass": 4151,
+        "nominalBudget": 5337,
+        "usedBudget": 4791,
+        "budgetUtilization": 0.8976953344575604,
+        "occupiedSpatialBins": 1125,
+        "touchedSpatialBins": 239,
+        "routingSearches": 1230,
+        "routingVisitedCells": 253705,
+        "medianCaseMs": 32.9519,
+        "sumCaseMedianMs": 3680.937,
+        "medianCaseAllocatedBytes": 12259288,
+        "sumCaseMedianAllocatedBytes": 1228126120,
+        "sumRockStageMedianMs": 1400.1285,
+        "sumRockStageMedianAllocatedBytes": 450726280,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      }
+    },
+    "intensity-2": {
+      "before": {
+        "cases": 45,
+        "newlyTraversable": 3780,
+        "anchoredNewCells": 909,
+        "previousGroundConnected": 599,
+        "features": 115,
+        "anchoredFeatures": 33,
+        "usefulAnchoredFeatures": 33,
+        "newlyAnchoredNaturalClearings": 0,
+        "deepBlockingCells": 17480,
+        "blockingBeyondMainSightRange": 70424,
+        "maxRemainingDepth": 25,
+        "largestRemainingMass": 11183,
+        "nominalBudget": 7642,
+        "usedBudget": 3780,
+        "budgetUtilization": 0.49463491232661605,
+        "occupiedSpatialBins": 1125,
+        "touchedSpatialBins": 262,
+        "routingSearches": 698,
+        "routingVisitedCells": 147223,
+        "medianCaseMs": 27.4465,
+        "sumCaseMedianMs": 2747.7432,
+        "medianCaseAllocatedBytes": 10906136,
+        "sumCaseMedianAllocatedBytes": 1020609944,
+        "sumRockStageMedianMs": 680.5145,
+        "sumRockStageMedianAllocatedBytes": 243854696,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      },
+      "after": {
+        "cases": 45,
+        "newlyTraversable": 6885,
+        "anchoredNewCells": 5944,
+        "previousGroundConnected": 8722,
+        "features": 187,
+        "anchoredFeatures": 145,
+        "usefulAnchoredFeatures": 145,
+        "newlyAnchoredNaturalClearings": 19,
+        "deepBlockingCells": 6178,
+        "blockingBeyondMainSightRange": 40239,
+        "maxRemainingDepth": 11,
+        "largestRemainingMass": 3425,
+        "nominalBudget": 7642,
+        "usedBudget": 6885,
+        "budgetUtilization": 0.900942161737765,
+        "occupiedSpatialBins": 1125,
+        "touchedSpatialBins": 304,
+        "routingSearches": 1213,
+        "routingVisitedCells": 339555,
+        "medianCaseMs": 36.0998,
+        "sumCaseMedianMs": 4141.8552,
+        "medianCaseAllocatedBytes": 12628576,
+        "sumCaseMedianAllocatedBytes": 1292916032,
+        "sumRockStageMedianMs": 1712.3606,
+        "sumRockStageMedianAllocatedBytes": 513659840,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      }
+    },
+    "intensity-3": {
+      "before": {
+        "cases": 45,
+        "newlyTraversable": 3927,
+        "anchoredNewCells": 913,
+        "previousGroundConnected": 599,
+        "features": 119,
+        "anchoredFeatures": 31,
+        "usefulAnchoredFeatures": 31,
+        "newlyAnchoredNaturalClearings": 0,
+        "deepBlockingCells": 17483,
+        "blockingBeyondMainSightRange": 70334,
+        "maxRemainingDepth": 25,
+        "largestRemainingMass": 11183,
+        "nominalBudget": 9940,
+        "usedBudget": 3927,
+        "budgetUtilization": 0.39507042253521124,
+        "occupiedSpatialBins": 1125,
+        "touchedSpatialBins": 295,
+        "routingSearches": 615,
+        "routingVisitedCells": 143066,
+        "medianCaseMs": 27.5746,
+        "sumCaseMedianMs": 2731.3205,
+        "medianCaseAllocatedBytes": 10907656,
+        "sumCaseMedianAllocatedBytes": 1010015792,
+        "sumRockStageMedianMs": 658.666,
+        "sumRockStageMedianAllocatedBytes": 233198352,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      },
+      "after": {
+        "cases": 45,
+        "newlyTraversable": 8889,
+        "anchoredNewCells": 7694,
+        "previousGroundConnected": 9074,
+        "features": 245,
+        "anchoredFeatures": 193,
+        "usefulAnchoredFeatures": 193,
+        "newlyAnchoredNaturalClearings": 23,
+        "deepBlockingCells": 3458,
+        "blockingBeyondMainSightRange": 34834,
+        "maxRemainingDepth": 9,
+        "largestRemainingMass": 2802,
+        "nominalBudget": 9940,
+        "usedBudget": 8889,
+        "budgetUtilization": 0.8942655935613683,
+        "occupiedSpatialBins": 1125,
+        "touchedSpatialBins": 359,
+        "routingSearches": 1304,
+        "routingVisitedCells": 344443,
+        "medianCaseMs": 34.0124,
+        "sumCaseMedianMs": 4386.0395,
+        "medianCaseAllocatedBytes": 12804776,
+        "sumCaseMedianAllocatedBytes": 1361609752,
+        "sumRockStageMedianMs": 2006.7053,
+        "sumRockStageMedianAllocatedBytes": 580462808,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      }
+    },
+    "high-30": {
+      "before": {
+        "cases": 15,
+        "newlyTraversable": 109,
+        "anchoredNewCells": 93,
+        "previousGroundConnected": 7,
+        "features": 5,
+        "anchoredFeatures": 4,
+        "usefulAnchoredFeatures": 4,
+        "newlyAnchoredNaturalClearings": 0,
+        "deepBlockingCells": 64,
+        "blockingBeyondMainSightRange": 1216,
+        "maxRemainingDepth": 7,
+        "largestRemainingMass": 569,
+        "nominalBudget": 188,
+        "usedBudget": 109,
+        "budgetUtilization": 0.5797872340425532,
+        "occupiedSpatialBins": 69,
+        "touchedSpatialBins": 13,
+        "routingSearches": 8,
+        "routingVisitedCells": 806,
+        "medianCaseMs": 7.8574,
+        "sumCaseMedianMs": 117.6498,
+        "medianCaseAllocatedBytes": 3517880,
+        "sumCaseMedianAllocatedBytes": 53317256,
+        "sumRockStageMedianMs": 13.156600000000001,
+        "sumRockStageMedianAllocatedBytes": 3314176,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      },
+      "after": {
+        "cases": 15,
+        "newlyTraversable": 132,
+        "anchoredNewCells": 132,
+        "previousGroundConnected": 63,
+        "features": 6,
+        "anchoredFeatures": 6,
+        "usefulAnchoredFeatures": 6,
+        "newlyAnchoredNaturalClearings": 0,
+        "deepBlockingCells": 14,
+        "blockingBeyondMainSightRange": 1097,
+        "maxRemainingDepth": 7,
+        "largestRemainingMass": 594,
+        "nominalBudget": 188,
+        "usedBudget": 132,
+        "budgetUtilization": 0.7021276595744681,
+        "occupiedSpatialBins": 69,
+        "touchedSpatialBins": 14,
+        "routingSearches": 70,
+        "routingVisitedCells": 6499,
+        "medianCaseMs": 8.8958,
+        "sumCaseMedianMs": 141.8336,
+        "medianCaseAllocatedBytes": 3655544,
+        "sumCaseMedianAllocatedBytes": 59897056,
+        "sumRockStageMedianMs": 28.3823,
+        "sumRockStageMedianAllocatedBytes": 9878120,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      }
+    },
+    "high-60": {
+      "before": {
+        "cases": 15,
+        "newlyTraversable": 752,
+        "anchoredNewCells": 438,
+        "previousGroundConnected": 215,
+        "features": 26,
+        "anchoredFeatures": 15,
+        "usefulAnchoredFeatures": 15,
+        "newlyAnchoredNaturalClearings": 0,
+        "deepBlockingCells": 1298,
+        "blockingBeyondMainSightRange": 7933,
+        "maxRemainingDepth": 12,
+        "largestRemainingMass": 2278,
+        "nominalBudget": 1464,
+        "usedBudget": 752,
+        "budgetUtilization": 0.5136612021857924,
+        "occupiedSpatialBins": 264,
+        "touchedSpatialBins": 80,
+        "routingSearches": 181,
+        "routingVisitedCells": 31427,
+        "medianCaseMs": 27.5746,
+        "sumCaseMedianMs": 448.8615,
+        "medianCaseAllocatedBytes": 10907656,
+        "sumCaseMedianAllocatedBytes": 180572184,
+        "sumRockStageMedianMs": 121.9326,
+        "sumRockStageMedianAllocatedBytes": 39634400,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      },
+      "after": {
+        "cases": 15,
+        "newlyTraversable": 1210,
+        "anchoredNewCells": 1029,
+        "previousGroundConnected": 392,
+        "features": 46,
+        "anchoredFeatures": 37,
+        "usefulAnchoredFeatures": 37,
+        "newlyAnchoredNaturalClearings": 1,
+        "deepBlockingCells": 225,
+        "blockingBeyondMainSightRange": 5615,
+        "maxRemainingDepth": 8,
+        "largestRemainingMass": 1273,
+        "nominalBudget": 1464,
+        "usedBudget": 1210,
+        "budgetUtilization": 0.8265027322404371,
+        "occupiedSpatialBins": 264,
+        "touchedSpatialBins": 94,
+        "routingSearches": 222,
+        "routingVisitedCells": 40599,
+        "medianCaseMs": 34.0124,
+        "sumCaseMedianMs": 595.2561,
+        "medianCaseAllocatedBytes": 12804776,
+        "sumCaseMedianAllocatedBytes": 199718832,
+        "sumRockStageMedianMs": 199.5803,
+        "sumRockStageMedianAllocatedBytes": 58348752,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      }
+    },
+    "high-120": {
+      "before": {
+        "cases": 15,
+        "newlyTraversable": 3066,
+        "anchoredNewCells": 382,
+        "previousGroundConnected": 377,
+        "features": 88,
+        "anchoredFeatures": 12,
+        "usefulAnchoredFeatures": 12,
+        "newlyAnchoredNaturalClearings": 0,
+        "deepBlockingCells": 16121,
+        "blockingBeyondMainSightRange": 61185,
+        "maxRemainingDepth": 25,
+        "largestRemainingMass": 11183,
+        "nominalBudget": 8288,
+        "usedBudget": 3066,
+        "budgetUtilization": 0.36993243243243246,
+        "occupiedSpatialBins": 792,
+        "touchedSpatialBins": 202,
+        "routingSearches": 426,
+        "routingVisitedCells": 110833,
+        "medianCaseMs": 150.2141,
+        "sumCaseMedianMs": 2164.8092,
+        "medianCaseAllocatedBytes": 54431208,
+        "sumCaseMedianAllocatedBytes": 776126352,
+        "sumRockStageMedianMs": 523.5768,
+        "sumRockStageMedianAllocatedBytes": 190249776,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      },
+      "after": {
+        "cases": 15,
+        "newlyTraversable": 7547,
+        "anchoredNewCells": 6533,
+        "previousGroundConnected": 8619,
+        "features": 193,
+        "anchoredFeatures": 150,
+        "usefulAnchoredFeatures": 150,
+        "newlyAnchoredNaturalClearings": 22,
+        "deepBlockingCells": 3219,
+        "blockingBeyondMainSightRange": 28122,
+        "maxRemainingDepth": 9,
+        "largestRemainingMass": 2802,
+        "nominalBudget": 8288,
+        "usedBudget": 7547,
+        "budgetUtilization": 0.9105936293436293,
+        "occupiedSpatialBins": 792,
+        "touchedSpatialBins": 251,
+        "routingSearches": 1012,
+        "routingVisitedCells": 297345,
+        "medianCaseMs": 197.95,
+        "sumCaseMedianMs": 3648.9498,
+        "medianCaseAllocatedBytes": 61131224,
+        "sumCaseMedianAllocatedBytes": 1101993864,
+        "sumRockStageMedianMs": 1778.7427,
+        "sumRockStageMedianAllocatedBytes": 512235936,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      }
+    },
+    "high-Woodland": {
+      "before": {
+        "cases": 9,
+        "newlyTraversable": 33,
+        "anchoredNewCells": 0,
+        "previousGroundConnected": 0,
+        "features": 2,
+        "anchoredFeatures": 0,
+        "usefulAnchoredFeatures": 0,
+        "newlyAnchoredNaturalClearings": 0,
+        "deepBlockingCells": 0,
+        "blockingBeyondMainSightRange": 2575,
+        "maxRemainingDepth": 4,
+        "largestRemainingMass": 170,
+        "nominalBudget": 40,
+        "usedBudget": 33,
+        "budgetUtilization": 0.825,
+        "occupiedSpatialBins": 22,
+        "touchedSpatialBins": 6,
+        "routingSearches": 8,
+        "routingVisitedCells": 215,
+        "medianCaseMs": 24.4971,
+        "sumCaseMedianMs": 481.2659,
+        "medianCaseAllocatedBytes": 9985696,
+        "sumCaseMedianAllocatedBytes": 166252128,
+        "sumRockStageMedianMs": 53.6905,
+        "sumRockStageMedianAllocatedBytes": 10482920,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      },
+      "after": {
+        "cases": 9,
+        "newlyTraversable": 12,
+        "anchoredNewCells": 0,
+        "previousGroundConnected": 0,
+        "features": 1,
+        "anchoredFeatures": 0,
+        "usefulAnchoredFeatures": 0,
+        "newlyAnchoredNaturalClearings": 0,
+        "deepBlockingCells": 0,
+        "blockingBeyondMainSightRange": 2596,
+        "maxRemainingDepth": 5,
+        "largestRemainingMass": 129,
+        "nominalBudget": 40,
+        "usedBudget": 12,
+        "budgetUtilization": 0.3,
+        "occupiedSpatialBins": 22,
+        "touchedSpatialBins": 2,
+        "routingSearches": 16,
+        "routingVisitedCells": 556,
+        "medianCaseMs": 27.3153,
+        "sumCaseMedianMs": 534.0979,
+        "medianCaseAllocatedBytes": 10612256,
+        "sumCaseMedianAllocatedBytes": 177041224,
+        "sumRockStageMedianMs": 79.4399,
+        "sumRockStageMedianAllocatedBytes": 21280208,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      }
+    },
+    "high-RockyWilds": {
+      "before": {
+        "cases": 9,
+        "newlyTraversable": 1459,
+        "anchoredNewCells": 546,
+        "previousGroundConnected": 557,
+        "features": 42,
+        "anchoredFeatures": 19,
+        "usefulAnchoredFeatures": 19,
+        "newlyAnchoredNaturalClearings": 0,
+        "deepBlockingCells": 2301,
+        "blockingBeyondMainSightRange": 13473,
+        "maxRemainingDepth": 12,
+        "largestRemainingMass": 2470,
+        "nominalBudget": 2657,
+        "usedBudget": 1459,
+        "budgetUtilization": 0.5491155438464433,
+        "occupiedSpatialBins": 311,
+        "touchedSpatialBins": 98,
+        "routingSearches": 87,
+        "routingVisitedCells": 32978,
+        "medianCaseMs": 27.5746,
+        "sumCaseMedianMs": 557.2843,
+        "medianCaseAllocatedBytes": 10907656,
+        "sumCaseMedianAllocatedBytes": 202750120,
+        "sumRockStageMedianMs": 145.6247,
+        "sumRockStageMedianAllocatedBytes": 49405952,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      },
+      "after": {
+        "cases": 9,
+        "newlyTraversable": 2422,
+        "anchoredNewCells": 2170,
+        "previousGroundConnected": 4517,
+        "features": 79,
+        "anchoredFeatures": 67,
+        "usefulAnchoredFeatures": 67,
+        "newlyAnchoredNaturalClearings": 5,
+        "deepBlockingCells": 566,
+        "blockingBeyondMainSightRange": 5327,
+        "maxRemainingDepth": 9,
+        "largestRemainingMass": 1110,
+        "nominalBudget": 2657,
+        "usedBudget": 2422,
+        "budgetUtilization": 0.9115543846443357,
+        "occupiedSpatialBins": 311,
+        "touchedSpatialBins": 142,
+        "routingSearches": 306,
+        "routingVisitedCells": 56103,
+        "medianCaseMs": 33.9026,
+        "sumCaseMedianMs": 732.9333,
+        "medianCaseAllocatedBytes": 12804776,
+        "sumCaseMedianAllocatedBytes": 247532312,
+        "sumRockStageMedianMs": 284.2361,
+        "sumRockStageMedianAllocatedBytes": 93120000,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      }
+    },
+    "high-DenseForest": {
+      "before": {
+        "cases": 9,
+        "newlyTraversable": 0,
+        "anchoredNewCells": 0,
+        "previousGroundConnected": 0,
+        "features": 0,
+        "anchoredFeatures": 0,
+        "usefulAnchoredFeatures": 0,
+        "newlyAnchoredNaturalClearings": 0,
+        "deepBlockingCells": 11,
+        "blockingBeyondMainSightRange": 753,
+        "maxRemainingDepth": 7,
+        "largestRemainingMass": 251,
+        "nominalBudget": 32,
+        "usedBudget": 0,
+        "budgetUtilization": 0.0,
+        "occupiedSpatialBins": 12,
+        "touchedSpatialBins": 0,
+        "routingSearches": 0,
+        "routingVisitedCells": 0,
+        "medianCaseMs": 22.4516,
+        "sumCaseMedianMs": 416.5307,
+        "medianCaseAllocatedBytes": 9530704,
+        "sumCaseMedianAllocatedBytes": 156110040,
+        "sumRockStageMedianMs": 41.4669,
+        "sumRockStageMedianAllocatedBytes": 7334384,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      },
+      "after": {
+        "cases": 9,
+        "newlyTraversable": 0,
+        "anchoredNewCells": 0,
+        "previousGroundConnected": 0,
+        "features": 0,
+        "anchoredFeatures": 0,
+        "usefulAnchoredFeatures": 0,
+        "newlyAnchoredNaturalClearings": 0,
+        "deepBlockingCells": 11,
+        "blockingBeyondMainSightRange": 753,
+        "maxRemainingDepth": 7,
+        "largestRemainingMass": 251,
+        "nominalBudget": 32,
+        "usedBudget": 0,
+        "budgetUtilization": 0.0,
+        "occupiedSpatialBins": 12,
+        "touchedSpatialBins": 0,
+        "routingSearches": 0,
+        "routingVisitedCells": 0,
+        "medianCaseMs": 35.0512,
+        "sumCaseMedianMs": 560.7243,
+        "medianCaseAllocatedBytes": 10149576,
+        "sumCaseMedianAllocatedBytes": 167301912,
+        "sumRockStageMedianMs": 90.1073,
+        "sumRockStageMedianAllocatedBytes": 18528408,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      }
+    },
+    "high-DenseRock": {
+      "before": {
+        "cases": 9,
+        "newlyTraversable": 1514,
+        "anchoredNewCells": 338,
+        "previousGroundConnected": 42,
+        "features": 29,
+        "anchoredFeatures": 10,
+        "usefulAnchoredFeatures": 10,
+        "newlyAnchoredNaturalClearings": 0,
+        "deepBlockingCells": 15126,
+        "blockingBeyondMainSightRange": 36218,
+        "maxRemainingDepth": 25,
+        "largestRemainingMass": 11183,
+        "nominalBudget": 5438,
+        "usedBudget": 1514,
+        "budgetUtilization": 0.278411180581096,
+        "occupiedSpatialBins": 182,
+        "touchedSpatialBins": 60,
+        "routingSearches": 184,
+        "routingVisitedCells": 81419,
+        "medianCaseMs": 38.1058,
+        "sumCaseMedianMs": 669.5497,
+        "medianCaseAllocatedBytes": 14687152,
+        "sumCaseMedianAllocatedBytes": 246120208,
+        "sumRockStageMedianMs": 272.4241,
+        "sumRockStageMedianAllocatedBytes": 95033480,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      },
+      "after": {
+        "cases": 9,
+        "newlyTraversable": 5308,
+        "anchoredNewCells": 5308,
+        "previousGroundConnected": 4420,
+        "features": 116,
+        "anchoredFeatures": 116,
+        "usefulAnchoredFeatures": 116,
+        "newlyAnchoredNaturalClearings": 16,
+        "deepBlockingCells": 2840,
+        "blockingBeyondMainSightRange": 9784,
+        "maxRemainingDepth": 9,
+        "largestRemainingMass": 2802,
+        "nominalBudget": 5438,
+        "usedBudget": 5308,
+        "budgetUtilization": 0.976094152261861,
+        "occupiedSpatialBins": 182,
+        "touchedSpatialBins": 101,
+        "routingSearches": 532,
+        "routingVisitedCells": 230070,
+        "medianCaseMs": 50.7838,
+        "sumCaseMedianMs": 1780.4706,
+        "medianCaseAllocatedBytes": 20822080,
+        "sumCaseMedianAllocatedBytes": 532971416,
+        "sumRockStageMedianMs": 1314.4597,
+        "sumRockStageMedianAllocatedBytes": 378774768,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      }
+    },
+    "high-FineMixed": {
+      "before": {
+        "cases": 9,
+        "newlyTraversable": 921,
+        "anchoredNewCells": 29,
+        "previousGroundConnected": 0,
+        "features": 46,
+        "anchoredFeatures": 2,
+        "usefulAnchoredFeatures": 2,
+        "newlyAnchoredNaturalClearings": 0,
+        "deepBlockingCells": 45,
+        "blockingBeyondMainSightRange": 17315,
+        "maxRemainingDepth": 7,
+        "largestRemainingMass": 719,
+        "nominalBudget": 1773,
+        "usedBudget": 921,
+        "budgetUtilization": 0.5194585448392555,
+        "occupiedSpatialBins": 598,
+        "touchedSpatialBins": 131,
+        "routingSearches": 336,
+        "routingVisitedCells": 28454,
+        "medianCaseMs": 30.3012,
+        "sumCaseMedianMs": 606.6899,
+        "medianCaseAllocatedBytes": 12464104,
+        "sumCaseMedianAllocatedBytes": 238783296,
+        "sumRockStageMedianMs": 145.4598,
+        "sumRockStageMedianAllocatedBytes": 70941616,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      },
+      "after": {
+        "cases": 9,
+        "newlyTraversable": 1147,
+        "anchoredNewCells": 216,
+        "previousGroundConnected": 137,
+        "features": 49,
+        "anchoredFeatures": 10,
+        "usefulAnchoredFeatures": 10,
+        "newlyAnchoredNaturalClearings": 2,
+        "deepBlockingCells": 41,
+        "blockingBeyondMainSightRange": 16374,
+        "maxRemainingDepth": 7,
+        "largestRemainingMass": 574,
+        "nominalBudget": 1773,
+        "usedBudget": 1147,
+        "budgetUtilization": 0.64692611393119,
+        "occupiedSpatialBins": 598,
+        "touchedSpatialBins": 114,
+        "routingSearches": 450,
+        "routingVisitedCells": 57714,
+        "medianCaseMs": 40.1132,
+        "sumCaseMedianMs": 777.8134,
+        "medianCaseAllocatedBytes": 12917696,
+        "sumCaseMedianAllocatedBytes": 236762888,
+        "sumRockStageMedianMs": 238.4623,
+        "sumRockStageMedianAllocatedBytes": 68759424,
+        "engineValid": true,
+        "deterministic": true,
+        "nonRockEdits": 0
+      }
+    }
+  },
+  "disabledFingerprintsUnchanged": true,
+  "pairedHigh": [
+    {
+      "key": "30x24-Woodland-0000000000000001",
+      "beforeFingerprint": "709A1389B63F6201AF8C0B14D6942C912BDA9DAE958BD43DEEA93329BB77A16D",
+      "afterFingerprint": "709A1389B63F6201AF8C0B14D6942C912BDA9DAE958BD43DEEA93329BB77A16D",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 2,
+        "after": 2
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 14,
+        "after": 14
+      }
+    },
+    {
+      "key": "30x24-Woodland-000000000000002A",
+      "beforeFingerprint": "0C8FB6CD1BEC7739127EFB1F0376965E0C72D25079CBD80251E771BAA109B2B4",
+      "afterFingerprint": "0C8FB6CD1BEC7739127EFB1F0376965E0C72D25079CBD80251E771BAA109B2B4",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 2,
+        "after": 2
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 4,
+        "after": 4
+      }
+    },
+    {
+      "key": "30x24-Woodland-123456789ABCDEF0",
+      "beforeFingerprint": "12D3FAA172BA220B2D16283D31DD2E0E74C9FA1A722811B25AEFD97108A14B0D",
+      "afterFingerprint": "12D3FAA172BA220B2D16283D31DD2E0E74C9FA1A722811B25AEFD97108A14B0D",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 3,
+        "after": 3
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 4,
+        "after": 4
+      }
+    },
+    {
+      "key": "30x24-RockyWilds-0000000000000001",
+      "beforeFingerprint": "6502D7EC48A3CB914E7011BA3579CAF6AD9D7679EEA23B834A61F3E2A1A7A1C3",
+      "afterFingerprint": "6502D7EC48A3CB914E7011BA3579CAF6AD9D7679EEA23B834A61F3E2A1A7A1C3",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 4,
+        "after": 4
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 38,
+        "after": 38
+      }
+    },
+    {
+      "key": "30x24-RockyWilds-000000000000002A",
+      "beforeFingerprint": "68F54CE2EB26B20F2F2770117D1D8B13751437C7E68BBA210B8442368E677A14",
+      "afterFingerprint": "9746D13B6BFCAB8FB8073C7B2A21F833383C470DB3992BBE66ACC3CD23F8367A",
+      "newlyTraversable": {
+        "before": 19,
+        "after": 34
+      },
+      "anchoredNewCells": {
+        "before": 19,
+        "after": 34
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 56
+      },
+      "afterMaxDepth": {
+        "before": 5,
+        "after": 5
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 108,
+        "after": 78
+      }
+    },
+    {
+      "key": "30x24-RockyWilds-123456789ABCDEF0",
+      "beforeFingerprint": "56671A78D16033311C7FE28F711B75BD5E30FE44E13DF7568CF9B9C59B521FC3",
+      "afterFingerprint": "56671A78D16033311C7FE28F711B75BD5E30FE44E13DF7568CF9B9C59B521FC3",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 2,
+        "after": 2
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 47,
+        "after": 47
+      }
+    },
+    {
+      "key": "30x24-DenseForest-0000000000000001",
+      "beforeFingerprint": "CEF6A09615ED8BDF3C895FC6A34E8DD5278E5A14A0EB4D47AF1A960F04F0FAA1",
+      "afterFingerprint": "CEF6A09615ED8BDF3C895FC6A34E8DD5278E5A14A0EB4D47AF1A960F04F0FAA1",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 1,
+        "after": 1
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 7,
+        "after": 7
+      }
+    },
+    {
+      "key": "30x24-DenseForest-000000000000002A",
+      "beforeFingerprint": "938A14ABF68EC8C4F361FE6B1B4D60AAED02A80D9D6DCAE2D802758CDB7E2076",
+      "afterFingerprint": "938A14ABF68EC8C4F361FE6B1B4D60AAED02A80D9D6DCAE2D802758CDB7E2076",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 1,
+        "after": 1
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 0,
+        "after": 0
+      }
+    },
+    {
+      "key": "30x24-DenseForest-123456789ABCDEF0",
+      "beforeFingerprint": "EE85AD5303206CE8610E3CEE11026E8F5C7F0D694C9E3CA49C1FDB04A5B947A1",
+      "afterFingerprint": "EE85AD5303206CE8610E3CEE11026E8F5C7F0D694C9E3CA49C1FDB04A5B947A1",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 0,
+        "after": 0
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 0,
+        "after": 0
+      }
+    },
+    {
+      "key": "30x24-DenseRock-0000000000000001",
+      "beforeFingerprint": "26A98E8C49F7C42FC22A12112EFD70DB63076A5FB4DBC33AF8F23AE34AFEEB94",
+      "afterFingerprint": "26A98E8C49F7C42FC22A12112EFD70DB63076A5FB4DBC33AF8F23AE34AFEEB94",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 5,
+        "after": 5
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 187,
+        "after": 187
+      }
+    },
+    {
+      "key": "30x24-DenseRock-000000000000002A",
+      "beforeFingerprint": "8A189098289C3CDE4328AC7BC5CDDB277FDAA562764FACCDBB99B542641B1468",
+      "afterFingerprint": "D78B8A4818E48E0A0FB86FB5142A09D5B5128543489C5B0B94E951375E1207AC",
+      "newlyTraversable": {
+        "before": 53,
+        "after": 77
+      },
+      "anchoredNewCells": {
+        "before": 53,
+        "after": 77
+      },
+      "previousGroundConnected": {
+        "before": 7,
+        "after": 7
+      },
+      "afterMaxDepth": {
+        "before": 7,
+        "after": 7
+      },
+      "deepBlockingCells": {
+        "before": 64,
+        "after": 14
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 352,
+        "after": 250
+      }
+    },
+    {
+      "key": "30x24-DenseRock-123456789ABCDEF0",
+      "beforeFingerprint": "8D934BBC682A93731517C3DF58F037982A727E23DE07EEF58B9D6D209D01F1B4",
+      "afterFingerprint": "D6B9F19FAEB6E0D1F90EB1E03D1BC21EFB165A276A691054E3E14A86F31F8C66",
+      "newlyTraversable": {
+        "before": 21,
+        "after": 21
+      },
+      "anchoredNewCells": {
+        "before": 21,
+        "after": 21
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 4,
+        "after": 4
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 115,
+        "after": 115
+      }
+    },
+    {
+      "key": "30x24-FineMixed-0000000000000001",
+      "beforeFingerprint": "0A045BA56F1900743827348E1B44BA78D5AE35EB1F33E18A0E76BBA3C1B700E0",
+      "afterFingerprint": "95D63E85E7A421A2E63E3C071BD77664932E01E879768BE733967379330034B5",
+      "newlyTraversable": {
+        "before": 16,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 3,
+        "after": 5
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 98,
+        "after": 111
+      }
+    },
+    {
+      "key": "30x24-FineMixed-000000000000002A",
+      "beforeFingerprint": "F9A5ADDDF4FEFE6749BA0302E42D4D12D3A81E414C30874E1355CA45EBC726C6",
+      "afterFingerprint": "F9A5ADDDF4FEFE6749BA0302E42D4D12D3A81E414C30874E1355CA45EBC726C6",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 3,
+        "after": 3
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 79,
+        "after": 79
+      }
+    },
+    {
+      "key": "30x24-FineMixed-123456789ABCDEF0",
+      "beforeFingerprint": "F4C9B62CC51EA2B7D21ECC029C1297184F61C72524142937166D2295AE5550EB",
+      "afterFingerprint": "F4C9B62CC51EA2B7D21ECC029C1297184F61C72524142937166D2295AE5550EB",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 5,
+        "after": 5
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 163,
+        "after": 163
+      }
+    },
+    {
+      "key": "60x50-Woodland-0000000000000001",
+      "beforeFingerprint": "D39CB8ECC6D5D22639BA1C269E69C56F8C097774F1BF4224D491A49AA921F204",
+      "afterFingerprint": "D39CB8ECC6D5D22639BA1C269E69C56F8C097774F1BF4224D491A49AA921F204",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 3,
+        "after": 3
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 79,
+        "after": 79
+      }
+    },
+    {
+      "key": "60x50-Woodland-000000000000002A",
+      "beforeFingerprint": "076B186C1A9A9A1400C6DFC6C66BB6B7F20B69261062318A764E5CB65F41962E",
+      "afterFingerprint": "076B186C1A9A9A1400C6DFC6C66BB6B7F20B69261062318A764E5CB65F41962E",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 4,
+        "after": 4
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 96,
+        "after": 96
+      }
+    },
+    {
+      "key": "60x50-Woodland-123456789ABCDEF0",
+      "beforeFingerprint": "F600ED1740739D117D02819E6A17F790F25EFD652787F6ECB0A3124490157F6A",
+      "afterFingerprint": "F600ED1740739D117D02819E6A17F790F25EFD652787F6ECB0A3124490157F6A",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 3,
+        "after": 3
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 69,
+        "after": 69
+      }
+    },
+    {
+      "key": "60x50-RockyWilds-0000000000000001",
+      "beforeFingerprint": "DB19F7676E808E599E79CCB55A678E1DBD7996B9D24203F7028E320171F6744E",
+      "afterFingerprint": "A5EF81B242461D75306B12F8792D7E46EDCB5852D962F62322FD700BE37BD9DC",
+      "newlyTraversable": {
+        "before": 68,
+        "after": 94
+      },
+      "anchoredNewCells": {
+        "before": 68,
+        "after": 94
+      },
+      "previousGroundConnected": {
+        "before": 163,
+        "after": 146
+      },
+      "afterMaxDepth": {
+        "before": 8,
+        "after": 5
+      },
+      "deepBlockingCells": {
+        "before": 46,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 172,
+        "after": 177
+      }
+    },
+    {
+      "key": "60x50-RockyWilds-000000000000002A",
+      "beforeFingerprint": "7DF61579A760F843FEA8861556BC73E85B8A664CA4725056D4980D5A1F9A04D9",
+      "afterFingerprint": "7531B83E026287A2323DDBF73EE997449BCF33932B22A27922CFBBBB4A80FA48",
+      "newlyTraversable": {
+        "before": 49,
+        "after": 80
+      },
+      "anchoredNewCells": {
+        "before": 49,
+        "after": 21
+      },
+      "previousGroundConnected": {
+        "before": 17,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 6,
+        "after": 5
+      },
+      "deepBlockingCells": {
+        "before": 21,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 441,
+        "after": 531
+      }
+    },
+    {
+      "key": "60x50-RockyWilds-123456789ABCDEF0",
+      "beforeFingerprint": "9590E205F2E7CEFD3F4D496E1E0B631D2A87B13F5B0148D209993570E44677D2",
+      "afterFingerprint": "9826CF9E80D32BEDC14940DBD711580060324C3D5EBA252C140707C9A82194D9",
+      "newlyTraversable": {
+        "before": 72,
+        "after": 96
+      },
+      "anchoredNewCells": {
+        "before": 28,
+        "after": 51
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 10,
+        "after": 6
+      },
+      "deepBlockingCells": {
+        "before": 81,
+        "after": 1
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 612,
+        "after": 467
+      }
+    },
+    {
+      "key": "60x50-DenseForest-0000000000000001",
+      "beforeFingerprint": "6D44CD9209A464EA00029F8DEC6F11E16FC9B2D94C561FB8191AC8F801A41A4A",
+      "afterFingerprint": "6D44CD9209A464EA00029F8DEC6F11E16FC9B2D94C561FB8191AC8F801A41A4A",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 2,
+        "after": 2
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 22,
+        "after": 22
+      }
+    },
+    {
+      "key": "60x50-DenseForest-000000000000002A",
+      "beforeFingerprint": "3D42EE83FB03FB65CF0027EE6F8CDF250645539C7C0E063304751275D470B50B",
+      "afterFingerprint": "3D42EE83FB03FB65CF0027EE6F8CDF250645539C7C0E063304751275D470B50B",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 2,
+        "after": 2
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 33,
+        "after": 33
+      }
+    },
+    {
+      "key": "60x50-DenseForest-123456789ABCDEF0",
+      "beforeFingerprint": "780E5FD0159DFED9BD4D94F41D5AAFC0EE7509C2704335EE1FD1F01666019B25",
+      "afterFingerprint": "780E5FD0159DFED9BD4D94F41D5AAFC0EE7509C2704335EE1FD1F01666019B25",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 2,
+        "after": 2
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 8,
+        "after": 8
+      }
+    },
+    {
+      "key": "60x50-DenseRock-0000000000000001",
+      "beforeFingerprint": "0B4A170C1ADD4D6C26E7A867D814C99526627FA2715C739D0155102A5207C734",
+      "afterFingerprint": "EB3C5BFBFD4F0ABBEBB8F6240D4D3DA50F2CCE61E6B4DFD5D51B3DF284646C8B",
+      "newlyTraversable": {
+        "before": 92,
+        "after": 196
+      },
+      "anchoredNewCells": {
+        "before": 92,
+        "after": 196
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 11,
+        "after": 7
+      },
+      "deepBlockingCells": {
+        "before": 224,
+        "after": 41
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 811,
+        "after": 575
+      }
+    },
+    {
+      "key": "60x50-DenseRock-000000000000002A",
+      "beforeFingerprint": "9BFD5117D6C33AC274DE680865E533A92EC0F59DC9B80D2AB1990A04569A608A",
+      "afterFingerprint": "C2101695F09E59D2B191F6940FA0EA5F005A0104F3BAE5657EB08A44240FD646",
+      "newlyTraversable": {
+        "before": 159,
+        "after": 314
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 314
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 114
+      },
+      "afterMaxDepth": {
+        "before": 12,
+        "after": 7
+      },
+      "deepBlockingCells": {
+        "before": 514,
+        "after": 67
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 2095,
+        "after": 521
+      }
+    },
+    {
+      "key": "60x50-DenseRock-123456789ABCDEF0",
+      "beforeFingerprint": "9C0F14C1EEC6D22E964416D3027BD025031AD676D726BCEB56510D4E6E10501C",
+      "afterFingerprint": "EF8FAF8DAE8773833F42CB1597BE6F999A8AE235EA9428A1290D5010527B81EB",
+      "newlyTraversable": {
+        "before": 172,
+        "after": 301
+      },
+      "anchoredNewCells": {
+        "before": 172,
+        "after": 301
+      },
+      "previousGroundConnected": {
+        "before": 35,
+        "after": 96
+      },
+      "afterMaxDepth": {
+        "before": 12,
+        "after": 8
+      },
+      "deepBlockingCells": {
+        "before": 411,
+        "after": 113
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 1040,
+        "after": 657
+      }
+    },
+    {
+      "key": "60x50-FineMixed-0000000000000001",
+      "beforeFingerprint": "0D32343BE3A3576E2ED311E48A61503A52E0FB9102A5F5973924B0629442A2B9",
+      "afterFingerprint": "94D9EF10C57FCC12A39BFB0A9F662EAADC5087C72089DC7768256CCD7FCCBCDA",
+      "newlyTraversable": {
+        "before": 22,
+        "after": 15
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 6,
+        "after": 6
+      },
+      "deepBlockingCells": {
+        "before": 1,
+        "after": 1
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 767,
+        "after": 774
+      }
+    },
+    {
+      "key": "60x50-FineMixed-000000000000002A",
+      "beforeFingerprint": "920742D5CFD9E7C135940C17796194AE4BFCFD55F80CE653EB9A1B67A4E2A044",
+      "afterFingerprint": "2D80E34A83B7CFBE61D9CCB4BB7884D6CA49ADAE73A7C52E8ECF74F833892A11",
+      "newlyTraversable": {
+        "before": 36,
+        "after": 28
+      },
+      "anchoredNewCells": {
+        "before": 15,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 5,
+        "after": 6
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 2
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 771,
+        "after": 815
+      }
+    },
+    {
+      "key": "60x50-FineMixed-123456789ABCDEF0",
+      "beforeFingerprint": "D2A4D760B8C8069EFF4229EFAE46F2B918B033F417900415F13E65CA68CBA72C",
+      "afterFingerprint": "A182C4440190A6465E22DFC2AB6A6D2BBDC5D34F05A0ECE07D5D9561FE1659B2",
+      "newlyTraversable": {
+        "before": 82,
+        "after": 86
+      },
+      "anchoredNewCells": {
+        "before": 14,
+        "after": 52
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 36
+      },
+      "afterMaxDepth": {
+        "before": 5,
+        "after": 5
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 917,
+        "after": 791
+      }
+    },
+    {
+      "key": "120x120-Woodland-0000000000000001",
+      "beforeFingerprint": "E602F5362865ADE08F4F358E5CD181AB7722545729F0237913D8E8C61F2A705A",
+      "afterFingerprint": "E602F5362865ADE08F4F358E5CD181AB7722545729F0237913D8E8C61F2A705A",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 3,
+        "after": 3
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 385,
+        "after": 385
+      }
+    },
+    {
+      "key": "120x120-Woodland-000000000000002A",
+      "beforeFingerprint": "428D6893189080F5B716DB200A2EB18A9CA354EE32BEAFDF1E5ED871A26E1952",
+      "afterFingerprint": "6E437C9FDFCDAE733EE6D9208B4BE6D0007366DAAE7DF8DAF29DE2EBF30C3CAE",
+      "newlyTraversable": {
+        "before": 33,
+        "after": 12
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 4,
+        "after": 5
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 1085,
+        "after": 1106
+      }
+    },
+    {
+      "key": "120x120-Woodland-123456789ABCDEF0",
+      "beforeFingerprint": "A6838EF8B6595B7C0027E5EDF67449A0BF45A773B4C8C96A7896A67E4E938212",
+      "afterFingerprint": "A6838EF8B6595B7C0027E5EDF67449A0BF45A773B4C8C96A7896A67E4E938212",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 4,
+        "after": 4
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 839,
+        "after": 839
+      }
+    },
+    {
+      "key": "120x120-RockyWilds-0000000000000001",
+      "beforeFingerprint": "2645DB8666EC993D5E3167E9035B5E84FA61A5D3C3CCDB8525DFC480369DA5B4",
+      "afterFingerprint": "A5292FB831F335601B7A0C312E9BA5354F5158DA70B35F10262A19A0775736CD",
+      "newlyTraversable": {
+        "before": 372,
+        "after": 627
+      },
+      "anchoredNewCells": {
+        "before": 335,
+        "after": 549
+      },
+      "previousGroundConnected": {
+        "before": 377,
+        "after": 554
+      },
+      "afterMaxDepth": {
+        "before": 9,
+        "after": 7
+      },
+      "deepBlockingCells": {
+        "before": 300,
+        "after": 28
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 1608,
+        "after": 935
+      }
+    },
+    {
+      "key": "120x120-RockyWilds-000000000000002A",
+      "beforeFingerprint": "8E5029F29977AB654508B317704CEFFDCD58E5DE1E5C5B2097FB56E3A38A1A93",
+      "afterFingerprint": "35800234B9B0E4285294C93005BFC7043D03598424486C4E10DB1729D47A148A",
+      "newlyTraversable": {
+        "before": 401,
+        "after": 718
+      },
+      "anchoredNewCells": {
+        "before": 27,
+        "after": 648
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 1597
+      },
+      "afterMaxDepth": {
+        "before": 10,
+        "after": 8
+      },
+      "deepBlockingCells": {
+        "before": 807,
+        "after": 203
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 4971,
+        "after": 1686
+      }
+    },
+    {
+      "key": "120x120-RockyWilds-123456789ABCDEF0",
+      "beforeFingerprint": "E0F3C24D4E64318E46500CD920085142A905D6B157B01C6FB51305305A5AEA13",
+      "afterFingerprint": "15E8E229ECC8555FB934188220E61794C0D748416C0C54443900F341D994B1D7",
+      "newlyTraversable": {
+        "before": 478,
+        "after": 773
+      },
+      "anchoredNewCells": {
+        "before": 20,
+        "after": 773
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 2164
+      },
+      "afterMaxDepth": {
+        "before": 12,
+        "after": 9
+      },
+      "deepBlockingCells": {
+        "before": 1046,
+        "after": 334
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 5476,
+        "after": 1368
+      }
+    },
+    {
+      "key": "120x120-DenseForest-0000000000000001",
+      "beforeFingerprint": "6428E1778ECF7D939384654321899F5003E939EB7174B563AE310A4E3DF62ED8",
+      "afterFingerprint": "6428E1778ECF7D939384654321899F5003E939EB7174B563AE310A4E3DF62ED8",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 2,
+        "after": 2
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 74,
+        "after": 74
+      }
+    },
+    {
+      "key": "120x120-DenseForest-000000000000002A",
+      "beforeFingerprint": "DB1D36ADE741CA394A3E25A2CBF5243AFE43946ACA0B6D88A4CB185066B9857C",
+      "afterFingerprint": "DB1D36ADE741CA394A3E25A2CBF5243AFE43946ACA0B6D88A4CB185066B9857C",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 7,
+        "after": 7
+      },
+      "deepBlockingCells": {
+        "before": 11,
+        "after": 11
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 480,
+        "after": 480
+      }
+    },
+    {
+      "key": "120x120-DenseForest-123456789ABCDEF0",
+      "beforeFingerprint": "8EB16FDB035008956D6173A00F48214A224ED36A6F154FD9F5BA1CF7EE018DDA",
+      "afterFingerprint": "8EB16FDB035008956D6173A00F48214A224ED36A6F154FD9F5BA1CF7EE018DDA",
+      "newlyTraversable": {
+        "before": 0,
+        "after": 0
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 4,
+        "after": 4
+      },
+      "deepBlockingCells": {
+        "before": 0,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 129,
+        "after": 129
+      }
+    },
+    {
+      "key": "120x120-DenseRock-0000000000000001",
+      "beforeFingerprint": "175580DABC8B4B374955807892E8550BE771508F439F78B758D9656CE365F457",
+      "afterFingerprint": "E423ACE3C1E699C34914255BFA81258A840C30A489A148FBA123907802DE6667",
+      "newlyTraversable": {
+        "before": 296,
+        "after": 1386
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 1386
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 1766
+      },
+      "afterMaxDepth": {
+        "before": 17,
+        "after": 8
+      },
+      "deepBlockingCells": {
+        "before": 3843,
+        "after": 574
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 9910,
+        "after": 2212
+      }
+    },
+    {
+      "key": "120x120-DenseRock-000000000000002A",
+      "beforeFingerprint": "A0A59CAD2F6D884BD8A883DE98C1D2F471BFC2EA852007C73AFFCFEADC74C1FA",
+      "afterFingerprint": "28738DE3BE1A34BFFA56DE8139D85619851A1B549FBF68832D003C8A60111A5E",
+      "newlyTraversable": {
+        "before": 308,
+        "after": 1510
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 1510
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 976
+      },
+      "afterMaxDepth": {
+        "before": 23,
+        "after": 9
+      },
+      "deepBlockingCells": {
+        "before": 5199,
+        "after": 913
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 10848,
+        "after": 2621
+      }
+    },
+    {
+      "key": "120x120-DenseRock-123456789ABCDEF0",
+      "beforeFingerprint": "9D06239A58433AC73DFB7BF3E77B097131C67C38F27819CA9E5F5045A159E51C",
+      "afterFingerprint": "14ED701019625A1F5ADB30E2AEE493AF898AC1F3881B549D439C9F175C37CF14",
+      "newlyTraversable": {
+        "before": 413,
+        "after": 1503
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 1503
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 1461
+      },
+      "afterMaxDepth": {
+        "before": 25,
+        "after": 9
+      },
+      "deepBlockingCells": {
+        "before": 4871,
+        "after": 1118
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 10860,
+        "after": 2646
+      }
+    },
+    {
+      "key": "120x120-FineMixed-0000000000000001",
+      "beforeFingerprint": "6F7EB4E150A4C896234535D350E0E91C9C9BC84B4384AA27C852AC04AC3FC519",
+      "afterFingerprint": "BCD636151FAC05FEEF8F0B146BAC6BBD26DCD200199412EC76E0DC9074FA060B",
+      "newlyTraversable": {
+        "before": 222,
+        "after": 246
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 0
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 7,
+        "after": 7
+      },
+      "deepBlockingCells": {
+        "before": 12,
+        "after": 13
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 4598,
+        "after": 4574
+      }
+    },
+    {
+      "key": "120x120-FineMixed-000000000000002A",
+      "beforeFingerprint": "C90D5BDFF5A9F64F2A9F19E581B716AF0438E5E57401807DFDA797F019D37094",
+      "afterFingerprint": "E13F2A74D175023C5B7C8E47B480D7B831CC17A8C509F54233B70163462DFF79",
+      "newlyTraversable": {
+        "before": 298,
+        "after": 301
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 13
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 0
+      },
+      "afterMaxDepth": {
+        "before": 6,
+        "after": 5
+      },
+      "deepBlockingCells": {
+        "before": 5,
+        "after": 0
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 4765,
+        "after": 4755
+      }
+    },
+    {
+      "key": "120x120-FineMixed-123456789ABCDEF0",
+      "beforeFingerprint": "07DED62CB9AE2367038631AD79C9C381FE52E1E02D8AEFFEE6047D4983F19FF9",
+      "afterFingerprint": "8D77E4C70F2128D0D90D649B7B1561A3528D15B6E446631D961EAA1E0A217FD4",
+      "newlyTraversable": {
+        "before": 245,
+        "after": 471
+      },
+      "anchoredNewCells": {
+        "before": 0,
+        "after": 151
+      },
+      "previousGroundConnected": {
+        "before": 0,
+        "after": 101
+      },
+      "afterMaxDepth": {
+        "before": 7,
+        "after": 7
+      },
+      "deepBlockingCells": {
+        "before": 27,
+        "after": 25
+      },
+      "blockingBeyondMainSightRange": {
+        "before": 5157,
+        "after": 4312
+      }
+    }
+  ]
+}

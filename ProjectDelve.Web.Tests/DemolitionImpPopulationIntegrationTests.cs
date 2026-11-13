@@ -14,7 +14,9 @@ public sealed class DemolitionImpPopulationIntegrationTests(ITestOutputHelper ou
 
     private static WorldGenerationRecipe Recipe(ulong seed, bool mountain) => new(
         new(Width: 60, Height: 50), mountain ? new(15, 8, 50, FeatureScale.Broad, WaterForm.Mixed) : new(0, 0, 0), seed,
-        Enrichment: mountain ? new() : null, Civilization: mountain ? new() : null,
+        // Population integration needs dungeon encounters; early natural cave selection
+        // is independent coverage and must not determine whether this fixture has Imps.
+        Enrichment: mountain ? new(Rock: false) : null, Civilization: mountain ? new() : null,
         Routes: mountain ? new(Profile: RouteProfileKind.RockPassage) : null, Population: new(PopulationDensity.High, 3));
 
     [Theory]
@@ -30,7 +32,7 @@ public sealed class DemolitionImpPopulationIntegrationTests(ITestOutputHelper ou
         var sawMultipleInGroup = false;
         var totalMonsters = 0; var totalBombImps = 0; var totalDemolitionImps = 0;
         // Fixed, bounded generated fixtures; no authored/playtest scenario assumptions.
-        // Mountain seed 0 has an existing pre-Population connectivity failure; use validated seeds 1..15.
+        // Mountain fixtures use the fixed seeds 1..15.
         for (ulong seed = mountain ? 1UL : 0UL; seed < 16; seed++)
         {
             var world = WorldGenerator.Generate(Recipe(seed, mountain), content);

@@ -7,6 +7,49 @@ namespace ProjectDelve.Engine.Tests;
 public sealed class RockEnrichmentTests
 {
     [Fact]
+    public void DeepCavesPreferSubstantialApproachesOverAnEnclosedPocket()
+    {
+        var rows = EnrichmentFixtures.Mass('R', 40);
+        for (var y = 20; y < 23; y++) rows[y] = rows[y][..20] + "..." + rows[y][23..];
+        var c = EnrichmentFixtures.Create(rows);
+        RockEnricher.Apply(c, EnrichmentFixtures.Step(WorldStepKind.RockEnrichment, intensity: 3), ContentBundle.Canonical());
+        var a = TerrainAnalyzer.Analyze(c.Window, c.Samples);
+        Assert.NotEmpty(c.Features);
+        Assert.All(c.FeatureOpportunities, o => Assert.Equal(a.WalkableLabels[0], a.WalkableLabels[o.AnchorIndex]));
+        Assert.All(c.Entrances, e => Assert.Equal(a.WalkableLabels[e.InsideIndex], a.WalkableLabels[e.OutsideIndex]));
+        var terrain = new EnrichmentTerrain(c, ContentBundle.Canonical());
+        var mouths = c.Entrances.Select(e => e.InsideIndex).ToHashSet();
+        foreach (var i in Enumerable.Range(0, c.Samples.Length).Where(i => c.Samples[i] != c.OriginalSamples[i]))
+            if (terrain.Neighbors(i).Any(j => c.OriginalSamples[j].TerrainTypeId != "solid-rock")) Assert.Contains(i, mouths);
+    }
+
+    [Fact]
+    public void LargeMountainReceivesDistributedInteriorExplorationWithinOriginalCeiling()
+    {
+        var c = EnrichmentFixtures.Create(EnrichmentFixtures.Mass('R', 80));
+        RockEnricher.Apply(c, EnrichmentFixtures.Step(WorldStepKind.RockEnrichment, intensity: 3), ContentBundle.Canonical());
+        var a = TerrainAnalyzer.Analyze(c.Window, c.Samples);
+        Assert.True(c.Features.Count > 5); // Old feature cap left almost the whole interior untouched.
+        Assert.Equal(4, c.FeatureOpportunities.Select(o => (o.AnchorIndex % 84 < 42, o.AnchorIndex / 84 < 42)).Distinct().Count());
+        Assert.True(a.Depth.Max() < c.OriginalAnalysis!.Depth.Max());
+        Assert.InRange(c.Samples.Count(s => s.TerrainTypeId == "stone-floor"), 1, 6400 * 13 / 100);
+        Assert.All(c.FeatureOpportunities, o => Assert.Equal(a.WalkableLabels[0], a.WalkableLabels[o.AnchorIndex]));
+        Assert.InRange(c.RoutingVisitedCells, 1, 2_000_000);
+    }
+
+    [Theory]
+    [InlineData(30, 24, 0, 0, 1UL)]
+    [InlineData(60, 50, -17, -13, 42UL)]
+    public void FineMixedEnrichmentPreservesThePreviouslyLostDungeon(int width, int height, int x, int y, ulong seed)
+    {
+        var recipe = new WorldGenerationRecipe(new(x,y,width,height), new(35,20,35,FeatureScale.Fine,WaterForm.Mixed), seed,
+            new(Enabled:false,Intensity:3,Forest:false,Rock:false,Water:false,Grassland:false),new());
+        Assert.Single(WorldGenerator.Generate(recipe).Context.Sites.Where(s => s.MountainDungeon is not null));
+        var enriched = WorldGenerator.Generate(recipe with { Enrichment = new(Enabled:true,Intensity:3,Forest:false,Rock:true,Water:false,Grassland:false) });
+        Assert.Single(enriched.Context.Sites.Where(s => s.MountainDungeon is not null));
+    }
+
+    [Fact]
     public void RockMassGainsBufferedChamberWithAnOrdinaryEntrance()
     {
         var c = EnrichmentFixtures.Create(EnrichmentFixtures.Mass('R'));
