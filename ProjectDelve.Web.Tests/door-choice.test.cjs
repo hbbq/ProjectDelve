@@ -688,9 +688,8 @@ for (const name of ["Holy Wave", "Fire Breath", "An unfamiliar ability"]) for (c
       [entry("opaque-entry", name, "Action", "Lay down all adjacent upright enemies.\nThen lay down this Unit.")]);
     const h = harness(initial);
     h.run("chooseCandidate = key => submitted.push(key)");
-    const button = buttons(h.elements.get("unit-card"))[0];
-    assert.equal(button.textContent, "Use");
-    assert.equal(button.attributes["aria-label"], direct.label);
+    const button = h.elements.get("play-actions").querySelectorAll(".action-chip")[0];
+    assert.equal(button.textContent, name);
     assert.equal(button.disabled, false);
     assert.match(h.elements.get("unit-card").textContent, /0\/2/);
     assert.equal(h.elements.get("choices").children.length, 0);
@@ -712,7 +711,8 @@ for (const name of ["Holy Wave", "Fire Breath", "An unfamiliar ability"]) for (c
     assert.equal(h.elements.get("choices").children.length, 0);
     initial.presentation.decision.candidates = [];
     h.run("renderSnapshot()");
-    assert.equal(buttons(h.elements.get("unit-card")).length, 0);
+    assert.equal(h.elements.get("play-actions").querySelectorAll(".action-chip").length, 0);
+    assert.equal(h.elements.get("unit-card").querySelectorAll(".ability-info").length, 1);
     assert.equal(h.figure("a").classList.contains("board-choice"), false);
   });
 }
@@ -782,22 +782,22 @@ test("all card wording, categories, counters and effective stats are supplied", 
   for (let i = 0; i < entries.length; i++) assert.ok(content.includes(`Authoritative wording ${i}`));
   assert.ok(!content.includes("Wrong")); assert.ok(!content.includes("999"));
   assert.equal((content.match(/0\/2/g) ?? []).length, 4);
-  assert.equal((content.match(/\[2\/game\]/g) ?? []).length, 4);
+  assert.equal((content.match(/Use limit: 2\/game/g) ?? []).length, 4);
 });
 
 test("relevance filtering is local and does not infer ability timing or uses", () => {
   const initial = response([choice("legal irrelevant", "Direct", {}, { entryId: "bonus", relevant: false })], [entry("bonus", "Unknown bonus", "Bonus Action")]);
-  const h = harness(initial);
+  const h = harness(initial), dock = h.elements.get("play-actions"), card = h.elements.get("unit-card");
   h.run("chooseCandidate = key => submitted.push(key)");
-  assert.equal(buttons(h.elements.get("unit-card"))[0].hidden, true);
+  assert.equal(dock.querySelectorAll(".action-chip").length, 0);
+  assert.equal(card.querySelectorAll(".ability-info").length, 1);
   h.run("ui.filter.checked = false; renderSnapshot()");
-  assert.equal(buttons(h.elements.get("unit-card"))[0].hidden, false);
-  click(buttons(h.elements.get("unit-card"))[0]);
-  assert.deepEqual(h.submitted, ["legal irrelevant"]);
+  const action = dock.querySelectorAll(".action-chip")[0];
+  click(action); assert.deepEqual(h.submitted, ["legal irrelevant"]);
   h.run("busy = true; updateControls()");
-  assert.equal(buttons(h.elements.get("unit-card"))[0].disabled, true);
-  buttons(h.elements.get("unit-card"))[0].listeners.focus();
-  assert.equal(h.figure("a").classList.contains("affected-preview"), false);
+  assert.equal(action.disabled, true);
+  click(action); assert.deepEqual(h.submitted, ["legal irrelevant"]);
+  assert.equal(card.querySelectorAll(".ability-info")[0].disabled, undefined);
   assert.equal(h.elements.get("auto").checked, false);
 });
 
@@ -831,7 +831,8 @@ test("several Direct candidates for one entry each retain a complete selection",
   ], [entry("entry", "Unfamiliar alternatives")]);
   const h = harness(initial);
   h.run("chooseCandidate = key => submitted.push(key)");
-  for (const button of buttons(h.elements.get("unit-card"))) click(button);
+  click(h.elements.get("play-actions").querySelectorAll(".action-chip")[0]);
+  for (const button of h.elements.get("play-actions").querySelectorAll(".action-target-list")[0].querySelectorAll("button")) click(button);
   assert.deepEqual(h.submitted, ["one", "two"]);
   assert.equal(h.elements.get("choices").children.length, 0);
 });
@@ -1463,8 +1464,7 @@ test("compact numeric uses present supplied counts accessibly without circles", 
   const counters = card.querySelectorAll(".ability-uses");
   assert.equal(counters.length, 1);
   assert.equal(counters[0].textContent, "2/4");
-  assert.equal(counters[0].attributes["aria-label"], "2 of 4 uses remaining");
-  assert.equal(counters[0].dataset.tooltip, "2 / 4 uses");
+  assert.equal(counters[0].attributes["aria-label"], "2 of 4 uses remaining, 2/game");
   assert.equal(card.querySelectorAll(".use-circle").length, 0);
 });
 
@@ -3133,22 +3133,22 @@ test("End Turn stays reserved and trusts explicit projection metadata, including
   assert.equal(other.elements.get("play-actions").querySelectorAll(".action-chip").length, 1);
 });
 
-test("short descriptions retain full content through tooltip and native disclosure with fallback", () => {
+test("all descriptions retain full content in closed reference panels", () => {
   const printed = entry("custom", "Custom ability", "Capability", "Full authoritative wording with exceptions.");
   printed.content.shortDescription = "Concise supplied wording.";
   const h = harness(response([], [printed, entry("fallback", "Fallback", "Action", "Fallback full text")]));
-  const descriptions = h.elements.get("unit-card").querySelectorAll(".ability-description");
-  assert.equal(descriptions[0].querySelectorAll(".ability-short")[0].textContent, "Concise supplied wording.");
-  assert.equal(descriptions[0].querySelectorAll("summary")[0].dataset.tooltip, printed.content.description);
-  assert.equal(descriptions[0].children[0].tagName, "details");
-  assert.equal(descriptions[0].children[0].children[0].tagName, "summary");
-  assert.equal(descriptions[0].children[0].children[1].textContent, printed.content.description);
-  assert.equal(descriptions[1].children[1].textContent, "Fallback full text");
-  h.figure("b").listeners.mouseenter();
-  assert.doesNotMatch(h.elements.get("unit-card").textContent, /Inspecting|Most recently active/);
-  h.figure("b").listeners.mouseleave();
-  assert.doesNotMatch(h.elements.get("unit-card").textContent, /Active Unit/);
-  assert.match(h.elements.get("unit-card").textContent, /Concise supplied wording/);
+  const rows = h.elements.get("unit-card").querySelectorAll(".card-ability");
+  for (const [index, description] of [printed.content.description, "Fallback full text"].entries()) {
+    const panel = rows[index].querySelectorAll(".ability-panel")[0], info = rows[index].querySelectorAll(".ability-info")[0];
+    assert.equal(panel.hidden, true); assert.match(panel.textContent, new RegExp(description));
+    assert.equal(info.attributes["aria-controls"], panel.id);
+    assert.equal(info.attributes["aria-expanded"], "false");
+    click(info); assert.equal(panel.hidden, false); assert.equal(info.attributes["aria-expanded"], "true");
+    click(info); assert.equal(panel.hidden, true);
+  }
+  h.figure("b").listeners.mouseenter(); h.figure("b").listeners.mouseleave();
+  assert.match(h.elements.get("unit-card").textContent, /Full authoritative wording with exceptions/);
+  assert.deepEqual(h.submitted, []);
 });
 
 test("collision overlay can move and Escape restores board focus without submitting", () => {
@@ -3558,7 +3558,7 @@ test("summon target artwork uses explicit presentation references without interp
     content: { id: "ability:fixture", name: "Fixture target", category: "Action", description: "Fixture reference." } }];
   const h = harness(initial);
   assert.equal(h.elements.get("unit-card").querySelectorAll(".ability-target-portrait").length, 0);
-  assert.equal(h.elements.get("unit-card").querySelectorAll(".ability-heading")[0].children[0].textContent, "Fixture target");
+  assert.equal(h.elements.get("unit-card").querySelectorAll(".ability-name")[0].textContent, "Fixture target");
 });
 
 test("empty Cell hover and state updates keep an unchanged card portrait mounted and loaded", () => {
@@ -3655,42 +3655,25 @@ test("portrait enlargement uses a separate modal, survives hover switching and r
   assert.equal(h.elements.get("portrait-error").hidden, false);
 });
 
-test("all abilities and usage marks remain visible while only supplied Direct choices activate", () => {
-  const attack = entry("attack", "Attack"); attack.content.shortDescription = "";
-  const focus = entry("focus", "Focus", "Bonus Action");
-  focus.content.shortDescription = "Improve the next Attack.";
-  const passive = entry("passive", "Passive", "Capability");
-  const free = entry("free", "Free", "Free Action");
-  const legal = choice("opaque-focus", "Direct", {}, { entryId: "focus" });
-  const h = harness(response([legal], [attack, focus, passive, free]));
+test("ability reference panels preserve uses while only dock choices activate", () => {
+  const entries = [entry("attack", "Attack"), entry("focus", "Focus", "Bonus Action"), entry("passive", "Passive", "Capability"), entry("free", "Free", "Free Action")];
+  const h = harness(response([choice("opaque-focus", "Direct", {}, {entryId:"focus"})], entries));
   h.run('chooseCandidate = key => submitted.push(key)');
   const rows = h.elements.get("unit-card").querySelectorAll(".card-ability");
   assert.equal(rows.length, 4);
-  for (const [index, supplied] of [attack, focus, passive, free].entries()) {
-    assert.match(rows[index].textContent, new RegExp(supplied.content.name));
-    assert.match(rows[index].textContent, new RegExp(supplied.content.category));
-    assert.match(rows[index].textContent, /0\/2/);
-    const description = rows[index].querySelectorAll(".ability-description")[0];
-    const disclosure = description.querySelectorAll("details");
-    const expandable = supplied.content.shortDescription !== undefined && supplied.content.shortDescription !== supplied.content.description;
-    assert.equal(disclosure.length, expandable ? 1 : 0);
-    if (expandable) {
-      const summary = disclosure[0].children[0];
-      assert.equal(summary.tagName, "summary");
-      assert.match(summary.textContent, new RegExp(supplied.content.name));
-      assert.equal(summary.attributes['aria-label'], "Full description: " + supplied.content.name);
-      assert.equal(summary.dataset.tooltip, supplied.content.description);
-      assert.equal(disclosure[0].children[1].textContent, supplied.content.description);
-      assert.equal(summary.listeners.click, undefined);
-    } else assert.equal(description.children[1].textContent, supplied.content.description);
-  }
-  assert.equal(buttons(rows[0]).length, 0);
-  assert.equal(buttons(rows[1]).length, 1);
-  click(buttons(rows[1])[0]); assert.deepEqual(h.submitted, ["opaque-focus"]);
-  h.run('busy = true; updateControls()'); assert.equal(buttons(rows[1])[0].disabled, true);
-  h.run('busy = false; snapshot.presentation.decision.candidates[0].relevant = false; renderUnitCard()');
-  assert.equal(h.elements.get("unit-card").querySelectorAll(".card-ability").length, 4);
-  assert.equal(buttons(h.elements.get("unit-card"))[0].hidden, true);
+  rows.forEach((row,index) => {
+    assert.equal(row.querySelectorAll(".ability-name")[0].textContent, entries[index].content.name);
+    assert.equal(row.querySelectorAll(".ability-type")[0].attributes['aria-label'], entries[index].content.category);
+    assert.equal(row.querySelectorAll(".ability-uses")[0].textContent, "0/2");
+    assert.equal(row.querySelectorAll(".ability-panel")[0].hidden, true);
+    click(row.querySelectorAll(".ability-info")[0]);
+    assert.match(row.querySelectorAll(".ability-panel")[0].textContent, /Wording supplied by content/);
+  });
+  assert.deepEqual(h.submitted, []);
+  click(h.elements.get("play-actions").querySelectorAll(".action-chip")[0]);
+  assert.deepEqual(h.submitted, ["opaque-focus"]);
+  h.run('busy = true; updateControls()');
+  assert.equal(h.elements.get("play-actions").querySelectorAll(".action-chip")[0].disabled, true);
 });
 
 test("card identity preserves effective stats, changing posture, nonstandard footprint and Tools debugging", () => {
@@ -3926,7 +3909,7 @@ test("action dock retains Direct actions across inspector tab changes and opaque
     addEventListener: (name, listener) => listeners.set(name, listener)
   });
   h.run('chooseCandidate = key => submitted.push(key)');
-  assert.equal(buttons(h.elements.get('choices')).length, 0, 'visible card owns its Direct action');
+  assert.equal(buttons(h.elements.get('choices')).length, 0, 'decision dock owns its Direct action');
   h.elements.get('inspector-unit').hidden = true;
   listeners.get('delve-inspector-change')({ detail: { tab: 'mission' } });
   const pending = h.elements.get('play-actions').querySelectorAll('.action-chip');
@@ -3943,7 +3926,7 @@ test("action dock retains Direct actions across inspector tab changes and opaque
   h.elements.get('inspector-unit').hidden = false;
   listeners.get('delve-inspector-change')({ detail: { tab: 'unit' } });
   assert.equal(buttons(h.elements.get('choices')).length, 0);
-  const action = buttons(h.elements.get('unit-card')).find(button => button.dataset.legal === 'true');
+  const action = h.elements.get('play-actions').querySelectorAll('.action-chip')[0];
   assert.ok(action);
   click(action);
   assert.deepEqual(h.submitted, ['opaque-card-action', 'next-opaque-action', 'next-opaque-action']);
@@ -4099,36 +4082,25 @@ test('movement list keeps Stay separate and clears selection on a new authoritat
   click(buttons(host)[0]); assert.deepEqual(h.submitted, ['stay-opaque']);
 });
 
-test('card availability follows supplied statuses and the nearby filter reveals legal choices', () => {
-  const ability = { ...entry('display-entry', 'Printed ability', 'Bonus Action'), accountingId: 'source-accounting' };
-  const initial = response([choice('legal-opaque', 'Direct', {}, {
-    entryId: 'different-entry', accountingId: 'source-accounting', relevant: false
-  })], [ability]);
-  initial.presentation.decision.entryStatuses = {
-    'source-accounting': { status: 'Irrelevant', reason: 'Legal, but not relevant now' }
-  };
-  const h = harness(initial), card = h.elements.get('unit-card'), visibility = h.elements.get('choice-visibility');
-  assert.equal(card.querySelectorAll('.card-ability')[0].dataset.availability, 'Irrelevant');
-  assert.equal(card.querySelectorAll('.ability-availability').length, 0);
-  assert.equal(buttons(card).filter(button => button.dataset.legal === 'true' && !button.hidden).length, 0);
-  assert.match(visibility.textContent, /More choices \(1\)/);
-  h.run('chooseCandidate = key => submitted.push(key)');
-  click(buttons(visibility)[0]);
-  assert.equal(h.elements.get('filter').checked, false);
-  assert.equal(buttons(visibility)[0].focused, true, 'replacing filter copy preserves the keyboard navigation position');
-  assert.equal(card.querySelectorAll('.ability-heading')[0].dataset.tooltip, 'Legal, but not relevant now');
-  const action = buttons(card).find(button => button.dataset.legal === 'true');
-  assert.equal(action.hidden, false);
-  assert.equal(action.disabled, false, 'irrelevant stays legal even with misleading local counters');
-  click(action); assert.deepEqual(h.submitted, ['legal-opaque']);
-  h.run('busy = true; updateControls()');
-  assert.equal(buttons(visibility)[0].disabled, true);
-  click(buttons(visibility)[0]); assert.equal(h.elements.get('filter').checked, false);
+test('card availability reasons remain reference information and nearby filtering reveals legal dock choices', () => {
+  const ability = {...entry('display-entry','Printed ability','Bonus Action'), accountingId:'source-accounting'};
+  const initial = response([choice('legal-opaque','Direct',{}, {entryId:'different-entry', accountingId:'source-accounting',relevant:false})], [ability]);
+  initial.presentation.decision.entryStatuses = {'source-accounting':{status:'Irrelevant',reason:'Legal, but not relevant now'}};
+  const h = harness(initial), card=h.elements.get('unit-card'), visibility=h.elements.get('choice-visibility');
+  assert.equal(card.querySelectorAll('.ability-panel')[0].hidden,true);
+  assert.match(card.querySelectorAll('.ability-panel')[0].textContent,/Legal, but not relevant now/);
+  assert.equal(h.elements.get('play-actions').querySelectorAll('.action-chip').length,0);
+  assert.match(visibility.textContent,/More choices \(1\)/);
+  h.run('chooseCandidate = key => submitted.push(key)'); click(buttons(visibility)[0]);
+  assert.equal(h.elements.get('filter').checked,false); assert.equal(buttons(visibility)[0].focused,true);
+  const action=h.elements.get('play-actions').querySelectorAll('.action-chip')[0];
+  assert.equal(action.disabled,false); click(action); assert.deepEqual(h.submitted,['legal-opaque']);
+  h.run('busy = true; updateControls()'); assert.equal(buttons(visibility)[0].disabled,true);
+  click(buttons(visibility)[0]); assert.equal(h.elements.get('filter').checked,false);
   h.run('renderUnitCard(); busy = false; updateControls()');
-  assert.equal(card.querySelectorAll('.card-ability')[0].dataset.availability, 'Irrelevant',
-    'rendering the final state before busy clears must retain its authoritative reasons');
-  h.run('busy = false; displayedState = JSON.parse(JSON.stringify(snapshot.result.state)); renderUnitCard()');
-  assert.equal(card.querySelectorAll('.ability-availability').length, 0, 'live reasons must not leak into historical playback');
+  assert.match(card.querySelectorAll('.ability-panel')[0].textContent,/Legal, but not relevant now/);
+  h.run('displayedState = JSON.parse(JSON.stringify(snapshot.result.state)); renderUnitCard()');
+  assert.equal(card.querySelectorAll('.ability-help').length,0);
 });
 
 test('journal uses only supplied event-time player copy and retains filtered technical details', async () => {
@@ -4227,18 +4199,22 @@ test("inventory rows distinguish sources and consolidate identical use choices",
   const h = harness(initial), card = h.elements.get("unit-card");
   const rows = card.querySelectorAll(".card-ability");
   assert.deepEqual(rows.map(row => row.dataset.source), ["Native", "Equipment", "Item"]);
-  assert.equal(rows[1].querySelectorAll(".ability-source")[0].textContent, "Equipment");
+  click(rows[1].querySelectorAll(".ability-source")[0]);
+  assert.match(rows[1].querySelectorAll(".ability-panel")[0].textContent, /Equipment.*Walking Charm/);
   assert.match(rows[1].textContent, /Walking Charm/);
   assert.doesNotMatch(rows[1].textContent, /Identical effects apply once/);
+  click(rows[2].querySelectorAll(".ability-source")[0]);
   assert.match(rows[2].textContent, /Single Use Item/);
-  assert.equal(buttons(rows[2]).length, 1);
+  assert.equal(buttons(rows[2]).length, 2);
   assert.match(card.querySelectorAll(".inventory-summary")[0].textContent, /3 carried objects/);
   const changes = card.querySelectorAll(".modified-stat");
   assert.ok(changes.some(stat => stat.dataset.change === "negative"));
   assert.ok(changes.some(stat => stat.dataset.change === "positive"));
   h.run('chooseCandidate = key => submitted.push(key)');
-  click(buttons(rows[2])[0]); assert.deepEqual(h.submitted, ["wind-one"]);
-  assert.equal(h.run('cardChoiceKeys.has("wind-two")'), true);
+  click(h.elements.get("play-actions").querySelectorAll(".action-chip")[0]);
+  const options=h.elements.get("play-actions").querySelectorAll(".action-target-list")[0].querySelectorAll("button");
+  assert.deepEqual(options.map(button=>button.dataset.actionCandidateKey), ["wind-one","wind-two"]);
+  click(options[0]); assert.deepEqual(h.submitted, ["wind-one"]);
 });
 
 test('renamed Item abilities group choices by supplied accounting identity and show their source', () => {
@@ -4250,12 +4226,14 @@ test('renamed Item abilities group choices by supplied accounting identity and s
   ], [item]);
   const h = harness(initial), row = h.elements.get('unit-card').querySelectorAll('.card-ability')[0];
   assert.match(row.textContent, /Fold the Sky/);
-  assert.match(row.textContent, /Single Use Item · Paper Moon/);
-  assert.equal(buttons(row).length, 1);
-  assert.equal(h.run('cardChoiceKeys.has("physical-second")'), true);
+  click(row.querySelectorAll('.ability-source')[0]);
+  assert.match(row.querySelectorAll('.ability-panel')[0].textContent, /Single Use Item.*Paper Moon/);
+  assert.equal(buttons(row).length, 2);
   h.run('chooseCandidate = key => submitted.push(key)');
-  click(buttons(row)[0]);
-  assert.deepEqual(h.submitted, ['physical-first']);
+  click(h.elements.get('play-actions').querySelectorAll('.action-chip')[0]);
+  const options=h.elements.get('play-actions').querySelectorAll('.action-target-list')[0].querySelectorAll('button');
+  assert.deepEqual(options.map(button=>button.dataset.actionCandidateKey), ['physical-first','physical-second']);
+  click(options[0]); assert.deepEqual(h.submitted, ['physical-first']);
 });
 
 test('a consumed Item keeps its authoritative ability name during the pending Attack', () => {
@@ -4351,7 +4329,7 @@ test("identical Item copies retain every opaque key in action target options", (
     choice(key, "Direct", {}, { entryId: "physical-entry", accountingId: "item:shared" }));
   const h = harness(response(candidates, [item])), dock = h.elements.get("play-actions");
   h.run("chooseCandidate = key => submitted.push(key)");
-  assert.equal(h.elements.get("unit-card").querySelectorAll(".card-use").length, 1);
+  assert.equal(h.elements.get("unit-card").querySelectorAll(".card-use").length, 0);
   assert.equal(dock.querySelectorAll(".action-chip").length, 1);
   click(dock.querySelectorAll(".action-chip")[0]);
   assert.deepEqual(h.submitted, []);
@@ -4361,45 +4339,118 @@ test("identical Item copies retain every opaque key in action target options", (
   assert.deepEqual(h.submitted, ["copy-one", "copy-two"]);
 });
 
-test("short complete card rules are inline while long full rules disclose from their heading", () => {
-  const short = entry("short", "Brief ability", "Capability", "ATK +1.");
-  const long = entry("long", "Long ability", "Action",
-    "Choose an adjacent friendly Unit. Stand up that Unit, then restore 1 HP without exceeding its maximum HP. This completes the Action.");
-  const rows = harness(response([], [short, long])).elements.get("unit-card").querySelectorAll(".card-ability");
-  assert.equal(rows[0].querySelectorAll("details").length, 0);
-  assert.equal(rows[0].querySelectorAll(".ability-description")[0].children[1].textContent, short.content.description);
-  const details = rows[1].querySelectorAll("details")[0];
-  assert.match(details.children[0].textContent, /Long ability/);
-  assert.equal(details.children[0].attributes["aria-label"], "Full description: Long ability");
-  assert.equal(details.children[1].textContent, long.content.description);
+test("short and long complete card rules are both closed by default", () => {
+  const entries=[entry("short","Brief ability","Capability","ATK +1."),entry("long","Long ability","Action","Choose an adjacent friendly Unit. Stand up that Unit, then restore 1 HP without exceeding its maximum HP. This completes the Action.")];
+  const rows=harness(response([],entries)).elements.get("unit-card").querySelectorAll(".card-ability");
+  rows.forEach((row,index)=>{
+    const panel=row.querySelectorAll('.ability-panel')[0], info=row.querySelectorAll('.ability-info')[0];
+    assert.equal(panel.hidden,true); assert.match(panel.textContent,new RegExp(entries[index].content.description.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+    assert.equal(info.tagName,'button'); assert.match(info.attributes['aria-label'],new RegExp(entries[index].content.name));
+  });
 });
 
-test("availability help uses native heading disclosure while brief complete rules stay inline", () => {
-  const unavailable = { ...entry("blocked", "Blocked ability", "Action", "Brief complete rules."), accountingId: "blocked-source" };
-  const available = entry("available", "Available ability", "Action", "Other brief rules.");
-  const initial = response([], [unavailable, available]);
-  initial.presentation.decision.entryStatuses = {
-    "blocked-source": { status: "Unavailable", reason: "Supplied blocker explanation." },
-    available: { status: "Available", reason: "Ready to use." }
-  };
-  const h = harness(initial), rows = h.elements.get("unit-card").querySelectorAll(".card-ability");
-  const description = rows[0].querySelectorAll(".ability-description")[0];
-  const details = description.children[0], summary = details.children[0];
-  assert.equal(details.tagName, "details");
-  assert.equal(summary.tagName, "summary", "native disclosure provides keyboard and touch activation");
-  assert.match(summary.textContent, /Blocked ability/);
-  assert.equal(summary.attributes["aria-label"], "Ability details: Blocked ability");
-  assert.equal(summary.listeners.click, undefined, "availability help has no decision handler");
-  assert.equal(details.querySelectorAll(".ability-help")[0].textContent, "Supplied blocker explanation.");
-  assert.equal(description.children[1].textContent, "Brief complete rules.");
-  assert.doesNotMatch(details.textContent, /Brief complete rules/);
-  assert.equal(rows[0].querySelectorAll(".ability-heading")[0].dataset.tooltip, "Supplied blocker explanation.");
-  assert.equal(rows[0].querySelectorAll(".ability-heading")[0].attributes["aria-description"], "Supplied blocker explanation.");
-  assert.equal(rows[0].dataset.availability, "Unavailable");
-  assert.equal(rows[1].querySelectorAll("details").length, 0);
-  assert.equal(rows[1].querySelectorAll(".ability-help").length, 0);
-  assert.equal(rows[1].querySelectorAll(".ability-description")[0].children[1].textContent, "Other brief rules.");
+test("availability help and full rules use keyboard accessible reference buttons", () => {
+  const blocked={...entry('blocked','Blocked ability','Action','Brief complete rules.'),accountingId:'blocked-source'};
+  const initial=response([], [blocked,entry('available','Available ability','Action','Other brief rules.')]);
+  initial.presentation.decision.entryStatuses={'blocked-source':{status:'Unavailable',reason:'Supplied blocker explanation.'},available:{status:'Available',reason:'Ready to use.'}};
+  const h=harness(initial), rows=h.elements.get('unit-card').querySelectorAll('.card-ability');
+  const info=rows[0].querySelectorAll('.ability-info')[0], panel=rows[0].querySelectorAll('.ability-panel')[0];
+  assert.equal(info.tagName,'button'); assert.equal(info.type,'button'); assert.equal(panel.hidden,true);
+  assert.equal(panel.querySelectorAll('.ability-help')[0].textContent,'Supplied blocker explanation.');
+  assert.match(panel.textContent,/Brief complete rules/); click(info); assert.equal(panel.hidden,false);
+  assert.equal(rows[1].querySelectorAll('.ability-help').length,0);
+  assert.match(rows[1].querySelectorAll('.ability-panel')[0].textContent,/Other brief rules/);
+  assert.deepEqual(h.submitted,[]);
+});
+
+test("compact card uses projected layout, restrictions and source identities without merging", () => {
+  const standard = { ...entry('standard', 'Renamed standard attack'), layout: 'StandardAttack' };
+  const native = { ...entry('native', 'Shared name', 'Free Action'), layout: 'Utility', accountingId: 'unit:door', uses: null };
+  const acquired = { ...native, accountingId: 'equipment:key:door', source: 'Equipment', sourceName: 'Key', sourceInstanceId: 'key' };
+  const paid = { ...entry('paid', 'Paid action'), layout: 'Action', costText: 'Spend 2 Diamonds.', restrictionText: 'After a qualifying Attack' };
+  const initial = response([], [standard, native, acquired, paid]);
+  initial.presentation.cards.actor.attackRestriction = 'No standard Attack';
+  const card = harness(initial).elements.get('unit-card');
+  const traits = card.querySelectorAll('.card-ability');
+  assert.equal(traits.length, 3);
+  assert.notEqual(traits[0].dataset.cardEntryKey, traits[1].dataset.cardEntryKey);
+  assert.doesNotMatch(card.textContent, /Renamed standard attack/);
+  assert.match(card.textContent, /No standard Attack/);
+  assert.match(traits[2].querySelectorAll('.ability-panel')[0].textContent, /After a qualifying Attack/);
+  assert.equal(traits[2].querySelectorAll('.ability-panel')[0].hidden, true);
+  click(traits[2].querySelectorAll('.ability-cost')[0]);
+  assert.match(traits[2].querySelectorAll('.ability-panel')[0].textContent, /Spend 2 Diamonds/);
+});
+
+test("spent disclosure hides only projected depletion and never suppresses supplied legal choices", () => {
+  const depleted = { ...entry('spent', 'Spent action'), isDepleted: true };
+  const used = { ...entry('used', 'Used bonus', 'Bonus Action'), isDepleted: false, uses: {remainingUses: 1,maxUses: 2} };
+  const legal = { ...entry('legal', 'Authoritative choice'), isDepleted: true };
+  const initial = response([choice('legal-key', 'Direct', {}, {entryId:'legal'})], [depleted, used, legal]);
+  initial.presentation.decision.entryStatuses = {used:{status:'Exhausted',reason:'Used this activation',usedThisActivation:true}};
+  const h = harness(initial), card = h.elements.get('unit-card');
+  const spent = card.querySelectorAll('.card-spent')[0];
+  assert.equal(spent.open, false);
+  assert.match(spent.children[0].textContent, /Show spent abilities \(1\)/);
+  assert.match(spent.textContent, /Spent action.*0\/2/);
+  assert.doesNotMatch(spent.textContent, /Used bonus|Authoritative choice/);
+  assert.match(card.querySelectorAll('.card-abilities')[0].textContent, /Used bonus.*Used this activation.*Authoritative choice/);
+  assert.equal(card.querySelectorAll('.card-abilities')[0].querySelectorAll('.ability-panel')[0].hidden, true);
+  assert.equal(card.querySelectorAll('.card-abilities')[0].querySelectorAll('.card-ability')[0].className, 'card-ability');
+  spent.open = true; spent.listeners.toggle();
+  assert.match(spent.children[0].textContent, /Hide spent/);
+  h.run('chooseCandidate = key => submitted.push(key)');
+  click(h.elements.get('play-actions').querySelectorAll('.action-chip')[0]);
+  assert.deepEqual(h.submitted, ['legal-key']);
+});
+
+test("collapsed inventory retains each physical object while its actions stay outside", () => {
+  const acquired = { ...entry('equipment-action', 'Equipment action'), source:'Equipment', sourceName:'Kit', accountingId:'kit:action' };
+  const initial = response([choice('use-kit','Direct',{}, {accountingId:'kit:action'})], [acquired]);
+  initial.presentation.cards.actor.ownedObjects = [
+    {id:'kit',content:{name:'Kit',category:'Equipment',text:'Equipment rules'},entries:[acquired]},
+    {id:'item-a',content:{name:'Bottle',category:'Item',text:'Drink this'}},
+    {id:'item-b',content:{name:'Bottle',category:'Item',text:'Drink this'}}
+  ];
+  const card = harness(initial).elements.get('unit-card');
+  const inventory = card.querySelectorAll('.card-inventory')[0];
+  assert.equal(inventory.open, false);
+  assert.match(inventory.children[0].textContent, /1 Equipment.*2 Items/);
+  assert.deepEqual(inventory.querySelectorAll('.inventory-object').map(node => node.dataset.disclosureId), ['object:kit','object:item-a','object:item-b']);
+  assert.equal(inventory.querySelectorAll('.card-use').length, 0);
+  assert.equal(card.querySelectorAll('.card-abilities')[0].querySelectorAll('.card-ability').length, 1);
+  assert.equal(card.querySelectorAll('.card-use').length, 0);
+});
+
+test("decision dock reuses source-aware action selection without submitting or relying on hover", () => {
+  const supplied = { ...entry('targeted', 'Targeted action'), accountingId:'equipment:one:target' };
+  const candidate = choice('opaque-target', 'Unit', {unitId:'a'}, {entryId:'targeted',accountingId:supplied.accountingId});
+  const h = harness(response([candidate], [supplied]));
+  const button = h.elements.get('play-actions').querySelectorAll('.action-chip')[0];
+  assert.equal(h.elements.get('unit-card').querySelectorAll('.card-choose').length, 0);
+  click(button);
+  assert.equal(h.run('selectedActionKey'), JSON.stringify(['grant',supplied.accountingId]));
   assert.deepEqual(h.submitted, []);
+  const options = h.elements.get('play-actions').querySelectorAll('.action-target-list')[0];
+  assert.ok(options.querySelectorAll('button')[0].focused);
+  h.run('chooseCandidate = key => submitted.push(key)');
+  click(options.querySelectorAll('button')[0]);
+  assert.deepEqual(h.submitted, ['opaque-target']);
+});
+
+for (const round of [0, 1]) test(`card retains expanded reference panel and focused control through rerender and Unit inspection in round ${round}`, () => {
+  const initial = response([], [entry('reference','Reference')]); initial.result.state.round = round;
+  const h=harness(initial), card=h.elements.get('unit-card');
+  let info=card.querySelectorAll('.ability-info')[0]; click(info); h.context.document.activeElement=info;
+  h.run('renderUnitCard()'); info=card.querySelectorAll('.ability-info')[0];
+  assert.equal(card.querySelectorAll('.ability-panel')[0].hidden,false); assert.ok(info.focused);
+  h.context.document.activeElement=null; h.figure('b').listeners.mouseenter(); h.figure('b').listeners.mouseleave();
+  assert.equal(card.querySelectorAll('.ability-panel')[0].hidden,false);
+  const row=card.querySelectorAll('.card-ability')[0];
+  row.listeners.keydown({key:'Escape',preventDefault(){}});
+  assert.equal(row.querySelectorAll('.ability-panel')[0].hidden,true);
+  assert.equal(row.querySelectorAll('.ability-info')[0].attributes['aria-expanded'],'false');
+  assert.ok(row.querySelectorAll('.ability-info')[0].focused); assert.deepEqual(h.submitted,[]);
 });
 
 test("historical choice panel exposes no future action dock, fallback controls or relevance toggle", () => {
@@ -4442,4 +4493,102 @@ test('named groups keep independent controller choices and order/card token iden
   assert.notEqual(h.run('tokenIdentity({typeId:"goblin",sideId:"red",groupId:"gate"})'), 'goblin\0red');
   assert.match(h.run('orderLabel({kind:"GuardArea",area:{x:1,y:2,w:3,h:4}}, {types:[]})'), /Guard Area.*1,2.*3.*4/);
   assert.match(h.run('orderLabel({kind:"PatrolRoute",route:{routeId:"track",currentIndex:1,direction:-1}}, {types:[],routes:[{id:"track",mode:"PingPong",waypointIds:["a","b"]}]})'), /Patrol Route.*waypoint 2\/2/);
+});
+
+
+test("all nine timings and category fallbacks retain authored labels and rightmost Info", () => {
+  const cases=[['Action',null,'action'],['Bonus Action',null,'bonus'],['Free Action',null,'free'],
+    ['Passive',null,'passive'],['Capability',null,'passive'],['Follow-up',null,'followup'],
+    ['Automatic',null,'triggered'],['Follow-up','After Attack','followup'],['Capability','When defeated','triggered'],
+    ['Capability','Instead of defeat','triggered'],['Automatic','Instead of activation','triggered'],['Automatic','End activation','triggered']];
+  const entries=cases.map(([category,timingHint],i)=>({...entry(`timing-${i}`,`Printed ${i}`,category),timingHint}));
+  const h=harness(response([],entries)), rows=h.elements.get('unit-card').querySelectorAll('.card-ability');
+  assert.deepEqual(rows.map(row=>row.dataset.entryId),entries.map(value=>value.content.id));
+  rows.forEach((row,i)=>{
+    const line=row.querySelectorAll('.ability-line')[0], badge=row.querySelectorAll('.ability-type')[0];
+    assert.equal(badge.dataset.timing,cases[i][2]);
+    assert.equal(badge.attributes['aria-label'],cases[i][1]??cases[i][0]);
+    assert.equal(badge.attributes['role'],'img');
+    assert.equal(line.children.at(-1),row.querySelectorAll('.ability-info')[0]);
+    assert.deepEqual(line.children.map(node=>node.className),['ability-type','ability-name','ability-metadata','ability-counts','ability-reference-control ability-info']);
+  });
+});
+
+test("Info source and cost remain reference controls while busy and Escape restores the active control", () => {
+  const acquired={...entry('paid','Same name'), source:'Equipment',sourceName:'Copper Key',sourceInstanceId:'key-one',costText:'Spend 2 Coins.',accountingId:'key-one:paid'};
+  const duplicate={...acquired,sourceInstanceId:'key-two',accountingId:'key-two:paid',uses:{remainingUses:1,maxUses:3}};
+  const native={...entry('native','Same name'),source:'Native'};
+  const h=harness(response([choice('opaque','Direct',{}, {accountingId:acquired.accountingId})],[native,acquired,duplicate]));
+  h.run('chooseCandidate = key => submitted.push(key); busy = true; updateControls()');
+  const rows=h.elements.get('unit-card').querySelectorAll('.card-ability');
+  assert.deepEqual(rows.map(row=>row.dataset.cardEntryKey),['native','key-one:paid','key-two:paid']);
+  assert.equal(rows[0].querySelectorAll('.ability-source').length,0);
+  assert.equal(rows[1].querySelectorAll('.ability-uses')[0].textContent,'0/2');
+  assert.equal(rows[2].querySelectorAll('.ability-uses')[0].textContent,'1/3');
+  for (const [rowIndex,sourceId] of [[1,'key-one'],[2,'key-two']]) {
+    const row=rows[rowIndex], panel=row.querySelectorAll('.ability-panel')[0];
+    for (const [section,expected] of [['info','Wording supplied by content'],['source',sourceId],['cost','Spend 2 Coins.']]) {
+      const control=row.querySelectorAll(`.ability-${section}`)[0];
+      assert.ok(!control.disabled); click(control);
+      assert.equal(panel.hidden,false); assert.ok(panel.textContent.includes(expected));
+      assert.equal(control.attributes['aria-controls'],panel.id); assert.equal(control.attributes['aria-expanded'],'true');
+      for (const other of buttons(row).filter(button=>button!==control)) assert.equal(other.attributes['aria-expanded'],'false');
+      row.listeners.keydown({key:'Escape',preventDefault(){}});
+      assert.equal(panel.hidden,true); assert.equal(control.attributes['aria-expanded'],'false'); assert.ok(control.focused);
+    }
+  }
+  assert.deepEqual(h.submitted,[]);
+});
+
+test("Item quantities are independent of ability uses and no card reference offers Use or Choose", () => {
+  const item={...entry('item','Counted ability'),source:'Item',copyCount:4,uses:{remainingUses:1,maxUses:7}};
+  const h=harness(response([choice('item-choice','Direct',{}, {entryId:'item'})],[item]));
+  const card=h.elements.get('unit-card'), row=card.querySelectorAll('.card-ability')[0];
+  assert.equal(row.querySelectorAll('.ability-uses')[0].textContent,'1/7');
+  assert.equal(row.querySelectorAll('.ability-quantity')[0].textContent,'\u00d74');
+  assert.equal(row.querySelectorAll('.ability-quantity')[0].attributes['aria-label'],'4 carried Items');
+  assert.equal(card.querySelectorAll('.card-use').length,0); assert.equal(card.querySelectorAll('.card-choose').length,0);
+  assert.ok(buttons(card).every(button=>!['Use','Choose'].includes(button.textContent)));
+});
+
+for (const [category,source] of [['Action','Native'],['Free Action','Native'],['Bonus Action','Native'],['Action','Equipment'],['Action','Item'],['Follow-up','Native']]) {
+  test(`legal ${category} from ${source} remains reachable in decision dock with reference-only card`,()=>{
+    const supplied={...entry('fixture','Unfamiliar ability',category),source,accountingId:'source:fixture'};
+    const h=harness(response([choice('opaque-key','Direct',{}, {accountingId:'source:fixture',entryId:'fixture'})],[supplied]));
+    h.run('chooseCandidate = key => submitted.push(key)');
+    const row=h.elements.get('unit-card').querySelectorAll('.card-ability')[0];
+    for (const button of buttons(row)) click(button); assert.deepEqual(h.submitted,[]);
+    const chips=h.elements.get('play-actions').querySelectorAll('.action-chip'); assert.equal(chips.length,1);
+    click(chips[0]); assert.deepEqual(h.submitted,['opaque-key']);
+  });
+}
+
+
+test("missing content IDs retain Direct dock and board fallback choices with Hide Irrelevant", () => {
+  const candidates=[choice('no-id-direct','Direct'),choice('no-id-hidden','Direct',{}, {relevant:false}),
+    choice('no-id-missing','Unit',{unitId:'absent'}),choice('movement-followup','Position',{position:{x:2,y:0}}, {boardVisual:{kind:'move'}})];
+  const initial=response(candidates,[entry('reference','Reference')]);
+  initial.presentation.decision.prompt='Choose supplied follow-up movement';
+  const h=harness(initial); h.run('chooseCandidate = key => submitted.push(key)');
+  assert.equal(h.elements.get('play-actions').querySelectorAll('.action-chip').length,1);
+  click(h.elements.get('play-actions').querySelectorAll('.action-chip')[0]);
+  click(buttons(h.elements.get('choices'))[0]); click(h.run('cells.get("2,0")'));
+  assert.deepEqual(h.submitted,['no-id-direct','no-id-missing','movement-followup']);
+  click(buttons(h.elements.get('choice-visibility'))[0]);
+  assert.equal(h.elements.get('filter').checked,false);
+  const hidden=h.elements.get('play-actions').querySelectorAll('.action-chip').find(button=>button.textContent==='Supplied label no-id-hidden');
+  assert.ok(hidden); click(hidden);
+  assert.deepEqual(h.submitted,['no-id-direct','no-id-missing','movement-followup','no-id-hidden']);
+});
+
+test("mandatory roll remains outside reference card and action dock", () => {
+  const initial=response([choice('mandatory-roll','Direct',{}, {entryId:'roll-source'})], [entry('roll-source','Printed action')]);
+  initial.presentation.decision.roll={family:'Attack',count:2,ownerUnitId:'actor',sourceActionId:'roll-source'};
+  initial.presentation.decision.allowsNone=false;
+  const h=harness(initial); h.run('chooseCandidate = key => submitted.push(key)');
+  assert.equal(h.elements.get('play-actions').querySelectorAll('.action-chip').length,0);
+  const references=h.elements.get('unit-card').querySelectorAll('.ability-info');
+  assert.equal(references.length,1); click(references[0]); assert.deepEqual(h.submitted,[]);
+  const choices=buttons(h.elements.get('choices')); assert.equal(choices.length,1);
+  click(choices[0]); assert.deepEqual(h.submitted,['mandatory-roll']);
 });

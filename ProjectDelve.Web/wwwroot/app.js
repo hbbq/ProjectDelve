@@ -279,11 +279,13 @@ let cancelPause;
 let displayedState;
 let latestUnitId;
 let hoveredUnitId;
+const unitCardDisclosures = new Map();
+let unitCardSession;
 let displayedCards;
 let displayedFigures;
 let displayedOrders;
 let setupPhase;
-const cardChoiceKeys = new Set();
+
 let selectedActionKey = null;
 let selectedActionDecision = null;
 const actionKey = candidate => JSON.stringify(candidate.accountingId ? ["grant", candidate.accountingId]
@@ -724,10 +726,25 @@ const visibleChoice = candidate => !(ui.filter.checked && candidate.relevant ===
 // Content wording and current counters come from the domain/API, not rule components.
 function renderUnitCard() {
   clearAffectedPreview();
-  cardChoiceKeys.clear();
+
   const state = displayedState;
   const unit = state?.units.find(unit => unit.id === (hoveredUnitId ?? latestUnitId));
   const card = ui["unit-card"];
+  const session = `${snapshot?.sessionId ?? ""}:${snapshot?.scenarioId ?? ""}`;
+  if (unitCardSession !== session) {
+    unitCardDisclosures.clear();
+    unitCardSession = session;
+  } else if (card.dataset.unitId) {
+    unitCardDisclosures.set(card.dataset.unitId, new Set([
+      ...Array.from(card.querySelectorAll("details")).filter(detail => detail.open).map(detail => detail.dataset.disclosureId),
+      ...Array.from(card.querySelectorAll(".ability-panel")).filter(panel => !panel.hidden).map(panel => panel.dataset.disclosureId)
+    ]));
+  }
+  const sameUnit = card.dataset.unitId === unit?.id;
+  const focusKey = sameUnit ? document.activeElement?.dataset?.cardControl : null;
+  const inspector = document.getElementById("inspector-unit");
+  const scrollTop = sameUnit ? inspector?.scrollTop : 0;
+  card.dataset.unitId = unit?.id ?? "";
   // Keep the portrait's ancestors mounted; Cell hover and playback also render this card.
   let header = card.querySelectorAll(".card-identity")[0];
   for (const child of Array.from(card.children)) if (child !== header) child.remove();
@@ -780,9 +797,9 @@ function renderUnitCard() {
     stats.append(value);
   }
   card.append(stats);
-  if (content.inventory?.length) {
-    const summary = text("p", `${content.inventory.length} carried ${content.inventory.length === 1 ? "object" : "objects"}`);
-    summary.className = "inventory-summary"; card.append(summary);
+  if (content.attackRestriction) {
+    const restriction = text("p", content.attackRestriction); restriction.className = "card-restriction";
+    card.append(restriction);
   }
   for (const stored of content.resourceStorage ?? [])
     card.append(text("p", `${stored.name}: ${stored.quantity} / ${stored.capacity} (shared by ${unit.sideId} / ${content.displayName})`));
@@ -793,110 +810,155 @@ function renderUnitCard() {
     row.append(text("p", orderLabel(order, state)));
     card.append(row);
   }
+  const open = unitCardDisclosures.get(unit.id) ?? new Set();
+  const abilities = text("div", ""); abilities.className = "card-abilities";
+  abilities.setAttribute("aria-label", "Abilities");
+  const spent = text("details", ""); spent.className = "card-spent";
+  spent.dataset.disclosureId = "spent"; spent.open = open.has("spent");
+  const spentSummary = text("summary", ""); spentSummary.dataset.cardControl = "spent"; spent.append(spentSummary);
+  const decision = displayedState === snapshot?.result.state && snapshot?.presentation.decision?.unitId === unit.id
+    ? snapshot.presentation.decision : null;
+  let spentCount = 0;
   for (const entry of content.entries) {
-    const row = text("div", ""); row.className = "card-ability";
-    row.dataset.source = entry.source ?? "Native";
-    const source = text("small", entry.source === "Item" ? "Single Use Item" : entry.source ?? "Native");
-    source.className = `ability-source${!entry.source || entry.source === "Native" ? " sr-only" : ""}`;
-    if (entry.sourceName && entry.sourceName !== entry.content.name && ["Equipment", "Item"].includes(entry.source)) source.textContent += ` · ${entry.sourceName}`;
-    row.append(source);
-    const ability = entry.content;
-    row.dataset.entryId = ability.id;
-    const heading = text("div", ""); heading.className = "ability-heading";
-    if (entry.referencedUnitTypeId) {
-      const image = document.createElement("img"); image.className = "unit-portrait ability-target-portrait"; image.alt = "";
-      const visual = applyBoardVisual(image, "unit", entry.referencedUnitTypeId);
-      if (visual.image) {
-        image.src = visual.image;
-        image.addEventListener("error", () => { image.hidden = true; });
-        heading.append(image);
-      }
-    }
-    const name = text("strong", ability.name + (entry.copyCount > 1 ? ` ×${entry.copyCount}` : ""));
-    bindTooltip(name, () => ability.description || ability.name);
-    if (ability.useLimitText != null) {
-      const limit = text("span", ` [${ability.useLimitText}]`); limit.className = "sr-only";
-      name.append(limit);
-    }
-    heading.append(name); heading.append(text("small", ability.category));
-    if (entry.uses) {
-      const uses = text("span", `${entry.uses.remainingUses}/${entry.uses.maxUses}`);
-      uses.className = "ability-uses";
-      uses.setAttribute("aria-label", `${entry.uses.remainingUses} of ${entry.uses.maxUses} uses remaining`);
-      bindTooltip(uses, () => `${entry.uses.remainingUses} / ${entry.uses.maxUses} uses`);
-      heading.append(uses);
-    }
-    const decision = snapshot?.presentation.decision;
-    const status = displayedState === snapshot?.result.state && decision?.unitId === unit.id
-      ? decision.entryStatuses?.[entry.accountingId ?? ability.id] : null;
-    row.append(abilityDescription(ability, heading, status?.status !== "Available" ? status?.reason : null));
-    if (status) {
-      row.dataset.availability = status.status;
-      bindTooltip(heading, () => status.reason);
-      heading.setAttribute("aria-description", status.reason);
-    }
-    const candidates = displayedState === snapshot?.result.state && decision?.unitId === unit.id
-      ? decision.candidates.filter(candidate => (candidate.accountingId ?? candidate.entryId) === (entry.accountingId ?? ability.id) && candidate.interaction.kind === "Direct") : [];
-    const controls = text("div", ""); controls.className = "card-use-controls";
-    for (const candidate of (entry.source === "Item" ? candidates.slice(0, 1) : candidates)) {
-      const button = choiceButton(candidate);
-      button.textContent = "Use";
-      button.setAttribute("aria-label", candidate.displayLabel ?? candidate.label);
-      button.className = "card-use";
-      button.dataset.legal = "true";
-      button.disabled = busy;
-      button.hidden = !visibleChoice(candidate);
-      if (status) button.querySelectorAll(".choice-relevance")[0]?.remove();
-      controls.append(button);
-      if (!button.hidden && !document.getElementById("inspector-unit")?.hidden) {
-        cardChoiceKeys.add(candidate.key);
-        if (entry.source === "Item") for (const copy of candidates) cardChoiceKeys.add(copy.key);
-      }
-      if (!button.hidden) row.classList.add("has-use");
-    }
-    if (controls.children.length) row.append(controls);
-    row.style.setProperty("--card-controls-width", `${48 * Array.from(controls.children).filter(button => !button.hidden).length}px`);
-    card.append(row);
+    if (entry.layout === "StandardAttack") continue;
+    const key = entry.accountingId ?? entry.content.id;
+    const candidates = decision?.candidates.filter(candidate =>
+      (candidate.accountingId ?? candidate.entryId) === key) ?? [];
+    // A supplied legal choice always wins over a contradictory reference counter.
+    const depleted = entry.isDepleted === true && !candidates.length;
+    const row = abilityReference(entry, decision?.entryStatuses?.[key], key, open, content.entries.indexOf(entry));
+    if (depleted) {
+      spent.append(row); spentCount++;
+      if (focusKey?.startsWith(`entry:${key}:`)) spent.open = true;
+    } else abilities.append(row);
   }
-  // Hover inspection must not strand a Direct choice whose card is no longer shown.
+  if (abilities.children.length) card.append(abilities);
+  if (spentCount) {
+    spentSummary.textContent = `${spent.open ? "Hide" : "Show"} spent abilities (${spentCount})`;
+    spent.addEventListener("toggle", () => { spentSummary.textContent = `${spent.open ? "Hide" : "Show"} spent abilities (${spentCount})`; });
+    card.append(spent);
+  }
+  const objects = content.ownedObjects ?? (content.inventory ?? []).map((item, index) => ({ id: String(index), content: item }));
+  if (objects.length) {
+    const inventory = text("details", ""); inventory.className = "card-inventory";
+    inventory.dataset.disclosureId = "inventory"; inventory.open = open.has("inventory");
+    const equipment = objects.filter(object => object.content.category === "Equipment").length;
+    const items = objects.filter(object => object.content.category === "Item").length;
+    const counts = [equipment ? `${equipment} Equipment` : null, items ? `${items} ${items === 1 ? "Item" : "Items"}` : null].filter(Boolean);
+    const summary = text("summary", `Inventory · ${counts.join(" · ") || `${objects.length} carried objects`}`);
+    summary.className = "inventory-summary"; summary.dataset.cardControl = "inventory"; inventory.append(summary);
+    for (const object of objects) {
+      const item = text("details", ""); item.className = "inventory-object";
+      item.dataset.disclosureId = `object:${object.id}`; item.open = open.has(item.dataset.disclosureId);
+      const label = text("summary", object.content.name); label.dataset.cardControl = item.dataset.disclosureId;
+      item.append(label);
+      if (!object.entries?.length) item.append(text("p", object.content.text ?? ""));
+      for (const grant of object.entries ?? []) {
+        const detail = text("p", `${grant.content.name} · ${grant.content.category}${grant.uses ? ` · ${grant.uses.remainingUses}/${grant.uses.maxUses} uses` : ""}: ${grant.content.description}`);
+        item.append(detail);
+      }
+      inventory.append(item);
+    }
+    card.append(inventory);
+  }
+  if (focusKey) {
+    const controls = [...card.querySelectorAll("summary"), ...card.querySelectorAll("button")];
+    const target = controls.find(node => node.dataset.cardControl === focusKey) ??
+      controls.find(node => focusKey.startsWith(`${node.dataset.cardControl}:`)) ??
+      controls.find(node => node.dataset.cardControl === "inventory");
+    target?.focus({ preventScroll: true });
+  }
+  if (inspector && scrollTop != null) inspector.scrollTop = scrollTop;
+  // The decision dock is independent of the Unit currently being inspected.
   if (!busy) renderChoicePanel();
 }
 
-function abilityDescription(ability, heading, availabilityReason = null) {
-  const description = text("div", ""); description.className = "ability-description";
-  const fullText = ability.description || ability.name;
-  const shortText = ability.shortDescription ?? fullText;
-  // Brief rules can stand on their own; longer wording stays intact behind the heading.
-  const expandableRules = shortText !== fullText || fullText.length > 100;
-  const expandable = expandableRules || Boolean(availabilityReason);
-  if (!heading) {
-    heading = text("div", ""); heading.className = "ability-heading";
-    heading.append(text("strong", ability.name), text("small", ability.category));
+// Reference controls only reveal supplied information; decisions live in Your Decision.
+function abilityReference(entry, status, key, open, index) {
+  const ability = entry.content;
+  const row = text("div", ""); row.className = "card-ability";
+  row.dataset.entryId = ability.id; row.dataset.cardEntryKey = key;
+  row.dataset.source = entry.source ?? "Native";
+  const line = text("div", ""); line.className = "ability-line";
+  const timing = entry.timingHint ?? ability.category;
+  const badgeKind = entry.timingHint ? (entry.timingHint === "After Attack" ? "followup" : "triggered")
+    : ({ Action: "action", "Bonus Action": "bonus", "Free Action": "free", Passive: "passive",
+      Capability: "passive", "Follow-up": "followup", Automatic: "triggered" }[ability.category] ?? "triggered");
+  const symbols = { action: "A", bonus: "B", free: "F", passive: "P", followup: "↪", triggered: "T" };
+  const badge = text("span", symbols[badgeKind]); badge.className = "ability-type";
+  badge.dataset.timing = badgeKind; badge.setAttribute("role", "img"); badge.setAttribute("aria-label", timing); bindTooltip(badge, () => timing);
+  const name = text("strong", ability.name); name.className = "ability-name";
+  const metadata = text("div", ""); metadata.className = "ability-metadata";
+  const counts = text("span", ""); counts.className = "ability-counts";
+  if (entry.uses) {
+    const uses = text("span", `${entry.uses.remainingUses}/${entry.uses.maxUses}`); uses.className = "ability-uses";
+    uses.setAttribute("aria-label", `${entry.uses.remainingUses} of ${entry.uses.maxUses} uses remaining${ability.useLimitText ? `, ${ability.useLimitText}` : ""}`);
+    counts.append(uses);
   }
-  if (!expandable) {
-    description.append(heading, text("p", fullText));
-    return description;
+  if (entry.source === "Item" || entry.copyCount > 1) {
+    const quantity = text("span", `×${entry.copyCount ?? 1}`); quantity.className = "ability-quantity";
+    quantity.setAttribute("aria-label", `${entry.copyCount ?? 1} carried ${entry.source === "Item" ? "Items" : "copies"}`);
+    counts.append(quantity);
   }
-  const full = text("details", "");
-  const summary = text("summary", "");
-  bindTooltip(summary, () => ability.description || ability.name);
-  summary.append(heading);
-  summary.setAttribute("aria-label", `${expandableRules ? "Full description" : "Ability details"}: ${ability.name}`);
-  full.append(summary);
-  if (expandableRules) full.append(text("p", fullText));
-  if (availabilityReason) {
-    const help = text("p", availabilityReason); help.className = "ability-help";
-    full.append(help);
+  const panel = text("div", ""); panel.className = "ability-panel"; panel.hidden = true;
+  panel.id = `unit-ability-panel-${index}`;
+  const controls = [];
+  let activeSection = null;
+  function reveal(section) {
+    activeSection = section;
+    panel.dataset.disclosureId = section ? `entry:${key}:${section}` : "";
+    panel.hidden = !section;
+    for (const control of controls) control.setAttribute("aria-expanded", String(control.dataset.section === section));
+    if (!section) return;
+    panel.replaceChildren();
+    if (section === "info") {
+      panel.append(text("strong", timing));
+      if (entry.referencedUnitTypeId) {
+        const image = document.createElement("img"); image.className = "unit-portrait ability-target-portrait"; image.alt = "";
+        const visual = applyBoardVisual(image, "unit", entry.referencedUnitTypeId);
+        if (visual.image) { image.src = visual.image; image.addEventListener("error", () => { image.hidden = true; }); panel.append(image); }
+      }
+      panel.append(text("p", ability.description || ability.name));
+      if (entry.restrictionText) panel.append(text("p", entry.restrictionText));
+      if (ability.useLimitText) panel.append(text("p", `Use limit: ${ability.useLimitText}`));
+      if (status && status.status !== "Available") {
+        const help = text("p", status.reason); help.className = "ability-help"; panel.append(help);
+      }
+    } else if (section === "source") {
+      panel.append(text("strong", entry.source === "Item" ? "Single Use Item" : entry.source),
+        text("p", entry.sourceName ?? entry.sourceTypeId ?? entry.source));
+      if (entry.sourceInstanceId) panel.append(text("p", `Object: ${entry.sourceInstanceId}`));
+      if (entry.source === "Item") panel.append(text("p", `${entry.copyCount ?? 1} carried. Each use consumes one Item. Normal timing and use limits still apply.`));
+    } else {
+      panel.append(text("strong", "Cost"), text("p", entry.costText));
+    }
   }
-  description.append(full);
-  if (!expandableRules) description.append(text("p", fullText));
-  else if (ability.shortDescription && shortText !== fullText) {
-    const short = text("p", shortText); short.className = "ability-short";
-    bindTooltip(short, () => fullText); description.append(short);
+  function informationControl(section, symbol, label) {
+    const button = text("button", symbol); button.type = "button";
+    button.className = `ability-reference-control ability-${section}`;
+    button.dataset.section = section; button.dataset.cardControl = `entry:${key}:${section}`;
+    button.setAttribute("aria-label", `${label}: ${ability.name}${entry.sourceName && entry.source !== "Native" ? ` — ${entry.sourceName}` : ""}`);
+    button.setAttribute("aria-controls", panel.id); button.setAttribute("aria-expanded", "false");
+    bindTooltip(button, () => label);
+    button.addEventListener("click", () => reveal(activeSection === section ? null : section));
+    controls.push(button); return button;
   }
-  return description;
+  if (entry.source && entry.source !== "Native") metadata.append(informationControl("source", "↳", "Ability source"));
+  if (entry.costText) metadata.append(informationControl("cost", "◆", "Ability cost"));
+  const info = informationControl("info", "i", "Ability details");
+  line.append(badge, name, metadata, counts, info);
+  row.append(line, panel);
+  row.addEventListener("keydown", event => {
+    if (event.key !== "Escape" || !activeSection) return;
+    event.preventDefault(); event.stopPropagation?.();
+    const control = controls.find(control => control.dataset.section === activeSection);
+    reveal(null); control?.focus({ preventScroll: true });
+  });
+  const restored = controls.find(control => open.has(`entry:${key}:${control.dataset.section}`));
+  if (restored) reveal(restored.dataset.section);
+  else { reveal("info"); reveal(null); }
+  return row;
 }
-
 function unitPortrait(typeId, name, previous) {
   const frame = previous ?? text("div", ""); frame.className = "card-portrait";
   const visual = applyBoardVisual(frame, "unit", typeId);
@@ -1019,7 +1081,7 @@ function renderChoicePanel() {
   }
   if (decision?.noneChoice && selectedActionKey === null && !boardChoiceKeys.has(null)) ui.choices.append(choiceButton(decision.noneChoice));
   for (const candidate of decision?.candidates ?? []) {
-    if (candidate.isEndTurn || !visibleBoardChoice(candidate) || boardChoiceKeys.has(candidate.key) || actionChoices.has(candidate.key) || cardChoiceKeys.has(candidate.key)) continue;
+    if (candidate.isEndTurn || !visibleBoardChoice(candidate) || boardChoiceKeys.has(candidate.key) || actionChoices.has(candidate.key)) continue;
     ui.choices.append(choiceButton(candidate));
   }
   if (decision && threeActive() && boardChoiceKeys.size && !boardChooser && selectedActionKey === null) {
@@ -1110,9 +1172,7 @@ function renderActionDock(decision) {
       if (busy) return;
       if (group.candidates.length === 1 && group.candidates[0].interaction.kind === "Direct")
         return chooseCandidate(group.candidates[0].key);
-      selectedActionKey = group.key; selectedActionDecision = decision;
-      renderSnapshot();
-      document.getElementById("play-actions")?.querySelectorAll(".action-target-options")[0]?.querySelectorAll("button")[0]?.focus();
+      selectActionGroup(group.key, decision);
     });
     chips.append(button);
   }
@@ -1133,6 +1193,13 @@ function renderActionDock(decision) {
     options.append(targets, cancel); host.append(options);
   }
   return owned;
+}
+
+function selectActionGroup(key, decision) {
+  if (busy) return;
+  selectedActionKey = key; selectedActionDecision = decision;
+  renderSnapshot();
+  document.getElementById("play-actions")?.querySelectorAll(".action-target-options")[0]?.querySelectorAll("button")[0]?.focus();
 }
 
 function renderBoardChoiceList(host, decision) {

@@ -66,7 +66,7 @@ public sealed class DecisionPresentationTests
         var request = new DecisionRequest(DecisionKind.Activation, "fixture", "actor", [], false);
         state.BonusActionUseCountsThisActivation[bonus.AccountingId] = 1;
         state.CurrentUnitId = "actor";
-        Assert.Equal(new(BrowserEntryAvailability.Exhausted, "Used this activation"),
+        Assert.Equal(new(BrowserEntryAvailability.Exhausted, "Used this activation") { UsedThisActivation = true },
             BrowserProjection.Decision(request, state)!.EntryStatuses[bonus.AccountingId]);
 
         state.CurrentUnitId = null;
@@ -93,7 +93,7 @@ public sealed class DecisionPresentationTests
             BrowserProjection.Decision(request, state)!.EntryStatuses[bonus.AccountingId].Status);
 
         state.BonusActionUseCountsThisActivation[bonus.AccountingId] = 2;
-        Assert.Equal(new(BrowserEntryAvailability.Exhausted, "Used this activation"),
+        Assert.Equal(new(BrowserEntryAvailability.Exhausted, "Used this activation") { UsedThisActivation = true },
             BrowserProjection.Decision(request with { Candidates = [] }, state)!.EntryStatuses[bonus.AccountingId]);
 
         state.WorldDeck = new() { ActiveContinuous = [new("fewer-bonuses-copy", "fewer-bonuses")] };

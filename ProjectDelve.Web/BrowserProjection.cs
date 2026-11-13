@@ -17,7 +17,10 @@ public sealed record BrowserChoice(string? Key, string Label, string? EntryId,
 }
 public sealed record FigureGeometry(Cell Anchor, IReadOnlyList<Cell> OccupiedCells, int CellSpan);
 public enum BrowserEntryAvailability { Available, Irrelevant, Exhausted, Unavailable }
-public sealed record BrowserEntryStatus(BrowserEntryAvailability Status, string Reason);
+public sealed record BrowserEntryStatus(BrowserEntryAvailability Status, string Reason)
+{
+    public bool UsedThisActivation { get; init; }
+}
 public sealed record BrowserDecision(string? UnitId, string Prompt,
     IReadOnlyList<BrowserChoice> Candidates, BrowserChoice? NoneChoice)
 {
@@ -27,6 +30,11 @@ public sealed record BrowserDecision(string? UnitId, string Prompt,
 }
 public sealed record CardEntry(CardEntryDescription Content, AbilityUses? Uses)
 {
+    public bool IsDepleted => Uses is { RemainingUses: <= 0 };
+    public string Layout { get; init; } = "Trait";
+    public string? CostText { get; init; }
+    public string? TimingHint { get; init; }
+    public string? RestrictionText { get; init; }
     public string Source { get; init; } = "Native";
     public string? SourceName { get; init; }
     public string? SourceTypeId { get; init; }
@@ -52,6 +60,8 @@ public sealed record StoredResourceDisplay(string ResourceTypeId, string Name, i
 public sealed record UnitCard(string DisplayName, IReadOnlyList<CardEntry> Entries)
 {
     public IReadOnlyList<LootCardContent> Inventory { get; init; } = [];
+    public IReadOnlyList<ObjectDisplay> OwnedObjects { get; init; } = [];
+    public string? AttackRestriction { get; init; }
     public string? IndividualName { get; init; }
     public string? PlayerName { get; init; }
     public IReadOnlyList<StoredResourceDisplay> ResourceStorage { get; init; } = [];
@@ -224,6 +234,11 @@ public static class BrowserProjection
             Entries(state, u).ToArray())
         {
             Inventory = u.Inventory.Select(state.ObjectContent).ToArray(),
+            OwnedObjects = u.Inventory.Select(item => Object(state, item)).ToArray(),
+            AttackRestriction = type.HasAction(UnitAction.NormalAttack) ? null
+                : state.AbilitiesOf(u.Id).Any(grant => grant.Definition.Mechanic is
+                    FireballMechanic or FireBreath or ClawAttack or TargetUnitAttackMechanic)
+                    ? "No standard Attack" : "Can't attack",
             IndividualName = individualNames?.GetValueOrDefault(u.Id),
             PlayerName = PlayerName(state, u.Id, individualNames),
             ResourceStorage = type.ResourceStorage?.Capacities.Select(c => new StoredResourceDisplay(c.Type.Id, c.Type.Name,
@@ -235,15 +250,25 @@ public static class BrowserProjection
     public static ObjectDisplay Object(GameState state, OwnedObject item)
     {
         var equipment = state.EquipmentTypeId(item) is { } typeId ? state.Equipment(typeId) : null;
+        var itemDefinition = equipment is null && state.ItemTypeId(item) is { } itemTypeId ? state.Item(itemTypeId) : null;
         return new(item.Id, item.Kind, equipment?.Id, state.ObjectContent(item))
         {
             ItemTypeId = state.ItemTypeId(item),
-            Entries = equipment?.LocalAbilities.Select(ability => new CardEntry(
+            Entries = equipment?.LocalAbilities.Select(ability => WithLayout(new CardEntry(
                 ContentDescriptions.AbilityEntry(ability, equipment.EntryId(ability.Key), state.Types),
                 state.EquipmentAbilityUsesOf(item, ability))
             {
                 Source = "Equipment", SourceName = equipment.Name, SourceTypeId = equipment.Id,
-                SourceInstanceId = item.Id
+                SourceInstanceId = item.Id,
+                AccountingId = new ResolvedAbility(ability, AbilitySourceKind.Equipment, equipment.Id, item.Id).AccountingId
+            }, ability)).ToArray() ?? itemDefinition?.LocalAbilities.Select(ability =>
+            {
+                var grant = new ResolvedAbility(ability, AbilitySourceKind.Item, itemDefinition.Id, item.Id, itemDefinition.Name);
+                return WithLayout(new CardEntry(grant.CardEntry(state.Types), null)
+                {
+                    Source = "Item", SourceName = itemDefinition.Name, SourceTypeId = itemDefinition.Id,
+                    SourceInstanceId = item.Id, AccountingId = grant.AccountingId
+                }, ability);
             }).ToArray() ?? []
         };
     }
@@ -258,21 +283,52 @@ public static class BrowserProjection
         foreach (var entry in type.CardEntries(state.Types))
         {
             if (native.Remove(entry.Id, out var grant)) yield return GrantedEntry(state, unit, grant);
-            else yield return new(entry, null);
+            else yield return new(entry, null)
+            {
+                Layout = entry.Id == "attack" && type.HasAction(UnitAction.NormalAttack) ? "StandardAttack" : "Trait"
+            };
         }
         foreach (var grant in native.Values) yield return GrantedEntry(state, unit, grant);
         foreach (var entry in AcquiredEntries(state, unit)) yield return entry;
     }
 
     private static CardEntry GrantedEntry(GameState state, Unit unit, ResolvedAbility grant, int copies = 1) =>
-        new(ContentDescriptions.AbilityEntry(grant.Definition, grant.EntryId, state.Types), state.AbilityUsesOf(unit.Id, grant))
+        WithLayout(new(ContentDescriptions.AbilityEntry(grant.Definition, grant.EntryId, state.Types), state.AbilityUsesOf(unit.Id, grant))
         {
             Source = grant.SourceKind == AbilitySourceKind.Unit ? "Native" : grant.SourceKind.ToString(),
             SourceName = grant.SourceName, SourceTypeId = grant.SourceTypeId,
             SourceInstanceId = copies == 1 ? grant.SourceInstanceId : null,
             AccountingId = grant.AccountingId, CopyCount = copies,
             ReferencedUnitTypeId = grant.Definition.Mechanic is AdjacentUnitSummonMechanic summon ? summon.UnitTypeId : null
+        }, grant.Definition);
+
+    private static CardEntry WithLayout(CardEntry entry, LocalAbilityDefinition ability)
+    {
+        var timingHint = ability.Timing switch
+        {
+            AbilityTiming.AfterAttack => "After Attack",
+            AbilityTiming.WhenDefeated => "When defeated",
+            AbilityTiming.InsteadOfDefeat => "Instead of defeat",
+            AbilityTiming.InsteadOfActivation => "Instead of activation",
+            AbilityTiming.EndActivation => "End activation",
+            _ => null
         };
+        var ordinary = ability.Costs.IsDefaultOrEmpty && ability.Usage.MaxUses is null && timingHint is null;
+        return entry with
+        {
+            Layout = ordinary && (ability.Mechanic is OpenDoor && ability.Timing == AbilityTiming.FreeAction ||
+                    ability.Mechanic is Operate && ability.Timing == AbilityTiming.Action) ? "Utility"
+                : ordinary && ability.Timing == AbilityTiming.Passive ? "Trait" : "Action",
+            CostText = ability.Costs.IsDefaultOrEmpty ? null : string.Join(" ", ability.Costs.Select(CostCatalog.Describe)),
+            TimingHint = timingHint,
+            RestrictionText = ability.Mechanic switch
+            {
+                Cleave cleave => $"Attack dealt {cleave.TriggerDamage}+ damage to a Unit",
+                AdvanceOnKill => "Normal melee Attack defeated an enemy",
+                _ => null
+            }
+        };
+    }
 
     private static IEnumerable<CardEntry> AcquiredEntries(GameState state, Unit unit)
     {
@@ -420,7 +476,7 @@ public static class BrowserProjection
                         abilities.TryGetValue(abilityId, out var ability) && ability.Definition.Timing == AbilityTiming.BonusAction &&
                         state.BonusActionUsesThisActivation(abilityId) > 0 &&
                         state.BonusActionUsesThisActivation(abilityId) >= state.EffectiveBonusActionUsesPerActivation
-                        ? new(BrowserEntryAvailability.Exhausted, "Used this activation")
+                        ? new(BrowserEntryAvailability.Exhausted, "Used this activation") { UsedThisActivation = true }
                         : new(BrowserEntryAvailability.Unavailable, "Not available at this step");
             }
         }
