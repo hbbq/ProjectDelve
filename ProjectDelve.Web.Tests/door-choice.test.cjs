@@ -263,6 +263,17 @@ function attachThree(h, useDomHandoff = false) {
   return { frames, rendered };
 }
 
+test('3D interaction projection leaves busy state when playback finishes without another pointer hit', async () => {
+  const h=harness(response([choice('move','Position',{position:{x:1,y:0}},{boardVisual:{kind:'move'}})]));
+  const three=attachThree(h);
+  await h.run('viewportRouter.request("tabletop")');
+  h.run('busy=true; updateControls()');assert.equal(three.rendered.at(-1).busy,true);
+  h.run('busy=false; updateControls()');
+  assert.equal(three.rendered.at(-1).busy,false);
+  assert.equal(three.rendered.at(-1).candidates[0].key,'move');
+  const count=three.rendered.length;h.run('updateControls()');assert.equal(three.rendered.length,count);
+});
+
 for (const view of ['three', 'tabletop']) test(`hidden DOM board stays untouched until an event-time handoff (${view})`, async () => {
   const initial = response(), final = structuredClone(initial), during = structuredClone(initial.result.state);
   during.physical.figures[0].position.x = 1;
@@ -574,6 +585,26 @@ function largeResponse(candidates = []) {
   };
   return snapshot;
 }
+
+test("DOM cursors use mounted click choices and retain exact Cells beneath large figures", () => {
+  const move=choice('move','Position',{position:{x:1,y:1}},{boardVisual:{kind:'move'}});
+  const attack=choice('attack','Unit',{unitId:'actor'},{boardVisual:{kind:'attack'}});
+  const h=harness(largeResponse([move,attack]));
+  assert.equal(h.run('cells.get("1,1").style.cursor'),'context-menu');
+  assert.equal(h.run('cells.get("0,1").style.cursor'),'crosshair');
+  assert.equal(h.figure('actor').style.pointerEvents,'none');
+  h.run('snapshot.presentation.decision.candidates[1].relevant=false; renderSnapshot()');
+  assert.equal(h.run('cells.get("1,1").style.cursor'),'pointer');
+  assert.equal(h.run('cells.get("0,1").style.cursor'),'grab');
+  h.run('ui.filter.checked=false; renderSnapshot()');
+  assert.equal(h.run('cells.get("1,1").style.cursor'),'context-menu');
+  h.run('selectedActionKey=actionKey(snapshot.presentation.decision.candidates[1]); selectedActionDecision=snapshot.presentation.decision; renderSnapshot()');
+  assert.equal(h.run('cells.get("0,1").style.cursor'),'crosshair');
+  assert.equal(h.run('cells.get("3,3").style.cursor'),'not-allowed');
+  h.run('busy=true; updateControls()');assert.equal(h.elements.get('board').dataset.busy,'true');
+  h.run('busy=false; closeActionSelection()');
+  assert.equal(h.run('cells.get("1,1").style.cursor'),'context-menu');
+});
 
 test("generic 2x2 Figure has one identity and all four Cells select and inspect it", async () => {
   const initial = largeResponse([choice("select-opaque", "Unit", { unitId: "actor" })]);

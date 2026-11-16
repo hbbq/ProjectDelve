@@ -952,6 +952,51 @@ test('all catalog terrain and objects render deterministically; cached textures 
     assert.equal(h.rendered.at(-1).scene.getObjectByName('edges').children.length,3);assert.ok(h.rendered.at(-1).scene.getObjectByName('items').children.length>=3);
   }finally{h.cleanup();}
 });
+test('shared click classification prefers chooser, then explicit targeting, without inferring actions from objects',async()=>{
+  const {boardInteraction}=await moduleAt('playtest-viewport.js');
+  const move={key:'move',boardVisual:{kind:'move'},interaction:{kind:'Position'}};
+  const attack={key:'attack',boardVisual:{kind:'attack'},interaction:{kind:'Unit'}};
+  assert.equal(boardInteraction([move]).cursor,'pointer');
+  assert.equal(boardInteraction([attack]).cursor,'crosshair');
+  assert.equal(boardInteraction([move],{targeting:true}).cursor,'crosshair');
+  assert.equal(boardInteraction([move,attack],{targeting:true}).cursor,'context-menu');
+  assert.equal(boardInteraction([move,attack]).kind,'chooser');
+  assert.equal(boardInteraction([move]).choice,move);
+  assert.equal(boardInteraction([],{targeting:true}).cursor,'not-allowed');
+  assert.equal(boardInteraction([],{targeting:true,hit:false}).cursor,'grab');
+  assert.equal(boardInteraction([]).cursor,'grab');
+  assert.equal(boardInteraction([attack],{dragging:true}).cursor,'grabbing');
+  assert.equal(boardInteraction([attack],{dragging:true,busy:true}).cursor,'default');
+});
+
+for(const mode of ['flat','tabletop'])test(`${mode} cursor follows exact hit choices, target state, busy, drag and stationary restoration`,async()=>{
+  const f=fixture(),h=await harness(f);try{
+    h.viewport.setPresentation(mode);h.viewport.camera.setMode('full');h.viewport.settle();h.flush();
+    const canvas=h.host.children.find(n=>n.tagName==='canvas');
+    const position={x:5,y:4},move={key:'move',boardVisual:{kind:'move'},interaction:{kind:'Position',position}},attack={key:'attack',boardVisual:{kind:'attack'},interaction:{kind:'Unit',unitId:'large'}};
+    const hover=()=>{const p=h.viewport.project({x:5.5,y:4.5});canvas.emit('pointermove',{pointerId:7,clientX:p.x,clientY:p.y});return p;};
+    h.viewport.showInteraction({candidates:[move]});hover();assert.equal(canvas.style.cursor,'pointer');
+    let writes=0,cursorValue=canvas.style.cursor;
+    Object.defineProperty(canvas.style,'cursor',{get:()=>cursorValue,set:value=>{writes++;cursorValue=value;},configurable:true});
+    hover();h.viewport.showInteraction({candidates:[move]});assert.equal(writes,0,'same category does not rewrite cursor style');
+    h.viewport.showInteraction({candidates:[move,attack]});assert.equal(canvas.style.cursor,'context-menu');
+    h.viewport.showInteraction({candidates:[attack]});assert.equal(canvas.style.cursor,'crosshair');
+    h.viewport.showInteraction({candidates:[],targeting:true});assert.equal(canvas.style.cursor,'not-allowed');
+    h.viewport.showInteraction({candidates:[]});assert.equal(canvas.style.cursor,'grab');
+    h.viewport.showInteraction({candidates:[move],busy:true});assert.equal(canvas.style.cursor,'default');
+    h.viewport.showInteraction({candidates:[move]});const p=hover();assert.equal(canvas.style.cursor,'pointer');
+    h.host.emit('keydown',{key:' '});canvas.emit('pointerdown',{button:0,pointerId:7,clientX:p.x,clientY:p.y});assert.equal(canvas.style.cursor,'grabbing');
+    canvas.emit('pointermove',{pointerId:7,clientX:p.x-3,clientY:p.y});assert.equal(canvas.style.cursor,'grabbing');
+    canvas.emit('pointerup',{pointerId:7,clientX:p.x-3,clientY:p.y});h.host.emit('keyup',{key:' ',defaultPrevented:true});
+    assert.notEqual(canvas.style.cursor,'grabbing');assert.equal(h.picked.length,0);
+    const inspections=h.hovered.length;
+    canvas.emit('pointerdown',{button:0,pointerId:9,pointerType:'touch',clientX:p.x,clientY:p.y});
+    canvas.emit('pointercancel',{pointerId:9,clientX:p.x,clientY:p.y});
+    assert.equal(h.hovered.length,inspections,'cancellation restores only cursor, never inspection/preview callbacks');
+    assert.equal(h.picked.length,0);
+  }finally{h.cleanup();}
+});
+
 test('ray picking uses the current camera, exact Cells, 2x2 footprints and transparent open Door proxies',async()=>{
   const f=fixture(),h=await harness(f);try{
     h.viewport.camera.setMode('full');h.viewport.settle();h.flush();

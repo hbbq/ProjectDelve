@@ -3,7 +3,7 @@ import { boardVisuals, terrainLayers, terrainDisplay, railConnections, railGeome
 import { resolveUnitModel, unitVisualEnvelope, unitVisualOverhang, miniatureBaseLayout } from './unit-visuals.js';
 import { sideHue } from './side-colors.js';
 import { createThreeCamera } from './three-camera.js';
-import { boardCandidates, boardCellKey, boardEdgeKey, tokenDetail } from './playtest-viewport.js';
+import { boardCandidates, boardInteraction, boardCellKey, boardEdgeKey, tokenDetail } from './playtest-viewport.js';
 import { createTabletopVisuals, createMovementClipPool } from './three-tabletop.js';
 import { createTabletopLighting } from './three-lighting.js';
 import { createTabletopSurfaces } from './three-surfaces.js';
@@ -392,7 +392,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     representationTransition=active&&animate()?{start:performance.now(),parts:[...unitRoots.values()].flatMap(root=>root.children.filter(child=>child.name!=='active-mark').map(object=>({object,scale:object.scale.clone()})))}:null;invalidate();
   }
   function showInteraction(next){
-    view=next??{};if(!frame)return;for(const key of [...nodes.keys()])if(key.startsWith('feedback:')||key.startsWith('area:')){removeRecord(nodes.get(key));nodes.delete(key);}
+    view=next??{};if(!frame)return;refreshCursor();for(const key of [...nodes.keys()])if(key.startsWith('feedback:')||key.startsWith('area:')){removeRecord(nodes.get(key));nodes.delete(key);}
     retained=new Set(nodes.keys());const figures=frame.state.physical.figures;
     if(presentation==='tabletop'){showTabletopInteraction(figures);invalidate();return;}
     const add=(key,object)=>retain(`feedback:${key}`,'feedback','feedback',()=>object);
@@ -643,8 +643,13 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   }
   const local=event=>{const rect=canvas.getBoundingClientRect();return{x:event.clientX-rect.left,y:event.clientY-rect.top};};
   function candidates(hit){return boardCandidates(hit,{candidates:view.candidates??[]},frame.state,frame.presentation.figures);}
-  function hover(hit){const choices=hit?candidates(hit):[],signature=JSON.stringify([hit,choices.map(c=>c.key)]);if(signature===lastHover)return;lastHover=signature;const nextHovered=hit?.unitId??null;if(nextHovered!==hoveredUnitId&&presentation==='tabletop')invalidate();hoveredUnitId=nextHovered;onHover?.(hoveredUnitId,hit?.cell);onPreview?.(choices.length===1?choices[0]:null);
-    canvas.style.cursor=choices.length?'pointer':'grab';host.dataset.hoverCell=hit?boardCellKey(hit.cell):'';
+  let hoveredHit;
+  function refreshCursor(hit=hoveredHit,choices=hit?candidates(hit):[]){
+    const cursor=boardInteraction(choices,{busy:view.busy,dragging:!!(drag?.moved||pinch),targeting:view.targeting,hit:!!hit}).cursor;
+    if(canvas.style.cursor!==cursor)canvas.style.cursor=cursor;
+  }
+  function hover(hit){const choices=hit?candidates(hit):[];hoveredHit=hit;refreshCursor(hit,choices);const signature=JSON.stringify([hit,choices.map(c=>c.key)]);if(signature===lastHover)return;lastHover=signature;const nextHovered=hit?.unitId??null;if(nextHovered!==hoveredUnitId&&presentation==='tabletop')invalidate();hoveredUnitId=nextHovered;onHover?.(hoveredUnitId,hit?.cell);onPreview?.(choices.length===1?choices[0]:null);
+    host.dataset.hoverCell=hit?boardCellKey(hit.cell):'';
     const description=choices.map(c=>c.boardVisual?.preview??c.displayLabel??c.label).join(' / ');
     const machine=hit&&frame.presentation.machines?.find(m=>boardCellKey(m.position)===boardCellKey(hit.cell));
     const resource=hit&&frame.state.resources?.find(r=>boardCellKey(r.position)===boardCellKey(hit.cell));
@@ -661,8 +666,9 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   function bind(node,type,handler,options={}){node.addEventListener(type,handler,{...options,signal:abort.signal});}
   bind(resetSample,'click',()=>{samples.length=renderTimes.length=unitRenderTimes.length=unitIntervals.length=cameraRenderTimes.length=cameraIntervals.length=reconcileTimes.length=0;lastRender=lastUnitFrame=lastCameraFrame=0;invalidate();});
   bind(canvas,'pointerdown',event=>{if(![0,1].includes(event.button))return;const p=local(event);pointers.set(event.pointerId,p);canvas.setPointerCapture(event.pointerId);pointerPosition=p;blockClick=false;
-    if(pointers.size===2){const[a,b]=[...pointers.values()];pinch={distance:Math.hypot(a.x-b.x,a.y-b.y),mid:{x:(a.x+b.x)/2,y:(a.y+b.y)/2}};drag=null;blockClick=true;return;}
+    if(pointers.size===2){const[a,b]=[...pointers.values()];pinch={distance:Math.hypot(a.x-b.x,a.y-b.y),mid:{x:(a.x+b.x)/2,y:(a.y+b.y)/2}};drag=null;blockClick=true;refreshCursor();return;}
     drag={id:event.pointerId,start:p,pose:cameraControl.current(),threshold:event.pointerType==='touch'?10:6,moved:event.button===1||space};
+    refreshCursor();
   });
   bind(canvas,'pointermove',event=>{const p=local(event);pointerPosition=p;if(pointers.has(event.pointerId))pointers.set(event.pointerId,p);
     if(pointers.size===2&&pinch){const[a,b]=[...pointers.values()],distance=Math.hypot(a.x-b.x,a.y-b.y),mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};cameraControl.zoom(distance/Math.max(1,pinch.distance),mid);cameraControl.pan(pinch.mid,mid);pinch={distance,mid};blockClick=true;event.preventDefault();return;}
@@ -672,8 +678,9 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   function finishPointer(event){const selected=pointers.has(event.pointerId)&&event.type==='pointerup'&&!blockClick&&!pinch&&!drag?.moved;
     pointers.delete(event.pointerId);if(canvas.hasPointerCapture(event.pointerId))canvas.releasePointerCapture(event.pointerId);
     if(selected)select(pick(local(event)));if(pinch){blockClick=true;pinch=null;}drag=null;
+    hoveredHit=pointerPosition?pick(pointerPosition):null;refreshCursor();
   }
-  bind(canvas,'pointerup',finishPointer);bind(canvas,'pointercancel',finishPointer);bind(canvas,'lostpointercapture',()=>{drag=null;});
+  bind(canvas,'pointerup',finishPointer);bind(canvas,'pointercancel',finishPointer);bind(canvas,'lostpointercapture',()=>{drag=null;hoveredHit=pointerPosition?pick(pointerPosition):null;refreshCursor();});
   bind(canvas,'pointerleave',()=>{if(!drag&&!pinch){pointerPosition=null;hover(null);}});
   bind(canvas,'wheel',event=>{if(!event.altKey||event.ctrlKey)return;event.preventDefault();cameraControl.zoom(Math.exp(-event.deltaY*.002),local(event));},{passive:false});
   bind(host,'keydown',event=>{if(event.target!==host&&event.target!==focus)return;

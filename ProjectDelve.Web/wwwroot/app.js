@@ -3,7 +3,7 @@ import { groundLoot, lootCardDialog } from "./loot-ui.js";
 import { styleSide, applySideHues } from "./side-colors.js";
 import { applyBoardVisual, terrainDisplay } from "./board-visuals.js";
 import { createBoardCamera } from "./board-camera.js";
-import { createViewportRouter, boardCandidates } from "./playtest-viewport.js";
+import { createViewportRouter, boardCandidates, boardInteraction } from "./playtest-viewport.js";
 import { createUnitFacing } from "./unit-facing.js";
 import { loadUnitVisualCatalog } from "./unit-visuals.js";
 import { advanceChoices, bindAdvanceControls } from "./primary-advance.js";
@@ -324,10 +324,12 @@ const domViewport = { host: cameraViewport, mode: boardView.value === "classic" 
   dispose() {} };
 const threeActive = () => !!threeViewport && viewportRouter?.active === threeViewport;
 const playCamera = () => threeActive() ? threeViewport.camera : boardCamera;
+let threeInteractionBusy;
 function syncThreeInteraction() {
   if (!threeActive()) return;
+  threeInteractionBusy = busy;
   const decision = !busy && displayedState === snapshot?.result.state ? snapshot.presentation.decision : null;
-  threeViewport.showInteraction({ busy, candidates: [...(decision?.candidates ?? []), ...(decision?.noneChoice ? [decision.noneChoice] : [])].filter(visibleBoardChoice),
+  threeViewport.showInteraction({ busy, targeting: selectedActionKey !== null, candidates: [...(decision?.candidates ?? []), ...(decision?.noneChoice ? [decision.noneChoice] : [])].filter(visibleBoardChoice),
     focusedUnitId, focusedDoor, relationship: combatDice?.context ?? attackContext,
     combatPositions: combatDice?.positions, preview: threePreview,
     coordinates: ui.coordinates.checked || threeChoicesOpen, waypoints: document.getElementById("waypoints").checked });
@@ -344,8 +346,9 @@ function closeChoiceList() {
 function selectThreeHit(hit) {
   if (busy || !displayedState) return;
   const candidates = boardCandidates(hit, snapshot.presentation.decision, displayedState, displayedFigures, visibleBoardChoice);
-  if (!candidates.length) return;
-  if (candidates.length === 1) return chooseCandidate(candidates[0].key);
+  const interaction = boardInteraction(candidates);
+  if (interaction.kind === "none") return;
+  if (interaction.kind === "choice") return chooseCandidate(interaction.choice.key);
   boardChooser = candidates; boardChooserOrigin = viewportRouter.active.host;
   positionDecisionPanel(hit.cell); clearAffectedPreview(); renderChoicePanel();
   ui.choices.querySelectorAll("button")[0]?.focus();
@@ -1356,6 +1359,10 @@ function bindDisplayedBoardChoices(decision, dom = !threeActive()) {
       offer(edges.get(edgeKey(selection.edge ?? selection.door)), candidate);
     }
   }
+  for (const node of [...cells.values(), ...figures.values(), ...edges.values()]) {
+    const cursor = boardInteraction([...(boardChoices.get(node)?.values() ?? [])], { targeting: selectedActionKey !== null }).cursor;
+    if (node.style.cursor !== cursor) node.style.cursor = cursor;
+  }
   for (const [node, choices] of boardChoices) {
     const candidates = [...choices.values()]; // Preserve authoritative candidate order.
     bindBoardChoice(node, candidates);
@@ -1404,7 +1411,9 @@ function bindBoardChoice(node, candidates) {
   }
   const select = () => {
     if (busy) return;
-    if (candidates.length === 1) return chooseCandidate(candidates[0].key);
+    const interaction = boardInteraction(candidates);
+    if (interaction.kind === "none") return;
+    if (interaction.kind === "choice") return chooseCandidate(interaction.choice.key);
     boardChooser = candidates;
     boardChooserOrigin = node;
     const reference = candidates[0].interaction;
@@ -1456,6 +1465,8 @@ function updateControls() {
     if (latestUpdate.status === "faulted") ui.prompt.textContent = "Game progression stopped after an error.";
   }
   if (busy) clearAffectedPreview();
+  ui.board.dataset.busy = String(busy);
+  if (cameraViewport) cameraViewport.dataset.busy = String(busy);
   // Keep the prominent instruction in sync during controller waits and playback.
   ui["board-hint"].textContent = busy && playbackRunning ? "Playing out the action…" : ui.prompt.textContent;
   ui["board-hint"].dataset.busy = String(busy);
@@ -1490,6 +1501,9 @@ function updateControls() {
     node.tabIndex = disabled ? -1 : 0;
   }
   ui.skip.disabled = !(streaming ? playbackRunning : busy) || skipEffects;
+  // Playback can finish after the last snapshot render. Refresh the existing
+  // interaction projection even when the pointer has not moved to another hit.
+  if (threeActive() && threeInteractionBusy !== busy) syncThreeInteraction();
   renderControllerStatus();
 }
 
