@@ -1,0 +1,3 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="open-door cursor">
+<path d="M13 8h36v48H13Z" fill="#765338" stroke="#3c2b27" stroke-width="4"/><path d="M20 12 46 8v48L20 52Z" fill="#d6a366" stroke="#533b2b" stroke-width="3"/><path d="M25 19 41 16v30l-16 3Z" fill="#b7804c"/><circle cx="39" cy="33" r="3" fill="#ffdd80" stroke="#6c4b29" stroke-width="1"/><path d="m49 18 8-4m-8 18h10m-10 14 8 4" stroke="#ffe09a" stroke-width="3" stroke-linecap="round"/>
+</svg>

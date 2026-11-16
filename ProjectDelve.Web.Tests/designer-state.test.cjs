@@ -7,6 +7,30 @@ const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, '../ProjectDelve.Web/wwwroot/designer-state.js'), 'utf8');
 const plain = value => JSON.parse(JSON.stringify(value));
 
+test('presentation overrides and inheritance survive content history, recovery, import/export and isolated Playtest snapshots', () => {
+  const { draft, history, draftDocument, readDraftDocument, DesignerDraft } = setup();
+  for (const [family, field] of [['units', 'unitTypes'], ['equipment', 'equipmentTypes'], ['items', 'itemTypes']]) {
+    const owner = { id: `profiles-${family}`, name: 'Profile fixture', displayName: 'Profile fixture', mov: 1, rng: 1, atk: 1, def: 0, hp: 1,
+      localAbilities: [{ key: 'explicit', name: 'Explicit', timing: 'Action', mechanic: { kind: 'fireball' }, presentationProfileId: 'future.profile' },
+        { key: 'inherited', name: 'Inherited', timing: 'Action', mechanic: { kind: 'fireball' } }] };
+    const before = plain(draft.snapshot());
+    history.transact(() => draft.applyContentDefinition(family, owner));
+    const after = plain(draft.snapshot());
+    history.undo(); assert.deepEqual(plain(draft.snapshot()), before);
+    history.redo(); assert.deepEqual(plain(draft.snapshot()), after);
+    const recovered = readDraftDocument(JSON.stringify(draftDocument(draft.snapshot(), 'Profiles')));
+    const opened = new DesignerDraft(draft.catalog); opened.replace(recovered.definition);
+    const imported = new DesignerDraft(draft.catalog); imported.replace(JSON.parse(JSON.stringify(opened.snapshot())));
+    const playtest = imported.snapshot();
+    const abilities = playtest[field].find(type => type.id === owner.id).localAbilities;
+    assert.equal(abilities[0].presentationProfileId, 'future.profile');
+    assert.equal(Object.hasOwn(abilities[1], 'presentationProfileId'), false);
+    abilities[0].presentationProfileId = 'playtest.only';
+    assert.equal(imported.snapshot()[field].find(type => type.id === owner.id).localAbilities[0].presentationProfileId, 'future.profile');
+    assert.deepEqual(plain(draft.snapshot()), after);
+  }
+});
+
 test('storage-free Machine drafts preserve Reveal, limits and Side counters while rejecting malformed storage', () => {
   const { draft, draftDocument, readDraftDocument } = setup();
   const definition = draft.snapshot();

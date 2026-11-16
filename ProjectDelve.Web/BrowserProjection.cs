@@ -10,6 +10,7 @@ public sealed record BrowserChoice(string? Key, string Label, string? EntryId,
     bool Relevant, ChoiceInteraction Interaction, IReadOnlyList<string> AffectedUnitIds)
 {
     public string? AccountingId { get; init; }
+    public string? PresentationProfileId { get; init; }
     public IReadOnlyList<Cell> PlacementCells { get; init; } = [];
     public bool IsEndTurn { get; init; }
     public BoardChoiceVisual? BoardVisual { get; init; }
@@ -30,6 +31,8 @@ public sealed record BrowserDecision(string? UnitId, string Prompt,
 }
 public sealed record CardEntry(CardEntryDescription Content, AbilityUses? Uses)
 {
+    public string? MechanicId { get; init; }
+    public string? PresentationProfileId { get; init; }
     public bool IsDepleted => Uses is { RemainingUses: <= 0 };
     public string Layout { get; init; } = "Trait";
     public string? CostText { get; init; }
@@ -285,6 +288,7 @@ public static class BrowserProjection
             if (native.Remove(entry.Id, out var grant)) yield return GrantedEntry(state, unit, grant);
             else yield return new(entry, null)
             {
+                PresentationProfileId = entry.Id == "attack" && type.HasAction(UnitAction.NormalAttack) ? "standard-attack" : null,
                 Layout = entry.Id == "attack" && type.HasAction(UnitAction.NormalAttack) ? "StandardAttack" : "Trait"
             };
         }
@@ -316,6 +320,8 @@ public static class BrowserProjection
         var ordinary = ability.Costs.IsDefaultOrEmpty && ability.Usage.MaxUses is null && timingHint is null;
         return entry with
         {
+            MechanicId = MechanicCatalog.FindByPayload(ability.Mechanic)?.Id,
+            PresentationProfileId = PresentationIdentity.Effective(ability),
             Layout = ordinary && (ability.Mechanic is OpenDoor && ability.Timing == AbilityTiming.FreeAction ||
                     ability.Mechanic is Operate && ability.Timing == AbilityTiming.Action) ? "Utility"
                 : ordinary && ability.Timing == AbilityTiming.Passive ? "Trait" : "Action",
@@ -416,6 +422,7 @@ public static class BrowserProjection
             return new BrowserChoice(c.Key, label, entryId, c.Relevant, interaction, affected)
             {
                 AccountingId = c.Ability?.AccountingId,
+                PresentationProfileId = PresentationIdentity.Choice(c, request, state),
                 BoardVisual = c.Kind switch
                 {
                     ActivationChoiceKind.SelectUnit => new("activate", $"Activate {PlayerName(state, c.Key, individualNames)}"),
@@ -454,7 +461,9 @@ public static class BrowserProjection
             request.Kind == DecisionKind.Move ? "Stay here" : continuation is not null ? $"Decline {continuation.Name}" : "Take no action",
             null, true, request.Kind == DecisionKind.Move
                 ? new(InteractionKind.Unit, UnitId: request.UnitId) : new(InteractionKind.Direct), [])
-            { BoardVisual = request.Kind == DecisionKind.Move
+            { PresentationProfileId = request.Kind == DecisionKind.Move ? "stay"
+                    : request.Kind == DecisionKind.Cleave ? "decline-follow-up" : null,
+                BoardVisual = request.Kind == DecisionKind.Move
                 ? new("stay", $"Stay — {PlayerName(state, request.UnitId, individualNames)}", "Ⅱ") : null };
         var statuses = new Dictionary<string, BrowserEntryStatus>(StringComparer.Ordinal);
         if (request.UnitId is { } unitId)

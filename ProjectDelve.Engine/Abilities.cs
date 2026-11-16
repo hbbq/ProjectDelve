@@ -107,6 +107,8 @@ public static class AbilityContent
                 throw ScenarioValidationContext.At(new ArgumentException("Abilities require distinct nonblank keys within their source."), abilityPath + ".key");
             if (string.IsNullOrWhiteSpace(ability.Name))
                 throw ScenarioValidationContext.At(new ArgumentException("An Ability display name is required."), abilityPath + ".name");
+            if (ability.PresentationProfileId is not null && string.IsNullOrWhiteSpace(ability.PresentationProfileId))
+                throw ScenarioValidationContext.At(new ArgumentException("A presentation profile ID must be nonblank when supplied."), abilityPath + ".presentationProfileId");
             if (!Enum.IsDefined(ability.Timing))
                 throw ScenarioValidationContext.At(new ArgumentException("A supported Ability timing is required."), abilityPath + ".timing");
             if (ability.Usage is null || ability.Usage.MaxUses is < 1)

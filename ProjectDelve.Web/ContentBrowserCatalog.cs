@@ -28,7 +28,11 @@ public sealed record ContentBrowserReference(string Label, string TargetKey, str
     [JsonIgnore] public string? DefinitionIdentity { get; init; }
 }
 public sealed record ContentBrowserAbility(string Key, string Name, string Timing, AbilityUsage Usage,
-    string MechanicId, JsonElement Parameters, string Description, string OwnerKey);
+    string MechanicId, JsonElement Parameters, string Description, string OwnerKey)
+{
+    public string? PresentationProfileId { get; init; }
+    public string EffectivePresentationProfileId => PresentationProfileId ?? MechanicId;
+}
 public sealed record ContentBrowserEntry(string Key, string Family, string Id, string Name, string Origin, string Summary,
     IReadOnlyList<ContentBrowserSection> Sections, IReadOnlyList<ContentBrowserAbility> Abilities,
     IReadOnlyList<ContentBrowserReference> References, JsonElement Definition)
@@ -355,7 +359,8 @@ public static class ContentBrowserCatalog
         return new(key, family, id, name, origin, summary, [new("Definition values", Fields(value, "id", "name", "localAbilities"))],
             (abilities ?? []).Select(ability => new ContentBrowserAbility(ability.Key, ability.Name, ability.Timing.ToString(), ability.Usage,
                 MechanicCatalog.FindByPayload(ability.Mechanic)!.Id, Parameters(ability.Mechanic),
-                ContentDescriptions.AbilityEntry(ability, ability.Key, units).Description, key)).ToArray(),
+                ContentDescriptions.AbilityEntry(ability, ability.Key, units).Description, key)
+                { PresentationProfileId = ability.PresentationProfileId }).ToArray(),
             (references ?? []).ToArray(), value);
     }
 

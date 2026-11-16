@@ -3,8 +3,16 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "generate:cursors": "node tools/generate-cursors.cjs",
+    "test:cursors": "node --test tools/test-generate-cursors.cjs",
     "vendor:three": "node tools/prepare-three.cjs",
     "vendor:check": "node tools/prepare-three.cjs --check"
   },
-  "dependencies": { "three": "0.180.0" }
+  "dependencies": {
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "2.6.2",
+    "saxes": "6.0.0"
+  }
 }

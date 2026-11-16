@@ -234,12 +234,17 @@ function harness(initial, fetchImpl, extras = {}) {
   };
   document.getElementById("coordinates").checked = false;
   const context = vm.createContext({ document, initial, submitted, setTimeout, clearTimeout,
-    fetch: fetchImpl ?? (async () => ({ ok: true, json: async () => initial })), ...extras });
+    fetch: (url, options) => url === './presentation/profiles.json'
+      ? Promise.resolve({ ok: true, json: async () => JSON.parse(fs.readFileSync(path.join(__dirname, '../ProjectDelve.Web/wwwroot/presentation/profiles.json'), 'utf8')) })
+      : url.startsWith('./presentation/cursors/') ? Promise.resolve({ok:false,status:404})
+      : (fetchImpl ?? (async () => ({ ok: true, json: async () => initial })))(url, options), ...extras });
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/side-colors.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/board-visuals.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/tooltips.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/loot-ui.js"), "utf8").replace(/^export /gm, ""), context);
-  vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/playtest-viewport.js"), "utf8").replace(/^export /gm, ""), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/presentation-cursors.js"), "utf8").replace(/^export /gm, ""), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/presentation-profiles.js"), "utf8").replace(/^import .*\r?\n/gm, "").replace(/^export /gm, ""), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/playtest-viewport.js"), "utf8").replace(/^import .*\r?\n/gm, "").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/unit-facing.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/primary-advance.js"), "utf8").replace(/^export /gm, ""), context);
   if (extras.withCamera) for (const file of ["camera-geometry.js", "camera-observation.js", "board-camera.js"])
@@ -604,6 +609,45 @@ test("DOM cursors use mounted click choices and retain exact Cells beneath large
   h.run('busy=true; updateControls()');assert.equal(h.elements.get('board').dataset.busy,'true');
   h.run('busy=false; closeActionSelection()');
   assert.equal(h.run('cells.get("1,1").style.cursor'),'context-menu');
+});
+
+test('DOM cursor profiles follow source-filtered candidates and refresh without moving the pointer', async () => {
+  const first = choice('first', 'Position', {position:{x:1,y:1}}, { entryId:'ability:same', accountingId:'equipment:first:spell', presentationProfileId:'end-turn' });
+  const second = choice('second', 'Position', {position:{x:1,y:1}}, { entryId:'ability:same', accountingId:'equipment:second:spell', presentationProfileId:'telekinesis' });
+  const h = harness(largeResponse([first, second])); await h.run('loadPresentationProfiles()');
+  assert.equal(h.run('cells.get("1,1").style.cursor'), 'context-menu');
+  h.run('selectedActionKey=actionKey(snapshot.presentation.decision.candidates[0]); selectedActionDecision=snapshot.presentation.decision; renderSnapshot()');
+  assert.equal(h.run('cells.get("1,1").style.cursor'), 'pointer');
+  h.run('selectedActionKey=actionKey(snapshot.presentation.decision.candidates[1]); renderSnapshot()');
+  assert.equal(h.run('cells.get("1,1").style.cursor'), 'crosshair');
+  const markers = h.elements.get('board').querySelectorAll('.choice-feedback').length;
+  const mounted = h.run('cells.get("1,1")'), listener = mounted.listeners.click;
+  h.run('snapshot.presentation.decision.candidates[1].presentationProfileId="end-turn"; refreshDomBoardCursors()');
+  assert.equal(h.run('cells.get("1,1").style.cursor'), 'pointer');
+  assert.equal(h.elements.get('board').querySelectorAll('.choice-feedback').length, markers);
+  assert.equal(mounted.listeners.click, listener);
+  assert.equal(h.submitted.length, 0);
+});
+
+test('DOM custom cursors and persisted size update mounted feedback beneath a stationary pointer without rebinding', async () => {
+  const first=choice('fire','Position',{position:{x:1,y:1}},{entryId:'ability:fire',presentationProfileId:'fireball'});
+  const second=choice('summon','Position',{position:{x:1,y:1}},{entryId:'ability:summon',presentationProfileId:'adjacentUnitSummon',relevant:false});
+  const storage=new Map(),assetRoot=path.join(__dirname,'../ProjectDelve.Web/wwwroot');
+  class CursorImage { set src(url){const size=Number(url.match(/generated\/(\d+)\//)[1]);this.naturalWidth=this.naturalHeight=size;queueMicrotask(()=>this.onload());} }
+  const h=harness(largeResponse([first,second]),undefined,{Image:CursorImage,localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)},
+    fetch:async url=>({ok:true,json:async()=>JSON.parse(fs.readFileSync(path.join(assetRoot,url),'utf8'))})});
+  await h.run('Promise.all([loadPresentationProfiles(),loadCursorAssets()])');await Promise.resolve();
+  const cell=h.run('cells.get("1,1")'),listener=cell.listeners.click,markers=h.elements.get('board').querySelectorAll('.choice-feedback').length;
+  assert.match(cell.style.cursor,/generated\/40\/fireball.png.*20 20, pointer$/);
+  const setting=h.elements.get('cursor-size');assert.equal(setting.value,'40');
+  setting.value='48';setting.listeners.change();await Promise.resolve();
+  assert.equal(storage.get('delve.cursor.size.v1'),'48');assert.match(cell.style.cursor,/generated\/48\/fireball.png.*24 24, pointer$/);
+  assert.equal(cell.listeners.click,listener);assert.equal(h.elements.get('board').querySelectorAll('.choice-feedback').length,markers);
+  h.run('ui.filter.checked=false; renderSnapshot()');assert.match(h.run('cells.get("1,1").style.cursor'),/generated\/48\/choose.png.*context-menu$/);
+  h.run('selectedActionKey=actionKey(snapshot.presentation.decision.candidates[1]); selectedActionDecision=snapshot.presentation.decision; renderSnapshot()');
+  assert.match(h.run('cells.get("1,1").style.cursor'),/generated\/48\/summon.png.*crosshair$/);
+  assert.match(h.run('cells.get("3,3").style.cursor'),/generated\/48\/invalid.png.*not-allowed$/);
+  assert.equal(h.submitted.length,0);
 });
 
 test("generic 2x2 Figure has one identity and all four Cells select and inspect it", async () => {

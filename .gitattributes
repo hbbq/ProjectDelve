@@ -1,2 +1,5 @@
 # Preserve the exact upstream bytes checked by tools/prepare-three.cjs.
 ProjectDelve.Web/wwwroot/vendor/three/** -text
+
+# Preserve the authoritative cursor SVG originals byte-for-byte.
+ProjectDelve.Web/wwwroot/presentation/cursors/svg/*.svg -text

@@ -1,3 +1,6 @@
+import { resolvePresentationCursor } from './presentation-profiles.js';
+import { resolveCursorAsset } from './presentation-cursors.js';
+
 // Presentation handoffs never cancel the shared playback queue or submit commands.
 export function createViewportRouter({ dom, loadThree, overlay, onChange = () => {}, onError = () => {} }) {
   let active = dom, requested = null, inEvent = false, loading, three, disposed = false, switching;
@@ -56,13 +59,13 @@ export const boardEdgeKey = edge => [boardCellKey(edge.a), boardCellKey(edge.b)]
 export function boardInteraction(choices, { busy = false, dragging = false, targeting = false, hit = true } = {}) {
   if (busy) return { kind: 'none', cursor: 'default' };
   if (dragging) return { kind: 'none', cursor: 'grabbing' };
-  if (choices.length > 1) return { kind: 'chooser', cursor: 'context-menu' };
+  if (choices.length > 1) return { kind: 'chooser', cursor: resolveCursorAsset('choose', 'context-menu') };
   if (choices.length === 1) {
     const choice = choices[0];
     const target = choice.boardVisual?.kind === 'attack' || targeting && choice.interaction?.kind !== 'Direct';
-    return { kind: 'choice', choice, cursor: target ? 'crosshair' : 'pointer' };
+    return { kind: 'choice', choice, cursor: resolvePresentationCursor(choice.presentationProfileId, target ? 'crosshair' : 'pointer') };
   }
-  return { kind: 'none', cursor: targeting && hit ? 'not-allowed' : 'grab' };
+  return { kind: 'none', cursor: targeting && hit ? resolveCursorAsset('invalid', 'not-allowed') : 'grab' };
 }
 
 // Interaction mapping only: supplied references define legality and candidate order.

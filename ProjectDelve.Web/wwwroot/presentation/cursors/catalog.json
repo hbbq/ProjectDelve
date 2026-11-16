@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "cursors": [
+    {
+      "id": "attack",
+      "images": {
+        "32": "./presentation/cursors/generated/32/attack.png",
+        "40": "./presentation/cursors/generated/40/attack.png",
+        "48": "./presentation/cursors/generated/48/attack.png"
+      }
+    },
+    {
+      "id": "break",
+      "images": {
+        "32": "./presentation/cursors/generated/32/break.png",
+        "40": "./presentation/cursors/generated/40/break.png",
+        "48": "./presentation/cursors/generated/48/break.png"
+      }
+    },
+    {
+      "id": "choose",
+      "images": {
+        "32": "./presentation/cursors/generated/32/choose.png",
+        "40": "./presentation/cursors/generated/40/choose.png",
+        "48": "./presentation/cursors/generated/48/choose.png"
+      }
+    },
+    {
+      "id": "collect",
+      "images": {
+        "32": "./presentation/cursors/generated/32/collect.png",
+        "40": "./presentation/cursors/generated/40/collect.png",
+        "48": "./presentation/cursors/generated/48/collect.png"
+      }
+    },
+    {
+      "id": "fireball",
+      "images": {
+        "32": "./presentation/cursors/generated/32/fireball.png",
+        "40": "./presentation/cursors/generated/40/fireball.png",
+        "48": "./presentation/cursors/generated/48/fireball.png"
+      }
+    },
+    {
+      "id": "heal",
+      "images": {
+        "32": "./presentation/cursors/generated/32/heal.png",
+        "40": "./presentation/cursors/generated/40/heal.png",
+        "48": "./presentation/cursors/generated/48/heal.png"
+      }
+    },
+    {
+      "id": "invalid",
+      "images": {
+        "32": "./presentation/cursors/generated/32/invalid.png",
+        "40": "./presentation/cursors/generated/40/invalid.png",
+        "48": "./presentation/cursors/generated/48/invalid.png"
+      }
+    },
+    {
+      "id": "move",
+      "images": {
+        "32": "./presentation/cursors/generated/32/move.png",
+        "40": "./presentation/cursors/generated/40/move.png",
+        "48": "./presentation/cursors/generated/48/move.png"
+      }
+    },
+    {
+      "id": "open-door",
+      "images": {
+        "32": "./presentation/cursors/generated/32/open-door.png",
+        "40": "./presentation/cursors/generated/40/open-door.png",
+        "48": "./presentation/cursors/generated/48/open-door.png"
+      }
+    },
+    {
+      "id": "operate",
+      "images": {
+        "32": "./presentation/cursors/generated/32/operate.png",
+        "40": "./presentation/cursors/generated/40/operate.png",
+        "48": "./presentation/cursors/generated/48/operate.png"
+      }
+    },
+    {
+      "id": "summon",
+      "images": {
+        "32": "./presentation/cursors/generated/32/summon.png",
+        "40": "./presentation/cursors/generated/40/summon.png",
+        "48": "./presentation/cursors/generated/48/summon.png"
+      }
+    },
+    {
+      "id": "swap",
+      "images": {
+        "32": "./presentation/cursors/generated/32/swap.png",
+        "40": "./presentation/cursors/generated/40/swap.png",
+        "48": "./presentation/cursors/generated/48/swap.png"
+      }
+    }
+  ]
+}

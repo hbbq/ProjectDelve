@@ -17,7 +17,12 @@ module.exports = async function primaryAdvanceBrowser(page) {
   const exported = await page.request.post('http://127.0.0.1:5081/api/designer/export', { data: fixture });
   assert.equal(exported.ok(), true, await exported.text());
   const { transport } = await exported.json();
-  const settings = async () => { await page.locator('#open-game-menu').click(); await page.locator('#menu-settings').click(); };
+  const settings = async () => {
+    // Space may leave a native menu button focused/open after the preceding
+    // dialog-focus check. Reuse that menu rather than clicking behind it.
+    if (!await page.locator('#game-menu').evaluate(node => node.open)) await page.locator('#open-game-menu').click();
+    await page.locator('#menu-settings').click();
+  };
   const open = async selector => { if (!await page.locator(selector).evaluate(node => node.open)) await page.locator(`${selector} > summary`).click(); };
   const ready = () => page.waitForFunction(() => !document.querySelector('#stay').hidden && !document.querySelector('#stay').disabled);
   const fresh = async () => {
@@ -47,6 +52,12 @@ module.exports = async function primaryAdvanceBrowser(page) {
     }
     await page.keyboard.press('+'); await page.keyboard.press('-');
     assert.equal(decisions.length, count);
+    if (!three) {
+      // At a whole-board span the DOM camera clamps panning. Give this gesture
+      // room to move before asserting a transform change.
+      await open('.view-disclosure'); await page.locator('#camera-mode').selectOption('fixed');
+      await page.locator('#camera-span').selectOption('10'); await page.locator('.view-disclosure > summary').click();
+    }
     await host.focus();
     // Space-drag pans and must not advance. The same Space modifier remains armed by the renderer.
     const rect = await host.boundingBox();

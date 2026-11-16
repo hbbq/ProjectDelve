@@ -1,5 +1,6 @@
 import { ContentEditorState, cloneContent, contentFieldPath, parameterValue } from './content-editor-state.js';
 import { contentLabel, contentUsage } from './content-browser-state.js';
+import { loadPresentationProfiles, presentationProfileDescriptors } from './presentation-profiles.js';
 
 // A destination-neutral form. Persistence and authoritative validation are supplied by its host.
 export function mountContentEditor(root, options) {
@@ -7,6 +8,7 @@ export function mountContentEditor(root, options) {
   const state = new ContentEditorState();
   let opened = false, busy = false, issues = [], preview = null, notice = '', discardResolve = null;
   let controls = new Map(), errors = new Map(), serial = 0;
+  let presentationRefreshers = [];
   const node = (tag, className, text) => {
     const element = document.createElement(tag);
     if (className) element.className = className;
@@ -174,6 +176,23 @@ export function mountContentEditor(root, options) {
     if (!choices.some(candidate => candidate.id === ability.mechanic?.kind)) mechanicSelect.append(option(ability.mechanic?.kind ?? '', `${ability.mechanic?.kind ?? 'Unknown'} · unavailable`));
     mechanicSelect.value = ability.mechanic?.kind ?? '';
     card.append(field('Mechanic', mechanicSelect, [...path, 'mechanic', 'kind']));
+    const presentationSelect = select([], ability.presentationProfileId ?? '',
+      value => set([...path, 'presentationProfileId'], value === '' ? undefined : value, true));
+    const effectivePresentation = text(''), presentationWarning = text('');
+    const refreshPresentation = () => {
+      const profiles = presentationProfileDescriptors();
+      const unknown = ability.presentationProfileId != null && !profiles.some(profile => profile.id === ability.presentationProfileId);
+      presentationSelect.replaceChildren(option('', `Default / Inherit (${ability.mechanic?.kind ?? 'unavailable'})`),
+        ...profiles.map(profile => option(profile.id, `${profile.name} · ${profile.id}`)));
+      if (unknown) presentationSelect.append(option(ability.presentationProfileId, `Unavailable · ${ability.presentationProfileId}`));
+      presentationSelect.value = ability.presentationProfileId ?? '';
+      effectivePresentation.textContent = `Effective profile: ${ability.presentationProfileId ?? ability.mechanic?.kind ?? 'unavailable'}`;
+      presentationWarning.hidden = !unknown;
+      presentationWarning.textContent = unknown ? `Unknown presentation profile “${ability.presentationProfileId}”. Its ID is preserved; generic cursor behavior will be used.` : '';
+    };
+    presentationRefreshers.push(refreshPresentation); refreshPresentation();
+    const presentationField = field('Presentation Profile', presentationSelect, [...path, 'presentationProfileId']);
+    presentationField.append(effectivePresentation, presentationWarning); card.append(presentationField);
     const profiles = state.profiles(mechanic), profile = profiles.find(candidate => candidate.timing === ability.timing);
     if (mechanic?.contextRequirements) card.append(text(mechanic.contextRequirements));
     if (mechanic && !profile) card.append(text(mechanic.unsupportedContextReason));
@@ -320,7 +339,7 @@ export function mountContentEditor(root, options) {
   }
   function render() {
     if (!opened) return;
-    controls = new Map(); errors = new Map(); serial = 0; form.replaceChildren();
+    controls = new Map(); errors = new Map(); serial = 0; presentationRefreshers = []; form.replaceChildren();
     heading.replaceChildren(node('p', 'ce-eyebrow', (typeof options.destinationLabel === 'function' ? options.destinationLabel() : options.destinationLabel) ?? 'CONTENT DEFINITION'), node('h3', '', `${state.existingId ? 'Edit' : 'New'} ${state.family === 'units' ? 'Unit' : state.family === 'equipment' ? 'Equipment' : state.family === 'items' ? 'Single Use Item' : state.family === 'terrain' ? 'Terrain' : state.family === 'terrainAssemblies' ? 'Terrain Assembly' : 'Loot Card'}`));
     const id = input('text', state.definition.id, value => set(['id'], value)); id.id = 'content-editor-id'; id.readOnly = !!state.existingId; id.autocomplete = 'off';
     const nameField = state.family === 'units' ? 'displayName' : 'name';
@@ -416,7 +435,11 @@ export function mountContentEditor(root, options) {
       if (opened && !await requestClose()) return false;
       state.catalog = typeof options.catalog === 'function' ? options.catalog() : options.catalog;
       state.open(specification); opened = true; busy = false; issues = []; preview = null; notice = ''; root.hidden = false;
-      render(); controls.get('definition.id')?.focus(); return true;
+      render(); controls.get('definition.id')?.focus();
+      // Optional catalog I/O cannot block authoring. Update only selector options;
+      // retain the current draft, focus, validation and all other mounted controls.
+      void loadPresentationProfiles().then(() => { if (opened) for (const refresh of presentationRefreshers) refresh(); });
+      return true;
     },
     requestClose, isDirty: () => opened && state.dirty, isOpen: () => opened,
     validate: () => validate(false), save: () => validate(true)

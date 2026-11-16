@@ -969,6 +969,24 @@ test('shared click classification prefers chooser, then explicit targeting, with
   assert.equal(boardInteraction([attack],{dragging:true,busy:true}).cursor,'default');
 });
 
+for(const mode of ['flat','tabletop'])test(`${mode} stationary cursor updates when the same mechanic changes profile or filtered source`,async()=>{
+  const profiles=await moduleAt('presentation-profiles.js');
+  await profiles.loadPresentationProfiles(async()=>({ok:true,json:async()=>JSON.parse(fs.readFileSync(path.resolve(__dirname,'../ProjectDelve.Web/wwwroot/presentation/profiles.json'),'utf8'))}));
+  const f=fixture(),h=await harness(f);try{
+    h.viewport.setPresentation(mode);h.viewport.camera.setMode('full');h.viewport.settle();h.flush();
+    const canvas=h.host.children.find(n=>n.tagName==='canvas'),p=h.viewport.project({x:5.5,y:4.5});
+    const first={key:'first-source',mechanicId:'fireball',presentationProfileId:'end-turn',interaction:{kind:'Position',position:{x:5,y:4}}};
+    const second={...first,key:'second-source',presentationProfileId:'telekinesis'};
+    h.viewport.showInteraction({candidates:[first],targeting:true});canvas.emit('pointermove',{pointerId:7,clientX:p.x,clientY:p.y});
+    assert.equal(canvas.style.cursor,'pointer');
+    h.viewport.showInteraction({candidates:[second],targeting:true});assert.equal(canvas.style.cursor,'crosshair');
+    h.viewport.showInteraction({candidates:[first,second],targeting:true});assert.equal(canvas.style.cursor,'context-menu');
+    h.viewport.showInteraction({candidates:[{...second,presentationProfileId:'future.unknown'}]});assert.equal(canvas.style.cursor,'pointer');
+    h.viewport.showInteraction({candidates:[],targeting:true});assert.equal(canvas.style.cursor,'not-allowed');
+    assert.equal(h.picked.length,0);
+  }finally{h.cleanup();}
+});
+
 for(const mode of ['flat','tabletop'])test(`${mode} cursor follows exact hit choices, target state, busy, drag and stationary restoration`,async()=>{
   const f=fixture(),h=await harness(f);try{
     h.viewport.setPresentation(mode);h.viewport.camera.setMode('full');h.viewport.settle();h.flush();
@@ -2090,4 +2108,29 @@ for(const presentation of ['flat','tabletop'])test(`${presentation} labels prese
     assert.equal(info.dataset.dormant,'false');assert.match(info.children[1].textContent,/\[camp\]/);assert.doesNotMatch(info.children[1].textContent,/Zz/);assert.doesNotMatch(info.title,/Dormant/);
     assert.deepEqual(h.failures,[]);
   }finally{h.cleanup();}
+});
+
+test('flat and tabletop refresh decoded custom cursors on size and decision changes without pointer movement',async()=>{
+  const cursors=await moduleAt('presentation-cursors.js');
+  await cursors.loadCursorAssets(async url=>({ok:true,json:async()=>JSON.parse(fs.readFileSync(path.resolve(__dirname,'../ProjectDelve.Web/wwwroot',url),'utf8'))}),()=>{
+    const image={};Object.defineProperty(image,'src',{set(url){const size=Number(url.match(/generated\/(\d+)\//)[1]);image.naturalWidth=image.naturalHeight=size;queueMicrotask(()=>image.onload());}});return image;
+  });
+  for(const mode of ['flat','tabletop']){
+    cursors.setCursorSize(40);
+    const f=fixture(),h=await harness(f);let view={candidates:[{key:'opaque-fireball',presentationProfileId:'fireball',interaction:{kind:'Position',position:{x:5,y:4}}}],targeting:true};
+    const unsubscribe=cursors.onCursorPresentationChange(()=>h.viewport.showInteraction(view));
+    try{
+      h.viewport.setPresentation(mode);h.viewport.camera.setMode('full');h.viewport.settle();h.flush();
+      const canvas=h.host.children.find(n=>n.tagName==='canvas'),p=h.viewport.project({x:5.5,y:4.5});
+      h.viewport.showInteraction(view);canvas.emit('pointermove',{pointerId:7,clientX:p.x,clientY:p.y});
+      assert.match(canvas.style.cursor,/generated\/40\/fireball.png.*20 20, crosshair$/);
+      cursors.setCursorSize(32);h.flush();assert.match(canvas.style.cursor,/generated\/32\/fireball.png.*16 16, crosshair$/);
+      view={...view,candidates:[{...view.candidates[0],presentationProfileId:'adjacentUnitSummon'}]};h.viewport.showInteraction(view);
+      assert.match(canvas.style.cursor,/generated\/32\/summon.png/);
+      view={...view,candidates:[...view.candidates,{...view.candidates[0],key:'second'}]};h.viewport.showInteraction(view);assert.match(canvas.style.cursor,/generated\/32\/choose.png.*context-menu$/);
+      h.viewport.showInteraction({...view,busy:true});assert.equal(canvas.style.cursor,'default');
+      h.viewport.showInteraction({candidates:[],targeting:true});assert.match(canvas.style.cursor,/generated\/32\/invalid.png.*not-allowed$/);
+      assert.equal(h.picked.length,0);
+    }finally{unsubscribe();h.cleanup();}
+  }
 });

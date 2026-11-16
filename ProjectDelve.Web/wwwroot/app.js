@@ -6,6 +6,8 @@ import { createBoardCamera } from "./board-camera.js";
 import { createViewportRouter, boardCandidates, boardInteraction } from "./playtest-viewport.js";
 import { createUnitFacing } from "./unit-facing.js";
 import { loadUnitVisualCatalog } from "./unit-visuals.js";
+import { loadPresentationProfiles } from "./presentation-profiles.js";
+import { cursorSize, setCursorSize, loadCursorAssets, onCursorPresentationChange } from "./presentation-cursors.js";
 import { advanceChoices, bindAdvanceControls } from "./primary-advance.js";
 const unitFacing = createUnitFacing();
 
@@ -33,6 +35,11 @@ async function startFromTools(operation, body) {
   return succeeded;
 }
 const boardView = document.getElementById("board-view");
+const cursorSizeControl = document.getElementById("cursor-size");
+cursorSizeControl.value = String(cursorSize());
+cursorSizeControl.addEventListener("change", () => {
+  setCursorSize(cursorSizeControl.value); cursorSizeControl.value = String(cursorSize());
+});
 try {
   const savedView = globalThis.localStorage?.getItem("delve.board.view.v1");
   if (["classic", "enhanced", "three", "tabletop"].includes(savedView)) boardView.value = savedView;
@@ -290,6 +297,7 @@ const actionKey = candidate => JSON.stringify(candidate.accountingId ? ["grant",
 const visibleBoardChoice = candidate => visibleChoice(candidate) &&
   (selectedActionKey === null || actionKey(candidate) === selectedActionKey);
 const boardChoiceKeys = new Set();
+let domBoardChoices = new Map();
 let boardChooser;
 let boardChooserOrigin;
 function closeBoardChooser() {
@@ -1359,14 +1367,19 @@ function bindDisplayedBoardChoices(decision, dom = !threeActive()) {
       offer(edges.get(edgeKey(selection.edge ?? selection.door)), candidate);
     }
   }
-  for (const node of [...cells.values(), ...figures.values(), ...edges.values()]) {
-    const cursor = boardInteraction([...(boardChoices.get(node)?.values() ?? [])], { targeting: selectedActionKey !== null }).cursor;
-    if (node.style.cursor !== cursor) node.style.cursor = cursor;
-  }
+  domBoardChoices = boardChoices;
+  refreshDomBoardCursors();
   for (const [node, choices] of boardChoices) {
     const candidates = [...choices.values()]; // Preserve authoritative candidate order.
     bindBoardChoice(node, candidates);
     for (const candidate of candidates) boardChoiceKeys.add(candidate.key);
+  }
+}
+
+function refreshDomBoardCursors() {
+  for (const node of [...cells.values(), ...figures.values(), ...edges.values()]) {
+    const cursor = boardInteraction([...(domBoardChoices.get(node)?.values() ?? [])], { targeting: selectedActionKey !== null }).cursor;
+    if (node.style.cursor !== cursor) node.style.cursor = cursor;
   }
 }
 
@@ -2380,4 +2393,15 @@ function enterTable() {
 }
 globalThis.addEventListener?.("hashchange", enterTable);
 enterTable();
+// Loading profiles is optional. Refresh mounted feedback without changing selections
+// when a catalog arrives beneath a stationary pointer.
+function refreshActiveCursor() {
+  if (snapshot && displayedState === snapshot.result.state) {
+    if (!threeActive()) refreshDomBoardCursors();
+    syncThreeInteraction();
+  }
+}
+onCursorPresentationChange(refreshActiveCursor);
+void loadCursorAssets();
+void loadPresentationProfiles().then(refreshActiveCursor);
 await refresh();

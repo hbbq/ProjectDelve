@@ -68,10 +68,77 @@ const addCost = (h, id, ability = 0) => {
 };
 const clickLabel = (h, label) => h.root.all(element => element.attributes['aria-label'] === label)[0].listeners.click();
 
+for (const family of ['units', 'equipment', 'items']) test(`${family} Presentation Profile selector inherits, preserves overrides and unknown imports through save and copy`, async () => {
+  const effectiveCatalog = { unitAuthoring: { stats: [], fields: [], behaviors: [] }, entries: ['fireball', 'targetUnitAttack'].map(id => ({ family: 'mechanics', id,
+    mechanic: { id, name: id, family: 'Ability', profiles: [{ source: { units: 'Unit', equipment: 'Equipment', items: 'Item' }[family], timing: 'Action', usage: 'UnlimitedOnly' }], parameters: [], description: {} } })) };
+  const h = harness({ callbacks: { catalog: effectiveCatalog } });
+  await h.run('loadPresentationProfiles()');
+  const ability = { key: 'spell', name: 'Spell', timing: 'Action', usage: { maxUses: null }, mechanic: { kind: 'fireball' } };
+  const definition = { id: 'profile-owner', name: 'Profile owner', localAbilities: [ability] };
+  await h.editor.open({ family, definition, existingId: definition.id });
+  const field = 'definition.localAbilities[0].presentationProfileId';
+  assert.equal(h.field(field).value, '');
+  assert.match(h.root.textContent, /Default \/ Inherit \(fireball\)/);
+  assert.match(h.root.textContent, /Effective profile: fireball/);
+  assert.ok(h.field(field).children.some(option => option.value === 'move' && /Move.*move/.test(option.textContent)));
+  h.change(field, 'move', 'change');
+  h.change('definition.localAbilities[0].mechanic.kind', 'targetUnitAttack', 'change');
+  assert.equal(h.field(field).value, 'move');
+  assert.match(h.root.textContent, /Effective profile: move/);
+  await h.editor.save();
+  assert.equal(h.saved[0].definition.localAbilities[0].presentationProfileId, 'move');
+  const imported = structuredClone(h.saved[0].definition); imported.localAbilities[0].presentationProfileId = 'future.unfamiliar';
+  await h.editor.open({ family, definition: imported, existingId: imported.id, copy: true, newId: 'copied-profile-owner' });
+  assert.equal(h.field(field).value, 'future.unfamiliar');
+  assert.match(h.root.textContent, /Unknown presentation profile.*future.unfamiliar/);
+  h.change('definition.localAbilities[0].name', 'Renamed'); await h.editor.validate(); await h.editor.save();
+  assert.equal(h.validated.at(-1).definition.localAbilities[0].presentationProfileId, 'future.unfamiliar');
+  assert.equal(h.saved.at(-1).definition.localAbilities[0].presentationProfileId, 'future.unfamiliar');
+  assert.equal(h.saved.at(-1).definition.id, 'copied-profile-owner');
+  await h.editor.open({ family, definition: h.saved.at(-1).definition, existingId: 'copied-profile-owner' });
+  h.change(field, '', 'change');
+  assert.match(h.root.textContent, /Effective profile: targetUnitAttack/);
+  h.change('definition.localAbilities[0].mechanic.kind', 'fireball', 'change');
+  assert.match(h.root.textContent, /Effective profile: fireball/);
+  await h.editor.save(); assert.equal(Object.hasOwn(h.saved.at(-1).definition.localAbilities[0], 'presentationProfileId'), false);
+  assert.equal(definition.localAbilities[0].presentationProfileId, undefined);
+});
+
+test('missing presentation catalog leaves unknown overrides editable and savable', async () => {
+  const h = harness({ profileFetcher: async () => { throw Error('offline'); } });
+  await h.editor.open({ family: 'equipment', definition: { id: 'owner', name: 'Owner', localAbilities: [
+    { key: 'spell', name: 'Spell', timing: 'Action', usage: {}, mechanic: { kind: 'testAction', amount: 1 }, presentationProfileId: 'future.unknown' }
+  ] } });
+  assert.match(h.root.textContent, /generic cursor behavior/);
+  await h.editor.save();
+  assert.equal(h.saved[0].definition.localAbilities[0].presentationProfileId, 'future.unknown');
+});
+
+test('stalled optional catalog cannot block editing and late descriptors preserve focus and draft values', async () => {
+  let release;
+  const h = harness({ profileFetcher: () => new Promise(resolve => { release = resolve; }) });
+  await h.editor.open({ family: 'equipment', definition: { id: 'owner', name: 'Owner', localAbilities: [
+    { key: 'spell', name: 'Spell', timing: 'Action', usage: {}, mechanic: { kind: 'testAction', amount: 1 }, presentationProfileId: 'future.unknown' }
+  ] } });
+  assert.equal(h.root.hidden, false);
+  h.change('definition.name', 'Edited while loading');
+  const control = h.field('definition.name'); control.focus();
+  release({ ok: true, json: async () => JSON.parse(fs.readFileSync(path.join(__dirname, '../ProjectDelve.Web/wwwroot/presentation/profiles.json'), 'utf8')) });
+  await h.run('loadPresentationProfiles()'); await Promise.resolve();
+  assert.equal(h.field('definition.name'), control);
+  assert.equal(h.document.activeElement, control);
+  assert.equal(control.value, 'Edited while loading');
+  assert.ok(h.field('definition.localAbilities[0].presentationProfileId').children.some(option => option.value === 'move'));
+  await h.editor.save();
+  assert.equal(h.saved[0].definition.name, 'Edited while loading');
+  assert.equal(h.saved[0].definition.localAbilities[0].presentationProfileId, 'future.unknown');
+});
+
 function harness(options = {}) {
   const document = { createElement: tag => new Element(tag, document) }, root = document.createElement('section');
-  const validated = [], saved = [], environment = vm.createContext({ structuredClone });
-  for (const file of ['content-browser-state.js', 'content-editor-state.js', 'content-editor.js'])
+  const validated = [], saved = [], environment = vm.createContext({ structuredClone,
+    fetch: options.profileFetcher ?? (async () => ({ ok: true, json: async () => JSON.parse(fs.readFileSync(path.join(__dirname, '../ProjectDelve.Web/wwwroot/presentation/profiles.json'), 'utf8')) })) });
+  for (const file of ['presentation-cursors.js', 'presentation-profiles.js', 'content-browser-state.js', 'content-editor-state.js', 'content-editor.js'])
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../ProjectDelve.Web/wwwroot', file), 'utf8').replace(/^import .*\r?\n/gm, '').replace(/^export /gm, ''), environment);
   environment.root = root;
   environment.options = { catalog, validate: async request => { validated.push(plain(request)); return options.validation ? options.validation(request) : { valid: true, diagnostics: [], definition: request.definition, entry: { name: request.definition.name, id: request.definition.id, summary: 'Engine-derived wording.', abilities: [{ key: 'stable', name: 'Engine ability', timing: 'Action', usage: { maxUses: null }, description: 'Authoritative generated rule.' }] } }; },

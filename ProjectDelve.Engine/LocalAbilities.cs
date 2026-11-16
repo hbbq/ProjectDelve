@@ -10,6 +10,9 @@ public sealed record LocalAbilityDefinition(string Key, string Name, AbilityTimi
 {
     public AbilityUsage Usage { get; init; } = new();
     public string? DescriptionOverride { get; init; }
+    // Optional presentation metadata; never selects mechanics or accounting identity.
+    [JsonPropertyName("presentationProfileId"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PresentationProfileId { get; init; }
     [JsonIgnore, JsonPropertyName("costs")]
     public ImmutableArray<AbilityCost> Costs { get; init; } = [];
     // Empty costs retain the exact pre-cost serialized envelope (and content digest).

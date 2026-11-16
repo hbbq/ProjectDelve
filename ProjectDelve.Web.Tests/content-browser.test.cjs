@@ -50,10 +50,13 @@ function harness(fetcher) {
   document.createElement = tag => new Element(tag, document);
   const root = document.createElement('main');
   const context = vm.createContext({ document, structuredClone, addEventListener: (name, listener) => { events[name] = listener; }, fetch: async (url, options) => {
+    if (url === './presentation/profiles.json') return { ok: true, json: async () => JSON.parse(source('presentation/profiles.json')) };
     calls.push({ url, options }); return fetcher ? fetcher(url, options) : { ok: true, json: async () => structuredClone(catalog) };
   } });
   vm.runInContext(source('content-browser-state.js').replace(/^export /gm, ''), context);
   vm.runInContext(source('content-editor-state.js').replace(/^export /gm, ''), context);
+  vm.runInContext(source('presentation-cursors.js').replace(/^export /gm, ''), context);
+  vm.runInContext(source('presentation-profiles.js').replace(/^import .*\r?\n/gm, '').replace(/^export /gm, ''), context);
   vm.runInContext(source('content-library-state.js').replace(/^export /gm, ''), context);
   vm.runInContext(source('content-promotion.js').replace(/^export /gm, ''), context);
   vm.runInContext('const boardVisuals = { unit: {} };', context);

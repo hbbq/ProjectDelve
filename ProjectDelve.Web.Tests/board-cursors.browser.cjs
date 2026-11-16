@@ -38,6 +38,7 @@ module.exports = async function boardCursorsBrowser(page) {
   try {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto(`${base}/#play`); await idle();
+    await page.evaluate(async () => { const cursors = await import('/presentation-cursors.js'); await cursors.loadCursorAssets(); });
     const exported = await page.request.post(`${base}/api/designer/export`, { data: fixture });
     assert.equal(exported.ok(), true, await exported.text());
     const { transport } = await exported.json();
@@ -48,7 +49,7 @@ module.exports = async function boardCursorsBrowser(page) {
     await idle();
     await settings(async () => {
       await open('#tools-gameplay'); await page.locator('#auto').uncheck(); await page.locator('#filter').uncheck();
-      await open('#tools-display'); await page.locator('#coordinates').check(); await page.locator('#animate').uncheck();
+      await open('#tools-display'); await page.locator('#coordinates').check(); await page.locator('#animate').uncheck(); await page.locator('#cursor-size').selectOption('40');
     });
     await page.waitForFunction(async () => !(await (await fetch('/api/game')).json()).autoChooseSingleRelevantChoice);
     for (const view of ['tabletop', 'three', 'enhanced']) {
@@ -91,7 +92,10 @@ module.exports = async function boardCursorsBrowser(page) {
         const p = await point(cell); await page.mouse.move(p.x, p.y);
         await page.waitForFunction(({ p, expected }) => {
           const node = document.elementFromPoint(p.x, p.y);
-          return node && getComputedStyle(node).cursor === expected;
+          if (!node) return false;
+          const cursor = getComputedStyle(node).cursor;
+          const assets = ['move', 'attack', 'fireball', 'choose', 'invalid'];
+          return assets.includes(expected) ? cursor.includes(`/generated/40/${expected}.png`) && cursor.includes('20 20,') : cursor === expected;
         }, { p, expected });
         return p;
       };
@@ -110,14 +114,14 @@ module.exports = async function boardCursorsBrowser(page) {
       // Verify both ordinary dragging and Space-drag preserve camera ownership,
       // show grabbing during capture and restore the real choice cursor afterward.
       for (const space of [false, true]) {
-        await host.focus(); const start = await cursor(move.interaction.position, 'pointer');
+        await host.focus(); const start = await cursor(move.interaction.position, 'move');
         if (space) await page.keyboard.down('Space');
         await page.mouse.down(); const end = { x: start.x - (space ? 3 : 20), y: start.y };
         await page.mouse.move(end.x, end.y, { steps: 3 });
         await page.waitForFunction(p => getComputedStyle(document.elementFromPoint(p.x, p.y)).cursor === 'grabbing', end);
         await page.mouse.up(); if (space) await page.keyboard.up('Space');
         await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-        await cursor(move.interaction.position, 'pointer');
+        await cursor(move.interaction.position, 'move');
         assert.equal(decisions.length, count, `${view}: camera drag does not submit`);
       }
       // Keep a real command pending to exercise busy input suppression deterministically.
@@ -134,7 +138,7 @@ module.exports = async function boardCursorsBrowser(page) {
       };
       await page.route(`${base}/api/game/commands`, route);
       try {
-        await click(move.interaction.position, 'pointer'); await waiting;
+        await click(move.interaction.position, 'move'); await waiting;
         await page.waitForFunction(() => document.querySelector('#board').dataset.busy === 'true');
         await click(move.interaction.position, 'default');
         assert.equal(decisions.length, count + 1, `${view}: busy click submits nothing`);
@@ -161,13 +165,13 @@ module.exports = async function boardCursorsBrowser(page) {
       const coincident = state.presentation.decision.candidates.filter(c => c.interaction.kind === 'Unit' && c.interaction.unitId === attack.interaction.unitId ||
         c.interaction.kind === 'Position' && c.interaction.position.x === foe.x && c.interaction.position.y === foe.y);
       assert.ok(coincident.length > 1, `${view}: actual ambiguity exists`);
-      count = decisions.length; await click(foe, 'context-menu');
+      count = decisions.length; await click(foe, 'choose');
       await page.locator('.board-chooser').waitFor({ state: 'visible' });
       assert.equal(decisions.length, count, `${view}: chooser does not submit`);
       assert.equal(await page.locator('.board-chooser button').count(), coincident.length + 1);
       await page.locator('.board-chooser button').last().click();
       await page.locator('#play-actions .action-chip').filter({ hasText: /^Attack/ }).first().click();
-      await click(foe, 'crosshair'); await submitted(count, attack);
+      await click(foe, 'attack'); await submitted(count, attack);
       // Pending Roll Dice has no board-target candidate; hovering/clicking cannot roll it.
       state = await read();
       assert.ok(state.presentation.decision.candidates.every(c => c.interaction.kind === 'Direct'));
@@ -185,11 +189,11 @@ module.exports = async function boardCursorsBrowser(page) {
         ({ x: index % board.width, y: Math.floor(index / board.width) })).find(cell =>
         !fireballs.some(c => c.interaction.position.x === cell.x && c.interaction.position.y === cell.y));
       assert.ok(invalid, `${view}: a board Cell absent from supplied Fireball targets`);
-      await click(invalid, 'not-allowed'); assert.equal(decisions.length, count);
+      await click(invalid, 'invalid'); assert.equal(decisions.length, count);
       await filter(true);
-      await click(irrelevant.interaction.position, 'not-allowed'); assert.equal(decisions.length, count);
+      await click(irrelevant.interaction.position, 'invalid'); assert.equal(decisions.length, count);
       await filter(false);
-      await click(irrelevant.interaction.position, 'crosshair'); await submitted(count, irrelevant);
+      await click(irrelevant.interaction.position, 'fireball'); await submitted(count, irrelevant);
 
       // A large Unit is one authoritative target across every published occupied Cell.
       // Multiple legal Actions on that same physical figure must keep chooser semantics.
@@ -208,12 +212,12 @@ module.exports = async function boardCursorsBrowser(page) {
           return false;
         });
         assert.ok(choices.length > 1, `${view}: overlapping supplied large-Unit choices at ${JSON.stringify(cell)}`);
-        await click(cell, 'context-menu'); await page.locator('.board-chooser').waitFor({ state: 'visible' });
+        await click(cell, 'choose'); await page.locator('.board-chooser').waitFor({ state: 'visible' });
         assert.equal(await page.locator('.board-chooser button').count(), choices.length + 1);
         assert.equal(decisions.length, count, `${view}: large-Unit chooser submits nothing`);
         if (cell === occupied[0]) await page.screenshot({ path: `.playwright-cli/board-cursors-${view}.png` });
         await page.locator('.board-chooser button').last().click();
-        await cursor(cell, 'context-menu');
+        await cursor(cell, 'choose');
         assert.equal(decisions.length, count, `${view}: cancelling restores large-Unit choices`);
       }
       results.push({ view, checks: ['move pointer and physical destination', 'busy default and suppressed click',
