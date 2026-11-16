@@ -993,6 +993,16 @@ test('touch pinch suppresses tap, keyboard focuses exact Cells, and stable label
     h.viewport.camera.manual({x:7,y:7,scale:300});h.flush();assert.equal(info.hidden,true);
   }finally{h.cleanup();}
 });
+test('handled Space release clears camera modifier without selecting a Cell; blur cancels an armed press',async()=>{
+  const h=await harness();try{
+    h.host.emit('keydown',{key:' '});h.host.emit('keyup',{key:' ',defaultPrevented:true});assert.equal(h.picked.length,0);
+    h.host.emit('keyup',{key:' '});assert.equal(h.picked.length,0);
+    h.host.emit('keydown',{key:' '});h.host.emit('blur');h.host.emit('keyup',{key:' '});assert.equal(h.picked.length,0);
+    h.host.emit('keydown',{key:' '});h.host.emit('keyup',{key:' '});assert.equal(h.picked.length,1);
+    h.host.emit('keydown',{key:'Enter'});assert.equal(h.picked.length,2);
+  }finally{h.cleanup();}
+});
+
 test('50x50 terrain and unknown covers use bounded material batches and remain idle after settling',async()=>{
   const f=fixture(50);const h=await harness(f);try{const scene=h.rendered.at(-1).scene,terrain=scene.getObjectByName('terrain');assert.equal(terrain.children.reduce((n,b)=>n+b.count,0),2500);assert.ok(terrain.children.length<=3*4);const batches=[...terrain.children];
     for(let i=0;i<12;i++){h.viewport.setActive(false);h.viewport.setActive(true);h.viewport.renderFrame(f);h.viewport.settle();h.flush();}assert.deepEqual(terrain.children,batches);assert.equal(h.frames.size,0);

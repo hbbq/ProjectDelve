@@ -682,7 +682,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     if(['+','='].includes(event.key)){event.preventDefault();cameraControl.zoom(1.2,undefined,true);}if(event.key==='-'){event.preventDefault();cameraControl.zoom(1/1.2,undefined,true);}
     if(event.key===' '){space=true;event.preventDefault();}if(event.key==='Enter'){event.preventDefault();select({cell:focusedCell});}
   });
-  bind(host,'keyup',event=>{if(event.key===' '){space=false;event.preventDefault();if(!blockClick)select({cell:focusedCell});}});
+  bind(host,'keyup',event=>{if(event.key===' '){const handled=event.defaultPrevented||!space;space=false;event.preventDefault();if(!handled&&!blockClick)select({cell:focusedCell});}});
   bind(host,'blur',()=>{space=false;});bind(focus,'click',event=>{event.preventDefault();select({cell:focusedCell});});
   if(controls.cutaway)bind(controls.cutaway,'change',invalidate);
   const observer=new ResizeObserver(()=>{if(active){resize();invalidate();}});observer.observe(host);

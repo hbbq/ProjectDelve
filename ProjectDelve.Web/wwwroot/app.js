@@ -6,6 +6,7 @@ import { createBoardCamera } from "./board-camera.js";
 import { createViewportRouter, boardCandidates } from "./playtest-viewport.js";
 import { createUnitFacing } from "./unit-facing.js";
 import { loadUnitVisualCatalog } from "./unit-visuals.js";
+import { advanceChoices, bindAdvanceControls } from "./primary-advance.js";
 const unitFacing = createUnitFacing();
 
 const ui = Object.fromEntries(["game-setup", "scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context", "world-effects", "objectives", "orders", "game-result", "commentary-toggle", "commentary-panel", "commentary-context", "commentary-text", "decision-commentary", "side-controllers", "controller-status", "controller-retry", "controller-cancel"]
@@ -36,7 +37,7 @@ try {
   const savedView = globalThis.localStorage?.getItem("delve.board.view.v1");
   if (["classic", "enhanced", "three", "tabletop"].includes(savedView)) boardView.value = savedView;
 } catch { /* Preferences are optional. */ }
-for (const id of ["end-turn", "start-round", "bag-count", "decision-panel", "board-overlays", "move-overlay", "board-hint"]) ui[id] = document.getElementById(id);
+for (const id of ["stay", "end-turn", "start-round", "bag-count", "decision-panel", "board-overlays", "move-overlay", "board-hint"]) ui[id] = document.getElementById(id);
 ui["board-alternatives"] = document.getElementById("board-alternatives");
 ui["board-alternatives"]?.addEventListener("keydown", event => {
   if (event.key !== "Escape") return;
@@ -70,10 +71,6 @@ let diceGeneration = 0;
 let diceSession;
 let combatDice;
 ui["move-overlay"].addEventListener("click", () => ui["board-overlays"].classList.toggle("at-top"));
-ui["end-turn"].addEventListener("click", () => {
-  const candidate = snapshot?.presentation.decision?.candidates.find(candidate => candidate.isEndTurn);
-  if (candidate) return chooseCandidate(candidate.key);
-});
 ui["start-round"].addEventListener("click", () => { if (!ui.round.disabled) return mutate("round"); });
 let viewportRouter;
 let threeViewport;
@@ -722,6 +719,11 @@ function renderState(state, preserveNodes = true, cards = snapshot.presentation.
 }
 
 const visibleChoice = candidate => !(ui.filter.checked && candidate.relevant === false);
+const updateAdvanceControls = bindAdvanceControls({ document, stayButton: ui.stay, endTurnButton: ui["end-turn"],
+  choices: () => advanceChoices(snapshot?.presentation.decision, visibleChoice), busy: () => busy,
+  selecting: () => selectedActionKey !== null || !!boardChooser || threeChoicesOpen,
+  active: () => !document.getElementById("playtest-main").hidden,
+  submit: key => chooseCandidate(key), tooltip: bindTooltip });
 
 // Content wording and current counters come from the domain/API, not rule components.
 function renderUnitCard() {
@@ -1474,10 +1476,7 @@ function updateControls() {
   ui["start-round"].disabled = ui.round.disabled;
   ui["start-round"].textContent = snapshot?.result.state.round ? "Next round" : "Start round";
   ui["start-round"].hidden = !!snapshot && !(snapshot.result.state.round === 0 || snapshot.result.state.roundComplete) || !!snapshot?.result.state.completion;
-  const endTurn = snapshot?.presentation.decision?.candidates.find(candidate => candidate.isEndTurn);
-  ui["end-turn"].disabled = busy || !endTurn;
-  ui["end-turn"].textContent = endTurn?.label ?? "End Turn";
-  ui["end-turn"].hidden = !endTurn;
+  updateAdvanceControls();
   for (const button of ui.choices.querySelectorAll("button")) button.disabled = busy;
   for (const button of ui["board-alternatives"]?.querySelectorAll("button") ?? [])
     button.disabled = busy || button.dataset.requiresSelection === "true";

@@ -241,6 +241,7 @@ function harness(initial, fetchImpl, extras = {}) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/loot-ui.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/playtest-viewport.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/unit-facing.js"), "utf8").replace(/^export /gm, ""), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/primary-advance.js"), "utf8").replace(/^export /gm, ""), context);
   if (extras.withCamera) for (const file of ["camera-geometry.js", "camera-observation.js", "board-camera.js"])
     vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", file), "utf8").replace(/^import .*\r?\n/gm, "").replace(/^export /gm, ""), context);
   vm.runInContext(script.replace(/^import .*\r?\n/gm, "").replace(/await refresh\(\);\s*$/, ""), context);
@@ -1477,7 +1478,7 @@ test("game shell retains one authoritative target for decisions, field guide and
   const header = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
   for (const id of ["mode-designer", "mode-playtest"]) assert.ok(header.includes(`id="${id}"`), `${id} is always accessible`);
   assert.match(html, /class="board-stage camera-viewport"[\s\S]*id="camera-world"[\s\S]*id="board"[\s\S]*class="board-overlays"[\s\S]*id="dice"[\s\S]*id="choices"/);
-  assert.match(html, /class="decision-strip"[\s\S]*id="board-hint"[\s\S]*id="end-turn" disabled[\s\S]*id="start-round" disabled[\s\S]*class="board-area"/);
+  assert.match(html, /class="decision-strip"[\s\S]*id="board-hint"[\s\S]*id="stay" hidden disabled[\s\S]*id="end-turn" hidden disabled[\s\S]*id="start-round" disabled[\s\S]*class="board-area"/);
   assert.match(html, /class="card-column"[\s\S]*id="unit-card"[\s\S]*id="inspector-mission"[\s\S]*id="objectives"[\s\S]*id="orders"[\s\S]*id="inspector-journal"[\s\S]*id="events"/);
   for (const id of ["objectives", "orders", "world-effects", "events", "controller-status", "controller-retry", "controller-cancel", "board-hint", "end-turn", "start-round"]) {
     assert.equal(html.split(`id="${id}"`).length - 1, 1, `${id} retains one authoritative rendering target`);
@@ -3116,6 +3117,9 @@ test("racing resources, Fruit Tree and Slot Machine retain Classic/Enhanced inte
 test("End Turn stays reserved and trusts explicit projection metadata, including busy boundaries", async () => {
   const supplied = choice("opaque-end", "Direct", {}, { label: "Finish activation", isEndTurn: true, relevant: false });
   const h = harness(response([supplied]));
+  assert.equal(h.elements.get("end-turn").hidden, true);
+  assert.equal(h.elements.get("end-turn").disabled, true);
+  h.run('ui.filter.checked = false; renderSnapshot()');
   assert.equal(h.elements.get("end-turn").disabled, false);
   assert.equal(h.elements.get("end-turn").textContent, "Finish activation");
   assert.equal(buttons(h.elements.get("choices")).length, 0);
@@ -3131,6 +3135,24 @@ test("End Turn stays reserved and trusts explicit projection metadata, including
   const other = harness(response([choice("other", "Direct", {}, { label: "End Turn" })]));
   assert.equal(other.elements.get("end-turn").disabled, true);
   assert.equal(other.elements.get("play-actions").querySelectorAll(".action-chip").length, 1);
+});
+
+test("Stay shares advance controls with End Turn without removing existing board choices", async () => {
+  const stay = choice("opaque-stay", "Unit", { unitId: "actor" }, { boardVisual: { kind: "stay", preview: "Stay" } });
+  const end = choice("opaque-end", "Direct", {}, { isEndTurn: true, label: "End Turn" });
+  const h = harness(response([stay, end]));
+  assert.equal(h.elements.get("stay").hidden, false);
+  assert.equal(h.elements.get("end-turn").hidden, false);
+  assert.ok(h.figure("actor").classList.contains("board-choice"));
+  h.run('chooseCandidate = key => submitted.push(key)');
+  click(h.elements.get("stay")); click(h.elements.get("end-turn"));
+  assert.deepEqual(h.submitted, ["opaque-stay", "opaque-end"]);
+  h.run('busy = true; updateControls()');
+  click(h.elements.get("stay")); click(h.elements.get("end-turn"));
+  assert.equal(h.submitted.length, 2);
+  h.run('busy = false; snapshot.presentation.decision.candidates = []; renderSnapshot()');
+  assert.equal(h.elements.get("stay").hidden, true);
+  assert.equal(h.elements.get("end-turn").hidden, true);
 });
 
 test("all descriptions retain full content in closed reference panels", () => {

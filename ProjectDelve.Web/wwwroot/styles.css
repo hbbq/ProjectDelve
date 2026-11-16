@@ -439,7 +439,7 @@ body:has(#playtest-main:not([hidden])) > footer { margin-top: 8px; }
 .card-column #unit-card { overflow-y: auto; flex: 0 1 auto; min-height: 0; scrollbar-gutter: stable; }
 .activation-controls { flex: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .activation-controls button { height: 48px; }
-#end-turn { flex: 1; min-height: 44px; }
+#stay, #end-turn { flex: 1; min-height: 44px; }
 .ability-description p { margin: 5px 0; }
 .ability-description details { margin: 4px 0; font-size: .8rem; }
 #attack-context, #effect { margin: 3px 0; font-size: .8rem; padding-block: 3px; }
