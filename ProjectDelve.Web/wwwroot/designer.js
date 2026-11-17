@@ -1,4 +1,5 @@
 import { DesignerDraft, DesignerRequests, DesignerHistory, draftDocument, readDraftDocument, draftStorageKey, sameCell } from "./designer-state.js";
+import { renderSetupOverlay, renderSetupInspector, setupStatusText } from "./setup-overlays.js";
 import { styleSide } from "./side-colors.js";
 import { prepareCover } from "./cover-upload.js";
 import { boardVisuals, terrainLayers } from "./board-visuals.js";
@@ -67,10 +68,11 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   history.restore = state => {
     const { libraryContext, ...content } = state;
     restoreHistory(content);
+    if (libraryContext) generationSource = structuredClone(libraryContext.generationSource);
     if (libraryContext && libraryContext.source?.id !== librarySource?.id) {
       librarySource = structuredClone(libraryContext.source); ui.title.value = libraryContext.title;
       if (ui["library-cover"]) ui["library-cover"].value = libraryContext.coverArt;
-      generationSource = structuredClone(libraryContext.generationSource); librarySequence++; describeLibrary();
+      librarySequence++; describeLibrary();
     }
   };
   let recoveryMessage = "New draft · saved in this browser";
@@ -115,7 +117,19 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     if (key.startsWith("agency:")) { try { return JSON.parse(key.slice(7)).join(" · "); } catch {} }
     return key.replace(":", " · ");
   }
+  function renderSetup() {
+    const setup = draft.definition.setup;
+    const node = document.getElementById("designer-setup-status");
+    if (node) {
+      node.textContent = setupStatusText(setup, draft.playReady);
+      node.dataset.setupValidation = draft.playReady?.status ?? (setup ? "Unchecked" : "Legacy");
+    }
+    const inspector = document.getElementById("designer-setup-details");
+    if (inspector) renderSetupInspector(inspector, setup, draft.playReady);
+  }
+  document.getElementById("designer-setup-overlays")?.addEventListener("change", renderBoard);
   function updateDocumentState() {
+    renderSetup();
     const generationLabel = document.getElementById("designer-generation-source");
     if (generationLabel) {
       generationLabel.hidden = !generationSource;
@@ -303,6 +317,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   document.getElementById("mode-playtest").addEventListener("click", () => { if (!globalThis.delveNavigate) setMode(false); });
 
   function report(result, operation) {
+    renderSetup();
     ui.status.dataset.validation = result.valid ? "valid" : "invalid";
     ui.status.textContent = result.valid ? "Valid · checked by the engine" : operation === "import"
       ? "Import failed · current draft retained" : "Invalid · draft remains editable";
@@ -314,6 +329,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   }
   const requests = new DesignerRequests(draft, request, report);
   function unchecked() {
+    renderSetup();
     ui.status.dataset.validation = "unchecked";
     ui.status.textContent = "Unchecked · validate before export or play";
     ui.errors.replaceChildren();
@@ -500,7 +516,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   function finishPainting() {
     // Paint already updated each affected node. Preserve the mounted board and
     // focus; only refresh controls and the inspector after the atomic stroke.
-    persist(); syncTerrainTypes(); renderProperties(); renderBoardSelection();
+    persist(); syncTerrainTypes(); renderProperties(); renderBoardSelection(); renderSetup();
   }
   ui.board.addEventListener("keydown", event => {
     if (!["Enter", " "].includes(event.key) || pendingPlay) return;
@@ -714,6 +730,8 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       ui.board.append(node);
       unitNodes.set(draft.unitKeys[index], node);
     }
+    if (document.getElementById("designer-setup-overlays")?.checked)
+      renderSetupOverlay(ui.board, draft.definition.setup, board.width, board.height);
   }
   function renderProperties() {
     ui.properties.replaceChildren();

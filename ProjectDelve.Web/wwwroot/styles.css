@@ -644,3 +644,14 @@ body:has(#playtest-main:not([hidden])) > footer { margin-top: 8px; }
 
 .dormant-marker { position: absolute; top: 0; right: 0; z-index: 3; border-radius: 3px; padding: 1px 3px; background: #18243f; color: #fff; font-size: 11px; font-weight: bold; pointer-events: none; }
 .figure.dormant { outline: 2px dashed #9bb5dd; outline-offset: -3px; }
+
+/* Setup declarations are authoring information, projected without geographic inference. */
+.setup-cell { position: absolute; pointer-events: none; z-index: 9; box-sizing: border-box; border: 2px solid transparent; }
+.setup-deployment { background: #3498db44; border-color: #64b5ff; }
+.setup-core { background: #0f62fe44; border: 2px dashed #b9dcff; }
+.setup-departure { border: 3px double #ffd166; }
+.setup-ordinary { border-color: #55df8b; background: #22aa4422; }
+.setup-special { border: 2px dashed #e29bff; background: #a64acc33; }
+#designer-setup-details, #world-generator-setup-details { overflow-wrap: anywhere; max-height: 18rem; overflow: auto; }
+#world-generator .setup-overlay-toggle { display: flex; align-items: center; gap: 6px; }
+#world-generator .setup-overlay-toggle input { width: auto; }

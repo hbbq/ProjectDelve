@@ -7,23 +7,25 @@ namespace ProjectDelve.Engine.Tests;
 public sealed class SettlementPopulationTests
 {
     [Fact]
-    public void GeneratedDoorConcealsInteriorUntilOpenedAndExplorationSurvivesSave()
+    public void ClosedDoorConcealsInteriorUntilOpenedAndExplorationSurvivesSave()
     {
-        var world = WorldGenerator.Generate(new WorldGenerationRecipe(new(Width: 40, Height: 35), new(0, 0, 0), 42,
-            Civilization: new(Campsites: ContentDensity.None, Settlements: ContentDensity.Low)));
-        var portal = world.Context.Sites.SelectMany(s => s.Buildings).First().Portals.Single(p => p.Id.EndsWith("/entrance"));
-        var outside = new Cell(portal.OutsideIndex % 40, portal.OutsideIndex / 40);
-        var inside = new Cell(portal.InsideIndex % 40, portal.InsideIndex / 40);
-        var definition = world.Definition with
+        var outside = new Cell(2, 2); var inside = new Cell(3, 2);
+        var scout = new UnitType("fixture-door-scout", Mov: 2, Rng: 0, Atk: 0, Def: 0, Hp: 1)
+            .WithLocal(new("open-door", "Open Door", AbilityTiming.FreeAction, new ProjectDelve.Engine.OpenDoor()));
+        var definition = new ScenarioDefinition
         {
-            UnitTypeIds = [UnitTypeIds.Barbarian],
-            Units = [new(UnitTypeIds.Barbarian, "explorers", outside, UnitId: "scout")],
-            Agency = [new(UnitTypeIds.Barbarian, "explorers", ControllerKind.Human)], FogOfWarSides = ["explorers"]
+            Board = new() { Width = 7, Height = 5, DefaultTerrain = TerrainKind.StoneFloor,
+                Edges = Enumerable.Range(0, 5).Select(y => new EdgeDefinition(new(2, y), EdgeDirection.Right,
+                    y == 2 ? EdgeKind.ClosedDoor : EdgeKind.Wall)).ToList() },
+            UnitTypeIds = [scout.Id], UnitTypes = [scout],
+            Units = [new(scout.Id, "explorers", outside, UnitId: "scout")],
+            Agency = [new(scout.Id, "explorers", ControllerKind.Human)], FogOfWarSides = ["explorers"],
+            Objectives = [new("explorers", ScenarioObjective.NoObjective)], Loot = LootSettings.Empty
         };
         var state = GameEngine.CreateGame(definition);
         Assert.False(FogOfWar.IsExplored(state, "explorers", inside));
-        state.Round = 1; state.ActiveToken = new(UnitTypeIds.Barbarian, "explorers"); state.CurrentUnitId = "scout";
-        state.Pending = new(DecisionKind.Activation, UnitTypeIds.Barbarian, "scout", [], false) { Token = state.ActiveToken };
+        state.Round = 1; state.ActiveToken = new(scout.Id, "explorers"); state.CurrentUnitId = "scout";
+        state.Pending = new(DecisionKind.Activation, scout.Id, "scout", [], false) { Token = state.ActiveToken };
         var opened = GameEngine.Advance(state, new OpenDoor($"ability:open-door:{outside.X},{outside.Y}:{inside.X},{inside.Y}"), new Dice(), false);
         Assert.True(FogOfWar.IsExplored(opened.State, "explorers", inside));
         var saved = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(opened.State))!;

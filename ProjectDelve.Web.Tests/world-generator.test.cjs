@@ -4,8 +4,50 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 const path = require("node:path");
 const source = name => fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", name), "utf8");
+
+test('Hero capacity is recorded in WLD1, invalidates previews and reloads independently of controls', async () => {
+  const h = harness(); h.enter('code-input', code); h.click('load'); h.click('preview');
+  assert.deepEqual(Object.keys(h.requests[0].body), ['code']);
+  assert.match(h.requests[0].body.code, /-HC5-S0123456789ABCDEF$/);
+  await h.accept(0);
+  h.enter('hero-capacity', '7');
+  assert.match(h.get('world-generator-status').textContent, /outdated/);
+  h.click('preview');
+  assert.match(h.requests[1].body.code, /-HC7-S0123456789ABCDEF$/);
+  const completed = {...h.result(h.requests[1].body.code), heroCapacity:99, playReady:{status:'Valid',valid:true,diagnostics:[]}};
+  await h.accept(1, completed);
+  assert.match(h.get('world-generator-deployment-summary').textContent, /Hero deployment capacity 7/);
+  h.enter('hero-capacity', '3'); h.enter('code-input', completed.code); h.click('load');
+  assert.equal(h.get('world-generator-hero-capacity').value, '7');
+  h.click('preview'); assert.equal(h.requests[2].body.code, completed.code);
+  h.enter('code-input', code); h.click('load');
+  assert.equal(h.get('world-generator-hero-capacity').value, '5');
+  h.enter('hero-capacity', ''); h.click('preview');
+  assert.equal(h.requests.length, 3); assert.match(h.get('world-generator-status').textContent, /heroCapacity must be a whole number/);
+});
+
+test('changing Hero capacity suppresses an in-flight response', async () => {
+  const h = harness(); h.click('preview'); h.enter('hero-capacity', '7'); await h.accept(0);
+  assert.equal(h.get('world-generator-complete').value, '');
+});
+test('capacity recipes canonicalize the default and validate whole positive signed integers', () => {
+  const h = harness();
+  assert.equal(vm.runInContext(`worldConfigurationFromCode('${code}').heroCapacity`, h.context), '5');
+  for (const capacity of [1, 7, 2147483647]) {
+    const recipe = code.replace('-S', `-HC${capacity}-S`);
+    assert.equal(vm.runInContext(`worldConfigurationFromCode('${recipe}').heroCapacity`, h.context), String(capacity));
+    assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${recipe}'))`, h.context), recipe.replace('-HC', '-OEmpty-HC'));
+  }
+  for (const capacity of ['0', '-1', '1.5', '2147483648', 'invalid']) {
+    h.enter('hero-capacity', capacity); h.click('preview');
+    assert.equal(h.requests.length, 0);
+    assert.throws(() => vm.runInContext(`worldConfigurationFromCode('${code.replace('-S', `-HC${capacity}-S`)}')`, h.context));
+  }
+  assert.equal(vm.runInContext(`(() => { const c = worldConfigurationFromCode('${code}'); delete c.heroCapacity; return worldConfigurationCode(c); })()`, h.context), withEmptyLoot(code));
+  assert.doesNotMatch(source('index.html'), /id="world-generator-mode"|Generation policy/);
+});
 const code = "WLD1-2x2-X-8-Y12-F35-W20-R15-KBalanced-HAuto-S0123456789ABCDEF";
-const withEmptyLoot = value => value.includes('-S') ? value.replace('-S', '-OEmpty-S') : value + '-OEmpty';
+const withEmptyLoot = value => value.includes('-S') ? value.replace('-S', '-OEmpty-HC5-S') : value + '-OEmpty-HC5';
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
 test('storage-free Beacon Quick Play passes the real draft parser before launching temporary transport', async () => {
@@ -41,6 +83,7 @@ function harness() {
   }
   const nodes = new Map(), get = id => { if (!nodes.has(id)) nodes.set(id, new Node()); return nodes.get(id); };
   for (const [key, value] of Object.entries({ width:"2", height:"2", offsetX:"-8", offsetY:"12", forestCoverage:"35", waterCoverage:"20", rockCoverage:"15", scale:"Balanced", waterForm:"Auto", seed:"", lootPreset:"Empty", view:"enhanced" })) get(`world-generator-${key}`).value = value;
+  get('world-generator-hero-capacity').value = '5';
   const opened = new Node(), requests = [], designs = [], visuals = [], copied = [], plays = [], navigations = [];
   const context = vm.createContext({ structuredClone, Uint32Array,
     performance: { now: () => 42 },
@@ -52,6 +95,7 @@ function harness() {
     delvePlayDesign: async transport => { plays.push(transport); return true; },
     delveNavigate: mode => navigations.push(mode)
   });
+  vm.runInContext(source("setup-overlays.js").replace(/^export /gm, ""), context);
   vm.runInContext(source("board-visuals.js").replace(/^export /gm, ""), context);
   context.applyBoardVisual = (node, category, kind, options) => visuals.push({ node, category, kind, options });
   vm.runInContext(source("generator-state.js").replace(/^export /gm, "") + "\n" + source("world-generator-state.js").replace(/^export /gm, "") + "\n" + source("world-generator.js").replace(/^import .*;\r?\n/gm, ""), context);
@@ -137,12 +181,12 @@ test("world recipes round-trip every scale and water form, signed bounds and see
 test("world Loot presets round-trip and submit one finite preset selection without a size control", async () => {
   const h = harness();
   for (const preset of ['Empty', 'Classic', 'Fun', 'Experimental', 'FarOut', 'All']) {
-    const recipe = code.replace('-S', `-MHigh-D4-O${preset}-S`);
+    const recipe = code.replace('-S', `-MHigh-D4-O${preset}-HC5-S`);
     assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${recipe}'))`, h.context), recipe);
     h.enter('code-input', recipe); h.click('load');
     assert.equal(h.get('world-generator-lootPreset').value, preset);
   }
-  h.click('preview'); assert.match(h.requests[0].body.code, /-MHigh-D4-OAll-S/);
+  h.click('preview'); assert.match(h.requests[0].body.code, /-MHigh-D4-OAll-HC5-S/);
   await h.accept(0);
   h.enter('lootPreset', 'Fun'); assert.match(h.get('world-generator-status').textContent, /outdated/);
   h.enter('lootPreset', 'Unknown'); h.click('preview'); assert.equal(h.requests.length, 1);
@@ -165,7 +209,7 @@ test("world presets come from the catalog and preserve dimensions, offsets and s
   assert.equal(h.requests[0].url,"/api/world-generation/catalog");
   await h.accept(0,{maxBoardSize:50,presets:[{id:"fixture-marsh",name:"Fixture Marsh",settings:{forestCoverage:10,waterCoverage:60,rockCoverage:0,scale:"Broad",waterForm:"Mixed"}}]});
   h.get("world-generator-preset").value = "fixture-marsh"; h.get("world-generator-preset").listeners.change(); h.click("preview");
-  assert.equal(h.requests[1].body.code,"WLD1-2x2-X-8-Y12-F10-W60-R0-KBroad-HMixed-OEmpty");
+  assert.equal(h.requests[1].body.code,"WLD1-2x2-X-8-Y12-F10-W60-R0-KBroad-HMixed-OEmpty-HC5");
 });
 
 test("completed seed stays with the world when moving the window until Generate Another", async () => {
@@ -253,7 +297,7 @@ test("loaded recipes update controls and stale responses cannot overwrite a newe
   const h = harness(); h.enter("code-input",code); h.click("load");
   assert.equal(h.get("world-generator-seed").value,"0123456789ABCDEF"); h.click("preview");
   h.click("another"); const newer = code.replace("0123456789ABCDEF","0000000100000002");
-  assert.equal(h.requests[1].body.code,newer.replace('-S','-E0-I2-B1111-C0-NLow-VMedium-P2-Q0-TLow-JMinorPath-L1-ALow-U0-Z2-MOff-D3-OEmpty-S')); await h.accept(1,h.result(newer)); await h.accept(0);
+  assert.equal(h.requests[1].body.code,newer.replace('-S','-E0-I2-B1111-C0-NLow-VMedium-P2-Q0-TLow-JMinorPath-L1-ALow-U0-Z2-MOff-D3-OEmpty-HC5-S')); await h.accept(1,h.result(newer)); await h.accept(0);
   assert.equal(h.get("world-generator-complete").value,newer);
   h.click("preview"); h.enter("forestCoverage","30"); await h.accept(2);
   assert.equal(h.get("world-generator-complete").value,newer);
@@ -322,7 +366,7 @@ test("performance labels distinguish finalization and follow the displayed compa
 test("enrichment codes round-trip settings, preserve legacy codes and load old codes disabled", () => {
   const h=harness(), enriched=code.replace('-S','-E1-I3-B1010-S');
   assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${enriched}'))`,h.context),withEmptyLoot(enriched));
-  h.enter('code-input',enriched);h.click('load');h.click('preview');assert.equal(h.requests[0].body.code,enriched.replace('-S','-C0-NLow-VMedium-P2-Q0-TLow-JMinorPath-L1-ALow-U0-Z2-MOff-D3-OEmpty-S'));
+  h.enter('code-input',enriched);h.click('load');h.click('preview');assert.equal(h.requests[0].body.code,enriched.replace('-S','-C0-NLow-VMedium-P2-Q0-TLow-JMinorPath-L1-ALow-U0-Z2-MOff-D3-OEmpty-HC5-S'));
   assert.equal(h.get('world-generator-enrichmentIntensity').value,'3'); assert.equal(h.get('world-generator-rockEnrichment').value,'false');
   h.enter('code-input',code);h.click('load');assert.equal(h.get('world-generator-enrichmentEnabled').value,'false');
   for(const suffix of ['-E2-I1-B1111','-E1-I4-B1111','-E1-I2-B111','-E1-I2-B1112']) assert.throws(()=>vm.runInContext(`worldConfigurationFromCode('${code.split('-S')[0]+suffix}')`,h.context),/ordered WLD1/);
@@ -356,7 +400,7 @@ test("catalog civilization presets update only authored settings", async () => {
   const h=harness(); h.opened.click();
   await h.accept(0,{maxBoardSize:120,presets:[{id:'settled',name:'Settled',settings:{},civilization:{enabled:true,campsites:"High",settlements:"High",preparationIntensity:3}}]});
   h.get('world-generator-preset').value='settled'; h.get('world-generator-preset').listeners.change(); h.click('preview');
-  assert.equal(h.requests[1].body.code,code.split('-S')[0]+'-C1-NHigh-VHigh-P3-OEmpty');
+  assert.equal(h.requests[1].body.code,code.split('-S')[0]+'-C1-NHigh-VHigh-P3-OEmpty-HC5');
   assert.equal(h.get('world-generator-offsetX').value,'-8');
 });
 
@@ -445,7 +489,7 @@ test("Population preset settings and edits invalidate the retained preview", asy
   const h = harness(); h.opened.click();
   await h.accept(0, { maxBoardSize: 120, presets: [{ id: 'inhabited', name: 'Inhabited', settings: {}, population: { density: 'High', difficulty: 4 } }] });
   h.get('world-generator-preset').value = 'inhabited'; h.get('world-generator-preset').listeners.change();
-  h.click('preview'); assert.match(h.requests[1].body.code, /-MHigh-D4-OEmpty$/); await h.accept(1);
+  h.click('preview'); assert.match(h.requests[1].body.code, /-MHigh-D4-OEmpty-HC5$/); await h.accept(1);
   const retained = h.get('world-generator-board').children[0];
   h.enter('populationDensity', 'Low');
   assert.match(h.get('world-generator-status').textContent, /outdated/); assert.equal(h.get('world-generator-board').children[0], retained);
@@ -597,7 +641,7 @@ test("route recipes round-trip every profile and bounded setting, with old codes
   }
   h.enter('code-input',code);h.click('load');
   assert.equal(h.get('world-generator-routesEnabled').value,'false');assert.equal(h.get('world-generator-waterCrossings').value,'false');
-  assert.match(h.get('world-generator-prefix').value,/-Q0-TLow-JMinorPath-L1-ALow-U0-Z2-MOff-D3-OEmpty$/);
+  assert.match(h.get('world-generator-prefix').value,/-Q0-TLow-JMinorPath-L1-ALow-U0-Z2-MOff-D3-OEmpty-HC5$/);
   for(const suffix of ['-Q2-TLow-JRoad-L1-ALow-U0-Z2','-Q1-T5-JRoad-L1-ALow-U0-Z2','-Q1-TLow-JRail-L1-ALow-U0-Z2',
     '-Q1-TLow-JRoad-L1-A4-U0-Z2','-Q1-TLow-JRoad-L1-ALow-U2-Z2','-Q1-TLow-JRoad-L1-ALow-U0-Z0'])
     assert.throws(()=>vm.runInContext(`worldConfigurationFromCode('${code.replace('-S',suffix+'-S')}')`,h.context),/ordered WLD1/);
@@ -607,7 +651,7 @@ test("catalog route settings preserve world inputs and HTML declares enabled con
   const h=harness();h.opened.click();
   await h.accept(0,{maxBoardSize:120,presets:[{id:'connected',name:'Connected',settings:{},routes:{enabled:true,throughRoutes:"Medium",profile:'Road',connectSites:true,alternatives:"High",waterCrossings:false,intensity:1}}]});
   h.get('world-generator-preset').value='connected';h.get('world-generator-preset').listeners.change();h.click('preview');
-  assert.equal(h.requests[1].body.code,code.split('-S')[0]+'-Q1-TMedium-JRoad-L1-AHigh-U0-Z1-OEmpty');
+  assert.equal(h.requests[1].body.code,code.split('-S')[0]+'-Q1-TMedium-JRoad-L1-AHigh-U0-Z1-OEmpty-HC5');
   assert.equal(h.get('world-generator-offsetX').value,'-8');assert.equal(h.get('world-generator-width').value,'2');
   const html=source('index.html').slice(source('index.html').indexOf('<dialog id="world-generator"'));
   assert.match(html,/id="world-generator-routesEnabled"><option value="true">Enabled/);

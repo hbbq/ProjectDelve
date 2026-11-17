@@ -49,14 +49,18 @@ public sealed class WorldQuickPlayTests
         Assert.Contains("principal doors-openable", Assert.Throws<ArgumentException>(() => WorldQuickPlay.Prepare(original, Canonical)).Message);
     }
 
-    [Theory]
-    [InlineData(1UL)]
-    public void GeneratedForestQuickPlayExploresFullFriendlySightDiamondsThroughTrees(ulong seed)
+    [Fact]
+    public void PublishedForestDeploymentExploresFullFriendlySightDiamondsThroughTrees()
     {
-        var generated = WorldGenerator.Generate(new WorldGenerationRecipe(new(Width: 30, Height: 24),
-            new(ForestCoverage: 45, WaterCoverage: 0, RockCoverage: 0), seed,
-            Enrichment: new(Enabled: false)), Canonical);
-        var prepared = WorldQuickPlay.Prepare(generated.Definition, Canonical);
+        var cells = Enumerable.Range(3, 2).SelectMany(y => Enumerable.Range(1, 5).Select(x => new Cell(x, y))).ToList();
+        var core = cells.Where(c => c.X < 5).ToList();
+        var original = Empty(12, 8) with
+        {
+            Board = new() { Width = 12, Height = 8, DefaultTerrain = TerrainKind.Grass,
+                Cells = [new(new(6, 3), TerrainKind.Tree)] },
+            Setup = new(1, new(5, cells, core, core.Concat(cells.Except(core)).ToList(), new(5, 4), new(6, 4), 10, 8), [])
+        };
+        var prepared = WorldQuickPlay.Prepare(original, Canonical);
         var state = GameEngine.CreateGame(prepared, Canonical);
         var board = state.Physical.Board;
         Assert.Contains(board.Terrain, t => board.TerrainDefinition(t).Id == "tree");
@@ -65,7 +69,7 @@ public sealed class WorldQuickPlayTests
         var expected = Enumerable.Range(0, board.Height).SelectMany(y => Enumerable.Range(0, board.Width)
             .Select(x => new Cell(x, y))).Where(c => sources.Any(s => Math.Abs(c.X - s.X) + Math.Abs(c.Y - s.Y) <= 5)).ToHashSet();
         Assert.True(expected.SetEquals(state.ExploredCells[HeroesVsMonsters.Heroes]));
-        // Ensure these generated cases actually exercise a Tree between a source and a revealed Cell.
+        // The fixture places a Tree between a source and a revealed Cell.
         Assert.Contains(sources, s => expected.Any(c => (c.X == s.X || c.Y == s.Y) && board.Terrain.Any(t =>
             board.TerrainDefinition(t).Id == "tree" &&
             (c.X == s.X && t.Position.X == s.X && t.Position.Y > Math.Min(c.Y, s.Y) && t.Position.Y < Math.Max(c.Y, s.Y) ||
@@ -73,7 +77,7 @@ public sealed class WorldQuickPlayTests
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
         FogOfWar.Refresh(restored);
         Assert.True(expected.SetEquals(restored.ExploredCells[HeroesVsMonsters.Heroes]));
-        Assert.Equal(Json(prepared), Json(WorldQuickPlay.Prepare(generated.Definition, Canonical)));
+        Assert.Equal(Json(prepared), Json(WorldQuickPlay.Prepare(original, Canonical)));
     }
 
     [Fact]

@@ -11,21 +11,35 @@ World Generator is an authoring pipeline separate from DNG1-HVM and DNG2-OS.
 Open **World Generator** in the browser, choose a preset or explicit settings,
 and generate a world. Optional Population adds structured camps, building defenders,
 road patrols, independent small groups and lone Monsters using ordinary Units,
-Groups and Orders. No party, starts or Objectives are generated. Loot uses the
+Groups and Orders. Every WLD1 world publishes a protected Hero deployment area
+and required ordinary-access locations. No Hero party or Objectives are placed. Loot uses the
 selected finite deck; no FoW configuration is generated. Export DELVE1 or open in Scenario
 Designer to finish the scenario before play.
 
 **Quick Play** starts a temporary copy through the existing Designer Playtest flow.
-It places Barbarian, Rogue, Wizard, Cleric and Beastmaster in a small legal connected
-cluster in the principal doors-openable component, preferring its board edge Cells, assigns explicit Human control, explicitly sets
+It validates the published setup and places Barbarian, Rogue, Wizard, Cleric and
+Beastmaster in its deterministic deployment order, assigns explicit Human control, explicitly sets
 No Objective for every participating Side, selects the existing **All** Loot Deck
 preset, and enables ordinary Hero Fog of War. The original world
 is retained in Designer; **Back to Designer** returns to it without the temporary
 party, Loot, Objectives or FoW changes. The retained generator preview, recipe,
 fingerprint and DELVE1 export are unchanged. Unsuitable or crowded boards report
 a placement failure without replacing the game. This convenience setup makes no
-encounter-distance or mission guarantees. It fails clearly when the principal
-component lacks a compatible free cluster, without falling back to an isolated pocket.
+encounter-distance or mission guarantees. Invalid setup, blocked deployment or insufficient
+capacity fails explicitly, without searching for a different start or substituting a seed.
+Existing DELVE1 scenarios without setup retain the principal-component placement behavior.
+
+PlayReady is the WLD1 standard; there is no generation-policy selector. Natural
+terrain/enrichment is followed by constructive deployment, guarded routes and
+Civilization, progressive mandatory repair with complete permitted fallback, dungeon/Loot
+finalization, Population and final geographic validation. A successful result must satisfy
+its ordinary 1×1 Land access declarations, allowing normally openable Doors. Engine validity
+and geographic validity remain separate in Designer. Optional overlays inspect deployment,
+ordinary requirements and deliberate-special exceptions; edits invalidate certification.
+Invalid configurations are rejected prospectively. Proven impossible accepted construction,
+witness replay errors and failed final validation are internal defects; incomplete analysis
+is reported separately. Repairs use explicit permissions and their own allowance, not optional
+route/enrichment budgets. No seed retry hides a defect. Diagnostics remain outside setup/gameplay state.
 
 Optional Civilization constructs Mountain Dungeons before Campsites and small Settlements with nested
 Building/Room generators and atomic terrain/Edge planning. See
@@ -65,11 +79,15 @@ limits, payload budgets, verification and remaining costs.
 ## Recipes and controls
 
 ```
-WLD1-30x24-X-25-Y-12-F25-W15-R10-KBalanced-HRiver-E1-I2-B1111-S0000000000003039
+WLD1-30x24-X-25-Y-12-F25-W15-R10-KBalanced-HRiver-E1-I2-B1111-OEmpty-HC5-S0000000000003039
 ```
 
 This selects a 30 by 24 rectangle starting at (-25, -12), with forest/water/rock
 amounts 25/15/10, Balanced scale, River water form, and root seed 12345 (hex 3039).
+`HC` specifies Hero deployment capacity. It defaults to five when omitted, and canonical
+recipes always emit it after the Loot field and before the seed. Capacity is part of the
+recipe, so loading a code overrides prior UI capacity. Dimensions must support its area,
+width-two maneuver core and departure; no capacity reduction is permitted.
 Fields are strict and ordered. `K` accepts Fine, Balanced or Broad. `H` accepts
 Auto, Lakes, River or Mixed. Coverage values are integers from zero to 100 and
 must total at most 100. Coverage controls approximate landscape-wide density;
@@ -90,6 +108,9 @@ in V1, with no theme or encounter-type selector. Presets and new UI configuratio
 use Medium density and difficulty 3; omitted Population settings produce terrain
 without encounters. WLD1 evolves in place during development: identical current
 recipes and content reproduce exactly, but historical output is not guaranteed.
+Historical WLD1 strings, seeds, fingerprints and generation behavior have no preservation
+requirement. WLD1 retains its prefix; there is no alternative legacy generation path or WLD2.
+This does not waive existing valid DELVE1 scenario compatibility.
 
 Omitting `-S` creates a seed once and returns a completed recipe. The browser
 retains that seed when changing window offsets. Generate Another selects a new

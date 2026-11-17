@@ -26,11 +26,16 @@ public sealed class RouteOrchestrationTests
     {
         var recipe = new WorldGenerationRecipe(new(0, 0, 30, 30), new(), 42);
         var plan = WorldGenerationPlan.FromRecipe(recipe);
-        var route = new WorldGenerationStep("first", WorldStepKind.RouteNetwork, new RouteNetworkStepParameters(RouteNetworkMode.PrimaryRoutes, new()), ["formations"]);
+        var route = new WorldGenerationStep("first", WorldStepKind.RouteNetwork, new RouteNetworkStepParameters(RouteNetworkMode.PrimaryRoutes, new()), ["hero-deployment"]);
         var again = route with { Id = "second", DependsOn = ["first"] };
-        Assert.NotNull((plan with { Steps = [.. plan.Steps.Take(2), route, again] }).Validate());
-        Assert.Throws<ArgumentException>(() => (plan with { Steps = [.. plan.Steps.Take(2), route, again with { DependsOn = ["formations"] }] }).Validate());
-        Assert.Throws<ArgumentException>(() => (plan with { Steps = [.. plan.Steps.Take(2), route, again with { Id = "first" }] }).Validate());
+        WorldGenerationPlan Insert(WorldGenerationStep second) => plan with
+        {
+            Steps = [.. plan.Steps.Take(3), route, second,
+                .. plan.Steps.Skip(3).Select(s => s.Kind == WorldStepKind.MandatoryConnectivity ? s with { DependsOn = ["second"] } : s)]
+        };
+        Assert.NotNull(Insert(again).Validate());
+        Assert.Throws<ArgumentException>(() => Insert(again with { DependsOn = ["hero-deployment"] }).Validate());
+        Assert.Throws<ArgumentException>(() => Insert(again with { Id = "first" }).Validate());
     }
 
     [Fact]

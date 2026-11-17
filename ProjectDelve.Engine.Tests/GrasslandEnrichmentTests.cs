@@ -52,11 +52,11 @@ public sealed class GrasslandEnrichmentTests
     }
 
     [Fact]
-    public void FullRecipeHasSevenInspectableStagesAndDeterministicFinalTopology()
+    public void FullRecipeHasNineInspectableStagesAndDeterministicFinalTopology()
     {
         var recipe = new WorldGenerationRecipe(new(-60, -50, 120, 120), new(30, 20, 25, FeatureScale.Broad, WaterForm.Mixed), 12345, new());
         var a = WorldGenerator.Generate(recipe); var b = WorldGenerator.Generate(recipe);
-        Assert.Equal(7, a.Preview.Frames.Count); Assert.Equal(a.Fingerprint, b.Fingerprint);
+        Assert.Equal(9, a.Preview.Frames.Count); Assert.Equal(a.Fingerprint, b.Fingerprint);
         Assert.Equal(JsonSerializer.Serialize(a.Preview), JsonSerializer.Serialize(b.Preview));
         Assert.Equal(14400, a.Context.CurrentAnalysis!.FormationLabels.Length);
         Assert.Equal(a.Preview.Frames[^1].WalkableComponents, a.Context.CurrentAnalysis.WalkableLabels);
@@ -70,14 +70,14 @@ public sealed class GrasslandEnrichmentTests
     public void OptionalFamiliesAndRepeatedStepsHaveDistinctStableIdentity()
     {
         var recipe = new WorldGenerationRecipe(new(Width: 50, Height: 50), new(0, 0, 0), 42, new(Forest: false, Rock: false, Water: false));
-        var plan = WorldGenerationPlan.FromRecipe(recipe); Assert.Equal(4, plan.Steps.Count);
+        var plan = WorldGenerationPlan.FromRecipe(recipe); Assert.Equal(6, plan.Steps.Count);
         var first = WorldGenerationPipeline.Execute(plan);
         var steps = plan.Steps.Take(3).Concat([new WorldGenerationStep("grassland-second", WorldStepKind.GrasslandEnrichment,
-            new EnrichmentStepParameters(), ["grassland"]), plan.Steps[^1] with { DependsOn = ["grassland-second"] }]).ToArray();
+            new EnrichmentStepParameters(), ["grassland"])]).Concat(plan.Steps.Skip(3).Select(s => s.Kind == WorldStepKind.HeroDeployment ? s with { DependsOn = ["grassland-second"] } : s)).ToArray();
         var repeated = WorldGenerationPipeline.Execute(plan with { Steps = steps });
         Assert.Equal(first.Preview.Frames.Take(3).Select(f => f.Terrain), repeated.Preview.Frames.Take(3).Select(f => f.Terrain));
         Assert.Equal(repeated.Context.Features.Count, repeated.Context.Features.Select(f => f.Id).Distinct().Count());
         var natural = WorldGenerator.Generate(recipe with { Enrichment = new(Enabled: false) });
-        Assert.Equal(3, natural.Preview.Frames.Count); Assert.Empty(natural.Context.Features);
+        Assert.Equal(5, natural.Preview.Frames.Count); Assert.Empty(natural.Context.Features);
     }
 }

@@ -115,21 +115,23 @@ that assumes they can leave the chamber. Runtime movement can subsequently
 change Alert connectivity, exactly as before.
 
 `PlayableWorldComponent` is the shared ephemeral doors-openable geometry query
-for dungeon entrances and Quick Play. It includes Machine blockers but ignores
+for dungeon entrances and existing DELVE1 Quick Play without setup. It includes Machine blockers but ignores
 figures when choosing the largest component, breaking equal-size ties by the
 top-left Cell. Each dungeon retains that selected region's top-left Cell in
 `MountainDungeonInfo.AccessRootIndex`. Final geometry checks every dungeon entrance
 and usable room Cell against the region connected to that root after later routes.
 It still rejects a blocked root or real disconnection; later growth of another region
-does not reassign the root. Quick Play independently selects the final largest region and applies its existing free
+does not reassign the root. WLD1 Quick Play uses its validated published deployment area.
+Only existing DELVE1 without setup independently selects the final largest region and applies its existing free
 five-Hero compact cluster/open-Edge rule only within the chosen component, and
 fails clearly if no compatible cluster remains. It never falls back to a small
 isolated pocket merely because its Cells occur earlier in board order.
 
-The Lake Country 50×50, seed 13, offset (-17,-13) regression retains its original
+The historical Lake Country 50×50, seed 13, offset (-17,-13) investigation retained its original
 48-Cell region, expanded to 165 Cells including its dungeon, while Civilization
 creates a separate 423-Cell region. This is valid anchored access. The final-largest
-Quick Play policy still selects the 423-Cell region. See
+Quick Play policy selected the 423-Cell region. Those historical WLD1 outputs are no longer
+preserved; mandatory deployment reachability supersedes that starting policy. See
 [Accessibility Analysis V1](ACCESSIBILITY_ANALYSIS_V1.md) for advisory actor-specific queries.
 
 ## Authoring and visualization

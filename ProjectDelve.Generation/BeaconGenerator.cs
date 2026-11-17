@@ -30,10 +30,16 @@ internal static class BeaconGenerator
             draft.SetTerrain(index, MachineTypes.Beacon.RequiredTerrainTypeId!);
             draft.PlaceMachine(new(id, new(x, y), MachineTypes.Beacon));
             var patch = draft.BuildPatch();
-            if (!board.TryCommit(patch, out _)) continue;
+            if (context.Completion is { } completion)
+            {
+                if (!completion.TryPublish(patch, id + "/candidate-" + attempt, step.Id, out _)) continue;
+            }
+            else if (!board.TryCommit(patch, out _)) continue;
             context.Construction.Add(new(id, path, "Beacon", id, new(x, y, 1, 1), patch.TerrainChanges, patch.EdgeChanges));
             changed += patch.TerrainChanges.Count; placed++; break;
         }
+        if (placed < target) context.Completion?.RecordOmission(path + "/beacons", step.Id,
+            $"Placed {placed} of {target}; legal pads, completion-safe candidates or bounded attempts exhausted.");
         return new(target, placed, budget.Attempts, budget.Work, changed);
 
         bool SafePad(int x, int y)

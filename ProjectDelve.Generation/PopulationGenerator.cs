@@ -160,14 +160,20 @@ public static partial class PopulationGenerator
             if (lootSettings.Normalize(board.Content.LootPresets).Composition is not null)
                 wanted = Math.Min(wanted, Math.Max(0, lootSettings.ResolveComposition(board.Content.LootCards, board.Content.LootPresets).Sum(r => r.Count) - (definition.LootMarkers?.Count ?? 0)));
             var largest = context.CurrentAnalysis?.Connectivity.ComponentAreas.Select((size, label) => (size, label)).OrderByDescending(p => p.size).FirstOrDefault().label;
+            var ordinaryDomain = context.Completion?.InteractivePlacementDomain();
+            var completionFiltered = 0;
             foreach (var i in lootCells)
             {
                 if (!budget.Spend(1) || loot.Count >= wanted) break;
+                if (ordinaryDomain is not null && !ordinaryDomain.Contains(i)) { completionFiltered++; continue; }
                 if (!passable[i] || protectedCells.Contains(i) || occupied.Contains(i) || (definition.LootMarkers ?? []).Any(m => m.Position.Y * w + m.Position.X == i) ||
                     context.CurrentAnalysis is { } analysis && analysis.WalkableLabels[i] != largest) continue;
                 var markerId = path + "/loot-" + i;
                 if (names.Add(markerId)) loot.Add(new(markerId, new(i % w, i / w)));
             }
+            if (completionFiltered > 0 && loot.Count < wanted)
+                context.Completion!.RecordOmission(path + "/loot", "population",
+                    $"Placed {loot.Count} of {wanted} optional Loot markers; {completionFiltered} candidates lacked ordinary potential deployment access.");
         }
         components = PopulationTopology.Components(authoredUnits.Concat(accepted.SelectMany(e => e.Units)), types.Values);
         var expectedDrops = (definition.Units.Concat(accepted.SelectMany(e => e.Units)).Sum(u => types[u.UnitTypeId].LootDropSuccesses) + 5) / 6;

@@ -13,8 +13,9 @@ public sealed class MixedWaterGenerationTests
         var content = new ContentBundle { Terrain = [.. TerrainCatalog.All.Where(t => ids.Contains(t.Id))
             .Select(t => t with { DestroyedTerrainTypeId = null })] };
         var recipe = new WorldGenerationRecipe(new(-60, -60, 120, 120), new(20, 25, 15), 12345);
-        var generated = WorldGenerator.Generate(recipe, content);
-        Assert.All(generated.Context.Samples, s => Assert.Contains(s.TerrainTypeId, ids));
+        var generated = new WorldGenerationContext(recipe.World, recipe.Window);
+        generated.SampleNaturalTerrain(content);
+        Assert.All(generated.Samples, s => Assert.Contains(s.TerrainTypeId, ids));
         var crop = new WorldGenerationContext(recipe.World, new(-23, -19, 20, 20));
         crop.SampleNaturalTerrain(content);
         var fullContext = new WorldGenerationContext(recipe.World, recipe.Window);
@@ -25,7 +26,7 @@ public sealed class MixedWaterGenerationTests
         for (var x = 0; x < 120; x++)
         {
             var full = fullContext.Samples[y * 120 + x];
-            var reduced = generated.Context.Samples[y * 120 + x];
+            var reduced = generated.Samples[y * 120 + x];
             var original = full.TerrainTypeId switch
             {
                 "rocky-water" => "water",

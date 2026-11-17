@@ -194,7 +194,7 @@ export class DesignerDraft {
     if (this.definition.groundObjects) this.definition.groundObjects = this.definition.groundObjects.filter(g => g.object.id !== id);
     this.changed();
   }
-  changed() { this.revision++; }
+  changed() { this.revision++; this.playReady = null; }
   snapshot() { return structuredClone(this.definition); }
   metadata(id) {
     if (this.definition.contentReferences?.length || (this.definition.unitTypes ?? []).some(type => type.id === id))
@@ -564,7 +564,10 @@ export class DesignerRequests {
     try {
       const result = await this.request(operation, body);
       if (revision !== this.draft.revision || sequence !== this.sequence) return null;
-      this.report(result.errors ? result : { valid: true, errors: [] }, operation);
+      // Importing declarations is never proof. Only fresh authoritative checks
+      // for this exact revision may populate the temporary setup verdict.
+      if (['validate', 'export'].includes(operation)) this.draft.playReady = result.playReady ?? null;
+      this.report(result.errors ? result : { valid: true, errors: [], playReady: result.playReady }, operation);
       return result;
     } catch (error) {
       if (revision !== this.draft.revision || sequence !== this.sequence) return null;

@@ -1,5 +1,13 @@
 # World Generator Designer — Density Scaling V1
 
+WLD1 generation always uses PlayReady: protected deployment, guarded construction,
+mandatory connectivity repair and final geographic validation. Hero capacity is encoded
+as `-HCn` (default five); there is no generation-policy selector. The same complete code
+reproduces the world and setup without hidden UI state. Designer retains optional setup
+overlays and separate Engine/geographic validity; edits require fresh certification.
+Quick Play uses published deployment. Existing DELVE1 scenarios without setup retain
+their established placement behavior. Historical WLD1 outputs are not a compatibility target.
+
 The existing World Generator dialog now puts the map ahead of diagnostics. This
 is an authoring change; Engine rules, Fog of War, Designer handoff and Quick Play
 remain authoritative through their existing paths.

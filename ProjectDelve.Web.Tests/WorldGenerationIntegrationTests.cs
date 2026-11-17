@@ -34,6 +34,8 @@ public sealed class WorldGenerationIntegrationTests
         Assert.Empty(definition.Units); Assert.Empty(definition.Agency); Assert.Empty(definition.UnitTypeIds);
         Assert.Null(definition.Objectives); Assert.Null(definition.FogOfWarSides); Assert.Null(definition.WorldEffects);
         Assert.Empty(definition.Loot!.Composition!);
+        Assert.NotNull(definition.Setup);
+        Assert.Equal("Valid", PlayReadyScenarioSetup.Validate(definition).Status);
         var transport = result.GetProperty("transport").GetString()!;
         Assert.Equal(ScenarioDefinitionJson.ToJson(definition), ScenarioDefinitionJson.ToJson(ScenarioDefinitionTransport.Decode(transport)));
         using var imported = await host.Client.PostAsJsonAsync("/api/designer/import", new { transport });
@@ -209,16 +211,12 @@ public sealed class WorldGenerationIntegrationTests
     [Theory]
     [InlineData("Off")]
     [InlineData("High")]
-    public async Task TinyPopulationWorldsRemainValidAuthoringArtifacts(string density)
+    public async Task TinyPopulationWorldRecipesRejectInfeasibleDeployment(string density)
     {
         await using var host = await Host.Start();
         using var response = await host.Client.PostAsJsonAsync("/api/world-generation", new
         { code = $"WLD1-2x2-X0-Y0-F0-W0-R0-KBalanced-HAuto-M{density}-D3-S0000000000003039" });
-        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
-        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
-        var definition = ScenarioDefinitionTransport.Decode(result.GetProperty("transport").GetString()!);
-        Assert.Empty(definition.Units); Assert.Null(definition.Objectives);
-        _ = GameEngine.CreateGame(definition);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
@@ -239,6 +237,8 @@ public sealed class WorldGenerationIntegrationTests
         var transport = prepared.GetProperty("transport").GetString()!;
         var temporary = ScenarioDefinitionTransport.Decode(transport);
         Assert.Equal(original.Units.Count + 5, temporary.Units.Count);
+        Assert.NotNull(original.Setup);
+        Assert.Equal(original.Setup.Deployment.PlacementOrder.Take(5), temporary.Units.Skip(original.Units.Count).Select(u => u.Anchor));
         Assert.Equal(LootPresets.AllPresetId, temporary.Loot!.Preset);
         Assert.Equal(new[] { UnitTypeIds.Barbarian, UnitTypeIds.Rogue, UnitTypeIds.Wizard, UnitTypeIds.Cleric, UnitTypeIds.Beastmaster },
             temporary.Units.Skip(original.Units.Count).Select(unit => unit.UnitTypeId));

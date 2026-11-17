@@ -131,8 +131,10 @@ public sealed class PopulationGenerationTests
         Assert.Equal(new PopulationSettings(), WorldGenerationPresets.All[0].Population);
         foreach (var density in Enum.GetValues<PopulationDensity>())
         {
-            var recipe = new WorldGenerationRecipe(new(Width: 1, Height: 1), new(0, 0, 0), 7, Population: new(density));
-            Assert.Empty(WorldGenerator.Generate(recipe).Definition.Units);
+            var context = Fixture(7, width: 1, height: 1);
+            var population = PopulationGenerator.Generate(context, new(density));
+            Assert.Empty(population.Encounters.SelectMany(e => e.Units));
+            var recipe = new WorldGenerationRecipe(new(Width: 4, Height: 4), new(0, 0, 0), 7, Population: new(density));
             Assert.Equal(recipe, WorldGenerationRecipe.Parse(recipe.ToString()));
         }
         Assert.Throws<ArgumentException>(() => new PopulationSettings(Difficulty: 0).Validate());

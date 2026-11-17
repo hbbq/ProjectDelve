@@ -77,42 +77,44 @@ public static class CivilizationGenerator
         for (var i = 0; i < dungeonTarget; i++)
         {
             var key = $"mountain-dungeon-{i}";
-            var draft = board.BeginDraft(area, path + "/" + key, budget);
-            var result = MountainDungeonGenerator.Plan(new(key, area, policy, ExcludedRockCells: usedRock, OriginalAnalysis: context.OriginalAnalysis, OriginalSamples: context.OriginalSamples), new(context.World.Seed, path, draft));
-            // Capture the entire pre-excavation cardinal mass, not an analyzer formation.
-            // Subsequent excavations cannot disguise a split remainder as another mountain.
-            if (result is Planned<SitePlan> planned && planned.Plan.Site.MountainDungeon is { } dungeon)
+            HashSet<int>? submittedMass = null;
+            if (Place(key, scope =>
             {
-                var q = new Queue<int>(); var mass = new HashSet<int> { dungeon.RockMassAnchor }; q.Enqueue(dungeon.RockMassAnchor);
-                while (q.TryDequeue(out var cell)) foreach (var next in board.Neighbors(cell))
-                    if (board.TerrainAt(next) == "solid-rock" && mass.Add(next)) q.Enqueue(next);
-                var previous = context.Sites.Count;
-                Accept(result, draft);
-                if (context.Sites.Count > previous) usedRock.UnionWith(mass);
-            }
-            else Accept(result, draft);
+                var result = MountainDungeonGenerator.Plan(new(key, area, policy, ExcludedRockCells: usedRock,
+                    OriginalAnalysis: context.OriginalAnalysis, OriginalSamples: context.OriginalSamples), scope);
+                // Capture before excavation; only an accepted candidate consumes its original mass.
+                if (result is Planned<SitePlan> planned && planned.Plan.Site.MountainDungeon is { } dungeon)
+                {
+                    var q = new Queue<int>(); submittedMass = [dungeon.RockMassAnchor]; q.Enqueue(dungeon.RockMassAnchor);
+                    while (q.TryDequeue(out var cell)) foreach (var next in board.Neighbors(cell))
+                        if (board.TerrainAt(next) == "solid-rock" && submittedMass.Add(next)) q.Enqueue(next);
+                }
+                return result;
+            }) && submittedMass is not null) usedRock.UnionWith(submittedMass);
         }
         for (var i = 0; i < settlementTarget; i++)
         {
             var key = $"settlement-{i}";
-            var draft = board.BeginDraft(area, path + "/" + key, budget);
-            var scope = new GenerationScope(context.World.Seed, path, draft);
-            var rng = scope.Child(key, draft).Random("requirements");
-            var routeAnchors = board.State.RouteCorridors.Keys.Order().ToArray();
-            Accept(SettlementGenerator.Plan(new(key, area, policy, new(BuildingCount: 2 + rng.Next(3), AllowReducedBuildingCount: true), new(RouteAnchors: routeAnchors)), scope), draft);
+            Place(key, scope =>
+            {
+                var rng = scope.Child(key, scope.Draft).Random("requirements");
+                var routeAnchors = board.State.RouteCorridors.Keys.Order().ToArray();
+                return SettlementGenerator.Plan(new(key, area, policy, new(BuildingCount: 2 + rng.Next(3), AllowReducedBuildingCount: true), new(RouteAnchors: routeAnchors)), scope);
+            });
         }
         for (var i = 0; i < campsiteTarget; i++)
         {
             var key = $"campsite-{i}";
-            var draft = board.BeginDraft(area, path + "/" + key, budget);
-            var scope = new GenerationScope(context.World.Seed, path, draft);
-            var anchors = (context.CurrentAnalysis?.Opportunities ?? []).Concat(context.FeatureOpportunities)
-                .Where(o => o.Kind is "clearing" or "open-area").OrderByDescending(o => o.UsableArea)
-                .Select(o => o.AnchorIndex).Distinct().Take(16).ToArray();
-            var routeAnchors = board.State.RouteCorridors.Keys.Order().ToArray();
-            var requirements = new CampsiteRequirements(Radius: 2 + scope.Child(key, draft).Random("requirements").Next(3));
-            Accept(CampsiteGenerator.Plan(new(key, area, policy, Requirements: requirements,
-                Preferences: new(OpportunityAnchors: anchors, RouteAnchors: routeAnchors)), scope), draft);
+            Place(key, scope =>
+            {
+                var anchors = (context.CurrentAnalysis?.Opportunities ?? []).Concat(context.FeatureOpportunities)
+                    .Where(o => o.Kind is "clearing" or "open-area").OrderByDescending(o => o.UsableArea)
+                    .Select(o => o.AnchorIndex).Distinct().Take(16).ToArray();
+                var routeAnchors = board.State.RouteCorridors.Keys.Order().ToArray();
+                var requirements = new CampsiteRequirements(Radius: 2 + scope.Child(key, scope.Draft).Random("requirements").Next(3));
+                return CampsiteGenerator.Plan(new(key, area, policy, Requirements: requirements,
+                    Preferences: new(OpportunityAnchors: anchors, RouteAnchors: routeAnchors)), scope);
+            });
         }
         // Separate stream and allowance keep Machine placement independent of Site retries.
         var beacons = BeaconGenerator.Apply(context, step, board, area, path);
@@ -129,20 +131,46 @@ public static class CivilizationGenerator
             DungeonsRequested = dungeonTarget, DungeonsAccepted = context.Sites.Count(s => s.Kind == GeneratedSiteKind.MountainDungeon)
         };
 
-        void Accept(PlacementResult<SitePlan> result, BoardDraft draft)
+        bool Place(string key, Func<GenerationScope, PlacementResult<SitePlan>> planner)
         {
-            if (result is Rejected<SitePlan> failed) { Failure(failed.Failure); return; }
-            var plan = ((Planned<SitePlan>)result).Plan;
-            if (!draft.Accept(plan.Patch, out var error) || !board.TryCommit(draft.BuildPatch(), out error))
+            // Alternative placement streams retain the requested world seed and stable object IDs.
+            // Standalone authoring without a world completion guard makes one planner request.
+            var attempts = context.Completion is null ? 1 : 4;
+            for (var ordinal = 0; ordinal < attempts; ordinal++)
             {
-                Failure(new(plan.Site.Id, "Civilization", PlacementFailureCode.ValidationFailed, error ?? "Commit rejected.", budget.Attempts)); return;
+                var draft = board.BeginDraft(area, path + "/" + key, budget);
+                var seed = ordinal == 0 ? context.World.Seed : WorldStepSeed.Derive(context.World.Seed,
+                    path + "/" + key, WorldStepKind.Civilization, "completion-placement-" + ordinal);
+                var result = planner(new(seed, path, draft));
+                if (result is Rejected<SitePlan> failed)
+                {
+                    Failure(failed.Failure);
+                    context.Completion?.RecordOmission(path + "/" + key, step.Id, failed.Failure.Reason);
+                    return false;
+                }
+                var plan = ((Planned<SitePlan>)result).Plan;
+                if (!draft.Accept(plan.Patch, out var error))
+                { Failure(new(plan.Site.Id, "Civilization", PlacementFailureCode.ValidationFailed, error!, budget.Attempts)); return false; }
+                var labels = context.OriginalAnalysis!.FormationLabels;
+                var formationIds = plan.Site.Footprint.Indices(board.Width).Select(index => labels[index]).Where(label => label >= 0)
+                    .Distinct().Order().Select(label => context.OriginalAnalysis.Formations[label].Id).ToArray();
+                var opportunity = context.CurrentAnalysis?.Opportunities.FirstOrDefault(o => plan.Site.Footprint.Contains(o.AnchorIndex, board.Width));
+                var site = plan.Site with { SourceFormationIds = formationIds, SourceOpportunityId = opportunity?.Id };
+                if (context.Completion is { } completion)
+                {
+                    if (!completion.TryPublish(draft.BuildPatch(), site.Id + "/placement-" + ordinal, step.Id, out var diagnostic, newSites: [site]))
+                    {
+                        Failure(new(site.Id, "Civilization", diagnostic.Status == CompletionStatus.Incomplete ? PlacementFailureCode.BudgetExhausted : PlacementFailureCode.DisconnectedSpace,
+                            diagnostic.Detail ?? "Completion preflight rejected candidate.", budget.Attempts));
+                        continue;
+                    }
+                }
+                else if (!board.TryCommit(draft.BuildPatch(), out error))
+                { Failure(new(site.Id, "Civilization", PlacementFailureCode.ValidationFailed, error ?? "Commit rejected.", budget.Attempts)); return false; }
+                context.Sites.Add(site); context.Construction.AddRange(plan.Operations); return true;
             }
-            var labels = context.OriginalAnalysis!.FormationLabels;
-            var formationIds = plan.Site.Footprint.Indices(board.Width).Select(index => labels[index]).Where(label => label >= 0)
-                .Distinct().Order().Select(label => context.OriginalAnalysis.Formations[label].Id).ToArray();
-            var opportunity = context.CurrentAnalysis?.Opportunities.FirstOrDefault(o => plan.Site.Footprint.Contains(o.AnchorIndex, board.Width));
-            context.Sites.Add(plan.Site with { SourceFormationIds = formationIds, SourceOpportunityId = opportunity?.Id });
-            context.Construction.AddRange(plan.Operations);
+            context.Completion?.RecordOmission(path + "/" + key, step.Id, "Deterministic completion-safe placement alternatives exhausted.");
+            return false;
         }
         void Failure(PlacementFailure failure) { if (context.PlanningFailures.Count < 64) context.PlanningFailures.Add(failure); }
     }

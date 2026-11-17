@@ -241,6 +241,8 @@
         <label id="designer-machine-label" hidden>Machine Type <select id="designer-machine-type"></select></label>
         <div id="designer-unit-brush" class="toolbar" hidden><label>Unit Type <select id="designer-type"></select></label><label>Side <input id="designer-side" list="designer-sides" value="side-1"></label><label>New group controller <select id="designer-controller"></select></label></div>
       </div>
+      <label><input id="designer-setup-overlays" type="checkbox"> Setup overlays · blue deployment / core, green ordinary access, purple deliberate-special access</label>
+      <p id="designer-setup-status" role="status"></p><details id="designer-geographic-setup"><summary>Geographic setup</summary><div id="designer-setup-details"></div></details>
       <p id="designer-help" class="legend"></p>
       <div class="designer-board-stage"><div id="designer-board" class="designer-board" aria-label="Editable scenario board"></div></div>
       <p id="designer-hover" class="legend" aria-live="polite">Choose a tool, then click the board. Coordinates start at 0.</p>
@@ -330,6 +332,10 @@
     <p class="world-generator-intro">Generate a world, inspect its stages, then finish your scenario in Designer.</p>
     <div class="world-generator-layout">
       <section class="world-generator-controls" aria-label="World terrain configuration">
+        <div class="world-generator-fields">
+          <label>Hero capacity <input id="world-generator-hero-capacity" type="number" min="1" step="1" value="5"></label>
+        </div>
+        <p class="legend">World generation includes PlayReady setup. Hero capacity is recorded in the WLD1 recipe.</p>
         <details id="world-generator-settings-world" class="world-generator-setting"><summary>World &amp; Terrain<span id="world-generator-summary-world"></span></summary>
 <label>Terrain preset <select id="world-generator-preset"><option value="">Custom settings</option></select></label>
         <div class="world-generator-fields">
@@ -392,6 +398,9 @@
         <p id="world-generator-status" role="status" aria-live="polite"></p>
         <div id="world-generator-preview-content" hidden>
           <div class="toolbar"><strong>World preview · awaiting scenario authoring</strong><label>View <select id="world-generator-view"><option value="enhanced">Enhanced 2D</option><option value="classic">Classic</option></select></label><label>Zoom <select id="world-generator-zoom"><option value="fit">Fit window</option><option value="12">12 px / Cell</option><option value="24">24 px / Cell</option><option value="48">48 px / Cell</option></select></label></div>
+          <p id="world-generator-deployment-summary" class="legend"></p>
+          <label class="setup-overlay-toggle"><input id="world-generator-setup-overlays" type="checkbox"> Final setup overlays · deployment / core, ordinary / deliberate-special access</label>
+          <p id="world-generator-setup-status" role="status"></p><details id="world-generator-geographic-setup"><summary>Geographic setup</summary><div id="world-generator-setup-details"></div></details>
           <p id="world-generator-result-summary" class="legend" aria-live="polite"></p>
           <div id="world-generator-warning-panel" hidden><p id="world-generator-warnings" role="status"></p><button id="world-generator-investigate" type="button">Inspect diagnostics</button></div>
           <div id="world-generator-board-wrap" class="world-generator-board-wrap"><div id="world-generator-board" class="generator-board" data-view="enhanced" role="img" aria-label="Generated world window"></div></div>

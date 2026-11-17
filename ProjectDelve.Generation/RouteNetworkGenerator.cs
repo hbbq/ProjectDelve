@@ -109,7 +109,15 @@ public static class RouteNetworkGenerator
         }
         if (routes.Count > 0)
         {
-            if (board.TryCommit(draft.BuildPatch(), out var error))
+            string? error;
+            bool committed;
+            if (context.Completion is { } completion)
+            {
+                committed = completion.TryPublish(draft.BuildPatch(), path, step.Id, out var diagnostic);
+                error = diagnostic.Detail;
+            }
+            else committed = board.TryCommit(draft.BuildPatch(), out error);
+            if (committed)
             {
                 context.Routes.AddRange(routes); context.Construction.AddRange(operations); context.RouteAlternatives.AddRange(alternatives);
             }
@@ -158,6 +166,18 @@ public static class RouteNetworkGenerator
                     plan.Route.End.Id, request.Purpose == RoutePurpose.ExplorationLink ? RouteIntentStatus.RejectedAlternative : RouteIntentStatus.Unresolved,
                     null, "Candidate exceeds cumulative disturbance limits or adds no useful alternative."));
                 return null;
+            }
+            if (context.Completion is { } completion)
+            {
+                var evaluation = completion.Check(draft.PreviewChild(plan.Patch), requirementId ?? plan.Route.Id, step.Id);
+                if (evaluation.Diagnostic.Status != CompletionStatus.Allowed)
+                {
+                    completion.RecordRejection(evaluation.Diagnostic);
+                    intents.Add(new(requirementId ?? plan.Route.Id, request.Purpose, request.ProfileKind, plan.Route.Start.AnchorIndex,
+                        plan.Route.End.AnchorIndex, plan.Route.End.Id, RouteIntentStatus.Unresolved, null,
+                        evaluation.Diagnostic.Detail ?? "Completion preflight rejected route."));
+                    return null;
+                }
             }
             if (!draft.Accept(plan.Patch, out var error)) throw new InvalidOperationException(error);
             routes.Add(plan.Route); operations.AddRange(plan.Operations);

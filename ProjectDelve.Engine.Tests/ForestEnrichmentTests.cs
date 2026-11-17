@@ -124,9 +124,10 @@ public sealed class ForestEnrichmentTests
         Assert.Equal(ScenarioDefinitionJson.ToJson(a.Definition),
             ScenarioDefinitionJson.ToJson(ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(a.Definition))));
         var original = a.Context.OriginalAnalysis!;
+        var forestTerrain = a.Preview.Frames.Single(f => f.StepId == "forest").Terrain;
         foreach (var group in Enumerable.Range(0, a.Context.Samples.Length).GroupBy(i => original.FormationLabels[i]))
         {
-            var edits = group.Where(i => a.Context.OriginalSamples[i].TerrainTypeId != a.Context.Samples[i].TerrainTypeId).ToArray();
+            var edits = group.Where(i => a.Context.OriginalSamples[i].TerrainTypeId != a.Preview.TerrainPalette[forestTerrain[i] - 'A']).ToArray();
             Assert.InRange(edits.Length, 0, original.Formations[group.Key].CoreArea * 18 / 100);
             Assert.All(edits, i => Assert.Equal("tree", a.Context.OriginalSamples[i].TerrainTypeId));
         }
@@ -191,9 +192,8 @@ public sealed class ForestEnrichmentTests
         var recipe = new WorldGenerationRecipe(new(-17, -13, 80, 70), new(70, 8, 8), 12345, new(Rock: false, Water: false, Grassland: false));
         var a = WorldGenerator.Generate(recipe); var b = WorldGenerator.Generate(recipe);
         Assert.Equal(JsonSerializer.Serialize(a.Preview), JsonSerializer.Serialize(b.Preview));
-        var plan = WorldGenerationPlan.FromRecipe(recipe);
-        var shortened = WorldGenerationPipeline.Execute(plan with { Steps = plan.Steps.Take(plan.Steps.Count - 1).ToArray() });
-        Assert.Equal(a.Preview.Frames.Take(shortened.Preview.Frames.Count).Select(f => f.Terrain), shortened.Preview.Frames.Select(f => f.Terrain));
+        var expanded = WorldGenerator.Generate(recipe with { Enrichment = new() });
+        Assert.Equal(a.Preview.Frames.Single(f => f.StepId == "forest").Terrain, expanded.Preview.Frames.Single(f => f.StepId == "forest").Terrain);
         Assert.Contains(a.Preview.Frames, f => f.Stage == "ForestEnrichment" && f.ChangedCells.Length > 0);
         Assert.All(a.Context.Features, f => Assert.Contains(a.Context.OriginalAnalysis!.Formations, source => source.Id == f.FormationId));
     }

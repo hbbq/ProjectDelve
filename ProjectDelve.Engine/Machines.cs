@@ -45,6 +45,25 @@ public static class MachineTypes
     public static ImmutableArray<MachineType> All { get; } = [DiamondPress, SlotMachine, Beacon];
 }
 
+/// <summary>Geographic authoring query only; does not grant an actor permission to Operate.</summary>
+public static class MachineGeometry
+{
+    public static ImmutableArray<Cell> PotentialOperatingPositions(Board board, Machine machine)
+    {
+        var potential = board with { Edges = board.Edges.Select(e =>
+            e.Kind == EdgeKind.ClosedDoor ? e with { Kind = EdgeKind.OpenDoor } : e).ToList() };
+        var geometry = AccessibilityAnalysis.Capture(potential);
+        var ordinary = new AccessibilityProfile(Footprint.OneByOne, [MovementKinds.Land], 1);
+        return Enumerable.Range(Math.Max(0, machine.Position.Y - 1),
+                Math.Min(board.Height - 1, machine.Position.Y + 1) - Math.Max(0, machine.Position.Y - 1) + 1)
+            .SelectMany(y => Enumerable.Range(Math.Max(0, machine.Position.X - 1),
+                Math.Min(board.Width - 1, machine.Position.X + 1) - Math.Max(0, machine.Position.X - 1) + 1)
+                .Select(x => new Cell(x, y)))
+            .Where(cell => geometry.CanStop(ordinary, cell) && MachineRules.GeometricallyOperable(potential, cell, machine))
+            .ToImmutableArray();
+    }
+}
+
 internal static class MachineRules
 {
     internal static void Validate(GameState state)
@@ -107,11 +126,13 @@ internal static class MachineRules
     internal static bool CanOperateFrom(GameState state, Unit actor, Machine machine, Cell cell, Board? board = null,
         bool checkReveal = true) =>
         (machine.OwnerSide is null || machine.OwnerSide == actor.SideId) && machine.HasUsesFor(actor.SideId) &&
-        Adjacent(board ?? state.Physical.Board, cell, machine) &&
-        (board ?? state.Physical.Board).EdgeBetween(cell, machine.Position).Passable() &&
+        GeometricallyOperable(board ?? state.Physical.Board, cell, machine) &&
         (!machine.Type.Operation.RequiresOutputCell || !state.Resources.Any(r => r.Position == cell)) &&
         machine.Type.Operation.Costs.All(c => machine.StoredQuantity(c.Type.Id) >= c.Quantity) &&
         (!checkReveal || machine.Type.Operation.Reveal is null || UsefulReveal(state, machine, actor.SideId, board));
+
+    internal static bool GeometricallyOperable(Board board, Cell cell, Machine machine) =>
+        Adjacent(board, cell, machine) && board.EdgeBetween(cell, machine.Position).Passable();
 
     private static bool Adjacent(Board board, Cell cell, Machine machine) =>
         Math.Max(Math.Abs(cell.X - machine.Position.X), Math.Abs(cell.Y - machine.Position.Y)) == 1 &&

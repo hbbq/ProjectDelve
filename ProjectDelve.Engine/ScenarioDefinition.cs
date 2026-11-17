@@ -7,6 +7,8 @@ namespace ProjectDelve.Engine;
 public sealed record ScenarioDefinition
 {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ScenarioSetup? Setup { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<ScenarioContentReference>? ContentReferences { get; init; }
     public LootSettings? Loot { get; init; }
     public Dictionary<string, LootUnitOverride>? LootUnitOverrides { get; init; }

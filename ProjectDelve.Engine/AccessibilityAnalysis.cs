@@ -63,6 +63,13 @@ public sealed class AccessibilityAnalysis
     public int Height => board.Height;
     public bool CanStop(AccessibilityProfile profile, Cell anchor) =>
         SpatialRules.Fits(board, profile.Footprint, anchor, new(Capabilities: profile.Capabilities), geometry);
+    /// <summary>One static geometric step, ignoring figures. Uses the same captured movement rules as analysis.</summary>
+    public bool CanStep(AccessibilityProfile profile, Cell from, Cell to) =>
+        MovementRules.Inside(board, from) && MovementRules.Inside(board, to) &&
+        Math.Abs(from.X - to.X) + Math.Abs(from.Y - to.Y) == 1 &&
+        MovementRules.CanStep(board, profile.Footprint, from, to,
+            new MovementTraversal(profile.Phase, RequiredTerrain: profile.RequiredTerrain,
+                Restriction: profile.Restriction, Capabilities: profile.Capabilities), geometry);
     private AccessibilityAnalysis(Board source, GameState? state, long revision)
     {
         board = source with { Edges = [.. source.Edges], Terrain = [.. source.Terrain], Machines = [.. source.Machines] };

@@ -10,23 +10,21 @@ public sealed class AccessibilityGenerationTests
     internal const string LakeRecipe = "WLD1-50x50-X-17-Y-13-F25-W30-R10-KBroad-HLakes-E1-I2-B1111-C1-NLow-VMedium-P2-Q1-TLow-JMinorPath-L1-ALow-U1-Z2-MMedium-D3-OClassic-S000000000000000D";
 
     [Fact]
-    public void LakeCountryDungeonKeepsOriginalRegionWhenCivilizationCreatesALargerOne()
+    public void LakeCountryDungeonRetainsItsPlannedRootAndFinalOrdinaryAccess()
     {
         var world = WorldGenerator.Generate(LakeRecipe, ContentBundle.Canonical());
         var board = world.Context.ConstructionBoard!;
         var site = Assert.Single(world.Context.Sites.Where(s => s.MountainDungeon is not null));
         var dungeon = site.MountainDungeon!;
         var anchored = PlayableWorldComponent.FromRoot(board, dungeon.AccessRootIndex);
-        var largest = PlayableWorldComponent.Select(board);
-        // Enrichment changes area counts; the regression is component rank changing while
-        // every usable dungeon Cell retains access to its original, now smaller region.
-        Assert.True(anchored.Count > 0 && anchored.Count < largest.Count);
-        Assert.DoesNotContain(dungeon.AccessRootIndex, largest);
+        Assert.NotEmpty(anchored);
+        Assert.True(PlayReadyScenarioSetup.Validate(world.Definition).Valid);
+        Assert.Empty(world.Context.Completion!.ActualFailures(GameEngine.CreateGame(world.Definition)));
         Assert.All(site.Entrances, e => { Assert.Contains(e.InsideIndex, anchored); Assert.Contains(e.OutsideIndex, anchored); });
         Assert.All(dungeon.Rooms.SelectMany(r => r.Usable.Indices(board.Width)), i => Assert.Contains(i, anchored));
         // Finalization must still reject a real loss of access, not just suppress its old error.
         var siteIndex = world.Context.Sites.IndexOf(site);
-        world.Context.Sites[siteIndex] = site with { MountainDungeon = dungeon with { AccessRootIndex = largest.Min() } };
+        world.Context.Sites[siteIndex] = site with { MountainDungeon = dungeon with { AccessRootIndex = Enumerable.Range(0, board.Width * board.Height).First(i => !board.Passable(i)) } };
         Assert.Contains("disconnected", Assert.Throws<ArgumentException>(() =>
             DungeonSitePopulation.FinalizeGeometryAndLoot(world.Context, ContentBundle.Canonical())).Message);
     }

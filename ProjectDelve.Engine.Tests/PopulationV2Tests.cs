@@ -148,12 +148,15 @@ public sealed class PopulationV2Tests
         // A single passable line has no bypass; every occupied inner Cell is a
         // combat chokepoint, not a permanent geometric disconnection.
         var recipe = Recipe(12, width: 60, height: 1);
-        var plain = WorldGenerator.Generate(recipe with { Population = null });
-        var populated = WorldGenerator.Generate(recipe);
-        Assert.NotEmpty(populated.Definition.Units);
-        Assert.Equal(JsonSerializer.Serialize(plain.Definition.Board), JsonSerializer.Serialize(populated.Definition.Board));
-        Assert.Contains(populated.Definition.Units, u => u.Anchor.X > 0 && u.Anchor.X < 59);
-        _ = GameEngine.CreateGame(populated.Definition);
+        var context = new WorldGenerationContext(recipe.World, recipe.Window); context.SampleNaturalTerrain();
+        context.CurrentAnalysis = TerrainAnalyzer.Analyze(context.Window, context.Samples);
+        var plain = context.Materialize();
+        context.Population = PopulationGenerator.Generate(context, recipe.Population!);
+        var populated = context.Materialize();
+        Assert.NotEmpty(populated.Units);
+        Assert.Equal(JsonSerializer.Serialize(plain.Board), JsonSerializer.Serialize(populated.Board));
+        Assert.Contains(populated.Units, u => u.Anchor.X > 0 && u.Anchor.X < 59);
+        _ = GameEngine.CreateGame(populated);
     }
 
     [Fact]

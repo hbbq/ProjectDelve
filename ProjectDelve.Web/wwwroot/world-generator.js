@@ -1,3 +1,4 @@
+import { renderSetupOverlay, renderSetupInspector, setupStatusText, showFinalSetup } from "./setup-overlays.js";
 import { GeneratorSession } from "./generator-state.js";
 import { worldConfigurationCode, worldConfigurationFromCode, constructionPreview, constructionRange, worldSettingSummaries, worldResultSummary } from "./world-generator-state.js";
 import { applyBoardVisual, terrainDisplay } from "./board-visuals.js";
@@ -15,7 +16,7 @@ let selectedStage = 0, compareBefore = false;
 let selectedOperation = null, selectedSpace = null, traceFrame = null;
 let quickPlaying = false;
 const traceButtons = new Map();
-const config = () => Object.fromEntries(fields.map(id => [id, byId(id).value]));
+const config = () => ({ ...Object.fromEntries(fields.map(id => [id, byId(id).value])), heroCapacity: byId("hero-capacity").value });
 const signature = () => JSON.stringify(config());
 const status = message => { byId("status").textContent = message; };
 // Dungeon rooms are authored directly by the Site, without synthetic Buildings.
@@ -27,6 +28,9 @@ function updateSettingSummaries() {
 function renderResultSummary(result) {
   const summary = worldResultSummary(result);
   byId("result-summary").textContent = summary.text;
+  byId("deployment-summary").textContent = `Hero deployment capacity ${worldConfigurationFromCode(result.code).heroCapacity}`;
+  byId("setup-status").textContent = setupStatusText(result.definition.setup, result.playReady);
+  renderSetupInspector(byId("setup-details"), result.definition.setup, result.playReady);
   byId("warnings").textContent = summary.warnings.join(" · ");
   byId("warning-panel").hidden = !summary.warnings.length;
   const frame = result.preview?.frames?.at(-1);
@@ -48,7 +52,7 @@ function changed() {
   catch (error) { status(error.message); return; }
   status(session.outdated(signature()) ? "Preview outdated · the retained map and completed code belong to the previous generation." : session.result ? "World preview ready · awaiting scenario authoring." : "Choose a world window, then generate a preview.");
 }
-for (const field of fields) byId(field).addEventListener("input", changed);
+for (const field of [...fields, "hero-capacity"]) byId(field).addEventListener("input", changed);
 async function loadCatalog() {
   try {
     const response = await fetch("/api/world-generation/catalog", { cache: "no-store" });
@@ -95,6 +99,7 @@ byId("load").addEventListener("click", () => {
       routesEnabled: "false", throughRoutes: "Low", routeProfile: "MinorPath", connectSites: "true", explorationLinks: "Low", waterCrossings: "false", routeIntensity: "2",
       populationDensity: "Off", populationDifficulty: "3", lootPreset: "Empty" };
     for (const field of fields) byId(field).value = loaded[field] ?? defaults[field] ?? (field === "enrichmentEnabled" ? "false" : field === "enrichmentIntensity" ? "2" : enrichmentFields.includes(field) ? "true" : "");
+    byId("hero-capacity").value = loaded.heroCapacity;
     byId("preset").value = ""; changed(); status("Recipe loaded · choose Generate Preview.");
   } catch (error) { status(error.message); }
 });
@@ -147,7 +152,7 @@ byId("previous").addEventListener("click", () => showStage(selectedStage - 1));
 byId("next").addEventListener("click", () => showStage(selectedStage + 1));
 byId("compare").addEventListener("click", () => { compareBefore = !compareBefore; renderPreview(); });
 for (const name of ["changed", "boundaries", "components", "opportunities", "sites", "buildings", "rooms", "usable", "site-entrances",
-  "route-intents", "route-centerlines", "route-corridors", "route-junctions", "route-crossings", "route-access", "population-units", "population-routes"])
+  "route-intents", "route-centerlines", "route-corridors", "route-junctions", "route-crossings", "route-access", "population-units", "population-routes", "setup-overlays"])
   byId(name).addEventListener("change", () => { if (session.result) renderPreview(); });
 byId("designer").addEventListener("click", () => {
   if (!session.result) return;
@@ -178,7 +183,7 @@ byId("quick-play").addEventListener("click", async () => {
 byId("export").addEventListener("click", () => {
   if (!session.result) return;
   byId("transport").value = session.result.transport; byId("export-label").hidden = false;
-  byId("transport").focus(); byId("transport").select(); status("Exact world exported as DELVE1 · awaiting scenario authoring.");
+  byId("transport").focus(); byId("transport").select(); status(`Exact world exported as DELVE1 · PlayReady1 · Hero capacity ${worldConfigurationFromCode(session.result.code).heroCapacity}.`);
 });
 byId("copy-complete").addEventListener("click", async () => {
   if (!session.result) return;
@@ -275,6 +280,8 @@ function renderPreview() {
   renderRoutes(root, selected, board.width, board.height, result.window);
   renderConstruction(selected);
   renderPopulation(root, selectedOperation ? null : frame, board.width, board.height, result);
+  if (byId("setup-overlays").checked && showFinalSetup(preview, selectedStage, compareBefore, selectedOperation))
+    renderSetupOverlay(root, result.definition.setup, board.width, board.height);
   zoomPreview();
   scroll.scrollLeft = scrollLeft; scroll.scrollTop = scrollTop;
   if (selected) {
@@ -534,13 +541,14 @@ function renderPopulation(root, frame, width, height, result) {
     Object.assign(node.style, { left: `${(marker.position.x + .5) / width * 100}%`, top: `${(marker.position.y + .5) / height * 100}%` });
     node.addEventListener("click", () => inspect(node.title)); root.append(node);
   }
+  const partySummary = result.definition.setup ? "Hero deployment is published; no Hero party or Objectives are generated." : "No party, starts or Objectives are generated.";
   if (!population) {
-    byId("population-summary").textContent = `${siteLoot.size} Site Loot markers; no Population at this stage. No party, starts or Objectives are generated.`;
+    byId("population-summary").textContent = `${siteLoot.size} Site Loot markers; no Population at this stage. ${partySummary}`;
     byId("population-failure-panel").hidden = true;
     return;
   }
   const s = population.statistics;
-  byId("population-summary").textContent = `${s.acceptedEncounters} / ${s.target} encounters · ${s.units} / ${s.requestedUnits ?? s.units} requested Units · ${s.groups} Groups · ${s.dormantUnits ?? 0} Dormant · ${s.awakeUnits ?? 0} awake · ${s.initialTokens ?? 0} initial tokens · ${s.lootMarkers ?? 0} Loot markers · ${s.quietRegions ?? 0} quiet regions · ${s.attempts} attempts · work ${s.work}${s.shortfall ? ` · encounter shortfall ${s.shortfall}` : ""}${s.unitShortfall ? ` · Unit shortfall ${s.unitShortfall}` : ""}. No party, starts or Objectives are generated.`;
+  byId("population-summary").textContent = `${s.acceptedEncounters} / ${s.target} encounters · ${s.units} / ${s.requestedUnits ?? s.units} requested Units · ${s.groups} Groups · ${s.dormantUnits ?? 0} Dormant · ${s.awakeUnits ?? 0} awake · ${s.initialTokens ?? 0} initial tokens · ${s.lootMarkers ?? 0} Loot markers · ${s.quietRegions ?? 0} quiet regions · ${s.attempts} attempts · work ${s.work}${s.shortfall ? ` · encounter shortfall ${s.shortfall}` : ""}${s.unitShortfall ? ` · Unit shortfall ${s.unitShortfall}` : ""}. ${partySummary}`;
   const metadata = new Map((result.unitDefinitions ?? []).map(type => [type.id, type]));
   if (siteLoot.size) byId("population-summary").textContent += ` ${siteLoot.size} Site Loot markers (${markers.size} total unique Loot markers).`;
   const areaText = a => `(${a.x}, ${a.y}), ${a.w} × ${a.h}`;

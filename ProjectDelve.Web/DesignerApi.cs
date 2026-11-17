@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ProjectDelve.Engine;
+using ProjectDelve.Generation;
 
 namespace ProjectDelve.Web;
 
@@ -15,7 +16,10 @@ public sealed record DesignerMetadataRequest(List<UnitType> UnitTypes, List<Unit
     List<FixedComponentDefinition>? FixedComponentTypes = null, List<LootCardDefinition>? LootCardDefinitions = null,
     List<ScenarioContentReference>? ContentReferences = null);
 public sealed record DesignerError(string Message, string? Path);
-public sealed record DesignerValidation(bool Valid, IReadOnlyList<DesignerError> Errors);
+public sealed record DesignerValidation(bool Valid, IReadOnlyList<DesignerError> Errors)
+{
+    public PlayReadyValidationResult? PlayReady { get; init; }
+}
 public sealed record DesignerImportRequest(string Transport);
 public sealed record DesignerLegacyTerrainMapping(TerrainKind Kind, string TerrainTypeId,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? CoalGeneration = null);
@@ -111,14 +115,15 @@ public static class DesignerApi
         // JsonElement preserves the scenario JSON contract: no independent HTTP enum/model parser.
         app.MapPost("/api/designer/validate", (JsonElement draft) => Execute(() =>
         {
-            _ = ScenarioDefinitionJson.FromJson(draft.GetRawText(), limits.CheckScenario, Canonical());
-            return Results.Ok(new DesignerValidation(true, []));
+            var materialized = ScenarioDefinitionJson.Materialize(draft.GetRawText(), limits.CheckScenario, Canonical());
+            return Results.Ok(new DesignerValidation(true, [])
+                { PlayReady = PlayReadyScenarioSetup.Validate(materialized.Definition, materialized.State) });
         }, validation: true));
         app.MapPost("/api/designer/export", (JsonElement draft) => Execute(() =>
         {
             var definition = ScenarioDefinitionJson.FromJson(draft.GetRawText(), limits.CheckScenario, Canonical());
             definition = WorkspaceScenarioExport.Capture(definition, app.Services.GetRequiredService<ContentWorkspace>().Snapshot().Definitions, app.Services.GetRequiredService<CanonicalContent>().Bundle);
-            return Results.Ok(new { transport = ScenarioDefinitionTransport.Encode(definition) });
+            return Results.Ok(new { transport = ScenarioDefinitionTransport.Encode(definition), playReady = PlayReadyScenarioSetup.Validate(definition, Canonical()) });
         }));
     }
 

@@ -6,6 +6,24 @@ const vm = require("node:vm");
 
 const source = name => fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", name), "utf8");
 
+test('Designer setup inspector shows stable declarations and exact-revision server checks clear after painting', async () => {
+  const h = harness(async () => ({valid:true,errors:[],playReady:{status:'Valid',valid:true,diagnostics:[]}}));
+  const d = h.editor.draft;
+  d.definition.setup = {version:1,deployment:{capacity:1,cells:[{x:0,y:0}],maneuverCore:[],placementOrder:[{x:0,y:0}]},
+    requiredLocations:[{id:'fixture-location',producerId:'fixture-producer',sourceId:'fixture-source',accessClass:'Ordinary',groups:[{id:'fixture-group',coverage:'Any',positions:[{x:2,y:2}]}]}]};
+  h.editor.render();
+  const node = id => h.context.document.getElementById(`designer-${id}`);
+  assert.match(node('setup-status').textContent, /unchecked/);
+  assert.match(node('setup-details').textContent, /fixture-location.*fixture-producer.*fixture-source/);
+  assert.match(node('setup-details').textContent, /fixture-group.*Any/);
+  node('setup-overlays').checked = true; node('setup-overlays').listeners.change();
+  assert.ok(h.editor.ui.board.children.some(n => n.dataset.locationId === 'fixture-location'));
+  await h.click('validate'); assert.match(node('setup-status').textContent, /valid.*server/);
+  h.editor.setTool('Terrain'); h.editor.ui.terrain.value = 'Grass'; h.down(h.cell(1,1)); h.up();
+  assert.match(node('setup-status').textContent, /unchecked/);
+  assert.equal(d.playReady, null); assert.equal(d.snapshot().setup.requiredLocations.length, 1);
+});
+
 test('Designer flat terrain artwork follows shared recipes through painting and import and clears on fallback', async () => {
   const recipes = ['WetGrass', 'RockyWater', 'SteppingStones'];
   const definition = {
@@ -155,6 +173,7 @@ test("world handoff keeps terrain-only content, title, recipe and portable Dirt 
   assert.deepEqual(plain(h.editor.draft.snapshot()),result.definition);
   assert.equal(h.editor.ui.title.value,'Generated world terrain');
   assert.equal(h.editor.documentData().generationSource.code,result.code);
+  assert.deepEqual(Object.keys(h.editor.documentData().generationSource).sort(), ['code', 'definitionJson']);
   assert.equal(h.editor.draft.terrainRecipeAt({x:1,y:1}),'Dirt');
   assert.equal(h.cell(1,1).className,'cell Dirt');
 });
@@ -173,6 +192,27 @@ test("generated Designer transfer preserves the exact definition and identifies 
   h.editor.loadDocument(JSON.stringify(h.editor.documentData()));
   assert.match(label.textContent, /Modified scenario/);
   assert.equal(h.editor.draft.terrainAt({x:0,y:0}), "SolidRock");
+});
+
+test("Undo and Redo bind generated world recipes to their definitions without library identities", () => {
+  const h = harness();
+  const first = {title:'Generated world', code:'WLD1-6x5-X0-Y0-F0-W0-R0-KFine-HAuto-OEmpty-HC5-S0000000000000001', definition:structuredClone(designerSetup)};
+  const second = {title:first.title, code:first.code.replace('0000000000000001', '0000000000000002'), definition:structuredClone(designerSetup)};
+  second.definition.board.cells.push({position:{x:0,y:0}, terrain:'SolidRock'});
+  h.context.first = first; h.context.second = second;
+  assert.equal(h.run('delveOpenGenerated(first)'), true);
+  assert.equal(h.run('delveOpenGenerated(second)'), true);
+  assert.equal(h.editor.documentData().librarySource, null);
+  const label = h.run('document.getElementById("designer-generation-source")');
+  for (const [direction, expected] of [['undo', first], ['redo', second]]) {
+    h.click(direction);
+    const doc = plain(h.editor.documentData());
+    assert.deepEqual(doc.definition, expected.definition);
+    assert.deepEqual(doc.generationSource, {code:expected.code, definitionJson:JSON.stringify(expected.definition)});
+    assert.equal(doc.librarySource, null);
+    assert.match(label.textContent, /Original generated scenario/);
+    assert.ok(label.textContent.includes(expected.code));
+  }
 });
 
 test("Quick Play reuses the unchanged generated original on return and still guards edited drafts", () => {
@@ -671,6 +711,7 @@ function harness(request = async () => ({ valid: true, errors: [] }), play = asy
   const context = vm.createContext({ document, catalog, request, play, projectMetadata, structuredClone, localStorage: storage, navigator: { clipboard: { writeText: async () => {} } } });
   vm.runInContext(source("designer-state.js").replace(/^export /gm, ""), context);
   vm.runInContext(source("side-colors.js").replace(/^export /gm, ""), context);
+  vm.runInContext(source("setup-overlays.js").replace(/^export /gm, ""), context);
   vm.runInContext(source("board-visuals.js").replace(/^export /gm, ""), context);
   vm.runInContext(source("designer.js").replace(/^import .*\r?\n/gm, "").replace(/^export /gm, "").replace(/startDesigner\(\);\s*$/, ""), context);
   vm.runInContext("globalThis.editor = mountDesigner(catalog, request, play, projectMetadata)", context);

@@ -6,21 +6,41 @@ using ProjectDelve.Engine;
 
 namespace ProjectDelve.Generation;
 
-public enum WorldStepKind { NaturalTerrain, TerrainAnalysis, ForestEnrichment, RockEnrichment, WaterEnrichment, GrasslandEnrichment, Civilization, PostEnrichmentAnalysis, RouteNetwork, Population }
+public enum WorldStepKind { NaturalTerrain, TerrainAnalysis, ForestEnrichment, RockEnrichment, WaterEnrichment, GrasslandEnrichment, Civilization, PostEnrichmentAnalysis, RouteNetwork, Population, HeroDeployment, MandatoryConnectivity }
 public abstract record WorldStepParameters;
 public sealed record NaturalStepParameters(NaturalTerrainSettings Settings) : WorldStepParameters;
 public sealed record AnalysisStepParameters : WorldStepParameters;
 public sealed record EnrichmentStepParameters(int Intensity = 2) : WorldStepParameters;
 public sealed record CivilizationStepParameters(CivilizationSettings Settings) : WorldStepParameters;
+internal sealed record MandatoryConnectivityStepParameters(MandatoryRepairSettings Settings) : WorldStepParameters;
 public sealed record WorldGenerationStep(string Id, WorldStepKind Kind, WorldStepParameters Parameters, IReadOnlyList<string> DependsOn);
 
 // Internal typed recipe. UI codes construct this explicit schedule; no runtime registry or executable content.
 public sealed record WorldGenerationPlan(WorldDefinition World, WorldWindow Window, IReadOnlyList<WorldGenerationStep> Steps)
 {
     public string LootPreset { get; init; } = "Empty";
+    // All WLD1 schedules establish deployment before accepting protected construction.
+    private WorldGenerationPlan WithHeroDeployment(HeroDeploymentSettings settings)
+    {
+        settings.ValidateDimensions(Window.Width, Window.Height);
+        var steps = Steps.ToList();
+        var index = steps.FindIndex(s => s.Kind is WorldStepKind.RouteNetwork or WorldStepKind.Civilization or WorldStepKind.PostEnrichmentAnalysis);
+        if (index <= 0) throw new ArgumentException("Deployment needs completed natural terrain/enrichment before construction.");
+        var previous = steps[index - 1].Id;
+        for (var i = index; i < steps.Count; i++)
+            steps[i] = steps[i] with { DependsOn = steps[i].DependsOn.Select(id => id == previous ? "hero-deployment" : id).ToArray() };
+        steps.Insert(index, new("hero-deployment", WorldStepKind.HeroDeployment, new DeploymentStepParameters(settings), [previous]));
+        var finalization = steps.FindIndex(s => s.Kind == WorldStepKind.PostEnrichmentAnalysis);
+        if (finalization < 0) throw new ArgumentException("Deployment requires final analysis.");
+        previous = steps[finalization - 1].Id;
+        steps[finalization] = steps[finalization] with { DependsOn = steps[finalization].DependsOn.Append("mandatory-connectivity").Distinct().ToArray() };
+        steps.Insert(finalization, new("mandatory-connectivity", WorldStepKind.MandatoryConnectivity,
+            new MandatoryConnectivityStepParameters(new()), [previous]));
+        return (this with { Steps = steps }).Validate();
+    }
     public static WorldGenerationPlan FromRecipe(WorldGenerationRecipe recipe)
     {
-        recipe.Validate();
+        recipe = recipe.Complete();
         List<WorldGenerationStep> steps =
         [new("natural", WorldStepKind.NaturalTerrain, new NaturalStepParameters(recipe.NaturalTerrain), []),
          new("formations", WorldStepKind.TerrainAnalysis, new AnalysisStepParameters(), ["natural"])];
@@ -60,7 +80,8 @@ public sealed record WorldGenerationPlan(WorldDefinition World, WorldWindow Wind
         steps.Add(new("current", WorldStepKind.PostEnrichmentAnalysis, new AnalysisStepParameters(), [last]));
         if (recipe.Population is { Density: not PopulationDensity.Off } population)
             steps.Add(new("population", WorldStepKind.Population, new PopulationStepParameters(population), ["current"]));
-        return new(recipe.World, recipe.Window, steps) { LootPreset = recipe.LootPreset };
+        return new WorldGenerationPlan(recipe.World, recipe.Window, steps) { LootPreset = recipe.LootPreset }
+            .WithHeroDeployment(new(recipe.HeroCapacity));
     }
 
     public WorldGenerationPlan Validate()
@@ -71,7 +92,7 @@ public sealed record WorldGenerationPlan(WorldDefinition World, WorldWindow Wind
         Dictionary<string, HashSet<WorldStepKind>> ancestry = new(StringComparer.Ordinal);
         Dictionary<string, HashSet<string>> ancestorIds = new(StringComparer.Ordinal);
         string? lastTerrainStep = null, lastPostAnalysisTerrain = null, lastPostAnalysisId = null;
-        bool natural = false, analyzed = false, civilization = false, boardPlanning = false;
+        bool natural = false, analyzed = false, civilization = false, boardPlanning = false, deployment = false, repaired = false;
         foreach (var step in Steps)
         {
             if (step is null || string.IsNullOrWhiteSpace(step.Id) || step.Id.Length > 48 ||
@@ -95,21 +116,32 @@ public sealed record WorldGenerationPlan(WorldDefinition World, WorldWindow Wind
                         throw new ArgumentException("Original analysis must run once after Natural Terrain.");
                     analyzed = true; break;
                 case WorldStepKind.PostEnrichmentAnalysis:
-                    if (!analyzed || step.Parameters is not AnalysisStepParameters || !ancestors.Contains(WorldStepKind.TerrainAnalysis))
-                        throw new ArgumentException("Post analysis requires original analysis.");
+                    if (!analyzed || !repaired || step.Parameters is not AnalysisStepParameters || !ancestors.Contains(WorldStepKind.MandatoryConnectivity))
+                        throw new ArgumentException("Final analysis requires completed mandatory connectivity.");
                     lastPostAnalysisTerrain = lastTerrainStep; lastPostAnalysisId = step.Id; break;
                 case WorldStepKind.Population:
                     if (step.Parameters is not PopulationStepParameters pp || !ancestors.Contains(WorldStepKind.PostEnrichmentAnalysis) ||
                         seen.Count != Steps.Count - 1 || lastPostAnalysisTerrain != lastTerrainStep || lastPostAnalysisId is null || !ids.Contains(lastPostAnalysisId)) throw new ArgumentException("Population runs last after final post analysis.");
                     pp.Settings.Validate(); break;
                 case WorldStepKind.Civilization:
-                    if (!analyzed || civilization || step.Parameters is not CivilizationStepParameters cp || !ancestors.Contains(WorldStepKind.TerrainAnalysis))
+                    if (!analyzed || !deployment || civilization || repaired || step.Parameters is not CivilizationStepParameters cp || !ancestors.Contains(WorldStepKind.HeroDeployment))
                         throw new ArgumentException("Civilization runs once after original analysis.");
                     cp.Settings.Validate(); civilization = true; boardPlanning = true; break;
+                case WorldStepKind.HeroDeployment:
+                    if (!analyzed || deployment || boardPlanning || step.Parameters is not DeploymentStepParameters dp ||
+                        !ancestors.Contains(WorldStepKind.TerrainAnalysis))
+                        throw new ArgumentException("Deployment runs once after enrichment and before protected construction.");
+                    dp.Settings.ValidateDimensions(Window.Width, Window.Height);
+                    deployment = true; boardPlanning = true; break;
                 case WorldStepKind.RouteNetwork:
-                    if (!analyzed || step.Parameters is not RouteNetworkStepParameters rp || !Enum.IsDefined(rp.Mode) || !ancestors.Contains(WorldStepKind.TerrainAnalysis))
+                    if (!analyzed || !deployment || repaired || step.Parameters is not RouteNetworkStepParameters rp || !Enum.IsDefined(rp.Mode) || !ancestors.Contains(WorldStepKind.HeroDeployment))
                         throw new ArgumentException("Routes require original analysis and an explicit supported mode.");
                     rp.Settings.Validate(); boardPlanning = true; break;
+                case WorldStepKind.MandatoryConnectivity:
+                    if (!deployment || repaired || step.Parameters is not MandatoryConnectivityStepParameters ||
+                        !ancestors.Contains(WorldStepKind.HeroDeployment))
+                        throw new ArgumentException("Mandatory connectivity runs once after deployment and all protected construction.");
+                    repaired = true; break;
                 default:
                     if (!analyzed || boardPlanning || step.Parameters is not EnrichmentStepParameters { Intensity: >= 1 and <= 3 } || !ancestors.Contains(WorldStepKind.TerrainAnalysis))
                         throw new ArgumentException("Enrichment requires original analysis and intensity 1..3.");
@@ -118,9 +150,11 @@ public sealed record WorldGenerationPlan(WorldDefinition World, WorldWindow Wind
             seen.Add(step.Id);
             ancestors.Add(step.Kind); ancestry.Add(step.Id, ancestors);
             ancestorIds.Add(step.Id, ids);
-            if (step.Kind == WorldStepKind.NaturalTerrain || step.Parameters is EnrichmentStepParameters or CivilizationStepParameters or RouteNetworkStepParameters) lastTerrainStep = step.Id;
+            if (step.Kind == WorldStepKind.NaturalTerrain || step.Parameters is EnrichmentStepParameters or CivilizationStepParameters or RouteNetworkStepParameters or DeploymentStepParameters or MandatoryConnectivityStepParameters) lastTerrainStep = step.Id;
         }
         if (!analyzed) throw new ArgumentException("World plans require original formation analysis.");
+        if (!deployment || !repaired || lastPostAnalysisId is null || lastPostAnalysisTerrain != lastTerrainStep)
+            throw new ArgumentException("WLD1 requires deployment, mandatory connectivity and final geographic validation.");
         return this;
     }
 }
@@ -192,6 +226,10 @@ public sealed record WorldGenerationExecution(WorldGenerationContext Context, Wo
 
 public sealed partial class WorldGenerationContext
 {
+    internal HeroDeployment? Deployment { get; set; }
+    internal CompletionGuard? Completion { get; set; }
+    internal MandatoryRepairReport? MandatoryRepair { get; set; }
+    internal ScenarioSetup? PublishedSetup { get; set; }
     public NaturalTerrainSample[] OriginalSamples { get; private set; } = [];
     public TerrainAnalysisSnapshot? OriginalAnalysis { get; internal set; }
     public TerrainAnalysisSnapshot? CurrentAnalysis { get; internal set; }
@@ -234,6 +272,8 @@ public static class WorldGenerationPipeline
             var allocated = GC.GetAllocatedBytesForCurrentThread(); var timer = Stopwatch.StartNew();
             var featureStart = context.Features.Count; var searches = context.RoutingSearches; var visited = context.RoutingVisitedCells;
             var operationStart = context.Construction.Count;
+            try
+            {
             switch (step.Kind)
             {
                 case WorldStepKind.NaturalTerrain: context.SampleNaturalTerrain(content); break;
@@ -243,13 +283,58 @@ public static class WorldGenerationPipeline
                 case WorldStepKind.PostEnrichmentAnalysis:
                     context.CurrentAnalysis = TerrainAnalyzer.Analyze(plan.Window, context.Samples, context.ConstructionBoard?.Content ?? content, context.Revision, context.ConstructionEdges(), context.ConstructionBoard?.State.Machines);
                     DungeonSitePopulation.FinalizeGeometryAndLoot(context, context.ConstructionBoard?.Content ?? content);
+                    if (context.Completion is { } geometryCompletion)
+                    {
+                        var registration = geometryCompletion.RegisterInteractives(context.Materialize(), step.Id);
+                        if (registration.Status != CompletionStatus.Allowed)
+                            throw new PlayReadyGenerationException(plan, step.Id, context.ConstructionBoard!.Revision,
+                                $"Completion registration {registration.Status}: {registration.Detail}", context.MandatoryRepair, registration.Failures,
+                                completion: registration);
+                    }
                     context.GeometryAccessibility = WorldAccessibilityAudit.Geometry(context, context.ConstructionBoard?.Content ?? content); break;
                 case WorldStepKind.ForestEnrichment: ForestEnricher.Apply(context, step, content); break;
                 case WorldStepKind.RockEnrichment: RockEnricher.Apply(context, step, content); break;
                 case WorldStepKind.WaterEnrichment: WaterEnricher.Apply(context, step, content); break;
                 case WorldStepKind.GrasslandEnrichment: GrasslandEnricher.Apply(context, step, content); break;
+                case WorldStepKind.HeroDeployment:
+                    var deploymentBoard = context.EnsurePlanningBoard(content);
+                    var deploymentSettings = ((DeploymentStepParameters)step.Parameters).Settings;
+                    var deploymentResult = HeroDeploymentPlanner.Establish(deploymentBoard, deploymentSettings, context.World.Seed,
+                        HeroDeploymentPlanner.NaturalConversions(deploymentBoard, Enumerable.Range(0, context.Samples.Length)));
+                    if (deploymentResult.Status != HeroDeploymentStatus.Established)
+                        throw new PlayReadyGenerationException(plan, step.Id, deploymentBoard.Revision,
+                            $"Deployment {deploymentResult.Status}; capacity {deploymentSettings.Capacity}; work {deploymentResult.WorkUsed}: {deploymentResult.Detail}",
+                            kind: deploymentResult.Status == HeroDeploymentStatus.Incomplete ? WorldGenerationFailureKind.IncompleteAnalysis :
+                                deploymentResult.Status == HeroDeploymentStatus.InsufficientSpace ? WorldGenerationFailureKind.InsufficientDeployment : WorldGenerationFailureKind.ConstructionInvariantViolation);
+                    context.Deployment = deploymentResult.Deployment!;
+                    context.Completion = new(deploymentBoard, context.Deployment, Enumerable.Range(0, context.Samples.Length));
+                    context.PopulationProtectedAreas.Add(context.Deployment.Area);
+                    context.PopulationProtectedAreas.Add(GeneratedArea.From("hero-deployment/departure", [context.Deployment.DepartureIndex], deploymentBoard.Width));
+                    context.Construction.Add(new("hero-deployment", null, "Hero deployment", "hero-deployment",
+                        context.Deployment.Area.Bounds, deploymentResult.Preparation.Select(c => new TerrainChange(c.Index, c.Before, c.After)).ToArray(), []));
+                    context.RefreshConstructionAnalysis();
+                    break;
+                case WorldStepKind.MandatoryConnectivity:
+                    var repairBoard = context.EnsurePlanningBoard(content);
+                    var report = MandatoryConnectivityRepair.Run(repairBoard, context.Completion!,
+                        ((MandatoryConnectivityStepParameters)step.Parameters).Settings);
+                    context.MandatoryRepair = report;
+                    if (!report.Success)
+                        throw new PlayReadyGenerationException(plan, step.Id, repairBoard.Revision,
+                            $"Mandatory connectivity {report.Status}.", report);
+                    context.Completion!.MarkActualConnectivityEstablished();
+                    context.RefreshConstructionAnalysis();
+                    break;
                 case WorldStepKind.Population:
                     PopulationGenerator.Apply(context, step, content);
+                    if (context.Completion is { } populationCompletion)
+                    {
+                        var registration = populationCompletion.RegisterInteractives(context.Materialize(), step.Id);
+                        if (registration.Status != CompletionStatus.Allowed)
+                            throw new PlayReadyGenerationException(plan, step.Id, context.ConstructionBoard!.Revision,
+                                $"Completion registration {registration.Status}: {registration.Detail}", context.MandatoryRepair, registration.Failures,
+                                completion: registration);
+                    }
                     context.UnitAccessibility = WorldAccessibilityAudit.Population(context, GameEngine.CreateGame(context.Materialize(), content));
                     break;
                 case WorldStepKind.Civilization:
@@ -303,6 +388,14 @@ public static class WorldGenerationPipeline
             });
             previous = terrain; previousEdges = edgeMap;
             measurements.Add(new(step.Id, step.Kind, timer.Elapsed.TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - allocated));
+            }
+            catch (Exception error) when (error is not PlayReadyGenerationException)
+            {
+                throw new PlayReadyGenerationException(plan, step.Id, context.ConstructionBoard?.Revision ?? context.Revision,
+                    error.Message, context.MandatoryRepair,
+                    kind: error is ArgumentException ? WorldGenerationFailureKind.ConstructionInvariantViolation : WorldGenerationFailureKind.UnexpectedImplementationFailure,
+                    inner: error);
+            }
         }
         var original = context.OriginalAnalysis!;
         // The no-Population path still publishes a completed empty instance audit.
@@ -318,7 +411,24 @@ public static class WorldGenerationPipeline
             Diagnostics = frames[0].Diagnostics with { WalkableArea = original.Connectivity.WalkableArea,
                 ComponentCount = original.Connectivity.ComponentCount, LargestComponentArea = original.Connectivity.LargestComponentArea }
         };
+        try
+        {
+            context.PublishedSetup = PlayReadyScenarioSetup.Publish(context);
+            var finalDefinition = context.Materialize();
+            var finalState = GameEngine.CreateGame(finalDefinition, content);
+            var validation = PlayReadyScenarioSetup.Validate(finalDefinition, finalState);
+            var failures = context.Completion!.ActualFailures(finalState);
+            if (!validation.Valid || !failures.IsEmpty)
+                throw new PlayReadyGenerationException(plan, "final-materialization", context.ConstructionBoard!.Revision,
+                    string.Join("; ", validation.Diagnostics.Select(d => d.Message)), context.MandatoryRepair, failures);
+        }
+        catch (Exception error) when (error is not PlayReadyGenerationException)
+        {
+            throw new PlayReadyGenerationException(plan, "final-materialization", context.ConstructionBoard?.Revision ?? context.Revision,
+                error.Message, context.MandatoryRepair, kind: WorldGenerationFailureKind.FailedFinalValidation, inner: error);
+        }
         return new(context, new(palette, frames, original.Formations, original.FormationLabels,
             Enumerable.Range(0, original.Boundary.Length).Where(i => original.Boundary[i]).ToArray()), measurements);
     }
+
 }

@@ -212,7 +212,7 @@ public sealed partial class WorldGenerationContext
     public ScenarioDefinition Materialize()
     {
         if (!sampled) throw new InvalidOperationException("Sample natural terrain before materializing a board.");
-        if (ConstructionBoard is not null) return AddPopulation(ConstructionBoard.Export() with { Loot = Loot });
+        if (ConstructionBoard is not null) return AddPopulation(ConstructionBoard.Export() with { Loot = Loot, Setup = PublishedSetup });
         List<CellDefinition> cells = [];
         for (var y = 0; y < Window.Height; y++)
         for (var x = 0; x < Window.Width; x++)
@@ -232,10 +232,14 @@ public static class WorldGenerator
 {
     public static GeneratedWorld Generate(string code, ContentBundle? content = null) => Generate(WorldGenerationRecipe.Parse(code), content);
     public static GeneratedWorld Generate(WorldGenerationRecipe recipe, ContentBundle? content = null)
+        => GenerateCore(recipe, content);
+
+    private static GeneratedWorld GenerateCore(WorldGenerationRecipe recipe, ContentBundle? content)
     {
         var completed = recipe.Complete();
         var window = completed.Window;
-        var execution = WorldGenerationPipeline.Execute(WorldGenerationPlan.FromRecipe(completed), content);
+        var plan = WorldGenerationPlan.FromRecipe(completed);
+        var execution = WorldGenerationPipeline.Execute(plan, content);
         var context = execution.Context;
         Dictionary<string, int> counts = new(StringComparer.Ordinal);
         foreach (var sample in context.Samples)
@@ -245,7 +249,6 @@ public static class WorldGenerator
         }
         var timer = Stopwatch.StartNew();
         var definition = context.Materialize();
-        _ = GameEngine.CreateGame(definition, content ?? ContentBundle.Canonical());
         var json = ScenarioDefinitionJson.ToJson(definition);
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)));
         return new(completed.ToString(), definition, fingerprint,

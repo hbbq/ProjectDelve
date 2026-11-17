@@ -103,7 +103,9 @@ fingerprints, DELVE1, saves and replay contain no audit metadata.
 doors-openable land region selected when that dungeon is planned. Finalization
 uses `PlayableWorldComponent.FromRoot` to verify every entrance and usable room
 Cell. A blocked root or actual lost connection still fails. Selecting the final
-largest component remains Quick Play's independent start policy.
+largest component remains the Quick Play start policy only for existing DELVE1 scenarios
+without published setup. WLD1 now uses its validated deployment area and mandatory ordinary
+reachability; this advisory analysis does not supply or replace that certification.
 
 Rock Enrichment's subsequent compatibility phase retains this invariant and
 reproduces all six Session B historical failures; see

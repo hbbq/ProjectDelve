@@ -18,13 +18,13 @@ public sealed class WorldGenerationTests
         Assert.Equal(ScenarioDefinitionJson.ToJson(whole.Definition), ScenarioDefinitionJson.ToJson(
             ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(whole.Definition))));
         var adjacent = WorldGenerator.Generate(recipe with { Window = new(-19, -23, width, height) });
-        var a = whole.Definition.Board.Cells.ToDictionary(c => c.Position, c => c.TerrainTypeId);
-        var b = adjacent.Definition.Board.Cells.ToDictionary(c => c.Position, c => c.TerrainTypeId);
+        var a = whole.Context.OriginalSamples.Select((sample, i) => (sample, i)).ToDictionary(p => new Cell(p.i % width, p.i / width), p => p.sample.TerrainTypeId);
+        var b = adjacent.Context.OriginalSamples.Select((sample, i) => (sample, i)).ToDictionary(p => new Cell(p.i % width, p.i / width), p => p.sample.TerrainTypeId);
         Assert.Equal(whole.VisualSeed, adjacent.VisualSeed);
         for (var y = -23; y < height - 50; y++)
         for (var x = -19; x < width - 60; x++)
-            Assert.Equal(a.GetValueOrDefault(new(x + 60, y + 50), whole.Definition.Board.DefaultTerrainTypeId),
-                b.GetValueOrDefault(new(x + 19, y + 23), adjacent.Definition.Board.DefaultTerrainTypeId));
+            Assert.Equal(a[new(x + 60, y + 50)],
+                b[new(x + 19, y + 23)]);
     }
 
     private static WorldGenerationRecipe Recipe(WorldWindow? window = null, NaturalTerrainSettings? settings = null, ulong seed = 0x123456789ABCDEF0) =>
@@ -41,6 +41,32 @@ public sealed class WorldGenerationTests
         Assert.Equal(complete, complete.Complete());
         Assert.Equal(original.Prefix, complete.Prefix);
         Assert.EndsWith("-S123456789ABCDEF0", WorldGenerationRecipe.Parse(original.Prefix + "-S123456789abcdef0").ToString());
+    }
+
+    [Theory]
+    [InlineData(1)] [InlineData(5)] [InlineData(8)]
+    public void HeroCapacityIsEncodedAndRoundtripsInTheRecipe(int capacity)
+    {
+        var recipe = Recipe() with { HeroCapacity = capacity };
+        Assert.Contains($"-HC{capacity}-S", recipe.ToString());
+        Assert.Equal(recipe, WorldGenerationRecipe.Parse(recipe.ToString()));
+        var oldCode = (Recipe() with { HeroCapacity = 5 }).ToString().Replace("-HC5", "");
+        Assert.Equal(5, WorldGenerationRecipe.Parse(oldCode).HeroCapacity);
+    }
+
+    [Theory]
+    [InlineData("0")] [InlineData("-1")] [InlineData("05")]
+    public void InvalidOrNoncanonicalCapacityTokensAreRejected(string token)
+    {
+        var code = Recipe().ToString().Replace("-HC5", "-HC" + token);
+        Assert.Throws<FormatException>(() => WorldGenerationRecipe.Parse(code));
+    }
+
+    [Theory]
+    [InlineData(1, 20, 5)] [InlineData(2, 2, 5)] [InlineData(3, 3, 5)] [InlineData(5, 2, 5)]
+    public void RecipesRejectDimensionsThatCannotContainDeploymentAndDeparture(int width, int height, int capacity)
+    {
+        Assert.Throws<ArgumentException>(() => (Recipe(new(0, 0, width, height)) with { HeroCapacity = capacity }).Validate());
     }
 
     [Theory]
@@ -75,7 +101,7 @@ public sealed class WorldGenerationTests
             Assert.Equal(whole.VisualSeed, part.VisualSeed);
             for (var y = 0; y < w.Height; y++)
             for (var x = 0; x < w.Width; x++)
-                Assert.Equal(Terrain(whole.Definition, x + w.OffsetX + 40, y + w.OffsetY + 30), Terrain(part.Definition, x, y));
+                Assert.Equal(whole.Context.OriginalSamples[(y + w.OffsetY + 30) * 80 + x + w.OffsetX + 40].TerrainTypeId, part.Context.OriginalSamples[y * w.Width + x].TerrainTypeId);
         }
     }
 
@@ -106,8 +132,8 @@ public sealed class WorldGenerationTests
         var world = WorldGenerator.Generate(Recipe(settings: new(forest, water, rock)));
         for (var y = 0; y < 24; y++)
         for (var x = 0; x < 30; x++)
-            if (expected is null) Assert.Contains(Terrain(world.Definition, x, y), new[] { "grass", "dirt" });
-            else Assert.Equal(expected, Terrain(world.Definition, x, y));
+            if (expected is null) Assert.Contains(world.Context.OriginalSamples[y * 30 + x].TerrainTypeId, new[] { "grass", "dirt" });
+            else Assert.Equal(expected, world.Context.OriginalSamples[y * 30 + x].TerrainTypeId);
         Assert.Equal(720, world.Diagnostics.TerrainCounts.Values.Sum());
         Assert.Equal(100, world.Diagnostics.ActualCoverage.Values.Sum(), 8);
     }
@@ -147,8 +173,9 @@ public sealed class WorldGenerationTests
             Assert.Equal("water", high.Sample(x, y).TerrainTypeId);
             // A one-cell crop cannot contain the owner geometry; feature discovery
             // must still agree with sampling the unbounded world.
-            var cropped = WorldGenerator.Generate(Recipe(new(x, y, 1, 1), new(0, 15, 0, WaterForm: form), 723));
-            Assert.Equal("water", Terrain(cropped.Definition, 0, 0));
+            var cropped = new WorldGenerationContext(new(723, new(0, 15, 0, WaterForm: form)), new(x, y, 1, 1));
+            cropped.SampleNaturalTerrain();
+            Assert.Equal("water", Assert.Single(cropped.Samples).TerrainTypeId);
             if (found >= 4) return;
         }
         Assert.True(found >= 4);
@@ -204,18 +231,21 @@ public sealed class WorldGenerationTests
             if (!feature.Contains(x, y) || feature.X >= x && feature.X < x + 1 && feature.Y >= y && feature.Y < y + 1) continue;
             Assert.Contains(sampler.Features(x, y, x, y), f => f.OwnerX == feature.OwnerX && f.OwnerY == feature.OwnerY);
             Assert.Equal("water", sampler.Sample(x, y).TerrainTypeId);
-            var crop = WorldGenerator.Generate(Recipe(new(x, y, 1, 1), new(0, 25, 0, FeatureScale.Broad, WaterForm.Lakes), 723));
-            Assert.Equal("water", Terrain(crop.Definition, 0, 0));
+            var crop = new WorldGenerationContext(new(723, new(0, 25, 0, FeatureScale.Broad, WaterForm.Lakes)), new(x, y, 1, 1));
+            crop.SampleNaturalTerrain();
+            Assert.Equal("water", Assert.Single(crop.Samples).TerrainTypeId);
             return;
         }
         Assert.Fail("The fixed test world must contain an intersecting lake with an external origin.");
     }
 
     [Fact]
-    public void Wld1RecipePinsItsAuthoredTerrainOutput()
+    public void Wld1RecipeReproducesItsConcreteScenario()
     {
-        Assert.Equal("C2E678F4E466916672483A3065DB15741DEC3CDECC1A4C81BCBD01FD69568C11",
-            WorldGenerator.Generate(Recipe(new(-17, -13, 50, 50))).Fingerprint);
+        var world = WorldGenerator.Generate(Recipe(new(-17, -13, 50, 50)));
+        Assert.Equal(world.Fingerprint, WorldGenerator.Generate(world.Code).Fingerprint);
+        Assert.NotNull(world.Definition.Setup);
+        Assert.Equal("Valid", PlayReadyScenarioSetup.Validate(world.Definition).Status);
     }
 
     [Theory]

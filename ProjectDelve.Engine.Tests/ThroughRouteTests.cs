@@ -27,7 +27,10 @@ public sealed class ThroughRouteTests
             Assert.Equal(route.Start.AnchorIndex, indices[0]); Assert.Equal(route.End.AnchorIndex, indices[^1]);
             Assert.All(indices, i => Assert.True(world.Context.ConstructionBoard!.Passable(i)));
         }
-        Assert.Single(world.Preview.Frames[^1].ConstructionBatches);
+        var routeBatch = Assert.Single(world.Preview.Frames[^1].ConstructionBatches, b => b.StepId == "primary-routes");
+        Assert.Equal("hero-deployment", routeBatch.CheckpointStepId);
+        Assert.Equal(world.Preview.Frames.Single(f => f.StepId == "hero-deployment").Construction.Count, routeBatch.FirstOperation);
+        Assert.Equal(world.Preview.Frames.Single(f => f.StepId == "primary-routes").Construction.Count, routeBatch.EndOperation);
         _ = GameEngine.CreateGame(world.Definition);
     }
     [Fact]
@@ -44,7 +47,11 @@ public sealed class ThroughRouteTests
     public void SingleColumnUsesSeparatedNorthSouthBoundaryPorts()
     {
         var recipe = Recipe(1, 25) with { Routes = new(ThroughRoutes: ContentDensity.Low, ConnectSites: false, Alternatives: ContentDensity.None) };
-        var world = WorldGenerator.Generate(recipe); var route = Assert.Single(world.Context.Routes);
+        var context = new WorldGenerationContext(recipe.World, recipe.Window); context.SampleNaturalTerrain();
+        context.OriginalAnalysis = context.CurrentAnalysis = TerrainAnalyzer.Analyze(context.Window, context.Samples);
+        RouteNetworkGenerator.Apply(context, new("routes", WorldStepKind.RouteNetwork,
+            new RouteNetworkStepParameters(RouteNetworkMode.PrimaryRoutes, recipe.Routes!), ["formations"]), ContentBundle.Canonical());
+        var route = Assert.Single(context.Routes);
         Assert.Equal(CardinalSide.North, route.Start.Side); Assert.Equal(CardinalSide.South, route.End.Side);
         Assert.All(route.Geometry.Runs, run => Assert.Equal(CardinalSide.South, run.Direction));
         Assert.Equal(25, route.Stats.Length);
@@ -54,6 +61,9 @@ public sealed class ThroughRouteTests
     {
         var world = WorldGenerator.Generate(Recipe() with { NaturalTerrain = new(0, 100, 0) });
         Assert.Empty(world.Context.Routes); Assert.All(world.Context.RouteIntents, i => Assert.Equal(RouteIntentStatus.Unresolved, i.Status));
-        Assert.All(world.Context.Samples, s => Assert.Equal("water", s.TerrainTypeId)); Assert.Empty(world.Context.Construction);
+        Assert.All(world.Context.OriginalSamples, s => Assert.Equal("water", s.TerrainTypeId));
+        Assert.NotNull(world.Context.Deployment);
+        Assert.True(world.Context.MandatoryRepair!.Success);
+        Assert.Equal("Valid", PlayReadyScenarioSetup.Validate(world.Definition).Status);
     }
 }

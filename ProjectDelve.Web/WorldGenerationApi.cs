@@ -29,13 +29,15 @@ public static class WorldGenerationApi
                 var canonical = app.Services.GetRequiredService<CanonicalContent>().Bundle;
                 var workspace = app.Services.GetRequiredService<ContentWorkspace>().Snapshot().Definitions;
                 var provider = ContentComposition.ComposeScopes(canonical, workspace).Definitions;
-                var result = WorldGenerator.Generate(recipe.ToString(), provider);
+                var result = WorldGenerator.Generate(recipe, provider);
                 var definition = WorkspaceScenarioExport.Capture(result.Definition, workspace, canonical);
                 var catalog = ScenarioContentReferences.ScenarioCatalog(provider, definition).Definitions;
                 var json = ScenarioDefinitionJson.ToJson(definition);
                 return Results.Ok(new
                 {
-                    result.Code, title = definition.Units.Count > 0 ? "Generated populated world" : "Generated world terrain",
+                    result.Code, heroCapacity = recipe.HeroCapacity,
+                    playReady = PlayReadyScenarioSetup.Validate(definition, provider),
+                    title = definition.Units.Count > 0 ? "Generated populated world" : "Generated world terrain",
                     definition = JsonSerializer.Deserialize<JsonElement>(json),
                     terrainDefinitions = catalog.Terrain,
                     unitDefinitions = catalog.Units.Where(type => definition.UnitTypeIds.Contains(type.Id))
@@ -47,6 +49,15 @@ public static class WorldGenerationApi
             }
             catch (Exception error) when (error is ArgumentException or FormatException or OverflowException)
             { return Results.Problem(error.Message, statusCode: 400); }
+            catch (PlayReadyGenerationException error)
+            {
+                app.Logger.LogError(error, "WLD1 generation failed: {FailureKind}, seed {Seed}, stage {Stage}, revision {Revision}; configuration {Configuration}; diagnostics {Diagnostics}.",
+                    error.FailureKind, error.Seed, error.Stage, error.BoardRevision, error.ConfigurationJson, error.DiagnosticsJson);
+                return Results.Problem(error.Message, statusCode: 500, title: "WLD1 generation failure",
+                    extensions: new Dictionary<string, object?> { ["failureKind"] = error.FailureKind.ToString(), ["seed"] = error.Seed.ToString("X16"),
+                        ["stage"] = error.Stage, ["boardRevision"] = error.BoardRevision, ["configuration"] = JsonSerializer.Deserialize<JsonElement>(error.ConfigurationJson),
+                        ["diagnostics"] = JsonSerializer.Deserialize<JsonElement>(error.DiagnosticsJson) });
+            }
         });
         // Prepare a detached playtest artifact; game replacement uses the existing
         // revisioned Designer/Client import flow, never this authoring endpoint.
@@ -57,7 +68,8 @@ public static class WorldGenerationApi
             {
                 var canonical = app.Services.GetRequiredService<CanonicalContent>().Bundle;
                 var original = ScenarioDefinitionJson.Materialize(input.GetRawText(), limits.CheckScenario, canonical);
-                var temporary = WorldQuickPlay.PrepareValidatedWithAccessibility(original, canonical);
+                var selected = context.Request.Query["heroTypeIds"].SelectMany(value => (value ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)).ToArray();
+                var temporary = WorldQuickPlay.PrepareValidatedWithAccessibility(original, canonical, selected.Length == 0 ? null : selected);
                 return Results.Ok(new { transport = ScenarioDefinitionTransport.Encode(temporary.Definition), accessibility = temporary.Accessibility });
             }
             catch (Exception error) when (error is ArgumentException or FormatException or InvalidDataException or JsonException)

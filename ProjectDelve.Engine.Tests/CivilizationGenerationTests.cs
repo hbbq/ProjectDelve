@@ -35,8 +35,10 @@ public sealed class CivilizationGenerationTests
         var index = world.Preview.Frames.ToList().FindIndex(f => f.Stage == "Civilization");
         var frame = world.Preview.Frames[index];
         var terrain = world.Preview.Frames[index - 1].Terrain.Select(c => world.Preview.TerrainPalette[c - 'A']).ToArray();
-        var edges = new Dictionary<EdgeKey, EdgeKind>(); var seen = new HashSet<string>();
-        foreach (var operation in frame.Construction)
+        var checkpoint = world.Preview.Frames[index - 1];
+        var edges = checkpoint.Edges.ToDictionary(e => new EdgeKey(e.Position.Y * width + e.Position.X, e.Direction), e => e.Kind);
+        var seen = checkpoint.Construction.Select(o => o.Id).ToHashSet();
+        foreach (var operation in frame.Construction.Skip(checkpoint.Construction.Count))
         {
             Assert.True(seen.Add(operation.Id));
             if (operation.ParentId is not null) Assert.Contains(operation.ParentId, seen);
@@ -47,7 +49,7 @@ public sealed class CivilizationGenerationTests
         Assert.Equal(frame.Edges.Count, edges.Count);
         Assert.All(frame.Edges, e => Assert.Equal(e.Kind, edges[new(e.Position.Y * width + e.Position.X, e.Direction)]));
         var board = new PlanningBoard(world.Definition, ContentBundle.Canonical());
-        Assert.Equal(terrain, Enumerable.Range(0, width * height).Select(board.TerrainAt));
+        Assert.Equal(world.Preview.Frames[^1].Terrain.Select(c => world.Preview.TerrainPalette[c - 'A']), Enumerable.Range(0, width * height).Select(board.TerrainAt));
         Assert.Empty(world.Preview.Frames[^1].ChangedCells); Assert.Empty(world.Preview.Frames[^1].ChangedEdges);
         Assert.True(world.Context.CurrentAnalysis!.Revision > world.Context.OriginalAnalysis!.Revision);
         Assert.All(world.Context.Sites, site => AssertIndependentAccess(board, site));
@@ -76,9 +78,11 @@ public sealed class CivilizationGenerationTests
         Assert.Empty(world.Context.Sites); Assert.Equal(DensityScaling.Campsites(world.Window, ContentDensity.Low) + DensityScaling.Settlements(world.Window, ContentDensity.Medium) +
             MountainDungeonGenerator.Target(world.Window, new()), world.Context.PlanningFailures.Count);
         Assert.Single(world.Context.Construction.Where(o => o.Name == "Civilization")); Assert.Empty(world.Definition.Board.Edges);
-        Assert.All(world.Context.Construction, o => Assert.Contains(o.Name, new[] { "Civilization", "Beacon" }));
+        var civilization = world.Preview.Frames.Single(f => f.Stage == "Civilization");
+        var preceding = world.Preview.Frames.TakeWhile(f => f.Stage != "Civilization").Last();
+        Assert.All(civilization.Construction.Skip(preceding.Construction.Count), o => Assert.Contains(o.Name, new[] { "Civilization", "Beacon" }));
         var machineCells = (world.Definition.Machines ?? []).Select(m => m.Position.Y * world.Window.Width + m.Position.X).ToHashSet();
-        var before = world.Preview.Frames[0].Terrain; var after = world.Preview.Frames[^1].Terrain;
+        var before = preceding.Terrain; var after = civilization.Terrain;
         Assert.All(Enumerable.Range(0, before.Length).Where(i => !machineCells.Contains(i)), i => Assert.Equal(before[i], after[i]));
     }
 

@@ -124,6 +124,19 @@ public sealed class PlanningBoard : IPlanningBoardView
     public IEnumerable<int> Neighbors(int index) { CheckIndex(index); return Adjacent(index, Width, Height); }
     public ScenarioDefinition Export() => Export(State);
     public BoardDraft BeginDraft(CellBounds allowedArea, string ownerId, PlanningBudget budget) => new(this, null, allowedArea, ownerId, budget);
+    // Private candidate materialization retains exact reservations and route memberships.
+    // Reconstructing only ScenarioDefinition would lose these authoring permissions.
+    internal PlanningBoard Preview(BoardPatch patch)
+    {
+        if (!ReferenceEquals(patch.Target, this) || patch.ExpectedRevision != Revision)
+            throw new ArgumentException("Stale or unrelated publication patch.");
+        return PreviewState(patch.Result);
+    }
+    internal PlanningBoard PreviewState(PlanningState state)
+    {
+        var candidate = new PlanningBoard(Export(state), Provider) { State = state.Copy(), Revision = Revision };
+        return candidate;
+    }
     public bool TryCommit(BoardPatch patch, out string? error)
     {
         if (!ReferenceEquals(patch.Target, this) || patch.ExpectedRevision != Revision) { error = "Stale or unrelated board patch."; return false; }
@@ -368,6 +381,12 @@ public sealed class BoardDraft : IPlanningBoardView
     }
     public BoardPatch BuildPatch() => new(parent is null ? board : parent, expectedRevision, OwnerId, baseline, state.Copy(),
         terrainTouched, edgeTouched, reservationsTouched, state.Local);
+    internal PlanningBoard PreviewChild(BoardPatch patch)
+    {
+        if (!ReferenceEquals(patch.Target, this) || patch.ExpectedRevision != Revision)
+            throw new ArgumentException("Stale or unrelated child construction patch.");
+        return board.PreviewState(patch.Result);
+    }
     public bool CommitToParent(out string? error)
     {
         if (parent is null) { error = "Root draft has no parent."; return false; }

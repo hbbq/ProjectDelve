@@ -60,21 +60,20 @@ public sealed class WorldGenerationPipelineTests
         var recipe = Recipe() with { NaturalTerrain = new(70, 8, 8), Enrichment = new(Rock: false, Water: false, Grassland: false) };
         var plan = WorldGenerationPlan.FromRecipe(recipe);
         var baseline = WorldGenerationPipeline.Execute(plan);
-        var inserted = new WorldGenerationStep("extra-inspection", WorldStepKind.PostEnrichmentAnalysis, new AnalysisStepParameters(), ["formations"]);
-        var steps = plan.Steps.Take(2).Concat([inserted]).Concat(plan.Steps.Skip(2).Select(s => s.Kind == WorldStepKind.ForestEnrichment ? s with { DependsOn = [inserted.Id] } : s)).ToArray();
+        var inserted = new WorldGenerationStep("extra-inspection", WorldStepKind.PostEnrichmentAnalysis, new AnalysisStepParameters(), ["mandatory-connectivity"]);
+        var steps = plan.Steps.Take(plan.Steps.Count - 1).Concat([inserted, plan.Steps[^1] with { DependsOn = [inserted.Id] }]).ToArray();
         var changed = WorldGenerationPipeline.Execute(plan with { Steps = steps });
         Assert.Equal(baseline.Preview.Frames.Single(f => f.StepId == "forest").Terrain, changed.Preview.Frames.Single(f => f.StepId == "forest").Terrain);
         Assert.Equal(baseline.Preview.Frames.Single(f => f.StepId == "forest").Diagnostics, changed.Preview.Frames.Single(f => f.StepId == "forest").Diagnostics);
     }
 
-    [Fact]
-    public void RepeatedReadOnlyStagesAndOptionalPostAnalysisAreSupported()
+    [Theory]
+    [InlineData(WorldStepKind.HeroDeployment)]
+    [InlineData(WorldStepKind.MandatoryConnectivity)]
+    [InlineData(WorldStepKind.PostEnrichmentAnalysis)]
+    public void PlansCannotOmitMandatoryCompletionStages(WorldStepKind missing)
     {
         var plan = WorldGenerationPlan.FromRecipe(Recipe());
-        var a = WorldGenerationPipeline.Execute(plan with { Steps = plan.Steps.Take(2).ToArray() });
-        var b = WorldGenerationPipeline.Execute(plan with { Steps = [.. plan.Steps.Take(2),
-            new("inspect-again", WorldStepKind.PostEnrichmentAnalysis, new AnalysisStepParameters(), ["formations"])] });
-        Assert.Equal(a.Preview.Frames.Select(f => f.Terrain), b.Preview.Frames.Take(2).Select(f => f.Terrain));
-        Assert.Empty(b.Preview.Frames[^1].ChangedCells);
+        Assert.Throws<ArgumentException>(() => (plan with { Steps = plan.Steps.Where(s => s.Kind != missing).ToArray() }).Validate());
     }
 }

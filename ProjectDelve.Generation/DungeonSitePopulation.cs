@@ -47,6 +47,7 @@ internal static class DungeonSitePopulation
                 throw new ArgumentException("Final geometry disconnected a Mountain Dungeon from its anchored doors-openable world component.");
         if (context.Loot.ResolveComposition(content.LootCards, content.LootPresets).Count == 0) return;
         var used = context.SiteLootMarkers.Select(m => m.Position.Y * width + m.Position.X).ToHashSet();
+        var ordinaryDomain = context.Completion?.InteractivePlacementDomain();
         var maximum = context.Loot.Normalize(content.LootPresets).Composition is null ? 32 :
             context.Loot.ResolveComposition(content.LootCards, content.LootPresets).Sum(c => c.Count);
         foreach (var site in sites.OrderBy(s => s.Id, StringComparer.Ordinal))
@@ -57,7 +58,8 @@ internal static class DungeonSitePopulation
             foreach (var treasure in dungeon.TreasureAreas)
             {
                 if (random.Next(4) == 0) continue;
-                var choices = treasure.Indices(width).Where(i => principal.Contains(i) && board.Passable(i) && !access.Contains(i)).Order().ToList();
+                var choices = treasure.Indices(width).Where(i => principal.Contains(i) && board.Passable(i) && !access.Contains(i) &&
+                    (ordinaryDomain is null || ordinaryDomain.Contains(i))).Order().ToList();
                 random.Shuffle(choices);
                 foreach (var i in choices.Take(1 + random.Next(3)))
                     if (used.Count < maximum && used.Add(i)) context.SiteLootMarkers.Add(new(site.Id + "/treasure-" + i, new(i % width, i / width)));

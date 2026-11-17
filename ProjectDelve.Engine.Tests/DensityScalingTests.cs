@@ -53,7 +53,7 @@ public sealed class DensityScalingTests
     }
 
     [Theory]
-    [InlineData(1, 1)]
+    [InlineData(4, 4)]
     [InlineData(7, 30)]
     [InlineData(30, 24)]
     public void BoundedRetriesReportShortfallsAndNeverPublishPartialSites(int width, int height)
@@ -77,14 +77,18 @@ public sealed class DensityScalingTests
     [Fact]
     public void UnsupportedBoundaryWindowDoesNotCountPreflightAsSubmittedRoute()
     {
-        var world = WorldGenerator.Generate(Recipe(1, 1) with { Civilization = null });
-        var allocation = world.Preview.Frames[^1].ThroughRouteDensity!;
+        var context = new WorldGenerationContext(new(42, new(0, 0, 0)), new(0, 0, 1, 1));
+        context.SampleNaturalTerrain();
+        context.OriginalAnalysis = context.CurrentAnalysis = TerrainAnalyzer.Analyze(context.Window, context.Samples);
+        RouteNetworkGenerator.Apply(context, new("routes", WorldStepKind.RouteNetwork,
+            new RouteNetworkStepParameters(RouteNetworkMode.PrimaryRoutes, new(ThroughRoutes: ContentDensity.Low)), ["formations"]), ContentBundle.Canonical());
+        var allocation = context.ThroughRouteDensity!;
         Assert.Equal(1, allocation.Requested); Assert.Equal(0, allocation.Attempted);
         Assert.Equal(0, allocation.Accepted); Assert.Equal(1, allocation.Omitted);
-        var intent = Assert.Single(world.Context.RouteIntents);
+        var intent = Assert.Single(context.RouteIntents);
         Assert.Equal(RouteIntentStatus.Unresolved, intent.Status);
         Assert.Contains("too short", intent.Reason);
-        Assert.Empty(world.Context.Routes);
+        Assert.Empty(context.Routes);
     }
 
     [Fact]
