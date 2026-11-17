@@ -10,7 +10,7 @@ public sealed class PopulationV2IntegrationTests
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
-    public void DenseQuickPlayKeepsEveryMarkerScalesAllAndFiltersHiddenPopulation(int settlements)
+    public void DenseQuickPlayKeepsEveryMarkerAndSelectedSupplyAndFiltersHiddenPopulation(int settlements)
     {
         var world = WorldGenerator.Generate(new WorldGenerationRecipe(new(Width: 60, Height: 50), new(0, 0, 0), 12345,
             Civilization: new(Campsites: ContentDensity.Medium, Settlements: settlements == 0 ? ContentDensity.None : ContentDensity.Low), Population: new(PopulationDensity.High, 4), LootPreset: "Fun"));
@@ -18,8 +18,8 @@ public sealed class PopulationV2IntegrationTests
         var before = ScenarioDefinitionJson.ToJson(world.Definition);
         var prepared = WorldQuickPlay.Prepare(world.Definition, ContentBundle.Canonical());
         Assert.Equal(world.Definition.LootMarkers, prepared.LootMarkers);
-        Assert.Equal(LootPresets.AllPresetId, prepared.Loot!.Preset);
-        Assert.True(prepared.Loot.PresetMultiplier > 1);
+        Assert.Equal(world.Definition.Loot, prepared.Loot);
+        Assert.True(prepared.Loot!.PresetMultiplier > 1);
         var restored = ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(prepared));
         var state = GameEngine.CreateGame(restored);
         Assert.True(state.LootDeck!.DrawPile.Count >= state.LootMarkers.Count);
@@ -35,7 +35,7 @@ public sealed class PopulationV2IntegrationTests
     }
 
     [Fact]
-    public void QuickPlayRepeatsAllRatherThanRemovingMarkersBeyondOneDeckCopy()
+    public void QuickPlayPreservesRestrictedSupplyAndEveryStackedMarker()
     {
         var original = new ScenarioDefinition
         {
@@ -45,10 +45,10 @@ public sealed class PopulationV2IntegrationTests
         };
         var prepared = WorldQuickPlay.Prepare(original, ContentBundle.Canonical());
         Assert.Equal(original.LootMarkers, prepared.LootMarkers);
-        Assert.Equal("All", prepared.Loot!.Preset);
-        Assert.True(prepared.Loot.PresetMultiplier >= 6);
+        Assert.Equal("Classic", prepared.Loot!.Preset);
+        Assert.Equal(4, prepared.Loot.PresetMultiplier);
         var state = GameEngine.CreateGame(prepared);
-        Assert.Equal(31, state.LootMarkers.Count); Assert.True(state.LootDeck!.DrawPile.Count >= 32);
+        Assert.Equal(31, state.LootMarkers.Count); Assert.Equal(40, state.LootDeck!.DrawPile.Count);
     }
 
     private sealed class Dice : IRandomProvider

@@ -36,18 +36,18 @@ test('capacity recipes canonicalize the default and validate whole positive sign
   for (const capacity of [1, 7, 2147483647]) {
     const recipe = code.replace('-S', `-HC${capacity}-S`);
     assert.equal(vm.runInContext(`worldConfigurationFromCode('${recipe}').heroCapacity`, h.context), String(capacity));
-    assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${recipe}'))`, h.context), recipe.replace('-HC', '-OEmpty-HC'));
+    assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${recipe}'))`, h.context), recipe.replace('-HC', '-OAll-LAStandard-HC'));
   }
   for (const capacity of ['0', '-1', '1.5', '2147483648', 'invalid']) {
     h.enter('hero-capacity', capacity); h.click('preview');
     assert.equal(h.requests.length, 0);
     assert.throws(() => vm.runInContext(`worldConfigurationFromCode('${code.replace('-S', `-HC${capacity}-S`)}')`, h.context));
   }
-  assert.equal(vm.runInContext(`(() => { const c = worldConfigurationFromCode('${code}'); delete c.heroCapacity; return worldConfigurationCode(c); })()`, h.context), withEmptyLoot(code));
+  assert.equal(vm.runInContext(`(() => { const c = worldConfigurationFromCode('${code}'); delete c.heroCapacity; return worldConfigurationCode(c); })()`, h.context), withDefaultLoot(code));
   assert.doesNotMatch(source('index.html'), /id="world-generator-mode"|Generation policy/);
 });
 const code = "WLD1-2x2-X-8-Y12-F35-W20-R15-KBalanced-HAuto-S0123456789ABCDEF";
-const withEmptyLoot = value => value.includes('-S') ? value.replace('-S', '-OEmpty-HC5-S') : value + '-OEmpty-HC5';
+const withDefaultLoot = value => value.includes('-S') ? value.replace('-S', '-OAll-LAStandard-HC5-S') : value + '-OAll-LAStandard-HC5';
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
 test('storage-free Beacon Quick Play passes the real draft parser before launching temporary transport', async () => {
@@ -82,7 +82,7 @@ function harness() {
     showModal() { this.open = true; } close() { this.open = false; this.listeners.close?.(); }
   }
   const nodes = new Map(), get = id => { if (!nodes.has(id)) nodes.set(id, new Node()); return nodes.get(id); };
-  for (const [key, value] of Object.entries({ width:"2", height:"2", offsetX:"-8", offsetY:"12", forestCoverage:"35", waterCoverage:"20", rockCoverage:"15", scale:"Balanced", waterForm:"Auto", seed:"", lootPreset:"Empty", view:"enhanced" })) get(`world-generator-${key}`).value = value;
+  for (const [key, value] of Object.entries({ width:"2", height:"2", offsetX:"-8", offsetY:"12", forestCoverage:"35", waterCoverage:"20", rockCoverage:"15", scale:"Balanced", waterForm:"Auto", seed:"", lootPreset:"All", lootAbundance:"Standard", view:"enhanced" })) get(`world-generator-${key}`).value = value;
   get('world-generator-hero-capacity').value = '5';
   const opened = new Node(), requests = [], designs = [], visuals = [], copied = [], plays = [], navigations = [];
   const context = vm.createContext({ structuredClone, Uint32Array,
@@ -171,22 +171,22 @@ test("world recipes round-trip every scale and water form, signed bounds and see
     // Only the seed is case-insensitive; structural tokens retain their defined spelling.
     const canonical = code.replace("KBalanced", `K${scale}`).replace("HAuto", `H${water}`);
     const input = canonical.replace("0123456789ABCDEF", "0123456789abcdef");
-    assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${input}'))`, h.context), withEmptyLoot(canonical));
+    assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${input}'))`, h.context), withDefaultLoot(canonical));
   }
   const edge = "WLD1-1x1-X2147483647-Y-2147483648-F0-W0-R0-KFine-HRiver";
-  assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${edge}'))`, h.context), withEmptyLoot(edge));
-  assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${code}'), false)`, h.context), withEmptyLoot(code.split("-S")[0]));
+  assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${edge}'))`, h.context), withDefaultLoot(edge));
+  assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${code}'), false)`, h.context), withDefaultLoot(code.split("-S")[0]));
 });
 
 test("world Loot presets round-trip and submit one finite preset selection without a size control", async () => {
   const h = harness();
   for (const preset of ['Empty', 'Classic', 'Fun', 'Experimental', 'FarOut', 'All']) {
-    const recipe = code.replace('-S', `-MHigh-D4-O${preset}-HC5-S`);
+    const recipe = code.replace('-S', `-MHigh-D4-O${preset}-LAStandard-HC5-S`);
     assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${recipe}'))`, h.context), recipe);
     h.enter('code-input', recipe); h.click('load');
     assert.equal(h.get('world-generator-lootPreset').value, preset);
   }
-  h.click('preview'); assert.match(h.requests[0].body.code, /-MHigh-D4-OAll-HC5-S/);
+  h.click('preview'); assert.match(h.requests[0].body.code, /-MHigh-D4-OAll-LAStandard-HC5-S/);
   await h.accept(0);
   h.enter('lootPreset', 'Fun'); assert.match(h.get('world-generator-status').textContent, /outdated/);
   h.enter('lootPreset', 'Unknown'); h.click('preview'); assert.equal(h.requests.length, 1);
@@ -195,6 +195,59 @@ test("world Loot presets round-trip and submit one finite preset selection witho
   const html = source('index.html');
   assert.match(html, /id="world-generator-lootPreset"/);
   assert.doesNotMatch(html, /id="world-generator-(?:lootMultiplier|lootCopies|lootDeckSize)"/);
+});
+
+test("Loot abundance round-trips independently of deck, Population and Hero capacity", async () => {
+  const h = harness();
+  for (const preset of ['Empty', 'Classic', 'Fun', 'Experimental', 'FarOut', 'All']) {
+    for (const abundance of ['Sparse', 'Standard', 'Plentiful']) {
+      const recipe = code.replace('-S', `-MOff-D2-O${preset}-LA${abundance}-HC7-S`);
+      assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${recipe}'))`, h.context), recipe);
+      h.enter('lootPreset', 'Unknown'); h.enter('lootAbundance', 'Unknown');
+      h.enter('code-input', recipe); h.click('load');
+      assert.equal(h.get('world-generator-lootPreset').value, preset);
+      assert.equal(h.get('world-generator-lootAbundance').value, abundance);
+      assert.equal(h.get('world-generator-populationDensity').value, 'Off');
+      assert.equal(h.get('world-generator-hero-capacity').value, '7');
+      assert.match(h.get('world-generator-summary-population').textContent, new RegExp(`${abundance} Loot abundance`));
+    }
+  }
+  h.click('preview'); assert.match(h.requests[0].body.code, /-MOff-D2-OAll-LAPlentiful-HC7-S/);
+  await h.accept(0, h.result(h.requests[0].body.code));
+  h.enter('lootAbundance', 'Sparse'); assert.match(h.get('world-generator-status').textContent, /outdated/);
+  h.click('preview'); assert.match(h.requests[1].body.code, /-OAll-LASparse-HC7-S/);
+  h.enter('lootAbundance', 'Standard'); await h.accept(1, h.result(h.requests[1].body.code));
+  assert.equal(h.get('world-generator-complete').value, h.requests[0].body.code);
+});
+
+test("omitted Loot settings restore All and Standard independently of prior UI state", () => {
+  const h = harness();
+  for (const suffix of ['', '-OClassic', '-LAPlentiful', '-OEmpty-HC3']) {
+    const recipe = code.replace('-S', `${suffix}-S`);
+    h.enter('lootPreset', 'FarOut'); h.enter('lootAbundance', 'Sparse');
+    h.enter('code-input', recipe); h.click('load');
+    assert.equal(h.get('world-generator-lootPreset').value, suffix.includes('-OClassic') ? 'Classic' : suffix.includes('-OEmpty') ? 'Empty' : 'All');
+    assert.equal(h.get('world-generator-lootAbundance').value, suffix.includes('-LAPlentiful') ? 'Plentiful' : 'Standard');
+  }
+  assert.equal(vm.runInContext(`(() => { const c = worldConfigurationFromCode('${code}'); delete c.lootPreset; delete c.lootAbundance; return worldConfigurationCode(c); })()`, h.context), withDefaultLoot(code));
+  const html = source('index.html');
+  assert.match(html, /id="world-generator-lootPreset"[^<]*>[\s\S]*?<option selected>All<\/option>/);
+  assert.match(html, /Loot abundance <select id="world-generator-lootAbundance"><option>Sparse<\/option><option selected>Standard<\/option><option>Plentiful<\/option>/);
+});
+
+test("invalid Loot abundance rejects import and submission while preserving the preview", async () => {
+  for (const value of ['Unknown', '', 'standard', '3']) {
+    const h = harness(); h.click('preview'); await h.accept(0);
+    const original = h.get('world-generator-board').children[0];
+    h.enter('lootAbundance', value); h.click('preview');
+    assert.equal(h.requests.length, 1);
+    assert.match(h.get('world-generator-status').textContent, /Choose Loot abundance/);
+    assert.equal(h.get('world-generator-board').children[0], original);
+    assert.throws(() => vm.runInContext(`worldConfigurationFromCode('${code.replace('-S', `-LA${value}-S`)}')`, h.context), /ordered WLD1/);
+  }
+  const h = harness();
+  for (const suffix of ['-LAStandard-OAll', '-OAll-HC5-LAStandard', '-LAStandard-LASparse'])
+    assert.throws(() => vm.runInContext(`worldConfigurationFromCode('${code.replace('-S', `${suffix}-S`)}')`, h.context), /ordered WLD1/);
 });
 
 test("invalid coverage, dimensions, coordinates and seeds never submit a generation", () => {
@@ -209,7 +262,7 @@ test("world presets come from the catalog and preserve dimensions, offsets and s
   assert.equal(h.requests[0].url,"/api/world-generation/catalog");
   await h.accept(0,{maxBoardSize:50,presets:[{id:"fixture-marsh",name:"Fixture Marsh",settings:{forestCoverage:10,waterCoverage:60,rockCoverage:0,scale:"Broad",waterForm:"Mixed"}}]});
   h.get("world-generator-preset").value = "fixture-marsh"; h.get("world-generator-preset").listeners.change(); h.click("preview");
-  assert.equal(h.requests[1].body.code,"WLD1-2x2-X-8-Y12-F10-W60-R0-KBroad-HMixed-OEmpty-HC5");
+  assert.equal(h.requests[1].body.code,"WLD1-2x2-X-8-Y12-F10-W60-R0-KBroad-HMixed-OAll-LAStandard-HC5");
 });
 
 test("completed seed stays with the world when moving the window until Generate Another", async () => {
@@ -276,7 +329,7 @@ test("large rectangular recipes retain signed offsets and respect a lower host a
   const h = harness();
   for (const dimensions of ['120x100','100x120','120x120','1x120']) {
     const recipe=code.replace('2x2',dimensions);
-    assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${recipe}'))`,h.context),withEmptyLoot(recipe));
+    assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${recipe}'))`,h.context),withDefaultLoot(recipe));
   }
   assert.throws(()=>vm.runInContext(`worldConfigurationFromCode('${code.replace('2x2','120x100')}',50)`,h.context),/width/);
   h.opened.click(); await h.accept(0,{maxBoardSize:32,presets:[]});
@@ -297,7 +350,7 @@ test("loaded recipes update controls and stale responses cannot overwrite a newe
   const h = harness(); h.enter("code-input",code); h.click("load");
   assert.equal(h.get("world-generator-seed").value,"0123456789ABCDEF"); h.click("preview");
   h.click("another"); const newer = code.replace("0123456789ABCDEF","0000000100000002");
-  assert.equal(h.requests[1].body.code,newer.replace('-S','-E0-I2-B1111-C0-NLow-VMedium-P2-Q0-TLow-JMinorPath-L1-ALow-U0-Z2-MOff-D3-OEmpty-HC5-S')); await h.accept(1,h.result(newer)); await h.accept(0);
+  assert.equal(h.requests[1].body.code,newer.replace('-S','-E0-I2-B1111-C0-NLow-VMedium-P2-Q0-TLow-JMinorPath-L1-ALow-U0-Z2-MOff-D3-OAll-LAStandard-HC5-S')); await h.accept(1,h.result(newer)); await h.accept(0);
   assert.equal(h.get("world-generator-complete").value,newer);
   h.click("preview"); h.enter("forestCoverage","30"); await h.accept(2);
   assert.equal(h.get("world-generator-complete").value,newer);
@@ -365,8 +418,8 @@ test("performance labels distinguish finalization and follow the displayed compa
 
 test("enrichment codes round-trip settings, preserve legacy codes and load old codes disabled", () => {
   const h=harness(), enriched=code.replace('-S','-E1-I3-B1010-S');
-  assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${enriched}'))`,h.context),withEmptyLoot(enriched));
-  h.enter('code-input',enriched);h.click('load');h.click('preview');assert.equal(h.requests[0].body.code,enriched.replace('-S','-C0-NLow-VMedium-P2-Q0-TLow-JMinorPath-L1-ALow-U0-Z2-MOff-D3-OEmpty-HC5-S'));
+  assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${enriched}'))`,h.context),withDefaultLoot(enriched));
+  h.enter('code-input',enriched);h.click('load');h.click('preview');assert.equal(h.requests[0].body.code,enriched.replace('-S','-C0-NLow-VMedium-P2-Q0-TLow-JMinorPath-L1-ALow-U0-Z2-MOff-D3-OAll-LAStandard-HC5-S'));
   assert.equal(h.get('world-generator-enrichmentIntensity').value,'3'); assert.equal(h.get('world-generator-rockEnrichment').value,'false');
   h.enter('code-input',code);h.click('load');assert.equal(h.get('world-generator-enrichmentEnabled').value,'false');
   for(const suffix of ['-E2-I1-B1111','-E1-I4-B1111','-E1-I2-B111','-E1-I2-B1112']) assert.throws(()=>vm.runInContext(`worldConfigurationFromCode('${code.split('-S')[0]+suffix}')`,h.context),/ordered WLD1/);
@@ -387,7 +440,7 @@ test("civilization suffixes round-trip independently and validate controls befor
   const h = harness();
   for (const suffix of ['-C1-NLow-VMedium-P2','-C0-NNone-VNone-P1','-E1-I3-B1111-C1-NVeryHigh-VVeryHigh-P3']) {
     const complete = code.replace('-S',`${suffix}-S`);
-    assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${complete}'))`,h.context),withEmptyLoot(complete));
+    assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${complete}'))`,h.context),withDefaultLoot(complete));
     h.enter('code-input',complete); h.click('load');
     assert.equal(h.get('world-generator-civilizationEnabled').value, suffix.includes('-C1-') ? 'true' : 'false');
   }
@@ -400,7 +453,7 @@ test("catalog civilization presets update only authored settings", async () => {
   const h=harness(); h.opened.click();
   await h.accept(0,{maxBoardSize:120,presets:[{id:'settled',name:'Settled',settings:{},civilization:{enabled:true,campsites:"High",settlements:"High",preparationIntensity:3}}]});
   h.get('world-generator-preset').value='settled'; h.get('world-generator-preset').listeners.change(); h.click('preview');
-  assert.equal(h.requests[1].body.code,code.split('-S')[0]+'-C1-NHigh-VHigh-P3-OEmpty-HC5');
+  assert.equal(h.requests[1].body.code,code.split('-S')[0]+'-C1-NHigh-VHigh-P3-OAll-LAStandard-HC5');
   assert.equal(h.get('world-generator-offsetX').value,'-8');
 });
 
@@ -471,7 +524,7 @@ test("Population controls round-trip all densities and difficulties without type
   const h = harness();
   for (const density of ['Off', 'Low', 'Medium', 'High']) for (const difficulty of [1, 3, 5]) {
     const recipe = code.replace('-S', `-M${density}-D${difficulty}-S`);
-    assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${recipe}'))`, h.context), withEmptyLoot(recipe));
+    assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${recipe}'))`, h.context), withDefaultLoot(recipe));
     h.enter('code-input', recipe); h.click('load');
     assert.equal(h.get('world-generator-populationDensity').value, density);
     assert.equal(h.get('world-generator-populationDifficulty').value, String(difficulty));
@@ -489,7 +542,7 @@ test("Population preset settings and edits invalidate the retained preview", asy
   const h = harness(); h.opened.click();
   await h.accept(0, { maxBoardSize: 120, presets: [{ id: 'inhabited', name: 'Inhabited', settings: {}, population: { density: 'High', difficulty: 4 } }] });
   h.get('world-generator-preset').value = 'inhabited'; h.get('world-generator-preset').listeners.change();
-  h.click('preview'); assert.match(h.requests[1].body.code, /-MHigh-D4-OEmpty-HC5$/); await h.accept(1);
+  h.click('preview'); assert.match(h.requests[1].body.code, /-MHigh-D4-OAll-LAStandard-HC5$/); await h.accept(1);
   const retained = h.get('world-generator-board').children[0];
   h.enter('populationDensity', 'Low');
   assert.match(h.get('world-generator-status').textContent, /outdated/); assert.equal(h.get('world-generator-board').children[0], retained);
@@ -514,6 +567,57 @@ test("Site Loot is visible without Population, remains stage-local and deduplica
   h.click('preview'); await h.accept(1, result);
   assert.deepEqual(markerNodes().map(node => node.dataset.lootMarkerId), ['dungeon-treasure', 'encounter-loot']);
   assert.match(h.get('world-generator-population-summary').textContent, /1 Site Loot markers \(2 total unique Loot markers\)/);
+});
+
+test("Population diagnostics distinguish selection, attempted requests, budget and final contents", async () => {
+  const h = harness(), result = constructionResult(h), frame = result.preview.frames[2];
+  const location = { sourceId: 'test-building', siteId: 'test-site', kind: 'Building', usableCells: 90, rooms: 6,
+    selection: 'Independent', selectedForOccupation: true, requestedEncounters: 3, intentionallyOmittedRooms: 2,
+    requestedUnits: 12, acceptedEncounters: 1, acceptedUnits: 2, reducedEncounters: 1,
+    placementRejectedEncounters: 1, alertRejectedEncounters: 1, budgetOmissions: 2,
+    budgetReducedEncounters: 3, workReducedEncounters: 4, workOmissions: 5,
+    meaningfulNoncombatObjects: 0, monsterFree: false, completelyEmpty: false };
+  frame.population = { encounters: [], failures: [], statistics: { target: 4, acceptedEncounters: 1, units: 2,
+    requestedUnits: 12, unitAllowance: 70, groups: 1, attempts: 3, work: 20 }, siteStatistics: [location,
+    { ...location, sourceId: '<vacant-building>', selection: 'Vacant', selectedForOccupation: false,
+      requestedEncounters: 0, requestedUnits: 0, acceptedEncounters: 0, acceptedUnits: 0,
+      meaningfulNoncombatObjects: 3, monsterFree: true, completelyEmpty: false },
+    { ...location, sourceId: 'empty-building', selection: 'Vacant', selectedForOccupation: false,
+      acceptedEncounters: 0, acceptedUnits: 0, meaningfulNoncombatObjects: 0, monsterFree: true, completelyEmpty: true }] };
+  h.click('preview'); await h.accept(0, result);
+  assert.match(h.get('world-generator-population-summary').textContent,
+    /Global Unit allowance 70; 12 Units requested in attempted encounters; 2 Units finally accepted/);
+  const locations = () => h.get('world-generator-population-details').children.filter(node => node.dataset.populationSourceId);
+  const text = node => descendants(node).map(child => child.textContent).join(' ');
+  assert.equal(locations().length, 3);
+  assert.match(text(locations()[0]), /Selection: Independent · selected for occupation · 90 usable Cells · 6 rooms · 2 intentionally quiet rooms/);
+  assert.match(text(locations()[0]), /Requested: 3 encounters, 12 Units · finally accepted: 1 encounters, 2 Units · 1 placement reductions · 3 global budget reductions · 4 work reductions · 1 placement rejections · 1 Alert rejections · 2 global budget omissions · 5 work omissions/);
+  assert.match(text(locations()[1]), /<vacant-building>.*Selection: Vacant · not selected for occupation/);
+  assert.match(text(locations()[1]), /3 meaningful noncombat objects · Monster-free · contains meaningful content/);
+  assert.match(text(locations()[2]), /0 meaningful noncombat objects · Monster-free · completely empty/);
+  h.click('compare'); assert.equal(locations().length, 0);
+  h.click('compare'); assert.equal(locations().length, 3);
+  h.click('designer'); assert.equal(JSON.stringify(h.designs[0].definition), JSON.stringify(result.definition));
+  assert.equal(h.designs[0].definition.siteStatistics, undefined);
+});
+
+test("Population diagnostic location list is bounded and older previews omit new diagnostics gracefully", async () => {
+  const h = harness(), result = constructionResult(h), frame = result.preview.frames[2];
+  frame.population = { encounters: [], failures: [], statistics: { target: 0, acceptedEncounters: 0, units: 0,
+    groups: 0, attempts: 0, work: 0 } };
+  h.click('preview'); await h.accept(0, result);
+  assert.equal(h.get('world-generator-population-details').children.length, 0);
+  assert.doesNotMatch(h.get('world-generator-population-summary').textContent, /undefined|NaN|Global Unit allowance/);
+  frame.population.siteStatistics = Array.from({ length: 27 }, (_, index) => ({ sourceId: `source-${index}`,
+    siteId: 'test-site', kind: 'Dungeon', selection: 'Vacant', selectedForOccupation: false, usableCells: 12, rooms: 2,
+    requestedEncounters: 0, intentionallyOmittedRooms: 2, requestedUnits: 0, acceptedEncounters: 0, acceptedUnits: 0,
+    reducedEncounters: 0, placementRejectedEncounters: 0, alertRejectedEncounters: 0, budgetOmissions: 0,
+    meaningfulNoncombatObjects: 0, monsterFree: true, completelyEmpty: true }));
+  h.click('preview'); await h.accept(1, result);
+  const details = h.get('world-generator-population-details');
+  assert.equal(details.children.filter(node => node.dataset.populationSourceId).length, 24);
+  assert.match(descendants(details.children[0]).map(node => node.textContent).join(' '), /0 global budget reductions · 0 work reductions.*0 work omissions/);
+  assert.match(details.children.at(-1).textContent, /3 additional population locations omitted/);
 });
 
 test("Population preview renders only its displayed stage and preserves the ordinary final scenario", async () => {
@@ -634,14 +738,14 @@ test("route recipes round-trip every profile and bounded setting, with old codes
   const h=harness();
   for(const profile of ['ForestTrail','MinorPath','Road','RockPassage']) for(const enabled of [0,1]) {
     const recipe=code.replace('-S',`-E1-I2-B1111-C1-NLow-VMedium-P2-Q${enabled}-TVeryHigh-J${profile}-L0-AHigh-U1-Z3-S`);
-    assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${recipe}'))`,h.context),withEmptyLoot(recipe));
+    assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${recipe}'))`,h.context),withDefaultLoot(recipe));
     h.enter('code-input',recipe);h.click('load');
     assert.equal(h.get('world-generator-routeProfile').value,profile);assert.equal(h.get('world-generator-throughRoutes').value,'VeryHigh');
     assert.equal(h.get('world-generator-explorationLinks').value,'High');assert.equal(h.get('world-generator-waterCrossings').value,'true');
   }
   h.enter('code-input',code);h.click('load');
   assert.equal(h.get('world-generator-routesEnabled').value,'false');assert.equal(h.get('world-generator-waterCrossings').value,'false');
-  assert.match(h.get('world-generator-prefix').value,/-Q0-TLow-JMinorPath-L1-ALow-U0-Z2-MOff-D3-OEmpty-HC5$/);
+  assert.match(h.get('world-generator-prefix').value,/-Q0-TLow-JMinorPath-L1-ALow-U0-Z2-MOff-D3-OAll-LAStandard-HC5$/);
   for(const suffix of ['-Q2-TLow-JRoad-L1-ALow-U0-Z2','-Q1-T5-JRoad-L1-ALow-U0-Z2','-Q1-TLow-JRail-L1-ALow-U0-Z2',
     '-Q1-TLow-JRoad-L1-A4-U0-Z2','-Q1-TLow-JRoad-L1-ALow-U2-Z2','-Q1-TLow-JRoad-L1-ALow-U0-Z0'])
     assert.throws(()=>vm.runInContext(`worldConfigurationFromCode('${code.replace('-S',suffix+'-S')}')`,h.context),/ordered WLD1/);
@@ -651,7 +755,7 @@ test("catalog route settings preserve world inputs and HTML declares enabled con
   const h=harness();h.opened.click();
   await h.accept(0,{maxBoardSize:120,presets:[{id:'connected',name:'Connected',settings:{},routes:{enabled:true,throughRoutes:"Medium",profile:'Road',connectSites:true,alternatives:"High",waterCrossings:false,intensity:1}}]});
   h.get('world-generator-preset').value='connected';h.get('world-generator-preset').listeners.change();h.click('preview');
-  assert.equal(h.requests[1].body.code,code.split('-S')[0]+'-Q1-TMedium-JRoad-L1-AHigh-U0-Z1-OEmpty-HC5');
+  assert.equal(h.requests[1].body.code,code.split('-S')[0]+'-Q1-TMedium-JRoad-L1-AHigh-U0-Z1-OAll-LAStandard-HC5');
   assert.equal(h.get('world-generator-offsetX').value,'-8');assert.equal(h.get('world-generator-width').value,'2');
   const html=source('index.html').slice(source('index.html').indexOf('<dialog id="world-generator"'));
   assert.match(html,/id="world-generator-routesEnabled"><option value="true">Enabled/);
@@ -790,7 +894,7 @@ test("density controls round-trip every level independently of Population and pr
     assert.equal(h.get('world-generator-settlementDensity').value, level);
     assert.equal(h.get('world-generator-populationDensity').value, 'Off');
     assert.equal(h.get('world-generator-preparationIntensity').value, '1');
-    assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${recipe}'))`, h.context), withEmptyLoot(recipe));
+    assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${recipe}'))`, h.context), withDefaultLoot(recipe));
   }
 });
 

@@ -14,6 +14,31 @@ public sealed class WorldQuickPlayTests
     };
     private static string Json<T>(T value) => JsonSerializer.Serialize(value, ContentPackageJson.CreateOptions());
 
+    [Theory]
+    [InlineData("All")]
+    [InlineData("Classic")]
+    [InlineData("Fun")]
+    [InlineData("Empty")]
+    public void PreservesSelectedDeckSupplyAndDeterministicPhysicalCardOrder(string preset)
+    {
+        var original = Empty() with { Loot = preset == "Empty" ? LootSettings.Empty : new() { Preset = preset, PresetMultiplier = 3 } };
+        var prepared = WorldQuickPlay.Prepare(original, Canonical);
+        Assert.Equal(Json(original.Loot), Json(prepared.Loot));
+        var before = GameEngine.CreateGame(original, Canonical); var after = GameEngine.CreateGame(prepared, Canonical);
+        Assert.Equal(Json(before.LootDeck), Json(after.LootDeck));
+    }
+
+    [Fact]
+    public void LegacyOmittedLootKeepsEngineDefaultAndCustomDeckKeepsExactSupply()
+    {
+        foreach (var original in new[] { Empty() with { Loot = null }, Empty() with
+        { Loot = new() { Composition = [new(LootCardKind.SecondWind, 2)] } } })
+        {
+            var prepared = WorldQuickPlay.Prepare(original, Canonical);
+            Assert.Equal(Json(GameEngine.CreateGame(original, Canonical).LootDeck), Json(GameEngine.CreateGame(prepared, Canonical).LootDeck));
+        }
+    }
+
     [Fact]
     public void StartUsesPrincipalDoorsOpenableComponentInsteadOfSmallEdgePocket()
     {
@@ -93,7 +118,7 @@ public sealed class WorldQuickPlayTests
         Assert.Equal(new[] { UnitTypeIds.Barbarian, UnitTypeIds.Rogue, UnitTypeIds.Wizard, UnitTypeIds.Cleric, UnitTypeIds.Beastmaster },
             prepared.Units.Select(u => u.UnitTypeId));
         Assert.Equal(5, prepared.Units.Select(u => u.Anchor).Distinct().Count());
-        Assert.Equal(LootPresets.AllPresetId, prepared.Loot!.Preset);
+        Assert.Equal(Json(original.Loot), Json(prepared.Loot));
         var state = GameEngine.CreateGame(prepared, Canonical);
         Assert.All(state.Units, u =>
         {
@@ -111,11 +136,11 @@ public sealed class WorldQuickPlayTests
     }
 
     [Fact]
-    public void TemporaryAllLootIncludesEffectiveLocalCardsAndLeavesSourceLootUntouchedThroughTransport()
+    public void SelectedAllLootIncludesEffectiveLocalCardsAndPreservesProvisionedSupplyThroughTransport()
     {
         var original = Empty() with
         {
-            Loot = new() { Preset = LootPresets.Default, PresetMultiplier = 2 },
+            Loot = new() { Preset = LootPresets.AllPresetId, PresetMultiplier = 2 },
             LootCardDefinitions = [new("quick-play-local-card", "Local Quick Play card") { Immediate = new HealCollectorMechanic(3) }],
             LootMarkers = [new("world-loot", new(7, 5))]
         };
@@ -123,18 +148,18 @@ public sealed class WorldQuickPlayTests
         var prepared = WorldQuickPlay.Prepare(original, Canonical);
         var restored = ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(prepared));
         Assert.Equal(LootPresets.AllPresetId, restored.Loot!.Preset);
-        Assert.Null(restored.Loot.PresetMultiplier);
+        Assert.Equal(2, restored.Loot.PresetMultiplier);
         Assert.Null(restored.Loot.Composition);
         var state = GameEngine.CreateGame(restored, Canonical);
-        Assert.Equal(state.LootCardDefinitions.OrderBy(card => card.Id, StringComparer.Ordinal).Select(card => card.Id),
+        Assert.Equal(state.LootCardDefinitions.OrderBy(card => card.Id, StringComparer.Ordinal).SelectMany(card => Enumerable.Repeat(card.Id, 2)),
             state.LootDeck!.DrawPile.Select(card => card.LootCardId));
-        Assert.Single(state.LootDeck.DrawPile.Where(card => card.LootCardId == "quick-play-local-card"));
+        Assert.Equal(2, state.LootDeck.DrawPile.Count(card => card.LootCardId == "quick-play-local-card"));
         Assert.Equal(Json(original.LootMarkers), Json(restored.LootMarkers));
         Assert.Equal(before, Json(original));
     }
 
     [Fact]
-    public void PreservesAndDeeplyDetachesOriginalPopulationOrdersRoutesAndTerrainWhileReplacingTemporaryLoot()
+    public void PreservesAndDeeplyDetachesOriginalPopulationOrdersRoutesTerrainAndLoot()
     {
         var original = Empty() with
         {
@@ -155,8 +180,7 @@ public sealed class WorldQuickPlayTests
         Assert.Equal(Json(original.Waypoints), Json(prepared.Waypoints));
         Assert.Equal(Json(original.Routes), Json(prepared.Routes));
         Assert.Equal(Json(original.Resources), Json(prepared.Resources));
-        Assert.Equal(LootPresets.AllPresetId, prepared.Loot!.Preset);
-        Assert.Null(prepared.Loot.Composition);
+        Assert.Equal(Json(original.Loot), Json(prepared.Loot));
         Assert.Equal(original.NeutralSides, prepared.NeutralSides);
         Assert.NotSame(original.Units[0], prepared.Units[0]);
         Assert.NotSame(original.Units[0].Inventory, prepared.Units[0].Inventory);

@@ -18,7 +18,8 @@ public sealed record WorldGenerationStep(string Id, WorldStepKind Kind, WorldSte
 // Internal typed recipe. UI codes construct this explicit schedule; no runtime registry or executable content.
 public sealed record WorldGenerationPlan(WorldDefinition World, WorldWindow Window, IReadOnlyList<WorldGenerationStep> Steps)
 {
-    public string LootPreset { get; init; } = "Empty";
+    public string LootPreset { get; init; } = "All";
+    public LootAbundance LootAbundance { get; init; } = LootAbundance.Standard;
     // All WLD1 schedules establish deployment before accepting protected construction.
     private WorldGenerationPlan WithHeroDeployment(HeroDeploymentSettings settings)
     {
@@ -80,13 +81,14 @@ public sealed record WorldGenerationPlan(WorldDefinition World, WorldWindow Wind
         steps.Add(new("current", WorldStepKind.PostEnrichmentAnalysis, new AnalysisStepParameters(), [last]));
         if (recipe.Population is { Density: not PopulationDensity.Off } population)
             steps.Add(new("population", WorldStepKind.Population, new PopulationStepParameters(population), ["current"]));
-        return new WorldGenerationPlan(recipe.World, recipe.Window, steps) { LootPreset = recipe.LootPreset }
+        return new WorldGenerationPlan(recipe.World, recipe.Window, steps) { LootPreset = recipe.LootPreset, LootAbundance = recipe.LootAbundance }
             .WithHeroDeployment(new(recipe.HeroCapacity));
     }
 
     public WorldGenerationPlan Validate()
     {
         World.Validate(); Window.Validate(); _ = PopulationLoot.FromPreset(LootPreset);
+        if (!Enum.IsDefined(LootAbundance)) throw new ArgumentException("Unknown Loot abundance.");
         if (Steps is null || Steps.Count is < 2 or > 24) throw new ArgumentException("A world plan needs 2..24 steps.");
         HashSet<string> seen = new(StringComparer.Ordinal);
         Dictionary<string, HashSet<WorldStepKind>> ancestry = new(StringComparer.Ordinal);
@@ -190,6 +192,7 @@ public sealed record WorldPreviewFrame(string StepId, string Stage, string Terra
     public PopulationAccessibilityAudit? UnitAccessibility { get; init; }
     public IReadOnlyList<Machine> Machines { get; init; } = [];
     public IReadOnlyList<LootMarker> SiteLootMarkers { get; init; } = [];
+    public SiteLootStatistics? SiteLootStatistics { get; init; }
 }
 public sealed record WorldPreview(IReadOnlyList<string> TerrainPalette, IReadOnlyList<WorldPreviewFrame> Frames,
     IReadOnlyList<NaturalFormation> Formations, int[] FormationLabels, int[] BoundaryCells)
@@ -262,7 +265,8 @@ public static class WorldGenerationPipeline
     public static WorldGenerationExecution Execute(WorldGenerationPlan plan, ContentBundle? content = null)
     {
         plan.Validate(); content ??= ContentBundle.Canonical();
-        var context = new WorldGenerationContext(plan.World, plan.Window) { Loot = PopulationLoot.FromPreset(plan.LootPreset) };
+        var context = new WorldGenerationContext(plan.World, plan.Window)
+        { Loot = PopulationLoot.FromPreset(plan.LootPreset), LootAbundance = plan.LootAbundance };
         List<WorldPreviewFrame> frames = []; List<WorldStageMeasurement> measurements = [];
         List<string> palette = ["grass", "dirt", "tree", "solid-rock", "water", "stone-floor"];
         var paletteIndex = palette.Select((id, i) => (id, i)).ToDictionary(p => p.id, p => p.i, StringComparer.Ordinal);
@@ -282,7 +286,7 @@ public static class WorldGenerationPipeline
                     context.CurrentAnalysis = context.OriginalAnalysis; break;
                 case WorldStepKind.PostEnrichmentAnalysis:
                     context.CurrentAnalysis = TerrainAnalyzer.Analyze(plan.Window, context.Samples, context.ConstructionBoard?.Content ?? content, context.Revision, context.ConstructionEdges(), context.ConstructionBoard?.State.Machines);
-                    DungeonSitePopulation.FinalizeGeometryAndLoot(context, context.ConstructionBoard?.Content ?? content);
+                    DungeonSitePopulation.FinalizeGeometry(context);
                     if (context.Completion is { } geometryCompletion)
                     {
                         var registration = geometryCompletion.RegisterInteractives(context.Materialize(), step.Id);
@@ -413,6 +417,16 @@ public static class WorldGenerationPipeline
         };
         try
         {
+            // Nonblocking exploration rewards use final population occupancy, including when Population is Off.
+            SiteLootGenerator.Generate(context, context.ConstructionBoard?.Content ?? content);
+            SitePopulationAllocation.FinalizeContent(context);
+            var lootRegistration = context.Completion!.RegisterInteractives(context.Materialize(), "site-loot");
+            if (lootRegistration.Status != CompletionStatus.Allowed)
+                throw new PlayReadyGenerationException(plan, "site-loot", context.ConstructionBoard!.Revision,
+                    $"Completion registration {lootRegistration.Status}: {lootRegistration.Detail}", context.MandatoryRepair,
+                    lootRegistration.Failures, completion: lootRegistration);
+            frames[^1] = frames[^1] with { SiteLootMarkers = context.SiteLootMarkers.ToArray(),
+                SiteLootStatistics = context.SiteLootStatistics, Population = context.Population };
             context.PublishedSetup = PlayReadyScenarioSetup.Publish(context);
             var finalDefinition = context.Materialize();
             var finalState = GameEngine.CreateGame(finalDefinition, content);

@@ -374,7 +374,8 @@
 <div class="world-generator-fields">
           <label>Density <select id="world-generator-populationDensity"><option>Off</option><option>Low</option><option selected>Medium</option><option>High</option></select></label>
           <label>Difficulty <select id="world-generator-populationDifficulty"><option value="1">1 · Easier</option><option value="2">2</option><option value="3" selected>3 · Standard</option><option value="4">4</option><option value="5">5 · Harder</option></select></label>
-          <label>Loot deck <select id="world-generator-lootPreset"><option>Empty</option><option selected>Classic</option><option>Fun</option><option>Experimental</option><option value="FarOut">Far Out</option><option>All</option></select></label>
+          <label>Loot deck <select id="world-generator-lootPreset"><option>Empty</option><option>Classic</option><option>Fun</option><option>Experimental</option><option value="FarOut">Far Out</option><option selected>All</option></select></label>
+          <label>Loot abundance <select id="world-generator-lootAbundance"><option>Sparse</option><option selected>Standard</option><option>Plentiful</option></select></label>
         </div><small>Population is independent of Civilization. Difficulty selects Monsters; Empty Loot creates no markers.</small>
         </details>
         <details id="world-generator-settings-advanced" class="world-generator-setting"><summary>Terrain enrichment<span id="world-generator-summary-advanced"></span></summary>
@@ -447,7 +448,7 @@
           <label>Completed code for this preview <textarea id="world-generator-complete" rows="3" readonly spellcheck="false"></textarea></label>
           <div class="generator-actions"><button id="world-generator-quick-play" class="designer-primary">Quick Play</button><button id="world-generator-copy-complete">Copy Completed Code</button><button id="world-generator-designer">Open in Designer</button><button id="world-generator-export">Export DELVE1</button></div>
           <label id="world-generator-export-label" hidden>Exact world · DELVE1 <textarea id="world-generator-transport" rows="4" readonly spellcheck="false"></textarea></label>
-          <details><summary>About preview and Quick Play</summary><p class="legend">This is an omniscient authoring preview. Quick Play adds five Human Heroes with Fog of War, All Loot and No Objective; Back to Designer returns to the original world. A world code is a recipe; DELVE1 preserves the exact scenario.</p></details>
+          <details><summary>About preview and Quick Play</summary><p class="legend">This is an omniscient authoring preview. Quick Play adds five Human Heroes with Fog of War and No Objective, preserving your selected Loot deck and supply; Back to Designer returns to the original world. A world code is a recipe; DELVE1 preserves the exact scenario.</p></details>
         </div>
       </section>
     </div>

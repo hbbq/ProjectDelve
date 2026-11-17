@@ -26,7 +26,7 @@ public sealed class AccessibilityGenerationTests
         var siteIndex = world.Context.Sites.IndexOf(site);
         world.Context.Sites[siteIndex] = site with { MountainDungeon = dungeon with { AccessRootIndex = Enumerable.Range(0, board.Width * board.Height).First(i => !board.Passable(i)) } };
         Assert.Contains("disconnected", Assert.Throws<ArgumentException>(() =>
-            DungeonSitePopulation.FinalizeGeometryAndLoot(world.Context, ContentBundle.Canonical())).Message);
+            DungeonSitePopulation.FinalizeGeometry(world.Context)).Message);
     }
 
     [Theory]

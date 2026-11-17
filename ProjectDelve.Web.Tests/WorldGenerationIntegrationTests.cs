@@ -33,7 +33,7 @@ public sealed class WorldGenerationIntegrationTests
         var definition = ScenarioDefinitionJson.FromJson(json);
         Assert.Empty(definition.Units); Assert.Empty(definition.Agency); Assert.Empty(definition.UnitTypeIds);
         Assert.Null(definition.Objectives); Assert.Null(definition.FogOfWarSides); Assert.Null(definition.WorldEffects);
-        Assert.Empty(definition.Loot!.Composition!);
+        Assert.Equal("All", definition.Loot!.Preset); Assert.Null(definition.Loot.Composition);
         Assert.NotNull(definition.Setup);
         Assert.Equal("Valid", PlayReadyScenarioSetup.Validate(definition).Status);
         var transport = result.GetProperty("transport").GetString()!;
@@ -176,7 +176,7 @@ public sealed class WorldGenerationIntegrationTests
         Assert.NotEmpty(definition.Units); Assert.NotEmpty(definition.Orders!);
         Assert.Equal("Generated populated world", result.GetProperty("title").GetString());
         Assert.Null(definition.Objectives); Assert.Null(definition.FogOfWarSides); Assert.Null(definition.WorldEffects);
-        Assert.Empty(definition.Loot!.Composition!);
+        Assert.Equal("All", definition.Loot!.Preset); Assert.Null(definition.Loot.Composition);
         Assert.All(definition.Units, unit =>
         {
             Assert.Equal(HeroesVsMonsters.Monsters, unit.SideId);

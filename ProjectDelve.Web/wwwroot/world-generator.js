@@ -9,7 +9,7 @@ const enrichmentFields = ["enrichmentEnabled", "enrichmentIntensity", "forestEnr
 const civilizationFields = ["civilizationEnabled", "campsiteDensity", "settlementDensity", "preparationIntensity"];
 const routeFields = ["routesEnabled", "throughRoutes", "routeProfile", "connectSites", "explorationLinks", "waterCrossings", "routeIntensity"];
 const populationFields = ["populationDensity", "populationDifficulty"];
-const fields = ["width", "height", "offsetX", "offsetY", "forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm", "seed", "lootPreset", ...enrichmentFields, ...civilizationFields, ...routeFields, ...populationFields];
+const fields = ["width", "height", "offsetX", "offsetY", "forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm", "seed", "lootPreset", "lootAbundance", ...enrichmentFields, ...civilizationFields, ...routeFields, ...populationFields];
 const session = new GeneratorSession();
 let presets = [], catalogPromise, maxBoardSize = 120;
 let selectedStage = 0, compareBefore = false;
@@ -97,7 +97,7 @@ byId("load").addEventListener("click", () => {
     const loaded = worldConfigurationFromCode(byId("code-input").value, maxBoardSize);
     const defaults = { civilizationEnabled: "false", campsiteDensity: "Low", settlementDensity: "Medium", preparationIntensity: "2",
       routesEnabled: "false", throughRoutes: "Low", routeProfile: "MinorPath", connectSites: "true", explorationLinks: "Low", waterCrossings: "false", routeIntensity: "2",
-      populationDensity: "Off", populationDifficulty: "3", lootPreset: "Empty" };
+      populationDensity: "Off", populationDifficulty: "3", lootPreset: "All", lootAbundance: "Standard" };
     for (const field of fields) byId(field).value = loaded[field] ?? defaults[field] ?? (field === "enrichmentEnabled" ? "false" : field === "enrichmentIntensity" ? "2" : enrichmentFields.includes(field) ? "true" : "");
     byId("hero-capacity").value = loaded.heroCapacity;
     byId("preset").value = ""; changed(); status("Recipe loaded · choose Generate Preview.");
@@ -549,6 +549,19 @@ function renderPopulation(root, frame, width, height, result) {
   }
   const s = population.statistics;
   byId("population-summary").textContent = `${s.acceptedEncounters} / ${s.target} encounters · ${s.units} / ${s.requestedUnits ?? s.units} requested Units · ${s.groups} Groups · ${s.dormantUnits ?? 0} Dormant · ${s.awakeUnits ?? 0} awake · ${s.initialTokens ?? 0} initial tokens · ${s.lootMarkers ?? 0} Loot markers · ${s.quietRegions ?? 0} quiet regions · ${s.attempts} attempts · work ${s.work}${s.shortfall ? ` · encounter shortfall ${s.shortfall}` : ""}${s.unitShortfall ? ` · Unit shortfall ${s.unitShortfall}` : ""}. ${partySummary}`;
+  if (s.unitAllowance != null) byId("population-summary").textContent += ` Global Unit allowance ${s.unitAllowance}; ${s.requestedUnits ?? 0} Units requested in attempted encounters; ${s.units} Units finally accepted.`;
+  const siteStatistics = population.siteStatistics ?? [];
+  for (const site of siteStatistics.slice(0, 24)) {
+    const item = document.createElement("div"); item.className = "world-population-detail"; item.dataset.populationSourceId = site.sourceId;
+    const heading = document.createElement("strong"); heading.textContent = `${site.sourceId} · Site ${site.siteId} · ${site.kind}`;
+    const selection = document.createElement("p"); selection.textContent = `Selection: ${site.selection} · ${site.selectedForOccupation ? "selected for occupation" : "not selected for occupation"} · ${site.usableCells} usable Cells · ${site.rooms} rooms · ${site.intentionallyOmittedRooms} intentionally quiet rooms`;
+    const requests = document.createElement("p"); requests.textContent = `Requested: ${site.requestedEncounters} encounters, ${site.requestedUnits} Units · finally accepted: ${site.acceptedEncounters} encounters, ${site.acceptedUnits} Units · ${site.reducedEncounters} placement reductions · ${site.budgetReducedEncounters ?? 0} global budget reductions · ${site.workReducedEncounters ?? 0} work reductions · ${site.placementRejectedEncounters} placement rejections · ${site.alertRejectedEncounters} Alert rejections · ${site.budgetOmissions} global budget omissions · ${site.workOmissions ?? 0} work omissions`;
+    const contents = document.createElement("p"); contents.textContent = `Final contents: ${site.meaningfulNoncombatObjects} meaningful noncombat objects · ${site.monsterFree ? "Monster-free" : "occupied by Monsters"} · ${site.completelyEmpty ? "completely empty" : "contains meaningful content"}`;
+    item.append(heading, selection, requests, contents); details.append(item);
+  }
+  if (siteStatistics.length > 24) {
+    const remainder = document.createElement("p"); remainder.textContent = `${siteStatistics.length - 24} additional population locations omitted from this diagnostic list.`; details.append(remainder);
+  }
   const metadata = new Map((result.unitDefinitions ?? []).map(type => [type.id, type]));
   if (siteLoot.size) byId("population-summary").textContent += ` ${siteLoot.size} Site Loot markers (${markers.size} total unique Loot markers).`;
   const areaText = a => `(${a.x}, ${a.y}), ${a.w} × ${a.h}`;

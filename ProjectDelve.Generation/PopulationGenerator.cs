@@ -21,7 +21,9 @@ public static partial class PopulationGenerator
         var budget = new PlanningBudget(MaxAttempts, MaxWork);
         List<PopulationEncounter> accepted = []; List<PopulationFailure> failures = []; List<LootMarker> loot = [];
         IReadOnlyList<PopulationAlertComponent> components = [];
-        var requestedUnits = unitLimit; var quietRegions = 0; var groupCount = 0; var unitCount = 0;
+        var requestedUnits = 0; var quietRegions = 0; var groupCount = 0; var unitCount = 0; var requestedLoot = 0;
+        var globalBudgetExhausted = false;
+        List<SitePopulationPlan> sitePlans = []; List<PopulationAttempt> attempts = [];
         if (target == 0 || unitLimit == 0) return Snapshot(null);
         var board = context.ConstructionBoard ?? new PlanningBoard(context.Materialize(), content);
         var definition = context.Materialize();
@@ -49,6 +51,7 @@ public static partial class PopulationGenerator
             protectedCells.UnionWith(site.Entrances.SelectMany(e => new[] { e.InsideIndex, e.OutsideIndex }));
         }
         var occupied = state.Units.SelectMany(u => FootprintGeometry.OccupiedCells(state, u.Id)).Select(c => c.Y * w + c.X).ToHashSet();
+        protectedCells.UnionWith((definition.LootMarkers ?? []).Select(m => m.Position.Y * w + m.Position.X));
         HashSet<int> encounterCells = [.. occupied]; HashSet<int> patrolCells = [];
         var names = definition.Units.Select(u => u.UnitId).Concat(definition.Units.Select(u => u.GroupId))
             .Concat(definition.Agency.Select(a => a.GroupId)).Concat((definition.Orders ?? []).Select(o => o.GroupId))
@@ -58,37 +61,11 @@ public static partial class PopulationGenerator
         names.UnionWith(state.Units.Select(u => u.Id));
         var path = WorldGenerationContext.WindowPath("population", context.Window);
         var siteCells = context.Sites.SelectMany(s => s.Footprint.Indices(w)).ToHashSet();
-        List<PopulationLocation> candidates = [];
-        var independentBuildings = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var site in context.Sites.OrderBy(s => s.Id, StringComparer.Ordinal))
-        {
-            var occupation = Pcg32.Stream(context.World.Seed, path + "/occupation/" + site.Id).Next(5);
-            if (occupation == 0) continue;
-            if (site.PopulationIntent is { EncounterRegions.Count: > 0 } regional)
-            {
-                foreach (var region in regional.EncounterRegions.OrderBy(r => r.Id, StringComparer.Ordinal))
-                    if (Pcg32.Stream(context.World.Seed, path + "/occupation/" + region.Id).Next(3) != 0)
-                        candidates.Add(new("DungeonEncounter", region.Id, region.Area.Indices(w).ToArray(), region.Area.Bounds) { Region = region });
-                continue;
-            }
-            if (site.Kind == GeneratedSiteKind.Settlement && (occupation > 1 || site.PopulationIntent is null))
-            {
-                independentBuildings.UnionWith(site.Buildings.Select(b => b.Id));
-                continue;
-            }
-            if (site.PopulationIntent is { } intent)
-                candidates.Add(new(site.Kind == GeneratedSiteKind.Settlement ? "SettlementCompound" : "StructuredCamp", site.Id,
-                    intent.Areas.SelectMany(a => a.Area.Indices(w)).Distinct().Order().ToArray(), site.Footprint.Bounds) { Intent = intent });
-            else if (site.Kind == GeneratedSiteKind.Campsite)
-                candidates.Add(new("GoblinCamp", site.Id, site.Exterior.Indices(w).ToArray(), site.Exterior.Bounds));
-        }
-        candidates.AddRange(ZombieHousePopulationGenerator.Locations(context)
-            .Where(l => independentBuildings.Contains(l.SourceId) && Pcg32.Stream(context.World.Seed, path + "/occupation/" + l.SourceId).Next(5) != 0)
-            .Select(l => l with { Kind = "BuildingDefenders" }));
+        var candidates = SitePopulationAllocation.Select(context, settings, path, out sitePlans);
         var roads = RoadPatrolPopulationGenerator.Locations(context).ToList();
         Pcg32.Stream(context.World.Seed, path + "/road-patrols").Shuffle(roads);
         candidates.AddRange(roads.Take(settings.Density == PopulationDensity.Low ? 1 : 2));
-        Pcg32.Stream(context.World.Seed, path + "/site-order").Shuffle(candidates);
+        if (candidates.All(c => c.Region is null)) Pcg32.Stream(context.World.Seed, path + "/site-order").Shuffle(candidates);
         var natural = NaturalCandidates(context, board, passable, protectedCells, siteCells, budget, out quietRegions);
         foreach (var i in natural)
         {
@@ -97,20 +74,40 @@ public static partial class PopulationGenerator
             var area = GeneratedArea.From(path + "/natural-" + i, cells, w);
             candidates.Add(new(random.Next(5) < 2 ? "LoneMonster" : "WildernessGroup", area.Id, cells, area.Bounds));
         }
-        foreach (var location in candidates)
+        for (var candidateIndex = 0; candidateIndex < candidates.Count; candidateIndex++)
         {
-            if (accepted.Count >= target || unitCount >= unitLimit || groupCount >= MaxGroups) break;
-            if (!budget.TryAttempt() || !budget.Spend(location.Cells.Length)) break;
+            var location = candidates[candidateIndex];
+            if (accepted.Count >= target || unitCount >= unitLimit || groupCount >= MaxGroups)
+            {
+                globalBudgetExhausted = true;
+                foreach (var omitted in candidates.Skip(candidateIndex).Where(c => c.SiteId is not null))
+                    attempts.Add(new(omitted, omitted.UnitTarget ?? 0, 0, "Budget"));
+                break;
+            }
+            if (!budget.TryAttempt() || !budget.Spend(location.Cells.Length))
+            {
+                foreach (var omitted in candidates.Skip(candidateIndex).Where(c => c.SiteId is not null))
+                    attempts.Add(new(omitted, omitted.UnitTarget ?? 0, 0, "Work"));
+                break;
+            }
             var stem = path + "/request-" + budget.Attempts + "/" + location.Kind; var id = stem;
             for (var suffix = 0; names.Any(name => name == id || name.StartsWith(id + "/", StringComparison.Ordinal)); suffix++) id = stem + "-" + suffix;
             var random = Pcg32.Stream(context.World.Seed, id + "/composition");
             bool LocationAvailable(int cell) => Available(cell) &&
                 (location.Kind is not ("LoneMonster" or "WildernessGroup") || !siteCells.Contains(cell));
             var free = location.Cells.Where(LocationAvailable).Distinct().Order().ToList(); random.Shuffle(free);
-            var encounter = BuildEncounter(id, location, free, w, settings, unitLimit - unitCount, random, board, types,
+            var remainingUnits = unitLimit - unitCount; var workRejections = budget.WorkLimitRejections;
+            var encounter = BuildEncounter(id, location, free, w, settings, remainingUnits, random, board, types,
                 state, budget, LocationAvailable, reason => Fail(location, reason), out var requested);
-            if (encounter is null) continue;
-            if (groupCount + encounter.GroupIds.Count > MaxGroups) { Fail(location, "Group allowance exhausted."); continue; }
+            requestedUnits += requested;
+            if (encounter is null)
+            {
+                var outcome = budget.WorkLimitRejections > workRejections ? "Work" :
+                    remainingUnits < (location.Region?.MinimumUnits ?? location.Intent?.MinimumUnits ?? 1) ? "Budget" : "Placement";
+                attempts.Add(new(location, requested, 0, outcome)); continue;
+            }
+            if (groupCount + encounter.GroupIds.Count > MaxGroups)
+            { Fail(location, "Group allowance exhausted."); attempts.Add(new(location, requested, 0, "Budget")); continue; }
             var beforeUnits = state.Units.Count; var beforeFigures = state.Physical.Figures.Count;
             try
             {
@@ -123,17 +120,20 @@ public static partial class PopulationGenerator
             }
             catch (ArgumentException error)
             {
-                Rollback(); Fail(location, "Engine placement: " + error.Message); continue;
+                Rollback(); Fail(location, "Engine placement: " + error.Message);
+                attempts.Add(new(location, requested, 0, budget.WorkLimitRejections > workRejections ? "Work" : "Placement")); continue;
             }
             var allComponents = PopulationTopology.Components(authoredUnits.Concat(accepted.SelectMany(e => e.Units)).Concat(encounter.Units), types.Values);
             var memberIds = encounter.Units.Select(u => u.UnitId).ToHashSet(StringComparer.Ordinal);
             var componentCount = allComponents.Count(c => c.UnitIds.Any(memberIds.Contains));
             encounter = encounter with { ActualAlertComponents = componentCount };
             if (location.Intent is { } intended && (intended.AlertTopology == CampAlertTopology.Connected ? componentCount != 1 : componentCount < 2))
-            { Rollback(); Fail(location, "Final occupation does not realize intended Alert connectivity."); continue; }
+            { Rollback(); Fail(location, "Final occupation does not realize intended Alert connectivity."); attempts.Add(new(location, requested, 0, "Alert")); continue; }
             if (location.Region is not null && (componentCount != 1 || allComponents.Any(c => c.UnitIds.Any(memberIds.Contains) && c.UnitIds.Any(id => !memberIds.Contains(id)))))
-            { Rollback(); Fail(location, "Independent dungeon region would share an Alert network with another encounter."); continue; }
+            { Rollback(); Fail(location, "Independent room region would share an Alert network with another encounter."); attempts.Add(new(location, requested, 0, "Alert")); continue; }
             accepted.Add(encounter); unitCount += encounter.Units.Count; groupCount += encounter.GroupIds.Count;
+            attempts.Add(new(location, requested, encounter.Units.Count, encounter.Units.Count < requested ? "Reduced" : "Accepted",
+                requested > remainingUnits, budget.WorkLimitRejections > workRejections));
             foreach (var unit in encounter.Units) foreach (var cell in FootprintGeometry.OccupiedCells(types[unit.UnitTypeId].Footprint, unit.Anchor))
             { var index = cell.Y * w + cell.X; occupied.Add(index); encounterCells.Add(index); }
             if (location.Path is { } pathCells) patrolCells.UnionWith(pathCells);
@@ -154,7 +154,8 @@ public static partial class PopulationGenerator
                 .Concat(accepted.SelectMany(e => e.Units.SelectMany(u => board.Neighbors(u.Anchor.Y * w + u.Anchor.X))))
                 .Concat(natural.Take(32)).Distinct().ToList();
             Pcg32.Stream(context.World.Seed, path + "/loot").Shuffle(lootCells);
-            var wanted = Math.Min(48, Math.Max(1, accepted.Count / 3));
+            var wanted = PopulationLoot.Scale(Math.Min(48, Math.Max(1, accepted.Count / 3)), context.LootAbundance);
+            requestedLoot = wanted;
             // Custom composition is explicitly authored, so only presets repeat.
             // Existing markers already reserve their cards and are never removed.
             if (lootSettings.Normalize(board.Content.LootPresets).Composition is not null)
@@ -167,13 +168,15 @@ public static partial class PopulationGenerator
                 if (!budget.Spend(1) || loot.Count >= wanted) break;
                 if (ordinaryDomain is not null && !ordinaryDomain.Contains(i)) { completionFiltered++; continue; }
                 if (!passable[i] || protectedCells.Contains(i) || occupied.Contains(i) || (definition.LootMarkers ?? []).Any(m => m.Position.Y * w + m.Position.X == i) ||
-                    context.CurrentAnalysis is { } analysis && analysis.WalkableLabels[i] != largest) continue;
+                    ordinaryDomain is null && context.CurrentAnalysis is { } analysis && analysis.WalkableLabels[i] != largest) continue;
                 var markerId = path + "/loot-" + i;
                 if (names.Add(markerId)) loot.Add(new(markerId, new(i % w, i / w)));
             }
             if (completionFiltered > 0 && loot.Count < wanted)
                 context.Completion!.RecordOmission(path + "/loot", "population",
                     $"Placed {loot.Count} of {wanted} optional Loot markers; {completionFiltered} candidates lacked ordinary potential deployment access.");
+            if (loot.Count < requestedLoot) failures.Add(new(path + "/loot", "Loot", null,
+                $"Placed {loot.Count} of {requestedLoot} optional population Loot markers; legal candidates, supply or work exhausted."));
         }
         components = PopulationTopology.Components(authoredUnits.Concat(accepted.SelectMany(e => e.Units)), types.Values);
         var expectedDrops = (definition.Units.Concat(accepted.SelectMany(e => e.Units)).Sum(u => types[u.UnitTypeId].LootDropSuccesses) + 5) / 6;
@@ -193,8 +196,11 @@ public static partial class PopulationGenerator
             {
                 DormantUnits = units.Count(u => u.Dormant), AwakeUnits = units.Count(u => !u.Dormant),
                 InitialTokens = units.Where(u => !u.Dormant).Select(u => new ActivationToken(u.UnitTypeId, u.SideId, u.GroupId)).Distinct().Count(),
-                RequestedUnits = requestedUnits, UnitShortfall = Math.Max(0, requestedUnits - units.Length), LootMarkers = loot.Count, QuietRegions = quietRegions
-            }, failures.ToArray()) { LootMarkers = loot.ToArray(), Loot = settingsLoot, AlertComponents = components };
+                RequestedUnits = requestedUnits, UnitShortfall = Math.Max(0, requestedUnits - units.Length), LootMarkers = loot.Count,
+                UnitAllowance = unitLimit, GlobalBudgetExhausted = globalBudgetExhausted,
+                RequestedLootMarkers = requestedLoot, QuietRegions = quietRegions
+            }, failures.ToArray()) { LootMarkers = loot.ToArray(), Loot = settingsLoot, AlertComponents = components,
+                SiteStatistics = SitePopulationAllocation.Summarize(context, content, sitePlans, attempts, accepted) };
         }
     }
 

@@ -54,15 +54,20 @@ draw path. The scenario retains `preset: "All"`; game setup materializes a detac
 composition and physical cards. Saves and replays retain that finite deck and never
 rebuild it from a later catalog. Existing fixed presets are unchanged.
 
-`All` accepts no multiplier above one. Stronghold generation caps its initial cache
-markers to the available cards, distributing them across its selected caches;
-ordinary finite-supply rules still govern subsequent drops. Both generator code
-formats accept `QAll`. Designer obtains effective quantities from Engine metadata,
+`All` supports the existing uniform live-preset multiplier. WLD1 repeats complete
+copies to cover its initial markers and expected initial defeat drops, preserving
+equal representation. The resulting supply remains finite. Other generator code
+formats retain their own placement policies and accept `QAll`. Designer obtains effective quantities from Engine metadata,
 including refreshed local definitions; Copy to Custom stores that resolved selection.
 
 `LootCardCatalog.Effective` and `LootPresets.Resolve` are the shared resolution
 boundary. Future library providers can supply resolved definitions there without
 adding another card list or dynamic-preset expression system.
+
+WLD1 defaults to All with independent Standard abundance; Sparse and Plentiful
+change initial availability without changing this resolution path or card mix.
+Quick Play preserves the selected deck and provisioned supply. See
+[Loot Abundance A1](ProjectDelve.Generation/LOOT_ABUNDANCE_A1.md).
 
 ## Canonical definitions and compatibility
 

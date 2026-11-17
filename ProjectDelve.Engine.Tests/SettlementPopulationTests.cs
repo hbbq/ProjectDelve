@@ -49,6 +49,17 @@ public sealed class SettlementPopulationTests
             var whole = encounters.Where(e => e.SourceId == site.Id).ToArray();
             var houses = encounters.Where(e => site.Buildings.Any(b => b.Id == e.SourceId)).ToArray();
             Assert.False(whole.Length > 0 && houses.Length > 0);
+            if (whole.Length > 0)
+            {
+                var parent = world.Context.Population.SiteStatistics.Single(s => s.SourceId == site.Id);
+                Assert.Equal(1, parent.RequestedEncounters);
+                Assert.Equal(whole.Single().RequestedUnits, parent.RequestedUnits);
+                Assert.All(world.Context.Population.SiteStatistics.Where(s => s.SiteId == site.Id && s.Kind == "Building"), member =>
+                {
+                    Assert.Equal("CompoundMember", member.Selection);
+                    Assert.Equal(0, member.RequestedEncounters); Assert.Equal(0, member.RequestedUnits);
+                });
+            }
             vacant |= whole.Length == 0 && houses.Length == 0;
             individual |= houses.Length > 1;
             compound |= whole.Length > 0;

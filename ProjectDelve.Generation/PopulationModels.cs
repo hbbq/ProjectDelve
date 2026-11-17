@@ -19,8 +19,11 @@ public sealed record PopulationStatistics(int Target, int AcceptedEncounters, in
     public int AwakeUnits { get; init; }
     public int InitialTokens { get; init; }
     public int RequestedUnits { get; init; }
+    public int UnitAllowance { get; init; }
+    public bool GlobalBudgetExhausted { get; init; }
     public int UnitShortfall { get; init; }
     public int LootMarkers { get; init; }
+    public int RequestedLootMarkers { get; init; }
     public int QuietRegions { get; init; }
 }
 public sealed record PopulationRoleAssignment(string UnitId, string Role, string? AreaId = null);
@@ -41,6 +44,19 @@ public sealed record PopulationSnapshot(IReadOnlyList<PopulationEncounter> Encou
     public IReadOnlyList<LootMarker> LootMarkers { get; init; } = [];
     public LootSettings? Loot { get; init; }
     public IReadOnlyList<PopulationAlertComponent> AlertComponents { get; init; } = [];
+    public IReadOnlyList<SitePopulationStatistics> SiteStatistics { get; init; } = [];
+}
+
+public sealed record SitePopulationStatistics(string SourceId, string SiteId, string Kind, int UsableCells, int Rooms,
+    bool SelectedForOccupation, string Selection, int RequestedEncounters, int IntentionallyOmittedRooms,
+    int RequestedUnits, int AcceptedEncounters, int AcceptedUnits, int ReducedEncounters,
+    int PlacementRejectedEncounters, int AlertRejectedEncounters, int BudgetOmissions, int WorkOmissions,
+    int MeaningfulNoncombatObjects)
+{
+    public int BudgetReducedEncounters { get; init; }
+    public int WorkReducedEncounters { get; init; }
+    public bool MonsterFree => AcceptedUnits == 0;
+    public bool CompletelyEmpty => MonsterFree && MeaningfulNoncombatObjects == 0;
 }
 public sealed partial class WorldGenerationContext
 {
@@ -61,6 +77,8 @@ internal sealed record PopulationLocation(string Kind, string SourceId, int[] Ce
 {
     public SitePopulationIntent? Intent { get; init; }
     public SiteEncounterRegion? Region { get; init; }
+    public string? SiteId { get; init; }
+    public int? UnitTarget { get; init; }
 }
 internal static partial class GoblinCampPopulationGenerator
 {

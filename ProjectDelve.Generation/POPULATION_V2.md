@@ -1,5 +1,8 @@
 # Population V2 — dense and structured encounters
 
+Current Site policy and paired A1/A2 corpus: [Site Population A2](SITE_POPULATION_A2.md).
+Historical numerical examples below are not current layout guarantees.
+
 Population is a bounded setup pass after final Civilization, Routes and geometry
 analysis. The output is an ordinary `ScenarioDefinition`. Neither encounter IDs,
 Site ownership nor Alert links become gameplay state. Engine Dormant, Alert,
@@ -18,7 +21,7 @@ isolation. A large dungeon guard's ability to fit its room does not promise an e
 | `PopulationModels.cs`, `PopulationGenerator.cs`, `PopulationPlacement.cs`, `PopulationComposition.cs`, `PopulationTopology.cs` | Distribution, bounded allocation, roles, exact Groups/Orders, placement and authoring-only Alert diagnostics. |
 | `PopulationLoot.cs`, `WorldGenerationRecipe.cs`, `NaturalTerrainGenerator.cs`, `WorldGenerationPipeline.cs` | Configured WLD1 deck, finite setup provision, materialization and previews. |
 | `../ProjectDelve.Engine/Loot.cs` | Existing preset multiplication also permits All; no draw/exhaustion behavior changes. |
-| `../ProjectDelve.Web/WorldQuickPlay.cs`, World Generator HTML/JavaScript | Temporary All provision, placement preflight reuse, deck selection and stage-correct diagnostics. |
+| `../ProjectDelve.Web/WorldQuickPlay.cs`, World Generator HTML/JavaScript | Preserve the selected provisioned deck, placement preflight reuse, deck/abundance selection and stage-correct diagnostics. |
 | Population, pursuit, camp, Loot and Web integration tests | Dedicated fixtures and existing behavioral coverage updated for V2. |
 | `../tools/WorldGenerationBenchmark/PopulationInvestigation.cs` and project link | Twelve-case generation/setup/gameplay/transport measurement corpus. |
 | `../CONSTRAINTS.md`, `WORLD_GENERATOR.md`, `CIVILIZATION_SITES.md`, this document | Approved behavior and verified implementation limits. |
@@ -38,17 +41,21 @@ tiles form a shared hearth and separate supply/resting wings. No prop catalog wa
 added. All usable ground must connect to the approach before construction commits;
 existing reserved roads cannot be overwritten. [Civilization V2](CIVILIZATION_V2.md)
 extends settlement geometry and publishes room, threshold, storage and public-space
-intent through this same boundary. Settlements choose mutually exclusive vacant,
-independent-house or compound occupation; a vacant settlement does not then receive
-house defenders from a separate pass. Planned public access remains protected.
+intent through this same boundary. Small-building settlements retain vacant,
+independent-house or compound occupation. Large buildings receive independent
+size-aware room allocation and their own vacancy choice; a small courtyard quota
+does not stand in for a large building's occupation. Supply areas remain excluded
+from new room occupation. Planned public access remains protected.
 
 Population resolves final usable role areas. Camps request 6–16 Units, with density
 limiting their upper size to 8/12/16. Sentries, central defenders, resting occupants
 and optional patrols receive distinct Groups/Orders where appropriate. Occupation
 is commonly Goblins, sometimes Zombies; higher difficulties can provide Skeleton
 Archer sentries and Troll central defenders. No Site family changes Engine behavior.
-One fifth of eligible Sites/buildings are deliberately omitted by seeded occupation
-selection; geometry, spacing and budgets can leave additional Sites vacant.
+Ordinary small Sites/buildings retain seeded vacancy. Large Buildings (50+ usable
+Cells) and dungeons (100+ explorable usable Cells) instead use a 10% vacancy choice,
+independent of A1 Loot. Geometry, Alert spacing and budgets can leave additional
+selected regions unoccupied; diagnostics distinguish those restrictions.
 
 Sentries/patrols use WakeDistance 5; central/resting camp occupants use 1. Resting
 occupants can be Lying. All roles except patrol are Dormant. Connected placement

@@ -7,7 +7,12 @@ namespace ProjectDelve.Engine.Tests;
 public sealed class SiteConnectionsTests
 {
     private static WorldGenerationRecipe Recipe(int through = 1) => ThroughRouteTests.Recipe(120, 100) with
-    { Civilization = new(), Routes = new(ThroughRoutes: through == 0 ? ContentDensity.None : ContentDensity.Low, ConnectSites: true, Alternatives: ContentDensity.None) };
+    {
+        // These construction fixtures add routes after generation. Keep their original no-Loot
+        // scope: normal WLD1 publishes routes before late interactive reward declarations.
+        LootPreset = "Empty", Civilization = new(),
+        Routes = new(ThroughRoutes: through == 0 ? ContentDensity.None : ContentDensity.Low, ConnectSites: true, Alternatives: ContentDensity.None)
+    };
     [Theory]
     [InlineData(0)]
     [InlineData(1)]

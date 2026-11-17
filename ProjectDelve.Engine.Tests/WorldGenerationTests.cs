@@ -145,7 +145,7 @@ public sealed class WorldGenerationTests
         var world = WorldGenerator.Generate(recipe);
         Assert.Empty(world.Definition.Units); Assert.Empty(world.Definition.UnitTypeIds); Assert.Empty(world.Definition.Agency);
         Assert.Null(world.Definition.Objectives); Assert.Null(world.Definition.FogOfWarSides);
-        Assert.Empty(world.Definition.Loot!.Composition!);
+        Assert.Equal("All", world.Definition.Loot!.Preset); Assert.Null(world.Definition.Loot.Composition);
         Assert.Equal("grass", world.Definition.Board.DefaultTerrainTypeId);
         Assert.DoesNotContain(world.Definition.Board.Cells, c => c.TerrainTypeId == "grass");
         var transported = ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(world.Definition));

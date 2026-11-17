@@ -14,6 +14,22 @@ remain authoritative through their existing paths.
 
 ## Settings and layout
 
+Loot deck and independent Loot abundance sit together in Population settings.
+Defaults are All and Standard; Sparse and Plentiful change initial availability,
+not card mix or quality. Complete recipes include `-OAll-LAStandard-HC5` before
+the seed, and importing omitted fields resets them to these defaults. Preview,
+DELVE1/Designer handoff and Quick Play all use the generated selection and finite
+supply; Quick Play no longer replaces restricted decks. See
+[Loot Abundance A1](ProjectDelve.Generation/LOOT_ABUNDANCE_A1.md).
+
+[Site Population A2](ProjectDelve.Generation/SITE_POPULATION_A2.md) adds authoring-only
+occupation diagnostics: selected/vacant structures, intentionally quiet rooms,
+actual requested versus accepted Units, separate global allowance, placement/Alert
+rejection, budget/work reductions and omissions, and final noncombat content.
+Monster-free and completely empty locations are reported separately. Shared
+compound allocation is recorded on its parent rather than duplicated as building
+requests. These diagnostics never enter ordinary Fog of War gameplay projections.
+
 Desktop uses a 250–300 px independently scrolling settings sidebar and a large
 preview. At widths up to 850 px, a generated preview appears before settings.
 Generate Preview and Generate Another stay in the sticky dialog heading; the

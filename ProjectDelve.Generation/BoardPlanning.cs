@@ -24,11 +24,12 @@ public sealed class PlanningBudget(int maxAttempts = 128, long maxWork = 200000)
     public long MaxWork { get; } = maxWork >= 0 ? maxWork : throw new ArgumentOutOfRangeException(nameof(maxWork));
     public int Attempts { get; private set; }
     public long Work { get; private set; }
+    internal int WorkLimitRejections { get; private set; }
     public bool TryAttempt() { if (Attempts >= MaxAttempts) return false; Attempts++; return true; }
     public bool Spend(long work)
     {
         if (work < 0) throw new ArgumentOutOfRangeException(nameof(work));
-        if (work > MaxWork - Work) return false;
+        if (work > MaxWork - Work) { WorkLimitRejections++; return false; }
         Work += work; return true;
     }
 }

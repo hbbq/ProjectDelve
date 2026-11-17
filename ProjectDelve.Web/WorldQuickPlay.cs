@@ -68,12 +68,7 @@ public static class WorldQuickPlay
             return id;
         }
         var groupId = Reserve("quick-play-heroes");
-        var effective = ScenarioContentReferences.Compose(canonical, definition.ContentReferences).Definitions with
-        { LootCards = [.. existing.LootCardDefinitions] };
-        var expectedDrops = (int)Math.Ceiling((existing.Units.Sum(u => existing.Types.Single(t => t.Id == u.TypeId).LootDropSuccesses) +
-            heroes.Sum(h => definition.LootUnitOverrides?.GetValueOrDefault(h.Id)?.DropSuccesses ?? h.LootDropSuccesses)) / 6.0);
-        var temporaryLoot = PopulationLoot.Provision(new() { Preset = LootPresets.AllPresetId },
-            definition.LootMarkers?.Count ?? 0, expectedDrops, effective);
+        var temporaryLoot = definition.Loot ?? new LootSettings();
         definition = definition with
         {
             UnitTypeIds = definition.UnitTypeIds.Concat(heroIds).Distinct(StringComparer.Ordinal).ToList(),

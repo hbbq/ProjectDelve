@@ -17,7 +17,7 @@ public sealed class DungeonPopulationTests
         var plan = Assert.IsType<Planned<SitePlan>>(MountainDungeonGenerator.Plan(new("dungeon", draft.AllowedArea, new()), new(seed, "test", draft))).Plan;
         Assert.True(draft.Accept(plan.Patch, out var error), error); Assert.True(board.TryCommit(draft.BuildPatch(), out error), error);
         context.Sites.Add(plan.Site); context.RefreshConstructionAnalysis();
-        DungeonSitePopulation.PublishIntents(context); DungeonSitePopulation.FinalizeGeometryAndLoot(context, board.Content);
+        DungeonSitePopulation.PublishIntents(context); DungeonSitePopulation.FinalizeGeometry(context); SiteLootGenerator.Generate(context, board.Content);
         return context;
     }
 
@@ -85,6 +85,6 @@ public sealed class DungeonPopulationTests
         context.ConstructionBoard = new PlanningBoard(definition with { Board = definition.Board with {
             Cells = definition.Board.Cells.Where(c => c.Position.Y * board.Width + c.Position.X != outside)
                 .Append(new(new(outside % board.Width, outside / board.Width), TerrainKind.SolidRock)).ToList() } }, board.Content);
-        Assert.Contains("disconnected", Assert.Throws<ArgumentException>(() => DungeonSitePopulation.FinalizeGeometryAndLoot(context, board.Content)).Message);
+        Assert.Contains("disconnected", Assert.Throws<ArgumentException>(() => DungeonSitePopulation.FinalizeGeometry(context)).Message);
     }
 }

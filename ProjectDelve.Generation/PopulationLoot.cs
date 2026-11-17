@@ -5,6 +5,13 @@ namespace ProjectDelve.Generation;
 /// <summary>Setup-only supply planning. The Engine retains its ordinary finite draw pile.</summary>
 public static class PopulationLoot
 {
+    internal static int Scale(int standard, LootAbundance abundance) => abundance switch
+    {
+        LootAbundance.Sparse => (standard + 1) / 2,
+        LootAbundance.Standard => standard,
+        LootAbundance.Plentiful => checked(standard * 2),
+        _ => throw new ArgumentException("Unknown Loot abundance.")
+    };
     internal static LootSettings FromPreset(string preset) => preset switch
     {
         "Empty" => LootSettings.Empty,

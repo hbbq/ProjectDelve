@@ -84,17 +84,21 @@ through all remaining floor and at least one complete 2×2 placement per room.
 Required spanning access from the entrance through every room is kept free of
 Lava and population. This does not promise 2×2 passage through the whole dungeon.
 
-Treasure metadata is optional. After final geometry, each treasure area has a
-three-in-four chance to supply one to three ordinary Loot markers when Loot is
-configured and legal space exists. This path runs even with Population absent or
-Off. Empty/custom finite supplies retain their existing limits; preset decks use
-the existing provisioning function. Ordinary Population Loot remains separate,
-deduplicates occupied marker Cells, and uses the same finite supply.
+Treasure metadata is optional. After final geometry and Population, the bounded
+[A1 Site reward allocation](LOOT_ABUNDANCE_A1.md) distributes ordinary Loot across
+selected rooms and deeper passages, independently of monster occupation or whether
+a treasure room was authored. This runs even with Population absent or Off.
+Empty/custom finite supplies retain their existing limits; preset decks use the
+existing uniform provisioning function. Ordinary encounter-related Population
+Loot remains separate and shares the same finite supply. Required access and
+entrances remain clear, and final registration checks ordinary deployment access.
 
 Site Population Intent now supports independent encounter regions. Dungeon rooms
 publish bounded region sizes, existing Monster composition preferences and
-optional room-local patrol paths. A whole Site may be vacant; individual regions
-may also be skipped. Occupants use the existing difficulty-weighted Monster pool,
+optional room-local patrol paths. [A2 Site allocation](SITE_POPULATION_A2.md)
+selects bounded regional requests from total exploration area, rooms and density,
+with a separate vacancy choice and intentionally quiet rooms. A whole Site may
+remain monster-free independently of its A1 Loot rewards. Occupants use the existing difficulty-weighted Monster pool,
 excluding summoners from initial composition. Eligible large chambers may request
 the existing Red Dragon at difficulty five. Complete footprints must fit inside
 the region and avoid required access, including the exterior entrance Cell.

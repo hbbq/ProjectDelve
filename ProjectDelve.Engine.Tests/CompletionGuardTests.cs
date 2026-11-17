@@ -205,8 +205,10 @@ public sealed class CompletionGuardTests
         Assert.DoesNotContain(guard.Registry.Locations, l => l.SourceId == "unreachable-loot");
     }
 
-    [Fact]
-    public void PopulationReportsLootShortfallCausedByCompletionFiltering()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PopulationUsesDeploymentRegionAndReportsExhaustedReachableLootSpace(bool protectReachable)
     {
         const int width = 20, height = 12;
         var content = ContentBundle.Canonical();
@@ -231,11 +233,21 @@ public sealed class CompletionGuardTests
         var context = new WorldGenerationContext(new(42, new(0, 0, 0)), new(0, 0, width, height));
         context.SampleNaturalTerrain(content); context.ConstructionBoard = board; context.Completion = guard;
         context.Deployment = deployment; context.Sites.Add(barrier); context.PopulationProtectedAreas.Add(deployment.Area);
+        if (protectReachable) context.PopulationProtectedAreas.Add(Part("protected-reachable", Enumerable.Range(180, 60)));
         context.Loot = PopulationLoot.FromPreset("Classic"); context.RefreshConstructionAnalysis();
         var population = PopulationGenerator.Generate(context, new(PopulationDensity.Medium, 3), content);
-        Assert.Empty(population.LootMarkers);
-        Assert.Contains(guard.Diagnostics, d => d.Status == CompletionStatus.Omitted && d.CandidateId.EndsWith("/loot") &&
-            d.Detail!.Contains("ordinary potential deployment access"));
+        if (protectReachable)
+        {
+            Assert.Empty(population.LootMarkers);
+            Assert.Contains(guard.Diagnostics, d => d.Status == CompletionStatus.Omitted && d.CandidateId.EndsWith("/loot") &&
+                d.Detail!.Contains("ordinary potential deployment access"));
+        }
+        else
+        {
+            Assert.NotEmpty(population.LootMarkers);
+            Assert.All(population.LootMarkers, marker => Assert.Contains(marker.Position.Y * width + marker.Position.X,
+                guard.InteractivePlacementDomain()));
+        }
     }
 
     [Fact]

@@ -68,14 +68,14 @@ public sealed class PopulationLootTests
     {
         var recipe = new WorldGenerationRecipe(new(0, 0, 12, 10), new(0, 0, 0), 42,
             Population: new(PopulationDensity.Off), LootPreset: preset);
-        Assert.Contains("-MOff-D3-O" + preset + "-HC5-S", recipe.ToString());
+        Assert.Contains("-MOff-D3-O" + preset + "-LAStandard-HC5-S", recipe.ToString());
         Assert.Equal(recipe, WorldGenerationRecipe.Parse(recipe.ToString()));
         var world = WorldGenerator.Generate(recipe);
         if (preset == "Empty") Assert.Empty(world.Definition.Loot!.ResolveComposition());
         else { Assert.Equal(preset, world.Definition.Loot!.Preset); Assert.Null(world.Definition.Loot.Composition); }
         Assert.Empty(world.Definition.LootMarkers ?? []);
         var old = recipe.ToString().Replace("-O" + preset, "");
-        Assert.Equal("Empty", WorldGenerationRecipe.Parse(old).LootPreset);
+        Assert.Equal("All", WorldGenerationRecipe.Parse(old).LootPreset);
         Assert.Throws<ArgumentException>(() => (recipe with { LootPreset = "Unknown" }).Validate());
     }
 

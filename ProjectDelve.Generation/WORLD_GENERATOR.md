@@ -1,6 +1,8 @@
 # World Generator
 
 Current abundance settings and scaling policy: [Density Scaling V1](DENSITY_SCALING_V1.md).
+Loot availability, Site rewards and current measurements: [Loot Abundance A1](LOOT_ABUNDANCE_A1.md).
+Site occupation, vacancy and paired measurements: [Site Population A2](SITE_POPULATION_A2.md).
 Advisory Engine queries and diagnostics: [Accessibility Analysis V1](ACCESSIBILITY_ANALYSIS_V1.md).
 Current layout, controls and verification: [World Generator Designer](../WORLD_GENERATOR_DESIGNER.md).
 Mountain Sites and current acceptance results: [Mountain Dungeons V1](MOUNTAIN_DUNGEONS_V1.md).
@@ -19,10 +21,10 @@ Designer to finish the scenario before play.
 **Quick Play** starts a temporary copy through the existing Designer Playtest flow.
 It validates the published setup and places Barbarian, Rogue, Wizard, Cleric and
 Beastmaster in its deterministic deployment order, assigns explicit Human control, explicitly sets
-No Objective for every participating Side, selects the existing **All** Loot Deck
-preset, and enables ordinary Hero Fog of War. The original world
+No Objective for every participating Side, preserves the selected Loot Deck and its
+provisioned finite supply, and enables ordinary Hero Fog of War. The original world
 is retained in Designer; **Back to Designer** returns to it without the temporary
-party, Loot, Objectives or FoW changes. The retained generator preview, recipe,
+party, Objectives or FoW changes. The retained generator preview, recipe,
 fingerprint and DELVE1 export are unchanged. Unsuitable or crowded boards report
 a placement failure without replacing the game. This convenience setup makes no
 encounter-distance or mission guarantees. Invalid setup, blocked deployment or insufficient
@@ -31,8 +33,8 @@ Existing DELVE1 scenarios without setup retain the principal-component placement
 
 PlayReady is the WLD1 standard; there is no generation-policy selector. Natural
 terrain/enrichment is followed by constructive deployment, guarded routes and
-Civilization, progressive mandatory repair with complete permitted fallback, dungeon/Loot
-finalization, Population and final geographic validation. A successful result must satisfy
+Civilization, progressive mandatory repair with complete permitted fallback, dungeon geometry
+finalization, Population, Site Loot and final geographic validation. A successful result must satisfy
 its ordinary 1×1 Land access declarations, allowing normally openable Doors. Engine validity
 and geographic validity remain separate in Designer. Optional overlays inspect deployment,
 ordinary requirements and deliberate-special exceptions; edits invalidate certification.
@@ -79,13 +81,13 @@ limits, payload budgets, verification and remaining costs.
 ## Recipes and controls
 
 ```
-WLD1-30x24-X-25-Y-12-F25-W15-R10-KBalanced-HRiver-E1-I2-B1111-OEmpty-HC5-S0000000000003039
+WLD1-30x24-X-25-Y-12-F25-W15-R10-KBalanced-HRiver-E1-I2-B1111-OAll-LAStandard-HC5-S0000000000003039
 ```
 
 This selects a 30 by 24 rectangle starting at (-25, -12), with forest/water/rock
 amounts 25/15/10, Balanced scale, River water form, and root seed 12345 (hex 3039).
 `HC` specifies Hero deployment capacity. It defaults to five when omitted, and canonical
-recipes always emit it after the Loot field and before the seed. Capacity is part of the
+recipes always emit it after the Loot deck and abundance fields and before the seed. Capacity is part of the
 recipe, so loading a code overrides prior UI capacity. Dimensions must support its area,
 width-two maneuver core and departure; no capacity reduction is permitted.
 Fields are strict and ordered. `K` accepts Fine, Balanced or Broad. `H` accepts
@@ -177,6 +179,13 @@ See [Population V2](POPULATION_V2.md) for architecture, measured budgets, verifi
 and limitations. The same current WLD1 recipe and content reproduce deterministically;
 historical WLD1 layout equivalence is not required.
 
+[A2 Site allocation](SITE_POPULATION_A2.md) distributes bounded regional requests
+using usable area, room count and Population density. Large structures use a 10%
+monster-vacancy choice independent of A1 exploration Loot. Existing world quotas
+and geography remain unchanged. Preview distinguishes actual requested Units from
+the global allowance, room omissions, placement/Alert rejection, budget/work
+limits and final meaningful content, including monster-free rewarded locations.
+
 Density primarily controls amount; Difficulty selects weighted existing compositions
 and supporting arrangements. Seeded region weights produce rich and quiet patches.
 The mixture includes occupied/vacant Sites, structured camps, small groups and lone
@@ -196,13 +205,15 @@ These are authoring resource policies, not new Engine rules. Shortfalls and role
 fallbacks appear in previews. Population leaves geometry unchanged, protects explicit
 world access, and permits deliberate combat chokepoint occupation.
 
-The optional `-OEmpty|Classic|Fun|Experimental|FarOut|All` suffix follows Population
-and precedes the seed. The UI explicitly selects a deck; omitted settings resolve to
-Empty. All presets, including All, use existing setup-only `PresetMultiplier` to
+The optional `-OEmpty|Classic|Fun|Experimental|FarOut|All` suffix follows Population,
+then `-LASparse|Standard|Plentiful`, Hero capacity and the seed. Omitted settings resolve to
+All and Standard. All presets, including All, use existing setup-only `PresetMultiplier` to
 provision complete copies for every marker plus expected initial drops. Relative
 card quantities are preserved. Empty produces no ordinary markers. Decks remain
-finite, with no runtime refill. Quick Play retains All, expands its temporary supply,
-and preserves all original markers and the retained Designer world.
+finite, with no runtime refill. Quick Play preserves the selected deck, exact supply,
+all original markers and the retained Designer world. Site rewards use final population
+occupancy and remain available when Population is Off. See [Loot Abundance A1](LOOT_ABUNDANCE_A1.md)
+for scaling, limits, spatial allocation and reproducible corpus commands.
 
 Preview diagnostics show role areas, composition, Groups/Orders, Dormant/Awake,
 initial token count, initial friendly Alert components, requested/placed occupation,
