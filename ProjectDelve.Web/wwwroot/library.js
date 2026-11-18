@@ -21,6 +21,7 @@ function showMode() {
   const browsing = ['home', 'scenarios', 'scenario', 'campaign'].includes(route.mode);
   globalThis.delveSetDesignerMode?.(route.mode === 'designer');
   $('library-main').hidden = !browsing;
+  $('expedition-main').hidden = route.mode !== 'expeditions';
   $('campaign-editor').hidden = route.mode !== 'campaigns-edit';
   $('designer-main').hidden = route.mode !== 'designer';
   $('content-browser').hidden = route.mode !== 'content';
@@ -28,9 +29,9 @@ function showMode() {
   $('playtest-tools').hidden = route.mode !== 'play';
   document.body.classList.toggle('designing', route.mode === 'designer');
   document.body.classList.toggle('playing', route.mode === 'play');
-  document.body.classList.toggle('browsing', browsing || route.mode === 'campaigns-edit' || route.mode === 'content');
+  document.body.classList.toggle('browsing', browsing || route.mode === 'expeditions' || route.mode === 'campaigns-edit' || route.mode === 'content');
   const activeMode = ['campaign', 'campaigns-edit'].includes(route.mode) ? 'home' : route.mode === 'scenario' ? 'scenarios' : route.mode;
-  for (const [id, mode] of [['home', 'home'], ['scenarios', 'scenarios'], ['designer', 'designer'], ['content', 'content'], ['playtest', 'play']]) $('mode-' + id).setAttribute('aria-pressed', String(activeMode === mode));
+  for (const [id, mode] of [['home', 'home'], ['scenarios', 'scenarios'], ['designer', 'designer'], ['content', 'content'], ['expeditions', 'expeditions'], ['playtest', 'play']]) $('mode-' + id).setAttribute('aria-pressed', String(activeMode === mode));
   document.title = `Project Delve${route.mode === 'designer' ? ' · Designer' : route.mode === 'content' ? ' · Content' : route.mode === 'play' ? ' · Play' : ''}`;
 }
 function navigate(mode, id) {
@@ -263,6 +264,11 @@ async function refresh() {
 async function applyRoute() {
   const sequence = ++routeSequence;
   const next = libraryRoute(location.hash);
+  if (route.mode === 'play' && next.mode !== 'play' && globalThis.delveLeaveExpedition) {
+    const allowed = await globalThis.delveLeaveExpedition();
+    if (sequence !== routeSequence) return;
+    if (!allowed) { history.replaceState(null, '', '#play'); return; }
+  }
   if (route.mode === 'content' && next.mode !== 'content') {
     const allowed = await contentBrowser.requestCloseEditor();
     if (sequence !== routeSequence) return;
@@ -272,10 +278,13 @@ async function applyRoute() {
     history.replaceState(null, '', '#' + route.mode + (route.id ? '/' + encodeURIComponent(route.id) : '')); return;
   }
   const moved = routeApplied && (route.mode !== next.mode || route.id !== next.id);
+  const openingExpedition = route.mode === 'expeditions' && next.mode === 'play';
   routeApplied = true;
   route = next; showMode(); $('library-search').value = '';
+  if (openingExpedition) globalThis.scrollTo?.(0, 0);
   const destination = location.hash;
-  if (route.mode === 'campaigns-edit') await editor.open(route.id);
+  if (route.mode === 'expeditions') await globalThis.delveShowExpeditions?.();
+  else if (route.mode === 'campaigns-edit') await editor.open(route.id);
   else if (route.mode === 'content') await contentBrowser.show();
   else if (['home', 'scenarios', 'scenario', 'campaign'].includes(route.mode)) {
     await refresh();
@@ -286,7 +295,7 @@ async function applyRoute() {
     }
   }
 }
-for (const [id, mode] of [['home', 'home'], ['scenarios', 'scenarios'], ['playtest', 'play'], ['designer', 'designer'], ['content', 'content']]) $('mode-' + id).addEventListener('click', () => navigate(mode));
+for (const [id, mode] of [['home', 'home'], ['scenarios', 'scenarios'], ['playtest', 'play'], ['designer', 'designer'], ['content', 'content'], ['expeditions', 'expeditions']]) $('mode-' + id).addEventListener('click', () => navigate(mode));
 $('library-search').addEventListener('input', render);
 globalThis.addEventListener('hashchange', applyRoute);
 globalThis.addEventListener('delve-designer-ready', showMode);

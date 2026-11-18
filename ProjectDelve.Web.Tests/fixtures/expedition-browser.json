@@ -1,0 +1,31 @@
+{
+  "steps": [
+    { "action": "resize", "width": 1440, "height": 960 },
+    { "action": "click", "target": "#mode-expeditions" },
+    { "action": "fill", "target": "#expedition-name", "value": "Seed 889 Journey" },
+    { "action": "fill", "target": "#expedition-seed", "value": "889" },
+    { "action": "select", "target": "#expedition-preset", "value": "Grassland" },
+    { "action": "screenshot", "name": "expedition-management-desktop.png" },
+    { "action": "click", "target": "#expedition-create" },
+    { "action": "click", "target": "#start-round" },
+    { "action": "click", "target": "#expedition-save" },
+    { "action": "hover", "target": "#expedition-bar[data-save-status='saved']" },
+    { "action": "snapshot", "target": "#expedition-bar", "name": "expedition-saved.yaml" },
+    { "action": "screenshot", "name": "expedition-table-desktop.png" },
+    { "action": "click", "target": "#expedition-switch" },
+    { "action": "resize", "width": 430, "height": 900 },
+    { "action": "snapshot", "target": "#expedition-list article", "name": "expedition-listed.yaml" },
+    { "action": "screenshot", "name": "expedition-management-narrow.png" },
+    { "action": "reload" },
+    { "action": "click", "target": "#expedition-list article button" },
+    { "action": "hover", "target": "#stay" },
+    { "action": "snapshot", "target": ".decision-strip", "name": "expedition-pending-resumed.yaml" },
+    { "action": "hover", "target": "#expedition-save" },
+    { "action": "screenshot", "name": "expedition-table-narrow.png" },
+    { "action": "click", "target": "#stay" },
+    { "action": "click", "target": "#expedition-save" },
+    { "action": "hover", "target": "#expedition-bar[data-save-status='saved']" },
+    { "action": "console" },
+    { "action": "requests" }
+  ]
+}

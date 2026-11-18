@@ -25,15 +25,16 @@ public sealed class PlayReadyGenerationException : InvalidOperationException
     internal PlayReadyGenerationException(WorldGenerationPlan plan, string stage, long revision, string detail,
         MandatoryRepairReport? repair = null, ImmutableArray<CompletionFailure> failures = default,
         WorldGenerationFailureKind? kind = null, Exception? inner = null, CompletionDiagnostic? completion = null)
-        : base($"WLD1 internal generation failure; seed {plan.World.Seed:X16}; stage {stage}; revision {revision}: {detail}", inner)
+        : base($"WLD1 internal generation failure; seed {plan.ExpeditionNature?.WorldSeed ?? plan.World.Seed:X16}; stage {stage}; revision {revision}: {detail}", inner)
     {
-        Seed = plan.World.Seed; Stage = stage; BoardRevision = revision; Repair = repair;
+        Seed = plan.ExpeditionNature?.WorldSeed ?? plan.World.Seed; Stage = stage; BoardRevision = revision; Repair = repair;
         Failures = failures.IsDefault ? [] : failures;
         FailureKind = kind ?? Classify(stage, repair, completion);
         DiagnosticsJson = JsonSerializer.Serialize(new { Repair = repair, Completion = completion, Failures, Detail = detail });
         ConfigurationJson = JsonSerializer.Serialize(new
         {
-            plan.World, plan.Window, plan.LootPreset,
+            plan.World, plan.Window, plan.LootPreset, plan.LootAbundance,
+            ExpeditionNature = plan.ExpeditionNature is { } nature ? new { nature.WorldSeed, nature.Profile } : null,
             Steps = plan.Steps.Select(s => new { s.Id, s.Kind, s.DependsOn,
                 Parameters = JsonSerializer.SerializeToElement(s.Parameters, s.Parameters.GetType()) })
         });

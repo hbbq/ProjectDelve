@@ -15,6 +15,11 @@ public sealed record GameCommand
     public string? ScenarioId { get; init; }
     public string? Transport { get; init; }
     public string? GenerationCode { get; init; }
+    public string? ExpeditionId { get; init; }
+    public string? ExpeditionName { get; init; }
+    public string? ExpeditionSeed { get; init; }
+    public string? ExpeditionRecipe { get; init; }
+    public string? TransitionId { get; init; }
     public Dictionary<string,string>? Controllers { get; init; }
     public List<ControllerSelection>? ControllerAssignments { get; init; }
     public bool? AutoChooseSingleRelevantChoice { get; init; }
@@ -36,3 +41,8 @@ internal sealed class GameSubscription(ChannelReader<GameUpdate> reader, Action 
     public ChannelReader<GameUpdate> Reader { get; } = reader;
     public void Dispose() => dispose();
 }
+
+// Public expedition status contains no hidden region geometry or generation plans.
+public sealed record ExpeditionPlayView(string Id, string Name, string Seed, ExpeditionRegion Region,
+    int CompletedRegions, DateTimeOffset SavedAt, int ExitCount, int ExitRequired,
+    string? TransitionId, bool HasUnsavedChanges);

@@ -1,0 +1,44 @@
+#expedition-main:not([hidden]) {
+  display: block;
+  width: min(62rem, 100%);
+  margin: 2rem auto;
+  padding: clamp(.75rem, 3vw, 1.5rem);
+}
+
+#expedition-main > p { max-width: 60ch; }
+.expedition-management-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem; margin-top: 1.5rem; }
+#expedition-new { display: grid; gap: 1rem; align-content: start; }
+#expedition-new label { display: grid; gap: .4rem; }
+#expedition-new input, #expedition-new textarea, #expedition-new select { min-width: 0; }
+#expedition-list article { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; padding: 1rem 0; border-bottom: 1px solid var(--line, #555); }
+#expedition-list strong { flex: 1 0 100%; overflow-wrap: anywhere; }
+#expedition-list small { flex: 1; }
+
+#expedition-bar:not([hidden]) {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem 1rem;
+  padding: .45rem .65rem;
+  border-bottom: 1px solid var(--line, #555);
+}
+#playtest-main:has(> #expedition-bar:not([hidden])) { grid-template-rows: 70px auto 52px minmax(0, 1fr) minmax(104px, auto); }
+#playtest-main:has(> #expedition-bar:not([hidden])) > .play-status { grid-row: 3; }
+#playtest-main:has(> #expedition-bar:not([hidden])) > :is(.board-area, .card-column) { grid-row: 4; }
+#playtest-main:has(> #expedition-bar:not([hidden])) > .decision-strip { grid-row: 5; }
+.expedition-table-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-left: auto; }
+#expedition-status, #expedition-table-status { white-space: pre-wrap; }
+#expedition-table-status { margin: 0; flex: 1 0 100%; }
+#expedition-status:empty, #expedition-table-status:empty { display: none; }
+
+@media (max-width: 760px) {
+  #playtest-main:has(> #expedition-bar:not([hidden])) { grid-template-rows: 60px auto 52px auto auto auto; }
+  #playtest-main:has(> #expedition-bar:not([hidden])) > .card-column { grid-row: 6; }
+}
+@media (max-width: 680px) {
+  #expedition-main:not([hidden]) { margin: .5rem auto; }
+  .expedition-management-grid { grid-template-columns: minmax(0, 1fr); }
+  .expedition-table-actions { margin-left: 0; }
+}

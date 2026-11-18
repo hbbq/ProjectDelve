@@ -8,20 +8,23 @@ internal static class CompletionCapabilities
     private const string Owner = "geographic-completion";
 
     internal static ConstructionCapabilities Capture(PlanningBoard board, IReadOnlyCollection<SiteInfo> sites,
-        IReadOnlySet<int> naturalCells, HeroDeployment deployment)
+        IReadOnlySet<int> naturalCells, HeroDeployment deployment, IReadOnlySet<int>? expeditionEndpoints = null)
     {
         var siteProtection = ConstructionProtections.FromSites(sites, board.Width);
         var deploymentCells = deployment.Area.Indices(board.Width).Append(deployment.DepartureIndex).ToHashSet();
         var protections = new ConstructionProtections(siteProtection.Cells.Concat(sites.SelectMany(site =>
                 site.Footprint.Indices(board.Width).Select(i => new ConstructionCellProtection(i, site.Id,
                     "Immutable published Site geometry", site.Id)))).Concat(deploymentCells.Select(i =>
-            new ConstructionCellProtection(i, "hero-deployment", "Immutable Hero deployment and departure", "hero-deployment"))).ToArray(),
+            new ConstructionCellProtection(i, "hero-deployment", "Immutable Hero deployment and departure", "hero-deployment")))
+            .Concat((expeditionEndpoints ?? new HashSet<int>()).Select(i => new ConstructionCellProtection(i,
+                "expedition/endpoints", "Immutable Expedition landing and exit", "expedition/endpoints"))).ToArray(),
             siteProtection.Edges);
         var protectedCells = protections.Cells.Select(p => p.Index).ToHashSet();
         var grants = new Dictionary<string, GrantBuilder>(StringComparer.Ordinal);
         var interfaces = new List<ConstructionInterface>();
         var knownOwners = sites.Select(s => s.Id).Concat(sites.SelectMany(s => s.Buildings.Select(b => b.Id)))
             .Append("hero-deployment").ToHashSet(StringComparer.Ordinal);
+        if (expeditionEndpoints is not null) knownOwners.Add("expedition/endpoints");
         // Unpublished reservation metadata cannot certify exhaustive legal interfaces, even when
         // the currently selected conversions happen not to touch that owner's boundary.
         var interfacesComplete = board.State.Reservations.Values.All(owner =>
@@ -106,6 +109,8 @@ internal static class CompletionCapabilities
         }
         // Spawn protection forbids writes, while all its boundary land remains an explicit read-only contact.
         DeclareContacts("hero-deployment", deploymentCells.Where(i => Reservation(i) == "hero-deployment"));
+        if (expeditionEndpoints is not null)
+            DeclareContacts("expedition/endpoints", expeditionEndpoints.Where(i => Reservation(i) == "expedition/endpoints"));
         var publishedGrants = grants.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p =>
             new RouteAccessGrant(p.Key, p.Value.Traverse.Order().ToArray(), p.Value.Writable.Order().ToArray(),
                 p.Value.Edges.OrderBy(e => e.Index).ThenBy(e => e.Direction).ToArray())).ToArray();

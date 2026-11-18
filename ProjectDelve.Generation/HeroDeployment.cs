@@ -49,7 +49,7 @@ internal static class HeroDeploymentPlanner
         })).Where(c => c.After.Length > 0).ToImmutableArray();
 
     internal static HeroDeploymentResult Establish(PlanningBoard board, HeroDeploymentSettings settings,
-        ulong seed, IEnumerable<ConstructionConversion> conversions)
+        ulong seed, IEnumerable<ConstructionConversion> conversions, IReadOnlySet<int>? allowedCells = null)
     {
         settings.ValidateDimensions(board.Width, board.Height);
         var work = 0;
@@ -93,7 +93,7 @@ internal static class HeroDeploymentPlanner
             var labels = Enumerable.Repeat(-1, n).ToArray(); var sizes = new List<int>();
             for (var i = 0; i < n; i++)
             {
-                Spend(); free[i] = !occupied.Contains(i) && !board.IsReserved(i) && !board.IsRouteCorridor(i) &&
+                Spend(); free[i] = (allowedCells is null || allowedCells.Contains(i)) && !occupied.Contains(i) && !board.IsReserved(i) && !board.IsRouteCorridor(i) &&
                     analysis.CanStop(Single, Cell(i));
             }
             for (var i = 0; i < n; i++)

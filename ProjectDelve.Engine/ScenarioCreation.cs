@@ -209,7 +209,9 @@ internal static class ScenarioCreation
                 : WorldCards.CreateDeck(state.WorldEffects, state.WorldCardDefinitions);
         }
         catch (ArgumentException error) { throw ScenarioValidationContext.At(error, "worldEffects.composition"); }
-        state.LootDeck.DrawPile = (definition.Loot ?? new LootSettings()).ResolveObjects(state.LootCardDefinitions);
+        var reservedObjectIds = definition.Units.SelectMany(unit => unit.Inventory ?? []).OfType<OwnedObject>().Select(obj => obj.Id)
+            .Concat((definition.GroundObjects ?? []).OfType<GroundObject>().Select(ground => ground.Object).OfType<OwnedObject>().Select(obj => obj.Id));
+        state.LootDeck.DrawPile = (definition.Loot ?? new LootSettings()).ResolveObjects(state.LootCardDefinitions, reservedObjectIds);
         for (var index = 0; index < (definition.Resources?.Count ?? 0); index++)
         {
             try

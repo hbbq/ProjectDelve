@@ -20,6 +20,7 @@ internal sealed class CompletionGuard
     private readonly HeroDeployment deployment;
     private readonly ImmutableHashSet<int> naturalCells;
     private readonly int workBudget;
+    private readonly IReadOnlySet<int>? expeditionEndpoints;
     private CompletionWitness? witness;
     private ImmutableHashSet<string> interactiveIds = ImmutableHashSet<string>.Empty.WithComparer(StringComparer.Ordinal);
     private long placementRevision = -1;
@@ -31,7 +32,7 @@ internal sealed class CompletionGuard
     internal IReadOnlyList<CompletionDiagnostic> Diagnostics => diagnostics.AsReadOnly();
     internal CompletionWitness? Witness => witness;
     internal HeroDeployment Deployment => deployment;
-    internal ConstructionCapabilities CaptureCapabilities() => CompletionCapabilities.Capture(source, Sites, naturalCells, deployment);
+    internal ConstructionCapabilities CaptureCapabilities() => CompletionCapabilities.Capture(source, Sites, naturalCells, deployment, expeditionEndpoints);
 
     // Late nonblocking content must stay in the real, repaired region. The potential
     // domain remains available to Phase 2 standalone authoring before repair runs.
@@ -70,7 +71,7 @@ internal sealed class CompletionGuard
             placementRevision = source.Revision;
             return placementDomain;
         }
-        var capabilities = CompletionCapabilities.Capture(source, Sites, naturalCells, deployment);
+        var capabilities = CompletionCapabilities.Capture(source, Sites, naturalCells, deployment, expeditionEndpoints);
         var proof = ConstructionConnectivity.Explore(capabilities, [deployment.PlacementOrder[0]], workBudget);
         if (proof.Status != ConstructionProofStatus.Found || !proof.RegionComplete)
             throw new InvalidOperationException($"Interactive placement domain {proof.Status}: {proof.Detail}");
@@ -78,12 +79,14 @@ internal sealed class CompletionGuard
         return placementDomain;
     }
 
-    internal CompletionGuard(PlanningBoard board, HeroDeployment deployment, IEnumerable<int> naturalCells, int workBudget = 2_000_000)
+    internal CompletionGuard(PlanningBoard board, HeroDeployment deployment, IEnumerable<int> naturalCells, int workBudget = 2_000_000,
+        IEnumerable<RequiredLocation>? initialLocations = null, IReadOnlySet<int>? expeditionEndpoints = null)
     {
         if (workBudget < 0) throw new ArgumentException("Completion work budget must be nonnegative.");
         source = board; this.deployment = deployment; this.naturalCells = naturalCells.ToImmutableHashSet(); this.workBudget = workBudget;
+        this.expeditionEndpoints = expeditionEndpoints;
         foreach (var index in this.naturalCells) board.CheckIndex(index);
-        Registry = RequiredLocationRegistry.Create([], board.Width, board.Height);
+        Registry = RequiredLocationRegistry.Create(initialLocations ?? [], board.Width, board.Height);
     }
 
     internal CompletionEvaluation Check(PlanningBoard candidate, string candidateId, string producerId,
@@ -105,7 +108,7 @@ internal sealed class CompletionGuard
         var state = GameEngine.CreateGame(candidate.Export(), candidate.Provider);
         if (HeroDeploymentPlanner.Validate(state, deployment) is { } invalid)
             return Fail(CompletionStatus.Error, "Protected deployment invariant: " + invalid);
-        var capabilities = CompletionCapabilities.Capture(candidate, sites, naturalCells, deployment);
+        var capabilities = CompletionCapabilities.Capture(candidate, sites, naturalCells, deployment, expeditionEndpoints);
         if (capabilities.Error is { } capabilityError) return Fail(CompletionStatus.Error, capabilityError, capabilities: capabilities);
         foreach (var site in newSites ?? []) registry = registry.Merge(RequiredLocations.ForSite(site, producerId, capabilities.MaximalBoard));
 
@@ -208,7 +211,8 @@ internal sealed class CompletionGuard
     private string? ProtectedChange(PlanningBoard candidate)
     {
         var protectedCells = Sites.SelectMany(s => s.Footprint.Indices(source.Width))
-            .Concat(deployment.Area.Indices(source.Width)).Append(deployment.DepartureIndex).ToHashSet();
+            .Concat(deployment.Area.Indices(source.Width)).Append(deployment.DepartureIndex)
+            .Concat(expeditionEndpoints ?? new HashSet<int>()).ToHashSet();
         foreach (var i in protectedCells)
         {
             if (candidate.TerrainAt(i) != source.TerrainAt(i) || candidate.State.Reservations.GetValueOrDefault(i) != source.State.Reservations.GetValueOrDefault(i))

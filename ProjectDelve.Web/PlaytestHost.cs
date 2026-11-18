@@ -14,7 +14,8 @@ public static class PlaytestHost
 
     internal static WebApplication Build(string[] args, IRandomProvider? random, GameState? initialState,
         Func<ExternalDecisionContext, CancellationToken, Task<string?>>? external = null, int replayCapacity = 256,
-        Func<ExternalDecisionContext, CancellationToken, Task<ExternalDecisionSelection>>? externalSelection = null)
+        Func<ExternalDecisionContext, CancellationToken, Task<ExternalDecisionSelection>>? externalSelection = null,
+        ExpeditionCatalog? expeditionCatalog = null)
     {
         var builder = WebApplication.CreateBuilder(args);
         var limits = new AuthoringLimits(builder.Configuration.GetValue<int?>("Authoring:MaxBoardSize") ?? AuthoringLimits.SupportedMaxBoardSize);
@@ -43,8 +44,13 @@ public static class PlaytestHost
             ?? Path.Combine(builder.Environment.ContentRootPath, "Content", "Library");
         builder.Services.AddSingleton(_ => new ScenarioLibrary(libraryPath, bundledLibraryPath, contentProvider: () => workspace.Resolve().Definitions, authoringLimits: limits));
         builder.Services.AddSingleton(_ => new LibraryCoverStore(libraryPath, bundledLibraryPath));
-        builder.Services.AddSingleton<PlaytestGame>(_ => new PlaytestGame(randomProvider,
-            initialState ?? GameEngine.CreateGame(PlaytestScenarios.Definition(PlaytestScenarios.DefaultId), workspace.Resolve().Definitions), external, replayCapacity, externalSelection, canonicalProvider: () => workspace.Resolve().Definitions, authoringLimits: limits));
+        var expeditionPath = builder.Configuration["Expeditions:Path"]
+            ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "expeditions");
+        builder.Services.AddSingleton(services => expeditionCatalog ?? new ExpeditionCatalog(expeditionPath,
+            () => workspace.Resolve().Definitions, services.GetRequiredService<ILogger<ExpeditionCatalog>>()));
+        builder.Services.AddSingleton<PlaytestGame>(services => new PlaytestGame(randomProvider,
+            initialState ?? GameEngine.CreateGame(PlaytestScenarios.Definition(PlaytestScenarios.DefaultId), workspace.Resolve().Definitions), external, replayCapacity, externalSelection, canonicalProvider: () => workspace.Resolve().Definitions, authoringLimits: limits,
+            expeditions: services.GetRequiredService<ExpeditionCatalog>(), logger: services.GetRequiredService<ILogger<PlaytestGame>>()));
         var app = builder.Build();
         app.Lifetime.ApplicationStopping.Register(app.Services.GetRequiredService<PlaytestGame>().Dispose);
         app.UseDefaultFiles();
@@ -69,6 +75,16 @@ public static class PlaytestHost
         LibraryCoverApi.Map(app);
         GenerationApi.Map(app);
         WorldGenerationApi.Map(app);
+        app.MapGet("/api/expeditions", (HttpContext context, ExpeditionCatalog expeditions) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            try { return Results.Ok(expeditions.List()); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+            {
+                ExpeditionDiagnostics.LogFailure(app.Logger, LogLevel.Error, error, "Could not read the Expedition catalog.");
+                return Results.Problem("Could not read saved Expeditions. Check the Expedition storage location and try again.", statusCode: 503);
+            }
+        });
         app.MapGet("/api/game", (PlaytestGame game, HttpContext context) =>
         {
             context.Response.Headers.CacheControl = "no-store";
@@ -214,6 +230,8 @@ public sealed record GameResponse(long Revision, EngineResult Result, bool AutoC
             PresentationOverride = null;
         }
     }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ExpeditionPlayView? Expedition { get; init; }
     public string? GenerationCode { get; init; }
     // Presentation metadata, persisted with detached responses, independent of session/RNG.
     public string? VisualSeed { get; init; }

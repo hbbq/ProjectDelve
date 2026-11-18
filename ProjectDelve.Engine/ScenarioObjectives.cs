@@ -23,6 +23,18 @@ public static partial class GameEngine
 
     private static bool SelectedObjectiveAchieved(GameState state, SideObjective objective)
     {
+        var (selected, qualified) = SelectedObjectiveProgress(state, objective);
+        return selected > 0 && qualified >= (objective.Count == 0 ? selected : objective.Count);
+    }
+
+    /// <summary>Reports progress for Reach Area or Defeat Units using the same selectors and legality as evaluation.</summary>
+    public static int ObjectiveQualifiedCount(GameState state, SideObjective objective) =>
+        SelectedObjectiveProgress(state, objective).Qualified;
+
+    private static (int Selected, int Qualified) SelectedObjectiveProgress(GameState state, SideObjective objective)
+    {
+        if (objective.Objective is not (ScenarioObjective.ReachArea or ScenarioObjective.DefeatUnits))
+            throw new ArgumentException("Progress counts require a Reach Area or Defeat Units objective.", nameof(objective));
         var ids = new HashSet<string>(StringComparer.Ordinal);
         foreach (var selector in objective.Selectors)
         {
@@ -37,7 +49,6 @@ public static partial class GameEngine
             };
             ids.UnionWith(selected);
         }
-        if (ids.Count == 0) return false;
         bool Qualifies(string id)
         {
             if (objective.Objective == ScenarioObjective.DefeatUnits) return state.DefeatedUnitIds.Contains(id);
@@ -51,7 +62,7 @@ public static partial class GameEngine
                 .All(cell => cell.X >= area.X && cell.Y >= area.Y &&
                              (long)cell.X < (long)area.X + area.W && (long)cell.Y < (long)area.Y + area.H);
         }
-        return objective.Count == 0 ? ids.All(Qualifies) : ids.Count(Qualifies) >= objective.Count;
+        return (ids.Count, ids.Count(Qualifies));
     }
 
     private static void EvaluateObjectives(GameState state, ResolutionEvents events)

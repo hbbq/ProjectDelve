@@ -153,18 +153,18 @@ internal static class MandatoryConnectivityRepair
         }
     }
 
-    internal static ImmutableHashSet<int> ActualReachable(Board board, IEnumerable<int> roots)
+    internal static ImmutableHashSet<int> ActualReachable(Board board, IEnumerable<int> roots, IReadOnlySet<int>? blocked = null)
     {
         var potential = AccessibilityAnalysis.Capture(board with { Edges = board.Edges.Select(e =>
             e.Kind == EdgeKind.ClosedDoor ? e with { Kind = EdgeKind.OpenDoor } : e).ToList() });
         Cell Cell(int i) => new(i % board.Width, i / board.Width);
         var reached = new HashSet<int>(); var queue = new Queue<int>();
         foreach (var root in roots.Distinct().Order())
-            if (root >= 0 && root < board.Width * board.Height && potential.CanStop(ConstructionCapabilities.OrdinaryLand, Cell(root)) && reached.Add(root))
+            if (root >= 0 && root < board.Width * board.Height && blocked?.Contains(root) != true && potential.CanStop(ConstructionCapabilities.OrdinaryLand, Cell(root)) && reached.Add(root))
                 queue.Enqueue(root);
         while (queue.TryDequeue(out var current))
         foreach (var next in PlanningBoard.Adjacent(current, board.Width, board.Height).Order())
-            if (!reached.Contains(next) && potential.CanStep(ConstructionCapabilities.OrdinaryLand, Cell(current), Cell(next)))
+            if (!reached.Contains(next) && blocked?.Contains(next) != true && potential.CanStep(ConstructionCapabilities.OrdinaryLand, Cell(current), Cell(next)))
             { reached.Add(next); queue.Enqueue(next); }
         return reached.ToImmutableHashSet();
     }

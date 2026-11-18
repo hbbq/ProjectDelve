@@ -257,3 +257,18 @@ test('campaign banner shows authored public story while numbered rows retain sou
   assert.match(h.get('library-cards').textContent, /BEFORE YOU BEGIN/);
   assert.deepEqual(h.calls.map(c => c.url), ['/api/library', '/api/library']);
 });
+test('Expedition management route is separate and leaving the table waits for a successful save', async () => {
+  const h = harness('#play'); await h.run('applyRoute()');
+  let resolve;
+  h.context.delveLeaveExpedition = () => new Promise(r => resolve = r);
+  h.context.delveShowExpeditions = async () => {};
+  h.location.hash = '#expeditions'; const pending = h.run('applyRoute()');
+  assert.equal(h.get('playtest-main').hidden, false);
+  resolve(false); await pending;
+  assert.equal(h.location.hash, '#play'); assert.equal(h.get('playtest-main').hidden, false);
+  h.context.delveLeaveExpedition = async () => true;
+  h.location.hash = '#expeditions'; await h.run('applyRoute()');
+  assert.equal(h.get('expedition-main').hidden, false);
+  assert.equal(h.get('playtest-main').hidden, true);
+  assert.equal(h.get('mode-expeditions').attributes['aria-pressed'], 'true');
+});

@@ -9,6 +9,7 @@ import { loadUnitVisualCatalog } from "./unit-visuals.js";
 import { loadPresentationProfiles } from "./presentation-profiles.js";
 import { cursorSize, setCursorSize, loadCursorAssets, onCursorPresentationChange } from "./presentation-cursors.js";
 import { advanceChoices, bindAdvanceControls } from "./primary-advance.js";
+import { mountExpeditions } from "./expedition.js";
 const unitFacing = createUnitFacing();
 
 const ui = Object.fromEntries(["game-setup", "scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context", "world-effects", "objectives", "orders", "game-result", "commentary-toggle", "commentary-panel", "commentary-context", "commentary-text", "decision-commentary", "side-controllers", "controller-status", "controller-retry", "controller-cancel"]
@@ -120,11 +121,13 @@ function renderSessionHeading() {
   const title = document.getElementById("session-title");
   const back = document.getElementById("session-return");
   if (!title || !back) return;
-  title.textContent = playContext?.title ?? (snapshot?.generationCode ? (snapshot.generationCode.startsWith("DNG2-OS-") ? "Overgrown Stronghold" : "Generated dungeon")
+  const mode = document.getElementById("session-mode");
+  if (mode) mode.textContent = snapshot?.expedition ? "EXPEDITION" : "PROJECT DELVE";
+  title.textContent = snapshot?.expedition?.name ?? playContext?.title ?? (snapshot?.generationCode ? (snapshot.generationCode.startsWith("DNG2-OS-") ? "Overgrown Stronghold" : "Generated dungeon")
     : snapshot?.scenarios?.find(scenario => scenario.id === snapshot.scenarioId)?.name
       ?? (snapshot?.scenarioId === "imported" ? "Imported scenario" : "Current game"));
-  back.textContent = playContext?.returnLabel ?? "Back to scenarios";
-  back.href = playContext?.returnHash ?? "#scenarios";
+  back.textContent = snapshot?.expedition ? "Saved Expeditions" : playContext?.returnLabel ?? "Back to scenarios";
+  back.href = snapshot?.expedition ? "#expeditions" : playContext?.returnHash ?? "#scenarios";
 }
 let queuedScenario;
 let renderedScenarioId;
@@ -250,6 +253,9 @@ let pendingCommandId;
 let postInFlight = false;
 let postingCommandId;
 let pendingReplacement;
+let pendingExpedition;
+let expeditionCommandError = "";
+let expeditionUI;
 let streamConnected = false;
 let commandNumber = 0;
 const playbackQueue = [];
@@ -1279,6 +1285,7 @@ function renderBoardChoiceList(host, decision) {
 
 function renderSnapshot() {
   renderSessionHeading();
+  expeditionUI?.update();
   if (selectedActionDecision !== snapshot?.presentation.decision ||
       !snapshot?.presentation.decision?.candidates.some(candidate => visibleChoice(candidate) && actionKey(candidate) === selectedActionKey)) {
     selectedActionKey = null; selectedActionDecision = null;
@@ -1312,7 +1319,10 @@ function renderSnapshot() {
   renderState(state, false);
   ui.auto.checked = snapshot.autoChooseSingleRelevantChoice;
   const decision = snapshot.presentation.decision;
-  ui.prompt.textContent = state.completion ? "Game over. Restart or choose a scenario to play again." : decision ? decision.roll ? rollLabel(decision.roll) : decision.displayPrompt ?? decision.prompt : state.roundComplete ? "Round complete. Start the next round when ready." : "Start the first round.";
+  const completionPrompt = snapshot?.expedition?.transitionId
+    ? "Continue Expedition when you are ready for the next region."
+    : "Game over. Restart or choose a scenario to play again.";
+  ui.prompt.textContent = state.completion ? completionPrompt : decision ? decision.roll ? rollLabel(decision.roll) : decision.displayPrompt ?? decision.prompt : state.roundComplete ? "Round complete. Start the next round when ready." : "Start the first round.";
   const selected = selectedActionKey === null ? null : actionGroups(decision).find(group => group.key === selectedActionKey);
   if (selected) ui.prompt.textContent = `Choose an option for ${selected.name}.`;
   ui["board-hint"].textContent = ui.prompt.textContent;
@@ -1477,6 +1487,12 @@ function updateControls() {
     if (latestUpdate.status === "resolving") ui.prompt.textContent = "Game resolving.";
     if (latestUpdate.status === "faulted") ui.prompt.textContent = "Game progression stopped after an error.";
   }
+  expeditionUI?.update();
+  const continueExpedition = document.getElementById("result-continue-expedition");
+  if (continueExpedition) {
+    continueExpedition.disabled = busy;
+    continueExpedition.textContent = document.getElementById("expedition-continue")?.textContent || "Continue Expedition";
+  }
   if (busy) clearAffectedPreview();
   ui.board.dataset.busy = String(busy);
   if (cameraViewport) cameraViewport.dataset.busy = String(busy);
@@ -1484,12 +1500,13 @@ function updateControls() {
   ui["board-hint"].textContent = busy && playbackRunning ? "Playing out the action…" : ui.prompt.textContent;
   ui["board-hint"].dataset.busy = String(busy);
   const phase = document.getElementById("decision-state");
-  if (phase) phase.textContent = snapshot?.result.state.completion ? "ADVENTURE COMPLETE"
+  if (phase) phase.textContent = snapshot?.result.state.completion ? (snapshot.expedition?.transitionId ? "REGION COMPLETE" : "ADVENTURE COMPLETE")
     : busy ? "AT THE TABLE" : snapshot?.presentation.decision?.roll ? "YOUR ROLL"
     : snapshot?.presentation.decision ? "YOUR DECISION" : "READY WHEN YOU ARE";
   ui.scenario.disabled = !snapshot;
   ui["start-scenario"].disabled = !snapshot;
-  ui["restart-scenario"].disabled = !snapshot;
+  ui["restart-scenario"].hidden = !!snapshot?.expedition;
+  ui["restart-scenario"].disabled = !snapshot || !!snapshot.expedition;
   ui["import-scenario"].disabled = !snapshot;
   ui.refresh.disabled = busy;
   ui.filter.disabled = busy || !snapshot;
@@ -1541,6 +1558,7 @@ function connectUpdates() {
     if (source !== updateSource) return;
     streamConnected = false; updateControls();
     ui.error.textContent = "Connection interrupted. Reconnecting to the game.";
+    if (pendingExpedition) { const pending = pendingExpedition; pendingExpedition = null; pending.resolve(false); }
     // The same EventSource retains Last-Event-ID during automatic reconnect.
   };
 }
@@ -1561,9 +1579,14 @@ function cancelPlayback() {
 function receiveUpdate(update) {
   if (!Number.isSafeInteger(update.sequence) || !update.sessionId || !update.snapshot) throw new Error("Invalid game update.");
   const sameSession = latestUpdate?.sessionId === update.sessionId;
+  if (pendingExpedition && pendingExpedition.commandId === update.commandId && ["baseline", "boundary", "error", "fault"].includes(update.kind)) {
+    const pending = pendingExpedition; pendingExpedition = null;
+    expeditionCommandError = update.error ?? "";
+    pending.resolve(!update.error && !["error", "fault"].includes(update.kind));
+  }
   if (sameSession && (update.sequence < receivedSequence || (update.sequence === receivedSequence && update.kind !== "baseline"))) return;
   streamConnected = true;
-  if (update.kind === "baseline" || (update.commandId === pendingCommandId && ["boundary", "fault"].includes(update.kind))) {
+  if (update.kind === "baseline" || (update.commandId === pendingCommandId && ["boundary", "fault", "error"].includes(update.kind))) {
     commandPending = false; pendingCommandId = null;
   }
   if (update.kind === "baseline" || (update.kind === "fault" && sameSession && update.sequence === receivedSequence + 1)) {
@@ -1642,13 +1665,19 @@ function flushQueuedScenario() {
 }
 
 async function sendCommand(operation, body) {
-  const replacement = ["scenario", "scenario/import", "restart"].includes(operation);
-  if (!latestUpdate || postInFlight || (commandPending && !replacement) || !streamConnected) return false;
+  const expeditionOperation = operation.startsWith("expedition/");
+  const replacement = ["scenario", "scenario/import", "restart", "expedition/create", "expedition/resume", "expedition/continue", "expedition/leave"].includes(operation);
+  if (!latestUpdate || postInFlight || pendingExpedition || (commandPending && !replacement) || !streamConnected) return false;
   if (!replacement && busy && !(["controller/retry", "controller/cancel"].includes(operation) && controllerOperationReady())) return false;
+  if (expeditionOperation && busy) return false;
   const checkpoint = latestUpdate;
   const commandId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}-${++commandNumber}`;
   let completion;
-  if (replacement) completion = new Promise(resolve => { pendingReplacement = { commandId, sessionId: checkpoint.sessionId, resolve }; });
+  if (expeditionOperation) {
+    expeditionCommandError = "";
+    completion = new Promise(resolve => { pendingExpedition = { commandId, resolve }; });
+  }
+  else if (replacement) completion = new Promise(resolve => { pendingReplacement = { commandId, sessionId: checkpoint.sessionId, resolve }; });
   pendingCommandId = commandId;
   postInFlight = true; postingCommandId = commandId;
   commandPending = true; updateControls(); ui.error.textContent = "";
@@ -1660,6 +1689,8 @@ async function sendCommand(operation, body) {
     flushQueuedScenario();
     return completion ? await completion : true;
   } catch (error) {
+    if (expeditionOperation) expeditionCommandError = error.message;
+    if (pendingExpedition?.commandId === commandId) { pendingExpedition.resolve(false); pendingExpedition = null; }
     if (pendingReplacement?.commandId === commandId) {
       pendingReplacement.resolve(false); pendingReplacement = null;
     }
@@ -2048,9 +2079,14 @@ function renderTurn(state) {
   result.replaceChildren();
   if (completion) {
     const sides = completion.achievedSideIds;
-    result.append(text("span", "THE ADVENTURE CONCLUDES"));
-    result.append(text("h2", sides.length === 1 ? `Victory: ${sides[0]}` : "Simultaneous victory"));
-    result.append(text("p", `Game over. ${sides.join(", ")} ${sides.length === 1 ? "achieved its Objective." : "each achieved their Objective."}`));
+    if (snapshot?.expedition?.transitionId) {
+      result.append(text("h2", "Region complete"));
+      result.append(text("p", "The original Heroes reached the exit. Continue when you are ready to travel to the next region."));
+    } else {
+      result.append(text("span", "THE ADVENTURE CONCLUDES"));
+      result.append(text("h2", sides.length === 1 ? `Victory: ${sides[0]}` : "Simultaneous victory"));
+      result.append(text("p", `Game over. ${sides.join(", ")} ${sides.length === 1 ? "achieved its Objective." : "each achieved their Objective."}`));
+    }
     const actions = text("div", ""); actions.className = "result-actions toolbar";
     const replay = text("button", "Play again"); replay.id = "result-replay";
     replay.addEventListener("click", async () => {
@@ -2062,7 +2098,15 @@ function renderTurn(state) {
     back.className = "library-button"; back.href = playContext?.returnHash ?? "#scenarios";
     const inspect = text("button", "Inspect final board"); inspect.id = "result-inspect";
     inspect.addEventListener("click", () => { dismissedResultSession = snapshot?.sessionId; result.hidden = true; showResult?.focus(); });
-    actions.append(replay, back, inspect); result.append(actions);
+    if (snapshot?.expedition) {
+      if (snapshot.expedition.transitionId) {
+        const next = text("button", "Continue Expedition"); next.id = "result-continue-expedition";
+        next.addEventListener("click", () => document.getElementById("expedition-continue")?.click());
+        next.disabled = busy; actions.append(next);
+      }
+      back.textContent = "Saved Expeditions"; back.href = "#expeditions"; actions.append(back, inspect);
+    } else actions.append(replay, back, inspect);
+    result.append(actions);
   }
   ui.objectives.replaceChildren(text("h2", "Side objectives"));
   for (const objective of snapshot?.presentation.objectives ?? []) {
@@ -2072,7 +2116,8 @@ function renderTurn(state) {
     if (completion) row.append(text("strong", completion.achievedSideIds.includes(objective.sideId) ? " - Achieved" : " - Not achieved"));
     ui.objectives.append(row);
   }
-  ui.status.textContent = `Round ${state.round} \u00b7 ${state.completion ? "Game over" : state.round === 0 ? "Ready" : state.roundComplete ? "Complete" : "In play"}`;
+  const completedStatus = snapshot?.expedition?.transitionId ? "Region complete" : "Game over";
+  ui.status.textContent = `Round ${state.round} \u00b7 ${state.completion ? completedStatus : state.round === 0 ? "Ready" : state.roundComplete ? "Complete" : "In play"}`;
   ui["bag-count"].textContent = `Activation Bag · ${(state.bag ?? []).length} remaining`;
   ui.bag.replaceChildren(text("small", `Activation Bag \u00b7 ${(state.bag ?? []).length} remaining. Membership only; future draw order is unknown.`));
   if (snapshot.presentation.viewingSideId) {
@@ -2404,4 +2449,5 @@ function refreshActiveCursor() {
 onCursorPresentationChange(refreshActiveCursor);
 void loadCursorAssets();
 void loadPresentationProfiles().then(refreshActiveCursor);
+expeditionUI = mountExpeditions({ command: sendCommand, getSnapshot: () => snapshot, ready: () => !busy && streaming && streamConnected && !!latestUpdate, errorMessage: () => expeditionCommandError || ui.error.textContent });
 await refresh();

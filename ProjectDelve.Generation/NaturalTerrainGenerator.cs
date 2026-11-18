@@ -206,6 +206,20 @@ public sealed partial class WorldGenerationContext
         for (var y = 0; y < Window.Height; y++)
         for (var x = 0; x < Window.Width; x++)
             Samples[y * Window.Width + x] = sampler.Sample(Window.OffsetX + x, Window.OffsetY + y, features);
+        FinishNaturalSampling();
+    }
+
+    internal void SampleExpeditionNature(ExpeditionNatureSampler sampler, ContentBundle content)
+    {
+        sampler.ValidateTerrain(content);
+        for (var y = 0; y < Window.Height; y++)
+        for (var x = 0; x < Window.Width; x++)
+            Samples[y * Window.Width + x] = sampler.Sample(checked(Window.OffsetX + x), checked(Window.OffsetY + y));
+        FinishNaturalSampling();
+    }
+
+    private void FinishNaturalSampling()
+    {
         sampled = true;
         OriginalSamples = (NaturalTerrainSample[])Samples.Clone();
     }

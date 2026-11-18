@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="board-enhanced.css">
   <link rel="stylesheet" href="three-viewport.css">
   <link rel="stylesheet" href="library.css">
+  <link rel="stylesheet" href="expedition.css">
   <link rel="stylesheet" href="campaign-editor.css">
   <link rel="stylesheet" href="experience.css">
   <link rel="stylesheet" href="combat-sheet.css">
@@ -29,11 +30,13 @@
     <button id="mode-scenarios" aria-pressed="false">Scenarios</button>
     <button id="mode-playtest" aria-pressed="false">Current game</button>
     <button id="mode-designer" aria-pressed="false">Designer</button>
+    <button id="mode-expeditions" aria-pressed="false">Expeditions</button>
     <button id="mode-content" aria-pressed="false">Content</button>
     <button id="open-generator" data-open-generator>Dungeon generator</button>
     <button id="open-world-generator" data-open-world-generator>World Generator</button>
   </nav>
   </header>
+  <main id="expedition-main" hidden aria-label="Expeditions"></main>
   <main id="library-main" aria-label="Campaigns and scenarios">
     <section class="library-hero"><span class="library-eyebrow">A WORLD AT YOUR TABLE</span><h2>Your next adventure</h2><p>Choose a campaign, explore a dungeon, or create a world of your own.</p><div class="toolbar"><a class="library-button library-primary" href="#scenarios">Browse scenarios →</a><a class="library-button" href="#designer">Create a scenario</a></div></section>
     <section class="library-content"><div class="library-heading"><div><p id="library-breadcrumb" class="library-eyebrow"></p><h2 id="library-title">Campaigns</h2></div><div class="toolbar"><a class="library-button" href="#scenarios">All scenarios</a><a class="library-button" href="#campaigns-edit">Create campaign</a></div></div><p id="library-description"></p><label class="library-search" for="library-search">Find by name <input id="library-search" type="search" placeholder="Search this collection"></label><p id="library-status" role="status" aria-live="polite"></p><div id="library-cards" class="library-grid"></div><details id="library-hidden" hidden></details></section>
@@ -139,9 +142,10 @@
   <main id="playtest-main" hidden>
     <section class="session-heading" aria-label="Current scenario">
       <button id="open-game-menu" aria-haspopup="dialog" aria-controls="game-menu"><span aria-hidden="true">◇</span> Menu</button>
-      <div><span class="library-eyebrow">PROJECT DELVE</span><h2 id="session-title">Current game</h2></div>
+      <div><span id="session-mode" class="library-eyebrow">PROJECT DELVE</span><h2 id="session-title">Current game</h2></div>
       <button id="show-result" hidden>View result</button>
     </section>
+    <section id="expedition-bar" hidden aria-label="Current Expedition"></section>
     <section class="play-status" aria-label="Current play status">
       <p id="status" aria-live="polite">Loading...</p>
       <div id="active-token"></div><div id="active-unit"></div>

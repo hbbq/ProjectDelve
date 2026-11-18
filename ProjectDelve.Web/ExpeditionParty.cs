@@ -1,0 +1,161 @@
+using System.Collections.Immutable;
+using System.Text.Json;
+using ProjectDelve.Engine;
+using ProjectDelve.Generation;
+
+namespace ProjectDelve.Web;
+
+internal sealed record ExpeditionHero(string InstanceId, string TypeId);
+
+// A handoff declares a new ordinary Scenario. Only the original roster and its
+// actually owned physical objects cross the boundary; no resolution state does.
+internal static class ExpeditionParty
+{
+    internal const string SideId = HeroesVsMonsters.Heroes;
+    private const string GroupId = "expedition-originals";
+    internal static IReadOnlyList<ExpeditionHero> Originals { get; } = ImmutableArray.Create(
+        new ExpeditionHero("expedition-barbarian", UnitTypeIds.Barbarian),
+        new ExpeditionHero("expedition-rogue", UnitTypeIds.Rogue),
+        new ExpeditionHero("expedition-wizard", UnitTypeIds.Wizard),
+        new ExpeditionHero("expedition-cleric", UnitTypeIds.Cleric),
+        new ExpeditionHero("expedition-beastmaster", UnitTypeIds.Beastmaster));
+
+    internal static ContentBundle ResolveContent(ContentBundle latest, GameState? previous, IReadOnlyList<ExpeditionHero> heroes)
+    {
+        ValidateRoster(heroes, previous);
+        var selected = Definitions(latest).ToDictionary(ContentDefinitions.Identity);
+        var saved = previous is null ? new Dictionary<ContentIdentity, object>() : Definitions(new ContentBundle
+        {
+            Units = [.. previous.Types], Equipment = [.. previous.EquipmentTypes], Items = [.. previous.ItemTypes],
+            LootCards = [.. previous.LootCardDefinitions], WorldCards = [.. previous.WorldCardDefinitions],
+            Terrain = previous.Physical.Board.TerrainTypes, Resources = [.. previous.ResourceDefinitions]
+        }).ToDictionary(ContentDefinitions.Identity);
+        var visited = new HashSet<ContentIdentity>();
+        var embedded = new HashSet<object>(ReferenceEqualityComparer.Instance);
+        void Dependencies(object definition)
+        {
+            foreach (var dependency in ContentDefinitions.Dependencies(definition))
+                if (dependency.EmbeddedDefinition is { } value)
+                {
+                    if (embedded.Add(value)) Dependencies(value);
+                }
+                else Require(dependency.Target);
+        }
+        void Require(ContentIdentity identity)
+        {
+            if (!visited.Add(identity)) return;
+            if (!selected.TryGetValue(identity, out var definition))
+            {
+                if (!saved.TryGetValue(identity, out definition))
+                    throw new ArgumentException($"Expedition requires missing {identity.Family} '{identity.TypeId}'; neither current Content nor the previous region supplies it.");
+                selected.Add(identity, definition);
+            }
+            Dependencies(definition);
+        }
+        foreach (var hero in heroes) Require(new(ContentFamily.Unit, hero.TypeId));
+        if (previous is not null)
+            foreach (var obj in Inventories(previous, heroes).SelectMany(entry => entry.Inventory))
+            {
+                if (obj.EquipmentTypeId is { } equipment) Require(new(ContentFamily.Equipment, equipment));
+                if (obj.ItemTypeId is { } item) Require(new(ContentFamily.Item, item));
+                if (obj.LootCardId is { } cardId)
+                {
+                    Require(new(ContentFamily.LootCard, cardId));
+                    var card = (LootCardDefinition)selected[new(ContentFamily.LootCard, cardId)];
+                    if (card.EquipmentTypeId != obj.EquipmentTypeId || card.ItemTypeId != obj.ItemTypeId)
+                        throw new ArgumentException($"Expedition cannot refresh object '{obj.Id}': current Loot Card '{cardId}' grants a different object Type. Restore its original reward or resolve its provenance before continuing; retained gear was not discarded.");
+                }
+            }
+        // Current declarations remain whole. Missing dependencies may use a saved
+        // definition, while a present but incompatible declaration never falls back.
+        foreach (var identity in selected.Keys.ToArray()) Require(identity);
+        var values = selected.Values.ToArray();
+        var effective = latest with
+        {
+            Units = values.OfType<UnitType>().ToImmutableArray(), Equipment = values.OfType<EquipmentDefinition>().ToImmutableArray(),
+            Items = values.OfType<ItemDefinition>().ToImmutableArray(), LootCards = values.OfType<LootCardDefinition>().ToImmutableArray(),
+            LootPresets = values.OfType<LootPreset>().ToImmutableArray(), WorldCards = values.OfType<WorldCardDefinition>().ToImmutableArray(),
+            Terrain = values.OfType<TerrainDefinition>().ToImmutableArray(), Assemblies = values.OfType<TerrainAssemblyDefinition>().ToImmutableArray(),
+            FixedComponents = values.OfType<FixedComponentDefinition>().ToImmutableArray(), Resources = values.OfType<ResourceType>().ToImmutableArray()
+        };
+        return ContentComposition.Compose([effective]).Definitions;
+    }
+
+    internal static ScenarioDefinition Prepare(ScenarioDefinition terrain, ContentBundle content, ObjectiveArea exitArea,
+        IReadOnlyList<ExpeditionHero> heroes, GameState? previous)
+    {
+        ValidateRoster(heroes, previous);
+        var setup = terrain.Setup ?? throw new ArgumentException("Expedition requires a PlayReady deployment declaration.");
+        var existing = GameEngine.CreateGame(terrain, content);
+        var validation = PlayReadyScenarioSetup.Validate(terrain, existing);
+        if (!validation.Valid)
+            throw new ArgumentException("Expedition PlayReady setup is invalid: " + string.Join("; ", validation.Diagnostics.Select(d => d.Path + ": " + d.Message)));
+        if (setup.Deployment.Capacity < heroes.Count || setup.Deployment.PlacementOrder.Count < heroes.Count)
+            throw new ArgumentException("Expedition deployment does not have capacity for all five originals.");
+        if (terrain.Units.Any(u => u.SideId == SideId) || terrain.Agency.Any(a => a.SideId == SideId) ||
+            (terrain.NeutralSides ?? []).Contains(SideId))
+            throw new ArgumentException("Generated region already uses the reserved Expedition Side.");
+        var reserved = existing.Units.Select(u => u.Id).Concat(existing.Physical.Board.Machines.Select(m => m.Id))
+            .Concat(terrain.Units.Select(u => u.GroupId).OfType<string>())
+            .Concat(terrain.Agency.Select(a => a.GroupId).OfType<string>()).ToHashSet(StringComparer.Ordinal);
+        if (reserved.Contains(GroupId) || heroes.Any(h => reserved.Contains(h.InstanceId)))
+            throw new ArgumentException("Generated region conflicts with reserved original Hero or party Group identities.");
+        var inventory = previous is null ? new Dictionary<string, List<OwnedObject>>() : Inventories(previous, heroes).ToDictionary(e => e.Hero.InstanceId, e => e.Inventory);
+        var json = ContentPackageJson.CreateOptions();
+        foreach (var hero in heroes)
+        {
+            var current = content.Units.Single(t => t.Id == hero.TypeId);
+            if (current.Footprint != Footprint.OneByOne)
+                throw new ArgumentException($"Expedition cannot deploy refreshed Hero '{hero.TypeId}': Phase 1 requires a 1 × 1 footprint.");
+            var local = existing.Types.SingleOrDefault(t => t.Id == hero.TypeId);
+            if (local is not null && JsonSerializer.Serialize(local, json) != JsonSerializer.Serialize(current, json))
+                throw new ArgumentException($"Generated region conflicts with refreshed Hero definition '{hero.TypeId}'.");
+            var gear = inventory.GetValueOrDefault(hero.InstanceId) ?? [];
+            if (gear.Any(o => o.EquipmentTypeId is not null && !current.CanHaveEquipment || o.ItemTypeId is not null && !current.CanHaveItems))
+                throw new ArgumentException($"Expedition cannot refresh Hero '{hero.TypeId}': current ownership capabilities reject retained gear.");
+        }
+        var party = heroes.Select((hero, index) => new UnitPlacement(hero.TypeId, SideId, setup.Deployment.PlacementOrder[index],
+            UnitId: hero.InstanceId, GroupId: GroupId) { Inventory = inventory.GetValueOrDefault(hero.InstanceId) ?? [] }).ToList();
+        var sides = existing.Objectives.Select(o => o.SideId).Append(SideId).Distinct(StringComparer.Ordinal);
+        return terrain with
+        {
+            UnitTypeIds = terrain.UnitTypeIds.Concat(heroes.Select(h => h.TypeId)).Distinct(StringComparer.Ordinal).ToList(),
+            Units = [.. terrain.Units, .. party],
+            Agency = [.. terrain.Agency, .. heroes.Select(h => new AgencyAssignment(h.TypeId, SideId, ControllerKind.Human, GroupId))],
+            FogOfWarSides = (terrain.FogOfWarSides ?? []).Append(SideId).Distinct(StringComparer.Ordinal).ToList(),
+            Objectives = sides.Select(side => side == SideId
+                ? new SideObjective(side, ScenarioObjective.ReachArea) { Count = 2, Area = exitArea, Selectors = [.. heroes.Select(h => UnitSelector.ForUnit(h.InstanceId))] }
+                : new SideObjective(side, ScenarioObjective.NoObjective)).ToList()
+        };
+    }
+
+    private static void ValidateRoster(IReadOnlyList<ExpeditionHero> heroes, GameState? previous)
+    {
+        if (heroes.Count != 5 || heroes.Any(h => string.IsNullOrWhiteSpace(h.InstanceId) || string.IsNullOrWhiteSpace(h.TypeId)) ||
+            heroes.Select(h => h.InstanceId).Distinct(StringComparer.Ordinal).Count() != heroes.Count ||
+            heroes.Select(h => h.TypeId).Distinct(StringComparer.Ordinal).Count() != heroes.Count)
+            throw new ArgumentException("Expedition requires five distinct original Hero instance and Type identities.");
+        if (previous is null) return;
+        foreach (var hero in heroes)
+            if (previous.Units.SingleOrDefault(u => u.Id == hero.InstanceId) is not { } unit ||
+                unit.TypeId != hero.TypeId || unit.SideId != SideId || unit.SummonerUnitId is not null)
+                throw new ArgumentException($"Previous region does not contain original Hero '{hero.InstanceId}' with its recorded Type and Side.");
+    }
+
+    private static IEnumerable<(ExpeditionHero Hero, List<OwnedObject> Inventory)> Inventories(GameState previous, IReadOnlyList<ExpeditionHero> heroes)
+    {
+        foreach (var hero in heroes)
+        {
+            var unit = previous.Units.Single(u => u.Id == hero.InstanceId);
+            yield return (hero, unit.Inventory.Select(obj => obj with
+            {
+                EquipmentTypeId = previous.EquipmentTypeId(obj), ItemTypeId = previous.ItemTypeId(obj),
+                AbilityUseCounts = ImmutableDictionary<string, int>.Empty
+            }).ToList());
+        }
+    }
+
+    private static IEnumerable<object> Definitions(ContentBundle content) => content.Units.Cast<object>().Concat(content.Equipment)
+        .Concat(content.Items).Concat(content.LootCards).Concat(content.LootPresets).Concat(content.WorldCards).Concat(content.Terrain)
+        .Concat(content.Assemblies).Concat(content.FixedComponents).Concat(content.Resources);
+}

@@ -128,17 +128,24 @@ public sealed record LootSettings
             throw new ArgumentException("Custom Loot needs unique card IDs with quantities from 1 to 1000.");
         return rows;
     }
-    public List<OwnedObject> ResolveObjects(IReadOnlyList<LootCardDefinition>? cards = null) => ResolveComposition(cards)
-        .SelectMany(r => Enumerable.Repeat(r, r.Count)).Select((r, i) =>
+    public List<OwnedObject> ResolveObjects(IReadOnlyList<LootCardDefinition>? cards = null, IEnumerable<string>? reservedIds = null)
+    {
+        var reserved = (reservedIds ?? []).ToHashSet(StringComparer.Ordinal);
+        var next = 1;
+        return ResolveComposition(cards)
+        .SelectMany(r => Enumerable.Repeat(r, r.Count)).Select(r =>
         {
             if (new[] { r.ItemTypeId, r.EquipmentTypeId, r.LootCardId }.Count(x => x is not null) > 1)
                 throw new ArgumentException("Loot composition needs one typed reference per row.");
             var id = r.LootCardId ?? (r.ItemTypeId is null && r.EquipmentTypeId is null ? LootCompatibility.TypeId(r.Kind) : null);
             var card = id is not null ? (cards ?? LootCardCatalog.All).SingleOrDefault(c => c.Id == id)
                 ?? throw new ArgumentException($"Unknown Loot Card ID '{id}'.") : null;
-            return new OwnedObject($"loot-card-{i + 1}", r.Kind)
+            string instanceId;
+            do { instanceId = $"loot-card-{next++}"; } while (!reserved.Add(instanceId));
+            return new OwnedObject(instanceId, r.Kind)
             { EquipmentTypeId = card?.EquipmentTypeId ?? r.EquipmentTypeId, ItemTypeId = card?.ItemTypeId ?? r.ItemTypeId, LootCardId = id };
         }).ToList();
+    }
     public List<LootCardKind> ResolveCards()
     {
         var rows = ResolveComposition();

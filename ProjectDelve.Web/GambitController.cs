@@ -320,6 +320,6 @@ public sealed partial class PlaytestGame
         Snapshot = BrowserResponse(source.Snapshot),
         Commentary = FogOfWar.ViewingSide(source.Snapshot.Result.State) is null ? source.Commentary : source.Commentary is { UnitId: { } id } comment &&
             FogOfWar.IsUnitObservable(source.Snapshot.Result.State, FogOfWar.ViewingSide(source.Snapshot.Result.State), id) ? comment : null,
-        Error = source.Error is null ? null : "Game resolution failed. Restart or retry as indicated."
+        Error = source.Error is null ? null : source.Kind == "error" ? source.Error : "Game resolution failed. Restart or retry as indicated."
     };
 }

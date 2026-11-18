@@ -234,6 +234,7 @@ function harness(initial, fetchImpl, extras = {}) {
   };
   document.getElementById("coordinates").checked = false;
   const context = vm.createContext({ document, initial, submitted, setTimeout, clearTimeout,
+    mountExpeditions: () => ({ update() {} }),
     fetch: (url, options) => url === './presentation/profiles.json'
       ? Promise.resolve({ ok: true, json: async () => JSON.parse(fs.readFileSync(path.join(__dirname, '../ProjectDelve.Web/wwwroot/presentation/profiles.json'), 'utf8')) })
       : url.startsWith('./presentation/cursors/') ? Promise.resolve({ok:false,status:404})
@@ -4688,4 +4689,25 @@ test("mandatory roll remains outside reference card and action dock", () => {
   assert.equal(references.length,1); click(references[0]); assert.deepEqual(h.submitted,[]);
   const choices=buttons(h.elements.get('choices')); assert.equal(choices.length,1);
   click(choices[0]); assert.deepEqual(h.submitted,['mandatory-roll']);
+});
+
+test('Expedition Save waits for its authoritative boundary and rejected replacements release the guard', async () => {
+  const requests = [];
+  const h = streamHarness(async (url, options) => { requests.push(JSON.parse(options.body)); return { ok: true, json: async () => ({ accepted: true }) }; });
+  h.emit(update(0, 'baseline', 'idle'));
+  let settled = false;
+  const save = h.run('sendCommand("expedition/save", {})').then(value => { settled = true; return value; });
+  await settleStream(); assert.equal(settled, false);
+  h.emit(update(1, 'boundary', 'idle', response([]), 'session-a', requests[0].commandId));
+  assert.equal(await save, true);
+  const create = h.run('sendCommand("expedition/create", {expeditionName: "Test run"})');
+  await settleStream();
+  const failure = update(2, 'error', 'idle', response([]), 'session-a', requests[1].commandId); failure.error = 'Storage unavailable. Retry.';
+  h.emit(failure); assert.equal(await create, false); await settleStream();
+  assert.equal(h.run('pendingExpedition'), null); assert.equal(h.run('busy'), false);
+  assert.match(h.elements.get('error').textContent, /Storage unavailable/);
+  const resume = h.run('sendCommand("expedition/resume", {expeditionId: "test-owned"})');
+  await settleStream();
+  h.emit(update(0, 'baseline', 'idle', response([]), 'session-b', requests[2].commandId));
+  assert.equal(await resume, true); assert.equal(h.run('latestUpdate.sessionId'), 'session-b');
 });

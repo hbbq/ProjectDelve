@@ -20,6 +20,7 @@ public sealed record WorldGenerationPlan(WorldDefinition World, WorldWindow Wind
 {
     public string LootPreset { get; init; } = "All";
     public LootAbundance LootAbundance { get; init; } = LootAbundance.Standard;
+    internal (ulong WorldSeed, ExpeditionWorldProfile Profile)? ExpeditionNature { get; init; }
     // All WLD1 schedules establish deployment before accepting protected construction.
     private WorldGenerationPlan WithHeroDeployment(HeroDeploymentSettings settings)
     {
@@ -229,6 +230,7 @@ public sealed record WorldGenerationExecution(WorldGenerationContext Context, Wo
 
 public sealed partial class WorldGenerationContext
 {
+    internal ExpeditionGeometryPlan? Expedition { get; set; }
     internal HeroDeployment? Deployment { get; set; }
     internal CompletionGuard? Completion { get; set; }
     internal MandatoryRepairReport? MandatoryRepair { get; set; }
@@ -263,10 +265,14 @@ public static class WorldStepSeed
 public static class WorldGenerationPipeline
 {
     public static WorldGenerationExecution Execute(WorldGenerationPlan plan, ContentBundle? content = null)
+        => Execute(plan, content, null);
+
+    internal static WorldGenerationExecution Execute(WorldGenerationPlan plan, ContentBundle? content, ExpeditionGeometryPlan? expedition,
+        Action<string>? beforeStage = null, ExpeditionNatureSampler? nature = null)
     {
         plan.Validate(); content ??= ContentBundle.Canonical();
         var context = new WorldGenerationContext(plan.World, plan.Window)
-        { Loot = PopulationLoot.FromPreset(plan.LootPreset), LootAbundance = plan.LootAbundance };
+        { Loot = PopulationLoot.FromPreset(plan.LootPreset), LootAbundance = plan.LootAbundance, Expedition = expedition };
         List<WorldPreviewFrame> frames = []; List<WorldStageMeasurement> measurements = [];
         List<string> palette = ["grass", "dirt", "tree", "solid-rock", "water", "stone-floor"];
         var paletteIndex = palette.Select((id, i) => (id, i)).ToDictionary(p => p.id, p => p.i, StringComparer.Ordinal);
@@ -278,9 +284,13 @@ public static class WorldGenerationPipeline
             var operationStart = context.Construction.Count;
             try
             {
+            beforeStage?.Invoke(step.Id);
             switch (step.Kind)
             {
-                case WorldStepKind.NaturalTerrain: context.SampleNaturalTerrain(content); break;
+                case WorldStepKind.NaturalTerrain:
+                    if (nature is null) context.SampleNaturalTerrain(content);
+                    else context.SampleExpeditionNature(nature, content);
+                    break;
                 case WorldStepKind.TerrainAnalysis:
                     context.OriginalAnalysis = TerrainAnalyzer.Analyze(plan.Window, context.OriginalSamples, content);
                     context.CurrentAnalysis = context.OriginalAnalysis; break;
@@ -303,15 +313,20 @@ public static class WorldGenerationPipeline
                 case WorldStepKind.HeroDeployment:
                     var deploymentBoard = context.EnsurePlanningBoard(content);
                     var deploymentSettings = ((DeploymentStepParameters)step.Parameters).Settings;
-                    var deploymentResult = HeroDeploymentPlanner.Establish(deploymentBoard, deploymentSettings, context.World.Seed,
-                        HeroDeploymentPlanner.NaturalConversions(deploymentBoard, Enumerable.Range(0, context.Samples.Length)));
+                    expedition?.PrepareEndpoints(deploymentBoard);
+                    var deploymentResult = HeroDeploymentPlanner.Establish(deploymentBoard, deploymentSettings, expedition?.LocalSeed ?? context.World.Seed,
+                        HeroDeploymentPlanner.NaturalConversions(deploymentBoard, Enumerable.Range(0, context.Samples.Length)), expedition?.DeploymentDomain);
                     if (deploymentResult.Status != HeroDeploymentStatus.Established)
                         throw new PlayReadyGenerationException(plan, step.Id, deploymentBoard.Revision,
                             $"Deployment {deploymentResult.Status}; capacity {deploymentSettings.Capacity}; work {deploymentResult.WorkUsed}: {deploymentResult.Detail}",
                             kind: deploymentResult.Status == HeroDeploymentStatus.Incomplete ? WorldGenerationFailureKind.IncompleteAnalysis :
                                 deploymentResult.Status == HeroDeploymentStatus.InsufficientSpace ? WorldGenerationFailureKind.InsufficientDeployment : WorldGenerationFailureKind.ConstructionInvariantViolation);
                     context.Deployment = deploymentResult.Deployment!;
-                    context.Completion = new(deploymentBoard, context.Deployment, Enumerable.Range(0, context.Samples.Length));
+                    expedition?.ProtectEndpoints(deploymentBoard);
+                    context.Completion = new(deploymentBoard, context.Deployment, Enumerable.Range(0, context.Samples.Length),
+                        initialLocations: expedition?.RequiredLocations, expeditionEndpoints: expedition?.EndpointIndices.ToHashSet());
+                    if (expedition is not null)
+                        context.PopulationProtectedAreas.Add(GeneratedArea.From("expedition/endpoints", expedition.EndpointIndices, deploymentBoard.Width));
                     context.PopulationProtectedAreas.Add(context.Deployment.Area);
                     context.PopulationProtectedAreas.Add(GeneratedArea.From("hero-deployment/departure", [context.Deployment.DepartureIndex], deploymentBoard.Width));
                     context.Construction.Add(new("hero-deployment", null, "Hero deployment", "hero-deployment",
@@ -415,9 +430,11 @@ public static class WorldGenerationPipeline
             Diagnostics = frames[0].Diagnostics with { WalkableArea = original.Connectivity.WalkableArea,
                 ComponentCount = original.Connectivity.ComponentCount, LargestComponentArea = original.Connectivity.LargestComponentArea }
         };
+        var finalStage = "site-loot";
         try
         {
             // Nonblocking exploration rewards use final population occupancy, including when Population is Off.
+            beforeStage?.Invoke(finalStage);
             SiteLootGenerator.Generate(context, context.ConstructionBoard?.Content ?? content);
             SitePopulationAllocation.FinalizeContent(context);
             var lootRegistration = context.Completion!.RegisterInteractives(context.Materialize(), "site-loot");
@@ -427,9 +444,13 @@ public static class WorldGenerationPipeline
                     lootRegistration.Failures, completion: lootRegistration);
             frames[^1] = frames[^1] with { SiteLootMarkers = context.SiteLootMarkers.ToArray(),
                 SiteLootStatistics = context.SiteLootStatistics, Population = context.Population };
+            finalStage = "final-materialization";
             context.PublishedSetup = PlayReadyScenarioSetup.Publish(context);
             var finalDefinition = context.Materialize();
             var finalState = GameEngine.CreateGame(finalDefinition, content);
+            if (expedition is not null && !expedition.HasOccupiedAccess(finalState, context.Deployment!))
+                throw new PlayReadyGenerationException(plan, "final-materialization", context.ConstructionBoard!.Revision,
+                    "Initial population disconnects ordinary Expedition deployment, seam or exit-pad access.", context.MandatoryRepair);
             var validation = PlayReadyScenarioSetup.Validate(finalDefinition, finalState);
             var failures = context.Completion!.ActualFailures(finalState);
             if (!validation.Valid || !failures.IsEmpty)
@@ -438,8 +459,10 @@ public static class WorldGenerationPipeline
         }
         catch (Exception error) when (error is not PlayReadyGenerationException)
         {
-            throw new PlayReadyGenerationException(plan, "final-materialization", context.ConstructionBoard?.Revision ?? context.Revision,
-                error.Message, context.MandatoryRepair, kind: WorldGenerationFailureKind.FailedFinalValidation, inner: error);
+            throw new PlayReadyGenerationException(plan, finalStage, context.ConstructionBoard?.Revision ?? context.Revision,
+                error.Message, context.MandatoryRepair,
+                kind: finalStage == "site-loot" ? WorldGenerationFailureKind.UnexpectedImplementationFailure : WorldGenerationFailureKind.FailedFinalValidation,
+                inner: error);
         }
         return new(context, new(palette, frames, original.Formations, original.FormationLabels,
             Enumerable.Range(0, original.Boundary.Length).Where(i => original.Boundary[i]).ToArray()), measurements);

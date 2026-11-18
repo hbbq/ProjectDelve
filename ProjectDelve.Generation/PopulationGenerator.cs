@@ -123,6 +123,11 @@ public static partial class PopulationGenerator
                 Rollback(); Fail(location, "Engine placement: " + error.Message);
                 attempts.Add(new(location, requested, 0, budget.WorkLimitRejections > workRejections ? "Work" : "Placement")); continue;
             }
+            if (context.Expedition is { } expedition && !expedition.HasOccupiedAccess(state, context.Deployment!))
+            {
+                Rollback(); Fail(location, "Initial occupation would disconnect ordinary Expedition deployment, seam or exit-pad access.");
+                attempts.Add(new(location, requested, 0, "Placement")); continue;
+            }
             var allComponents = PopulationTopology.Components(authoredUnits.Concat(accepted.SelectMany(e => e.Units)).Concat(encounter.Units), types.Values);
             var memberIds = encounter.Units.Select(u => u.UnitId).ToHashSet(StringComparer.Ordinal);
             var componentCount = allComponents.Count(c => c.UnitIds.Any(memberIds.Contains));

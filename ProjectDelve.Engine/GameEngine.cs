@@ -845,6 +845,13 @@ public static partial class GameEngine
         }
     }
 
+    /// <summary>Checks the structural rules state of an authoritative restored checkpoint without advancing it.</summary>
+    public static void ValidateRestoredState(GameState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ValidateScenario(state);
+    }
+
     internal static void ValidateScenario(GameState state)
     {
         ContentComposition.ValidateSnapshot(state);

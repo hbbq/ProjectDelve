@@ -1,0 +1,16 @@
+{
+  "steps": [
+    { "action": "click", "target": "#mode-expeditions" },
+    { "action": "click", "target": "#expedition-list article button" },
+    { "action": "click", "target": "#end-turn" },
+    { "action": "hover", "target": "#result-continue-expedition" },
+    { "action": "snapshot", "target": "#game-result", "name": "expedition-completed.yaml" },
+    { "action": "screenshot", "name": "expedition-completed.png" },
+    { "action": "click", "target": "#result-continue-expedition" },
+    { "action": "hover", "target": "#start-round" },
+    { "action": "snapshot", "target": "#expedition-bar", "name": "expedition-successor.yaml" },
+    { "action": "screenshot", "name": "expedition-successor.png" },
+    { "action": "console" },
+    { "action": "requests" }
+  ]
+}
