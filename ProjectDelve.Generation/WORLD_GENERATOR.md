@@ -3,6 +3,7 @@
 Current abundance settings and scaling policy: [Density Scaling V1](DENSITY_SCALING_V1.md).
 Loot availability, Site rewards and current measurements: [Loot Abundance A1](LOOT_ABUNDANCE_A1.md).
 Site occupation, vacancy and paired measurements: [Site Population A2](SITE_POPULATION_A2.md).
+Passage geometry and paired measurements: [Passage Quality B1](PASSAGE_QUALITY_B1.md).
 Advisory Engine queries and diagnostics: [Accessibility Analysis V1](ACCESSIBILITY_ANALYSIS_V1.md).
 Current layout, controls and verification: [World Generator Designer](../WORLD_GENERATOR_DESIGNER.md).
 Mountain Sites and current acceptance results: [Mountain Dungeons V1](MOUNTAIN_DUNGEONS_V1.md).

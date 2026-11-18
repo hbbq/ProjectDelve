@@ -11,7 +11,11 @@ public sealed record NaturalFormation(string Id, NaturalFormationKind Kind, Cell
     int CoreArea, int EnvelopeArea, double Density, int MaxDepth, bool TouchesBoundary,
     IReadOnlyList<int> AdjacentFormations, double Forest, double Rock, double Openness, double Soil, int BlocksLos);
 public sealed record EnrichmentFeature(string Id, string StepId, string Kind, string FormationId,
-    CellBounds Bounds, int ChangedCells, IReadOnlyList<int> EntranceIndices);
+    CellBounds Bounds, int ChangedCells, IReadOnlyList<int> EntranceIndices)
+{
+    public int PassingSpaces { get; init; }
+    public int SkippedPassingSpaces { get; init; }
+}
 public sealed record EntranceCandidate(string Id, string FeatureId, int InsideIndex, int OutsideIndex, int Width);
 public sealed record TerrainOpportunity(string Id, string Kind, int AnchorIndex, CellBounds Bounds,
     int UsableArea, string? FormationId, string? FeatureId, int WalkableComponent, bool RequiresConnection)

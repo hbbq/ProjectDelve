@@ -5,6 +5,110 @@ namespace ProjectDelve.Engine.Tests;
 
 public sealed class SettlementLayoutTests
 {
+    [Fact]
+    public void ClearanceRankingPrefersRoomBetweenBuildingsWithoutRequiringIt()
+    {
+        var board = CampsiteGenerationTests.Board(width: 32, height: 24);
+        var draft = CampsiteGenerationTests.Scope(board).Draft;
+        SettlementLayout Layout(int otherX) => ClearanceLayout(board.Width,
+            new(5, 5, 6, 6), new(otherX, 5, 6, 6));
+        var close = Layout(11); // Legal, distinct aprons with two Cells between shells.
+        var spacious = Layout(15);
+        Assert.True(SettlementLayouts.ClearanceCost(close, draft) >
+            SettlementLayouts.ClearanceCost(spacious, draft));
+        Assert.Empty(draft.BuildPatch().Reservations);
+        Assert.Empty(draft.BuildPatch().TerrainChanges);
+    }
+
+    [Theory]
+    [InlineData("tree")]
+    [InlineData("solid-rock")]
+    [InlineData("water")]
+    public void ClearanceRankingAccountsForUntouchedNaturalObstaclesAndPreparedAprons(string terrain)
+    {
+        var board = CampsiteGenerationTests.Board(width: 32, height: 24);
+        var draft = CampsiteGenerationTests.Scope(board).Draft;
+        var layout = ClearanceLayout(board.Width, new CellBounds(8, 6, 6, 6));
+        var original = SettlementLayouts.ClearanceCost(layout, draft);
+        // Outside the apron: the original layout remains legal, but a wider gap is preferable.
+        draft.SetTerrain(8 * board.Width + 7, terrain);
+        Assert.True(SettlementLayouts.ClearanceCost(layout, draft) > original);
+        draft.ReplaceTerrain(8 * board.Width + 7, "grass");
+        // Preparation inside the declared apron already supplies clearance.
+        draft.SetTerrain(8 * board.Width + 8, terrain);
+        Assert.Equal(original, SettlementLayouts.ClearanceCost(layout, draft));
+    }
+
+    [Fact]
+    public void ClearanceRankingPrefersOpenApproachesAndRespectsProtectedDoorTransit()
+    {
+        var board = CampsiteGenerationTests.Board(width: 32, height: 24);
+        var draft = CampsiteGenerationTests.Scope(board).Draft;
+        var approach = Enumerable.Range(14, 5).Select(x => 8 * board.Width + x).ToArray();
+        var layout = ClearanceLayout(board.Width, new CellBounds(8, 6, 6, 6)) with { EntryPath = approach };
+        var original = SettlementLayouts.ClearanceCost(layout, draft);
+        var protectedCell = 7 * board.Width + 18;
+        draft.SetEdge(new(protectedCell, EdgeDirection.Right), EdgeKind.ClosedDoor);
+        draft.Reserve([protectedCell]);
+        Assert.Equal(original, SettlementLayouts.ClearanceCost(layout, draft));
+        draft.ReplaceEdge(new(protectedCell, EdgeDirection.Right), EdgeKind.Wall);
+        Assert.True(SettlementLayouts.ClearanceCost(layout, draft) > original);
+        Assert.Equal(EdgeKind.Wall, draft.EdgeAt(new(protectedCell, EdgeDirection.Right)));
+        Assert.True(draft.IsReserved(protectedCell));
+    }
+
+    private static SettlementLayout ClearanceLayout(int width, params CellBounds[] bounds) => new(
+        SettlementFamily.Farmstead,
+        bounds.Select((b, i) => new SettlementLot("lot-" + i, "house", b, CardinalSide.South,
+            (b.Y + b.Height - 1) * width + b.X + 2, 1, 1, [])).ToArray(),
+        new("yard", "yard", [18 * width + 20]), [], [], [], new(0, 0, 32, 24), 0);
+
+    [Fact]
+    public void SettlementSearchMovesAwayFromNaturalPinchesWhileRetainingBuildingsAndAccess()
+    {
+        var board = CampsiteGenerationTests.Board(width: 64, height: 52);
+        var original = Plan(CampsiteGenerationTests.Scope(board), new(0, 0, 64, 52), SettlementFamily.Farmstead, 4);
+        var footprint = original.Site.Footprint.Indices(board.Width).ToHashSet();
+        var obstacles = footprint.SelectMany(board.Neighbors).Where(i => !footprint.Contains(i)).Distinct().ToArray();
+        var terrain = board.BeginDraft(new(0, 0, 64, 52), "natural-pinches", new());
+        foreach (var cell in obstacles) terrain.SetTerrain(cell, "tree");
+        Assert.True(board.TryCommit(terrain.BuildPatch(), out var error), error);
+
+        var scope = CampsiteGenerationTests.Scope(board);
+        var plan = Plan(scope, scope.Draft.AllowedArea, SettlementFamily.Farmstead, 4);
+        Assert.Equal(4, plan.Site.Buildings.Count);
+        Assert.NotEqual(original.Site.Footprint.Bounds, plan.Site.Footprint.Bounds);
+        Assert.DoesNotContain(plan.Patch.TerrainChanges, change => change.Before == "tree");
+        VerifyAccess(board, Commit(board, scope, plan));
+        Assert.All(obstacles, cell => Assert.Equal("tree", board.TerrainAt(cell)));
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void NarrowBuildingApronGetsAPassingSpaceOnlyOnWritableNaturalGround(bool protectedShoulder, bool foreignContact)
+    {
+        var board = CampsiteGenerationTests.Board(width: 12, height: 8);
+        var area = new CellBounds(3, 2, 4, 3);
+        var natural = board.BeginDraft(area, "existing-ground", new());
+        int[] trees = [3 * 12 + 3, 3 * 12 + 4, 3 * 12 + 5, 3 * 12 + 6];
+        foreach (var i in trees) natural.SetTerrain(i, "tree");
+        if (protectedShoulder) natural.Reserve(trees);
+        if (foreignContact) natural.Reserve(trees.Select(i => i - 12));
+        Assert.True(board.TryCommit(natural.BuildPatch(), out var error), error);
+        var draft = board.BeginDraft(area, "settlement", new());
+        HashSet<int> apron = [4 * 12 + 4, 4 * 12 + 5];
+        var skipped = SettlementGenerator.PreparePassingSpaces(draft, apron, [], apron.Order(),
+            new(MaxChangedCells: 2, MaxCost: 4), PreparationSummary.Empty);
+        var patch = draft.BuildPatch();
+        Assert.Equal(protectedShoulder || foreignContact, skipped);
+        Assert.Equal(protectedShoulder || foreignContact ? 0 : 2, patch.TerrainChanges.Count);
+        Assert.All(patch.TerrainChanges, change => Assert.Contains(change.Index, trees));
+        Assert.Empty(patch.EdgeChanges);
+        Assert.Empty(patch.Reservations);
+    }
+
     [Theory]
     [InlineData(SettlementFamily.MarketVillage, "market-square", "market-hall", 2)]
     [InlineData(SettlementFamily.Farmstead, "farmyard", "farmhouse", 2)]

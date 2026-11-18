@@ -101,6 +101,48 @@ public sealed class MandatoryConnectivityRepairTests
     }
 
     [Fact]
+    public void FailedWideRouteLeavesExhaustiveRepairAndProtectedDoorTransitAvailable()
+    {
+        var (board, guard, deployment) = Context(draft =>
+        {
+            for (var y = 0; y < Height; y++) draft.SetTerrain(y * Width + 6, "tree");
+        });
+        const int gate = 5 * Width + 12;
+        var door = new EdgeKey(gate, EdgeDirection.Right);
+        var structure = Draft(board, "protected-site");
+        var barrier = Enumerable.Range(0, Height).Select(y => y * Width + 12).ToArray();
+        foreach (var i in barrier.Where(i => i != gate)) structure.SetTerrain(i, "solid-rock");
+        structure.SetEdge(door, EdgeKind.ClosedDoor);
+        structure.Reserve(barrier);
+        Assert.True(guard.TryPublish(structure.BuildPatch(), "protected-site", "fixture", out var diagnostic), diagnostic.Detail);
+        Register(board, guard, Location("east", All("usable", 23)));
+
+        var window = new WorldWindow(0, 0, Width, Height);
+        var path = WorldGenerationContext.WindowPath("routes", window);
+        var seed = Enumerable.Range(0, 32).Select(i => (ulong)i).First(i => RouteSeed.Stream(i, path, "selection").Next(2) == 0);
+        var context = new WorldGenerationContext(new(seed, new(0, 0, 0)), window);
+        context.SampleNaturalTerrain();
+        context.ConstructionBoard = board;
+        context.Deployment = deployment;
+        context.Completion = guard;
+        var settings = new RouteSettings(ThroughRoutes: ContentDensity.Low, ConnectSites: false, Alternatives: ContentDensity.None);
+        RouteNetworkGenerator.Apply(context, new("routes", WorldStepKind.RouteNetwork,
+            new RouteNetworkStepParameters(RouteNetworkMode.PrimaryRoutes, settings), []), board.Content);
+
+        Assert.Empty(context.Routes);
+        Assert.Contains("Width-two preference skipped", Assert.Single(context.RouteIntents).Reason);
+        var report = MandatoryConnectivityRepair.Run(board, guard, Fallback());
+        Assert.True(report.Success);
+        Assert.True(report.UsedFallback);
+        Assert.Contains(gate, Assert.Single(report.Attempts).WitnessCells);
+        Assert.Equal(EdgeKind.ClosedDoor, board.EdgeAt(door));
+        Assert.Equal("protected-site", board.State.Reservations[gate]);
+        Assert.All(barrier.Where(i => i != gate), i => Assert.Equal("solid-rock", board.TerrainAt(i)));
+        Assert.Null(HeroDeploymentPlanner.Validate(GameEngine.CreateGame(board.Export()), deployment));
+        Covered(board, guard, deployment);
+    }
+
+    [Fact]
     public void EscalationAndFallbackHaveNoOptionalRouteOrPreservationBudget()
     {
         var (board, guard, deployment) = Context(draft =>

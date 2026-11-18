@@ -48,4 +48,23 @@ public sealed class RouteOrchestrationTests
         CivilizationGenerator.Apply(context, new("civilization", WorldStepKind.Civilization, new CivilizationStepParameters(new()), ["formations"]), ContentBundle.Canonical());
         Assert.Same(board, context.ConstructionBoard); Assert.Empty(context.Sites); Assert.True(board.IsReserved(400));
     }
+
+    [Fact]
+    public void SettlementConnectionWidensOutsideItsPublishedSingleCellPort()
+    {
+        var recipe = new WorldGenerationRecipe(new(0, 0, 50, 50), new(0, 0, 0), 42,
+            Civilization: new(), Routes: new(Alternatives: ContentDensity.None));
+        var world = WorldGenerator.Generate(recipe);
+        var settlement = world.Context.Sites.First(s => s.Kind == GeneratedSiteKind.Settlement && s.ConnectionRequests.Count > 0);
+        var route = world.Context.Routes.First(r => r.Start.SiteId == settlement.Id);
+        var port = settlement.AccessPorts.Single(p => p.Id == route.Start.Id);
+        var board = world.Context.ConstructionBoard!;
+        Assert.Equal(1, port.VerifiedWidth);
+        Assert.Equal(2, route.VerifiedFootprint);
+        Assert.True(route.Corridor.Contains(port.OutwardIndex, board.Width));
+        Assert.Equal(settlement.Id, board.State.Reservations[port.OutwardIndex]);
+        Assert.DoesNotContain(settlement.Buildings.SelectMany(b => b.Footprint.Indices(board.Width)),
+            i => route.Corridor.Contains(i, board.Width));
+        Assert.True(world.Context.MandatoryRepair!.Success);
+    }
 }

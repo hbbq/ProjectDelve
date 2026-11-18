@@ -7,13 +7,16 @@ namespace ProjectDelve.Generation;
 public static class RouteGenerator
 {
     public static PlacementResult<RoutePlan> Plan(RouteRequest request, GenerationScope scope)
+        => Plan(request, scope, scope.Budget);
+
+    internal static PlacementResult<RoutePlan> Plan(RouteRequest request, GenerationScope scope, PlanningBudget budget)
     {
         var searchClock = Stopwatch.StartNew();
         string id;
         try { id = scope.ObjectId(request.Key); }
         catch (ArgumentException e) { return new Rejected<RoutePlan>(new(request.Key, "Route", PlacementFailureCode.InvalidRequest, e.Message, 0)); }
-        var attemptsBefore = scope.Budget.Attempts;
-        Rejected<RoutePlan> Fail(PlacementFailureCode code, string reason) => new(new(id, "Route", code, reason, scope.Budget.Attempts - attemptsBefore));
+        var attemptsBefore = budget.Attempts;
+        Rejected<RoutePlan> Fail(PlacementFailureCode code, string reason) => new(new(id, "Route", code, reason, budget.Attempts - attemptsBefore));
         var r = request.Requirements ?? RouteRequirements.For(request.ProfileKind);
         var prefs = request.Preferences ?? RoutePreferences.For(request.ProfileKind);
         var policy = r.Preparation ?? RouteRequirements.For(request.ProfileKind).Preparation!;
@@ -50,15 +53,15 @@ public static class RouteGenerator
         PlacementFailureCode lastCode = PlacementFailureCode.NoFootprint; var lastReason = "No permitted corridor joins the endpoint sets.";
         for (var attempt = 0; attempt < r.MaxAttempts; attempt++)
         {
-            if (!scope.Budget.TryAttempt()) return Fail(PlacementFailureCode.BudgetExhausted, "Shared route attempt budget exhausted.");
-            var draft = scope.Draft.Fork(request.Area, id);
+            if (!budget.TryAttempt()) return Fail(PlacementFailureCode.BudgetExhausted, "Shared route attempt budget exhausted.");
+            var draft = scope.Draft.Fork(request.Area, id, budget);
             try { draft.EnableRoutePlanning(request.AccessGrants); }
             catch (ArgumentException e) { return Fail(PlacementFailureCode.InvalidRequest, e.Message); }
             var terrain = new string[n]; var passable = new bool[n];
             var definitions = draft.Content.Terrain.ToDictionary(t => t.Id, StringComparer.Ordinal);
             var crossing = definitions.TryGetValue("stepping-stones", out var stones) && stones.Passable &&
                 stones.MovementPermissions.Contains(MovementKinds.Water) ? stones.Id : floor;
-            if (!scope.Budget.Spend(n)) return Fail(PlacementFailureCode.BudgetExhausted, "Shared route indexing budget exhausted.");
+            if (!budget.Spend(n)) return Fail(PlacementFailureCode.BudgetExhausted, "Shared route indexing budget exhausted.");
             for (var i = 0; i < n; i++) { terrain[i] = draft.TerrainAt(i); passable[i] = definitions[terrain[i]].Passable; }
             IEnumerable<int> Square(int anchor)
             {
@@ -135,7 +138,7 @@ public static class RouteGenerator
             while (queue.TryDequeue(out var entry, out _))
             {
                 if (entry.Cost != costs[entry.State]) continue;
-                if (expanded >= r.MaxExpandedStates || !scope.Budget.Spend(1)) return Fail(PlacementFailureCode.BudgetExhausted, "Route expanded-state or shared work allowance exhausted.");
+                if (expanded >= r.MaxExpandedStates || !budget.Spend(1)) return Fail(PlacementFailureCode.BudgetExhausted, "Route expanded-state or shared work allowance exhausted.");
                 expanded++; totalExpanded++; var a = entry.State / 5; var heading = entry.State % 5;
                 if (goals.Contains(a)) { found = entry.State; break; }
                 foreach (var b in draft.Neighbors(a))
@@ -223,7 +226,7 @@ public static class RouteGenerator
                 var area = GeneratedArea.From(id + "/corridor", corridor, width);
                 var info = new RouteInfo(id, request.Purpose, request.ProfileKind, area,
                     new(path[0] % width + ox, path[0] / width + oy, runs), Port(request.Start, path[0]), Port(request.Destination, path[^1]),
-                    r.RequiredFootprint, r.Width, summary, new(scope.Budget.Attempts - attemptsBefore, totalExpanded, queuePeak, costs[found],
+                    r.RequiredFootprint, r.Width, summary, new(budget.Attempts - attemptsBefore, totalExpanded, queuePeak, costs[found],
                         path.Count, turns, corridor.Count(scope.Board.IsRouteCorridor)), crossings, mouths,
                     id + "/materialization-" + scope.Draft.Revision, scope.Draft.Revision)
                 {

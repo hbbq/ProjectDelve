@@ -23,6 +23,7 @@ public sealed class ForestEnrichmentTests
         Assert.All(c.FeatureOpportunities, o => Assert.Equal(after.WalkableLabels[0], after.WalkableLabels[o.AnchorIndex]));
         var reuse = c.Features.Single(f => f.Id == c.FeatureOpportunities.Single(o => o.AnchorIndex == pocket.AnchorIndex).FeatureId);
         Assert.Contains(reuse.EntranceIndices, e => c.OriginalAnalysis.WalkableLabels[c.Entrances[e].OutsideIndex] == c.OriginalAnalysis.WalkableLabels[0]);
+        Assert.Contains(c.Features, f => f.PassingSpaces > 0);
     }
 
     [Fact]

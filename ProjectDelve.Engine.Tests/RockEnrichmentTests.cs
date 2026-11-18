@@ -15,6 +15,7 @@ public sealed class RockEnrichmentTests
         RockEnricher.Apply(c, EnrichmentFixtures.Step(WorldStepKind.RockEnrichment, intensity: 3), ContentBundle.Canonical());
         var a = TerrainAnalyzer.Analyze(c.Window, c.Samples);
         Assert.NotEmpty(c.Features);
+        Assert.Contains(c.Features, f => f.PassingSpaces > 0);
         Assert.All(c.FeatureOpportunities, o => Assert.Equal(a.WalkableLabels[0], a.WalkableLabels[o.AnchorIndex]));
         Assert.All(c.Entrances, e => Assert.Equal(a.WalkableLabels[e.InsideIndex], a.WalkableLabels[e.OutsideIndex]));
         var terrain = new EnrichmentTerrain(c, ContentBundle.Canonical());

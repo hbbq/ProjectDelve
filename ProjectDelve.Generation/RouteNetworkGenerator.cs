@@ -13,6 +13,8 @@ public static class RouteNetworkGenerator
         var path = WorldGenerationContext.WindowPath(step.Id, context.Window);
         var area = new CellBounds(0, 0, board.Width, board.Height);
         var budget = new PlanningBudget(128, 2_000_000);
+        // Trying a preferred footprint must not spend the original connection's allowance.
+        var widthBudget = new PlanningBudget(32, 1_000_000);
         var draft = board.BeginDraft(area, path, budget);
         var scope = new GenerationScope(context.World.Seed, path, draft);
         var operations = new List<ConstructionOperation> { new(path, null, parameters.Mode.ToString(), path, area, [], []) };
@@ -33,7 +35,7 @@ public static class RouteNetworkGenerator
                 var random = RouteSeed.Stream(context.World.Seed, path + "/" + key, "endpoints");
                 var horizontal = (axis + ordinal) % 2 == 0;
                 var profile = parameters.Settings.Profile;
-                var requirement = RouteRequirements.For(profile, parameters.Settings.Intensity, parameters.Settings.WaterCrossings);
+                var requirement = RouteRequirements.For(profile, parameters.Settings.Intensity, parameters.Settings.WaterCrossings) with { Width = 1 };
                 if (board.Width < 4) horizontal = false;
                 if (board.Height < 4) horizontal = true;
                 var startSide = horizontal ? CardinalSide.West : CardinalSide.North;
@@ -42,17 +44,23 @@ public static class RouteNetworkGenerator
                 var margin = Math.Min(6, Math.Max(0, (extent - requirement.Width) / 8));
                 var startPosition = margin + random.Next(Math.Max(1, extent - requirement.Width + 1 - margin * 2));
                 var endPosition = margin + random.Next(Math.Max(1, extent - requirement.Width + 1 - margin * 2));
-                int[] PortCells(CardinalSide side, int position)
+                int[] PortCells(CardinalSide side, int position, int width)
                 {
                     var result = new List<int>();
-                    for (var p = Math.Max(0, position - 2); p <= Math.Min(extent - requirement.Width, position + 2); p++)
-                        result.Add(side switch { CardinalSide.West => p * board.Width, CardinalSide.East => p * board.Width + board.Width - requirement.Width,
-                            CardinalSide.North => p, _ => (board.Height - requirement.Width) * board.Width + p });
+                    for (var p = Math.Max(0, position - 2); p <= Math.Min(extent - width, position + 2); p++)
+                        result.Add(side switch { CardinalSide.West => p * board.Width, CardinalSide.East => p * board.Width + board.Width - width,
+                            CardinalSide.North => p, _ => (board.Height - width) * board.Width + p });
                     return result.ToArray();
                 }
-                var start = new RouteEndpoint(path + "/" + key + "/entry", PortCells(startSide, startPosition), RouteEndpointKind.Boundary, startSide);
-                var destination = new RouteEndpoint(path + "/" + key + "/exit", PortCells(endSide, endPosition), RouteEndpointKind.Boundary, endSide);
-                Plan(new(key, area, start, destination, profile, RoutePurpose.ThroughRoute, context.Window, requirement));
+                var start = new RouteEndpoint(path + "/" + key + "/entry", PortCells(startSide, startPosition, 1), RouteEndpointKind.Boundary, startSide);
+                var destination = new RouteEndpoint(path + "/" + key + "/exit", PortCells(endSide, endPosition, 1), RouteEndpointKind.Boundary, endSide);
+                var request = new RouteRequest(key, area, start, destination, profile, RoutePurpose.ThroughRoute, context.Window, requirement);
+                var wide = request with
+                {
+                    Start = start with { Cells = PortCells(startSide, startPosition, 2) },
+                    Destination = destination with { Cells = PortCells(endSide, endPosition, 2) }
+                };
+                Plan(request, preferredWidth: wide);
             }
         }
         if (parameters.Mode == RouteNetworkMode.ExplorationLinks)
@@ -92,10 +100,18 @@ public static class RouteNetworkGenerator
                     var req = RouteRequirements.For(profile, parameters.Settings.Intensity, parameters.Settings.WaterCrossings);
                     var grants = hubPort is null ? new[] { port.Permission } : new[] { port.Permission, hubPort.Permission };
                     var requestKey = "connect-" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(connection.Id)))[..24];
-                    Plan(new(requestKey, area,
+                    var request = new RouteRequest(requestKey, area,
                         new(port.Id, [port.OutwardIndex], RouteEndpointKind.Site, port.Direction, site.Id),
                         hubPort is null ? new(path + "/network", network, RouteEndpointKind.Network) : new(hubPort.Id, [hubPort.OutwardIndex], RouteEndpointKind.Site, hubPort.Direction, hub!.Id),
-                        profile, RoutePurpose.SiteConnection, context.Window, req, AccessGrants: grants), connection.Id);
+                        profile, RoutePurpose.SiteConnection, context.Window, req, AccessGrants: grants);
+                    var wide = site.Kind is GeneratedSiteKind.Settlement or GeneratedSiteKind.MountainDungeon || connection.Required
+                        ? request with
+                        {
+                            Start = request.Start with { Cells = OutsideAnchors(port) },
+                            Destination = hubPort is null ? request.Destination : request.Destination with { Cells = OutsideAnchors(hubPort) }
+                        }
+                        : null;
+                    Plan(request, connection.Id, preferredWidth: wide);
                 }
             }
             if (hub is not null)
@@ -139,33 +155,79 @@ public static class RouteNetworkGenerator
                     ? "No useful exploration candidates remain in the current network and terrain."
                     : "Available useful candidates or planning and disturbance allowances could not satisfy the exploration target.");
         }
-        context.RoutePlanningWork += budget.Work; context.RoutePlanningAttempts += budget.Attempts;
+        context.RoutePlanningWork += budget.Work + widthBudget.Work;
+        context.RoutePlanningAttempts += budget.Attempts + widthBudget.Attempts;
         context.RefreshConstructionAnalysis();
         context.RouteNetwork = RouteTopologyBuilder.Build(context);
 
-        RouteInfo? Plan(RouteRequest request, string? requirementId = null, Func<RoutePlan, bool>? accept = null)
+        int[] OutsideAnchors(SiteAccessPort port)
+        {
+            // Keep the certified port in the endpoint square, with the second row
+            // extending outward. The route receives only the original Site grant.
+            var x = port.OutwardIndex % board.Width;
+            var y = port.OutwardIndex / board.Width;
+            (int X, int Y)[] positions = port.Direction switch
+            {
+                CardinalSide.North => [(x - 1, y - 1), (x, y - 1)],
+                CardinalSide.South => [(x - 1, y), (x, y)],
+                CardinalSide.West => [(x - 1, y - 1), (x - 1, y)],
+                _ => [(x, y - 1), (x, y)]
+            };
+            return positions.Where(p => SiteGeometry.Fits(new(p.X, p.Y, 2, 2), area))
+                .Select(p => p.Y * board.Width + p.X).ToArray();
+        }
+
+        void Plan(RouteRequest request, string? requirementId = null, Func<RoutePlan, bool>? accept = null,
+            RouteRequest? preferredWidth = null)
         {
             submitted++;
+            string? widthFailure = null;
+            if (preferredWidth is not null)
+            {
+                var wide = preferredWidth with
+                {
+                    Requirements = request.Requirements! with { Width = 2, RequiredFootprint = 2, MaxAttempts = 1 }
+                };
+                if (wide.Start.Cells.Count > 0 && wide.Destination.Cells.Count > 0)
+                {
+                    // Plan against the accepted stage draft, with its original owners and grants.
+                    var wideIntent = Attempt(wide, widthBudget, requirementId, null);
+                    if (wideIntent.Status == RouteIntentStatus.Accepted) { intents.Add(wideIntent); return; }
+                    widthFailure = wideIntent.Reason;
+                }
+                else widthFailure = "An endpoint has no room for a width-two footprint.";
+            }
+            var intent = Attempt(request, budget, requirementId, accept);
+            if (widthFailure is not null)
+                intent = intent with { Reason = ("Width-two preference skipped: " + widthFailure + " " + intent.Reason).TrimEnd() };
+            intents.Add(intent);
+        }
+
+        RouteIntent Attempt(RouteRequest request, PlanningBudget planningBudget, string? requirementId, Func<RoutePlan, bool>? accept)
+        {
             var clock = Stopwatch.StartNew();
-            var result = RouteGenerator.Plan(request, scope);
+            var result = RouteGenerator.Plan(request, scope, planningBudget);
             context.RouteSearchMilliseconds += clock.Elapsed.TotalMilliseconds;
             if (result is Rejected<RoutePlan> failure)
             {
-                if (context.PlanningFailures.Count < 64) context.PlanningFailures.Add(failure.Failure);
-                intents.Add(new(requirementId ?? scope.ObjectId(request.Key), request.Purpose, request.ProfileKind, request.Start.Cells.FirstOrDefault(),
-                    request.Destination.Cells.Cast<int?>().FirstOrDefault(), request.Destination.SiteId ?? request.Destination.Id, RouteIntentStatus.Unresolved, null, failure.Failure.Reason));
-                return null;
+                if (planningBudget == budget && context.PlanningFailures.Count < 64) context.PlanningFailures.Add(failure.Failure);
+                return new(requirementId ?? scope.ObjectId(request.Key), request.Purpose, request.ProfileKind, request.Start.Cells.FirstOrDefault(),
+                    request.Destination.Cells.Cast<int?>().FirstOrDefault(), request.Destination.SiteId ?? request.Destination.Id,
+                    RouteIntentStatus.Unresolved, null, failure.Failure.Reason);
             }
             var plan = ((Planned<RoutePlan>)result).Plan;
+            var intent = new RouteIntent(requirementId ?? plan.Route.Id, request.Purpose, request.ProfileKind, plan.Route.Start.AnchorIndex,
+                plan.Route.End.AnchorIndex, plan.Route.End.SiteId ?? plan.Route.End.Id, RouteIntentStatus.Accepted, plan.Route.Id, null);
             if (context.Routes.Concat(routes).Sum(r => r.Preparation.ChangedTerrain) + plan.Route.Preparation.ChangedTerrain > parameters.Settings.Intensity * 1000 ||
                 context.Routes.Concat(routes).Sum(r => r.Preparation.RockExcavated) + plan.Route.Preparation.RockExcavated > parameters.Settings.Intensity * 400 ||
                 context.Routes.Concat(routes).Sum(r => r.Preparation.WaterFilled) + plan.Route.Preparation.WaterFilled > parameters.Settings.Intensity * 36 ||
                 accept is not null && !accept(plan))
             {
-                intents.Add(new(requirementId ?? plan.Route.Id, request.Purpose, request.ProfileKind, plan.Route.Start.AnchorIndex, plan.Route.End.AnchorIndex,
-                    plan.Route.End.Id, request.Purpose == RoutePurpose.ExplorationLink ? RouteIntentStatus.RejectedAlternative : RouteIntentStatus.Unresolved,
-                    null, "Candidate exceeds cumulative disturbance limits or adds no useful alternative."));
-                return null;
+                return intent with
+                {
+                    Status = request.Purpose == RoutePurpose.ExplorationLink ? RouteIntentStatus.RejectedAlternative : RouteIntentStatus.Unresolved,
+                    RouteId = null, Reason = "Candidate exceeds cumulative disturbance limits or adds no useful alternative."
+                };
             }
             if (context.Completion is { } completion)
             {
@@ -173,19 +235,15 @@ public static class RouteNetworkGenerator
                 if (evaluation.Diagnostic.Status != CompletionStatus.Allowed)
                 {
                     completion.RecordRejection(evaluation.Diagnostic);
-                    intents.Add(new(requirementId ?? plan.Route.Id, request.Purpose, request.ProfileKind, plan.Route.Start.AnchorIndex,
-                        plan.Route.End.AnchorIndex, plan.Route.End.Id, RouteIntentStatus.Unresolved, null,
-                        evaluation.Diagnostic.Detail ?? "Completion preflight rejected route."));
-                    return null;
+                    return intent with { Status = RouteIntentStatus.Unresolved, RouteId = null,
+                        Reason = evaluation.Diagnostic.Detail ?? "Completion preflight rejected route." };
                 }
             }
             if (!draft.Accept(plan.Patch, out var error)) throw new InvalidOperationException(error);
             routes.Add(plan.Route); operations.AddRange(plan.Operations);
-            intents.Add(new(requirementId ?? plan.Route.Id, request.Purpose, request.ProfileKind, plan.Route.Start.AnchorIndex, plan.Route.End.AnchorIndex,
-                plan.Route.End.SiteId ?? plan.Route.End.Id, RouteIntentStatus.Accepted, plan.Route.Id, null));
             context.RoutingSearches += plan.Route.Stats.Attempts; context.RoutingVisitedCells += plan.Route.Stats.ExpandedStates;
             context.RouteSearchMilliseconds -= plan.MaterializationMilliseconds; context.RouteMaterializationMilliseconds += plan.MaterializationMilliseconds;
-            return plan.Route;
+            return intent;
         }
     }
 }

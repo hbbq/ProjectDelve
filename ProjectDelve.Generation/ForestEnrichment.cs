@@ -142,6 +142,7 @@ internal static class ForestEnricher
                     }
                 }
                 var selectedEntries = new List<(int Inside, int Outside)> { entry };
+                List<int>? secondPath = null;
                 // Incidental contact is real connectivity too. Evaluate against the precommit graph.
                 var touched = edits.SelectMany(terrain.Neighbors).Select(geometry.Root).Where(r => r >= 0).ToHashSet();
                 if (ownRoot >= 0) touched.Add(ownRoot);
@@ -160,16 +161,20 @@ internal static class ForestEnricher
                         // A second mouth in the same region must shorten an actual existing walk.
                         if (touched.Contains(geometry.Root(alternate.Outside)) &&
                             geometry.HasShortPath(center, alternate.Outside, branch.Count + 8, edits)) continue;
-                        edits = combined; selectedEntries.Add(alternate); break;
+                        edits = combined; secondPath = branch; selectedEntries.Add(alternate); break;
                     }
                 }
                 var featureId = step.Id + ":" + formation.Id + ":clearing:" + center;
+                var bays = new EnrichmentPassingSpaces(terrain, edits, remaining, Tree);
+                bays.Along(path);
+                if (secondPath is not null) bays.Along(secondPath);
                 terrain.Commit(edits, "dirt"); terrain.Commit(clearing, "grass");
                 foreach (var i in edits.Order()) geometry.Add(i);
                 var entryIndices = selectedEntries.Select(e => terrain.AddEntrance(featureId, e.Inside, e.Outside)).ToArray();
                 existing.TryGetValue(center, out var existingSpace);
                 var usable = clearing.Count > 0 ? clearing : new HashSet<int> { center };
-                context.Features.Add(new(featureId, step.Id, "forest-clearing", formation.Id, terrain.Bounds(edits), edits.Count, entryIndices));
+                context.Features.Add(new(featureId, step.Id, "forest-clearing", formation.Id, terrain.Bounds(edits), edits.Count, entryIndices)
+                    { PassingSpaces = bays.Added, SkippedPassingSpaces = bays.Skipped });
                 context.FeatureOpportunities.Add(new(featureId + ":space", "clearing", center, existingSpace?.Bounds ?? terrain.Bounds(usable),
                     existingSpace?.UsableArea ?? usable.Count, formation.Id, featureId, -1, false));
                 remaining -= edits.Count; ExcludeNear(center, 7); accepted++; RefreshDepth();

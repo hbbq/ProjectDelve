@@ -20,13 +20,18 @@ public sealed class ThroughRouteTests
         Assert.NotEmpty(world.Context.RouteNetwork.SharedSegments);
         foreach (var route in world.Context.Routes)
         {
+            Assert.Equal(2, route.RealizedWidth);
+            Assert.Equal(2, route.VerifiedFootprint);
             Assert.Equal(RouteEndpointKind.Boundary, route.Start.Kind); Assert.Equal(RouteEndpointKind.Boundary, route.End.Kind);
             Assert.NotEqual(route.Start.Side, route.End.Side);
             Assert.Equal(route.Start.AnchorIndex % width - 17, route.Start.WorldX);
             var indices = route.Geometry.LocalIndices(width, world.Window).ToArray();
             Assert.Equal(route.Start.AnchorIndex, indices[0]); Assert.Equal(route.End.AnchorIndex, indices[^1]);
             Assert.All(indices, i => Assert.True(world.Context.ConstructionBoard!.Passable(i)));
+            Assert.DoesNotContain(world.Context.Deployment!.Area.Indices(width).Append(world.Context.Deployment.DepartureIndex),
+                route.Corridor.Indices(width).Contains);
         }
+        Assert.Equal("Valid", PlayReadyScenarioSetup.Validate(world.Definition).Status);
         var routeBatch = Assert.Single(world.Preview.Frames[^1].ConstructionBatches, b => b.StepId == "primary-routes");
         Assert.Equal("hero-deployment", routeBatch.CheckpointStepId);
         Assert.Equal(world.Preview.Frames.Single(f => f.StepId == "hero-deployment").Construction.Count, routeBatch.FirstOperation);
@@ -55,6 +60,8 @@ public sealed class ThroughRouteTests
         Assert.Equal(CardinalSide.North, route.Start.Side); Assert.Equal(CardinalSide.South, route.End.Side);
         Assert.All(route.Geometry.Runs, run => Assert.Equal(CardinalSide.South, run.Direction));
         Assert.Equal(25, route.Stats.Length);
+        Assert.Equal(1, route.RealizedWidth);
+        Assert.Contains("Width-two preference skipped", Assert.Single(context.RouteIntents).Reason);
     }
     [Fact]
     public void WaterPreservationReportsUnresolvedRatherThanClaimingAnAcceptedRoute()

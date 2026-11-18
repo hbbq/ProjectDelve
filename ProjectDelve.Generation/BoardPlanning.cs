@@ -288,6 +288,7 @@ public sealed class BoardDraft : IPlanningBoardView
     public IEnumerable<int> Neighbors(int index) { board.CheckIndex(index); return PlanningBoard.Adjacent(index, Width, Height); }
     public ScenarioDefinition Export() => board.Export(state);
     public BoardDraft Fork(CellBounds area, string ownerId) => new(board, this, area, ownerId, Budget);
+    internal BoardDraft Fork(CellBounds area, string ownerId, PlanningBudget budget) => new(board, this, area, ownerId, budget);
     private void InArea(int index)
     {
         board.CheckIndex(index); var x = index % Width; var y = index / Width;

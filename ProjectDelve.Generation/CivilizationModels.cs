@@ -57,7 +57,10 @@ public sealed record BuildingInfo(string Id, string Purpose, GeneratedArea Footp
 public sealed record SettlementLotInfo(string Id, CellBounds Bounds, string Purpose, string BuildingId);
 public sealed record SettlementPublicSpace(string Id, string Role, GeneratedArea Area);
 public sealed record SettlementLayoutInfo(SettlementFamily Family, IReadOnlyList<SettlementLotInfo> Lots,
-    IReadOnlyList<SettlementPublicSpace> PublicSpaces, GeneratedArea Access, IReadOnlyList<string> FallbackReasons);
+    IReadOnlyList<SettlementPublicSpace> PublicSpaces, GeneratedArea Access, IReadOnlyList<string> FallbackReasons)
+{
+    public bool SkippedExteriorPassingSpace { get; init; }
+}
 public sealed record PreparationSummary(int TreesRemoved, int RockExcavated, int WaterFilled, int ChangedTerrain, int ChangedEdges, int Cost)
 {
     public static PreparationSummary Empty { get; } = new(0, 0, 0, 0, 0, 0);

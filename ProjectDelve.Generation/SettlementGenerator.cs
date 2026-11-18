@@ -171,9 +171,75 @@ public static class SettlementGenerator
                 GeneratedArea.From(id + "/required-access", access, w), fallbacks),
             PopulationIntent = PopulationIntent(id, layout.Family, publicSpace, buildings, access, w)
         };
-        operations.Add(new(id + "/commit", id, "Site ready for atomic commit", id, area, [], []));
         info = SiteRouteAccess.Publish(info, draft, request.Preferences);
+        // Optional shoulders stay outside the protected footprint and use only
+        // remaining Site preparation allowance. The validated access stays intact.
+        before = draft.BuildPatch();
+        var approaches = buildings.SelectMany(b => b.Portals).Select(p => p.OutsideIndex).Concat(paths.Order());
+        var skipped = PreparePassingSpaces(draft, exterior, interiors, approaches, request.Preparation, summary);
+        var shoulderOperation = SiteGeometry.Operation(draft, before, id + "/passing-spaces", id, "Prepared exterior passing spaces", id, draft.AllowedArea);
+        if (shoulderOperation.TerrainChanges.Count > 0)
+        {
+            operations.Add(shoulderOperation);
+            info = info with { Preparation = SiteGeometry.Summary(draft.BuildPatch()) };
+        }
+        if (skipped)
+            info = info with { SettlementLayout = info.SettlementLayout! with
+            {
+                SkippedExteriorPassingSpace = true
+            } };
+        operations.Add(new(id + "/commit", id, "Site ready for atomic commit", id, area, [], []));
         return new Planned<SitePlan>(new(draft.BuildPatch(), info, operations));
+    }
+
+    internal static bool PreparePassingSpaces(BoardDraft draft, HashSet<int> exterior, HashSet<int> interiors,
+        IEnumerable<int> approaches, PreparationPolicy policy, PreparationSummary used)
+    {
+        var w = draft.Width;
+        var cellsLeft = Math.Min(4, policy.MaxChangedCells - used.ChangedTerrain);
+        var costLeft = policy.MaxCost - used.Cost;
+        var nearShell = interiors.Order().SelectMany(draft.Neighbors);
+        var skipped = false;
+        foreach (var cell in approaches.Concat(nearShell).Where(exterior.Contains).Distinct())
+        {
+            var squares = NearbySquares(cell).ToArray();
+            if (squares.Any(s => s.All(draft.Passable))) continue;
+            var changes = squares.Where(s => s.Count(exterior.Contains) >= 2)
+                .Select(s => s.Where(i => !draft.Passable(i)).ToArray())
+                .Where(s => s.Length <= cellsLeft && s.Sum(Cost) <= costLeft && s.All(CanPrepare))
+                .OrderBy(s => s.Sum(Cost)).FirstOrDefault();
+            if (changes is null) { skipped = true; continue; }
+            costLeft -= changes.Sum(Cost);
+            foreach (var i in changes) draft.ReplaceTerrain(i, "grass");
+            cellsLeft -= changes.Length;
+        }
+        return skipped;
+
+        int Cost(int i) => draft.TerrainAt(i) == "solid-rock" ? 4 : 2;
+        bool CanPrepare(int i) => !exterior.Contains(i) && !draft.IsReserved(i) && draft.CanWrite(i) &&
+            (draft.TerrainAt(i) switch
+            {
+                "tree" or "fruit-tree" => policy.ClearTrees,
+                "solid-rock" => policy.ExcavateRock,
+                _ => false
+            }) &&
+            // This optional preparation has no grant to establish a foreign contact.
+            !draft.Neighbors(i).Any(j => draft.IsReserved(j, draft.OwnerId) && draft.Passable(j) &&
+                draft.EdgeAt(EdgeKey.Between(i, j, w)) is EdgeKind.None or EdgeKind.OpenDoor or EdgeKind.ClosedDoor);
+        IEnumerable<int[]> NearbySquares(int cell)
+        {
+            for (var y = cell / w - 1; y <= cell / w; y++)
+            for (var x = cell % w - 1; x <= cell % w; x++)
+            {
+                if (!SiteGeometry.Fits(new(x, y, 2, 2), draft.AllowedArea)) continue;
+                var a = y * w + x;
+                int[] square = [a, a + 1, a + w, a + w + 1];
+                if (square.Any(interiors.Contains)) continue;
+                if (draft.EdgeAt(new(a, EdgeDirection.Right)).Passable() && draft.EdgeAt(new(a + w, EdgeDirection.Right)).Passable() &&
+                    draft.EdgeAt(new(a, EdgeDirection.Down)).Passable() && draft.EdgeAt(new(a + 1, EdgeDirection.Down)).Passable())
+                    yield return square;
+            }
+        }
     }
 
     private static SitePortal[] Entrances(string id, SettlementLayout layout, BoardDraft draft)

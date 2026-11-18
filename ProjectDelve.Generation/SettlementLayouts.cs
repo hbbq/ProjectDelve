@@ -37,10 +37,58 @@ internal static class SettlementLayouts
                 ? Roadside(route[(int)((shift + (long)attempt * route.Count / samples) % route.Count)], road, count, request, scope.Draft, random, Spend)
                 : Centered(family, count, request, scope.Draft, random, attempt, route, Spend);
             if (exhausted) return null;
-            if (layout is not null && SiteGeometry.Fits(layout.Bounds, area)) candidates.Add(layout);
+            if (layout is not null && SiteGeometry.Fits(layout.Bounds, area))
+            {
+                var clearance = ClearanceCost(layout, scope.Draft);
+                candidates.Add(layout with { Cost = layout.Cost + clearance });
+            }
         }
         return candidates;
     }
+
+    // A ranking preference, never an extra reservation or a minimum-width rule.
+    // Score the geometry after its declared preparation: aprons and approaches
+    // become usable, while untouched natural obstacles and other shells remain.
+    internal static int ClearanceCost(SettlementLayout layout, BoardDraft board)
+    {
+        var shells = layout.Lots.Select(l => new CellBounds(l.Bounds.X + 1, l.Bounds.Y + 1,
+            l.Bounds.Width - 2, l.Bounds.Height - 2)).ToArray();
+        var prepared = layout.Lots.SelectMany(l => SiteGeometry.Cells(l.Bounds, board.Width))
+            .Concat(layout.Space.Cells).Concat(layout.EntryPath).Concat(layout.Lots.SelectMany(l => l.Approach)).ToHashSet();
+        var cost = 0;
+        foreach (var shell in shells)
+        {
+            var halo = SiteGeometry.Pad(shell, new(0, 0, board.Width, board.Height), 3);
+            foreach (var cell in Cells(halo))
+            {
+                var dx = Math.Max(Math.Max(shell.X - cell.X, cell.X - (shell.X + shell.Width - 1)), 0);
+                var dy = Math.Max(Math.Max(shell.Y - cell.Y, cell.Y - (shell.Y + shell.Height - 1)), 0);
+                var distance = Math.Max(dx, dy);
+                if (distance == 0) continue;
+                var index = cell.Y * board.Width + cell.X;
+                var otherShell = shells.Any(other => other != shell && Contains(other, cell));
+                if (otherShell || !prepared.Contains(index) && Obstructed(board, index))
+                    cost += 4 * (4 - distance);
+            }
+        }
+        // Prefer room beside public approaches too, without requiring broad roads
+        // or forbidding legal transit beside (or through) protected construction.
+        foreach (var index in layout.EntryPath.Concat(layout.Lots.SelectMany(l => l.Approach)).Distinct())
+        foreach (var neighbor in board.Neighbors(index))
+        {
+            if (!prepared.Contains(neighbor) && Obstructed(board, neighbor)) cost += 6;
+        }
+        return cost;
+    }
+
+    private static bool Contains(CellBounds bounds, Cell cell) => cell.X >= bounds.X && cell.X < bounds.X + bounds.Width &&
+        cell.Y >= bounds.Y && cell.Y < bounds.Y + bounds.Height;
+
+    private static bool Obstructed(BoardDraft board, int index) => !board.Passable(index) || board.Neighbors(index).Any(next =>
+    {
+        var edge = board.EdgeAt(EdgeKey.Between(index, next, board.Width));
+        return !edge.Passable() && edge != EdgeKind.ClosedDoor;
+    });
 
     private static SettlementLayout? Centered(SettlementFamily family, int count, SettlementRequest request,
         BoardDraft board, Pcg32 random, int attempt, IReadOnlyList<int> route, Func<int, bool> spend)

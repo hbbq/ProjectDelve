@@ -9,6 +9,9 @@ The subsequent optional Civilization stage is documented in
 [CIVILIZATION_SITES.md](CIVILIZATION_SITES.md); it runs after enrichment and before
 final analysis, and adds constructed terrain and Edges with semantic Site results.
 
+[Passage Quality B1](PASSAGE_QUALITY_B1.md) describes local passing spaces in
+long Forest trails and Rock tunnels under the existing disturbance limits.
+
 ## Scope and recipe contract
 
 Natural Terrain's original stateless sampler is unchanged and remains globally

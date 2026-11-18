@@ -109,6 +109,7 @@ internal static class RockEnricher
                 }
                 if (!guard.Allows(edits)) continue;
                 var selectedEntries = new List<(int Inside, int Outside)>();
+                List<int>? secondPath = null;
                 var usefulPass = false;
                 if (targets.TryGetValue(tunnel[^1], out var entry)) selectedEntries.Add(entry);
                 var touched = edits.SelectMany(terrain.Neighbors).Select(geometry.Root).Where(r => r >= 0).ToHashSet();
@@ -125,15 +126,19 @@ internal static class RockEnricher
                         if (combined.Count <= edits.Count || combined.Count > remaining) continue;
                         if (touched.Contains(geometry.Root(alternate.Outside)) && geometry.HasShortPath(center, alternate.Outside, branch.Count + 8, edits)) continue;
                         if (!guard.Allows(combined)) continue;
-                        edits = combined; selectedEntries.Add(alternate); usefulPass = true; break;
+                        edits = combined; secondPath = branch; selectedEntries.Add(alternate); usefulPass = true; break;
                     }
                 }
+                var bays = new EnrichmentPassingSpaces(terrain, edits, remaining, i => Rock(i) && Interior(i), guard.Allows);
+                bays.Along(tunnel);
+                if (secondPath is not null) bays.Along(secondPath);
                 terrain.Commit(edits, "stone-floor");
                 foreach (var i in edits.Order()) geometry.Add(i);
                 var id = step.Id + ":" + formation.Id + ":chamber:" + center;
                 var entranceIndices = selectedEntries.Select(e => terrain.AddEntrance(id, e.Inside, e.Outside)).ToArray();
                 context.Features.Add(new(id, step.Id, usefulPass ? "cave-with-mountain-pass" : "cave-chamber",
-                    formation.Id, terrain.Bounds(edits), edits.Count, entranceIndices));
+                    formation.Id, terrain.Bounds(edits), edits.Count, entranceIndices)
+                    { PassingSpaces = bays.Added, SkippedPassingSpaces = bays.Skipped });
                 context.FeatureOpportunities.Add(new(id + ":room", "cave-chamber", center, terrain.Bounds(room), room.Count, formation.Id, id, -1, false));
                 remaining -= edits.Count; accepted++; Exclude(center, 7); RefreshDepth();
             }

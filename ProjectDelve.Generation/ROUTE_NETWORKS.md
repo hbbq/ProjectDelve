@@ -7,6 +7,9 @@ The subsequent [visual quality refinement](ROUTE_QUALITY.md) documents current
 cost tuning, paired galleries, diagnostics and verification. Measurements below
 describe the original route milestone baseline.
 
+[Passage Quality B1](PASSAGE_QUALITY_B1.md) describes the current optional
+width-two preference for Primary Routes and selected Site Connections.
+
 World Generator supports optional Primary Routes before Civilization, Site
 Connections afterward, and selected Exploration Links. These are WindowLocal
 authoring stages. Through routes can enter and leave the map with no Sites.
