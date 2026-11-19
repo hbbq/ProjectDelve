@@ -2,7 +2,7 @@
 
 Use this file as guidance when generating new ideas for Project Delve.
 
-Project Delve is a physical-first fantasy/dungeon tactical board game with a C#/.NET reference engine, a browser-based visual playtest client, and a visual ScenarioDefinition level designer. The software exists to make the rules precise and testable while preserving physical tabletop play.
+Project Delve began as a physical-first fantasy/dungeon tactical board game and has grown into a composable game and development playground, with a C#/.NET authoritative engine, a browser-based playtest client, a visual ScenarioDefinition designer, and persistent Expeditions. Preserve physical tabletop play where practical, while explicitly welcoming digital-only experiments when they unlock interesting gameplay.
 
 ## Current focus
 
@@ -18,7 +18,10 @@ Interesting directions include:
 - browser presentation or debug ideas when they help reveal whether gameplay, rules, decisions, or events are understandable;
 - ideas that expose missing abstractions by first introducing a concrete gameplay need;
 - campaign/content ideas that can compose scenarios without unnecessarily coupling campaign structure to scenario internals;
-- physical-table experiments that the reference engine and browser can help validate.
+- physical-table experiments that the reference engine and browser can help validate;
+- **new Machines and interactive locations**, including dedicated views for redistributing, buying, selling, upgrading, crafting, recruiting, or configuring Units and objects;
+- **subscenarios**, including caves, shops, arcade games, races, chess-like Delve scenarios, logistics, and warfare, with explicit entry, return, failure, and reward consequences;
+- ideas that deliberately blur the boundary between playing Delve and changing its code, including discoveries in persistent Expeditions that motivate new mechanics.
 
 The browser and level designer are tools for discovering and testing the game, not the main product goal. Rules, Units, scenarios, objectives, physical components, automated behavior, engine boundaries, testing, and playtest workflow are all valid areas.
 
@@ -45,12 +48,24 @@ Examples of the *kind of thinking* desired, not a fixed list to repeat:
 
 These are **inspiration, not preferred recurring proposals**. Invent new combinations from the current mechanics rather than continually recycling the examples. Surprise is more important than staying within a genre. Keep the idea grounded in real rules and verify assumptions against `CONSTRAINTS.md` before asserting a particular interaction is legal.
 
+## Machines, subscenarios, and the larger game
+
+Actively explore **new Machines and interactive locations** as a recurring ideation direction. An Operate action might perform an immediate effect, open a focused interactive view (for example Equipment Station, Trading Post, Upgrade Station, Crafting Station, or Vehicle Workshop), or launch a playable **subscenario**. Do not assume every Machine must fit a simple one-step action.
+
+A subscenario uses the **same Delve Engine and core rules**, even when its Units, terrain, objectives, and genre differ radically. Explore caves, shops, chess-like tactical scenarios, kart racing, resource logistics, factory operation, and warfare. Consider how the parent scenario pauses, what Units and objects enter, what comes back, what happens on defeat, and what rewards or changes carry over. These are idea prompts, **not claims that generic subscenario transitions already exist**. Favor a concrete scenario experiment and the smallest missing rule over a speculative universal framework.
+
+**Occasionally propose something deliberately absurd.** A fantasy Hero might win a warfare game on an arcade Machine and bring a wildly overpowered Tank back to the dungeon; a chess-like Machine might award five random Equipment; a mundane hut might contain an elaborate racing simulation. Such examples illustrate the desired spirit, not a fixed idea list. Do not require balance, genre consistency, commercial plausibility, or conventional good sense. Sometimes the imbalance, logistical consequence, or architectural incompatibility is the interesting part.
+
+Project Delve deliberately blurs the boundary between **playing the game and developing the code**. An ongoing Expedition can reveal boredom, unexpected synergies, inconvenient inventories, or new opportunities; changing the engine and returning to the same journey is itself part of the larger game. Treat the backlog as possible adventures rather than a mandatory roadmap.
+
+**In every ideation pass, consider at least one Machine, interactive location, or subscenario idea**, alongside the existing requirement for an unexpected cross-system combination. These may be the same idea, but need not be. Include an intentionally absurd idea from time to time; do not force one into every batch. For each, distinguish current mechanics from proposed ones, note whether it is physical-friendly or digital-only, and suggest a minimal playable experiment.
+
 ## Design principles
 
 Prefer ideas that:
 
-- preserve the physical-first nature of the game;
-- could correspond to rules and state that humans can represent and follow at the table;
+- preserve simple, composable rules and physical play where practical, without treating physical feasibility as a gate for digital-only ideas;
+- state clearly whether a proposed mechanic is practical at the table, cumbersome physically, or digital-only;
 - make the game more interesting, understandable, testable, or pleasant to play;
 - start from a concrete Unit, scenario, objective, component, or gameplay situation rather than a generic abstraction;
 - allow new mechanics when a concrete idea needs them, then look for the smallest rule/engine concept that supports that idea cleanly;
@@ -61,7 +76,7 @@ Prefer ideas that:
 - expose real design questions rather than adding infrastructure for hypothetical future needs;
 - are small enough to investigate or prototype independently.
 
-Do **not** reject an otherwise good gameplay idea merely because the current engine cannot express it. If it fits the physical game, call out the missing mechanic explicitly and suggest the smallest experiment needed to learn whether it belongs in Delve.
+Do **not** reject an otherwise good gameplay idea merely because the current engine cannot express it or because it would be digital-only. Identify the missing mechanic explicitly and suggest the smallest experiment needed to learn whether it belongs in Delve.
 
 Avoid ideas whose main value is:
 
@@ -70,7 +85,6 @@ Avoid ideas whose main value is:
 - framework churn;
 - generic abstraction without a concrete gameplay or playtest need;
 - moving rules, pathfinding, LOS, target legality, or automated decision logic into the browser;
-- adding digital-only mechanics that would not make sense in the physical game;
 - creating generalized effect/rules DSLs in anticipation of mechanics that do not yet exist.
 
 ## Existing authoring and playtest capabilities
@@ -115,4 +129,4 @@ A good idea should explain:
 5. Any important physical-game or engine-boundary implication.
 6. The smallest experiment that could test whether the idea is worthwhile.
 
-Favor a varied set of concrete ideas over a single large roadmap. Mix ideas that recombine existing mechanics with ideas that intentionally push beyond the current rules. Playful, chaotic, or unusual ideas are welcome when they still fit Project Delve's physical-first constraints.
+Favor a varied set of concrete ideas over a single large roadmap. Mix ideas that recombine existing mechanics with ideas that intentionally push beyond the current rules. Playful, chaotic, genre-breaking, or deliberately absurd ideas are welcome even when they are unbalanced, physically impractical, or likely to provoke new architecture problems.
