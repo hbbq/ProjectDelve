@@ -38,6 +38,11 @@ public sealed record ExpeditionWorldProfile(string NatureVersion, string FieldVe
     internal const string ConstructionV3 = "ExpeditionConstruction3";
     public const string CurrentConstructionVersion = ConstructionV3;
     public const string CurrentStationVersion = "ExpeditionStations1";
+    internal const string PopulationV1 = "ExpeditionPopulation1";
+    public const string CurrentPopulationVersion = PopulationV1;
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PopulationVersion { get; init; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? StationVersion { get; init; }
@@ -49,7 +54,11 @@ public sealed record ExpeditionWorldProfile(string NatureVersion, string FieldVe
     public string? ConstructionVersion { get; init; }
 
     public static ExpeditionWorldProfile Create(NaturalTerrainSettings nature, ExpeditionSpatialSettings? spatial = null) =>
-        CreateCivilizationV1(nature, spatial) with { ConstructionVersion = CurrentConstructionVersion, StationVersion = CurrentStationVersion };
+        CreateCivilizationV1(nature, spatial) with
+        {
+            ConstructionVersion = CurrentConstructionVersion, StationVersion = CurrentStationVersion,
+            PopulationVersion = CurrentPopulationVersion
+        };
 
     public static ExpeditionWorldProfile CreateConstructionV1(NaturalTerrainSettings nature, ExpeditionSpatialSettings? spatial = null) =>
         CreateCivilizationV1(nature, spatial) with { ConstructionVersion = ConstructionV1 };
@@ -67,6 +76,8 @@ public sealed record ExpeditionWorldProfile(string NatureVersion, string FieldVe
 
     public ExpeditionWorldProfile Validate()
     {
+        if (PopulationVersion is not (null or PopulationV1))
+            throw new ArgumentException($"Unsupported Expedition population version '{PopulationVersion}'.");
         if (StationVersion is not (null or CurrentStationVersion))
             throw new ArgumentException($"Unsupported Expedition Station version '{StationVersion}'.");
         if (NatureVersion != NatureV1)

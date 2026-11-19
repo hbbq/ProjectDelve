@@ -62,7 +62,8 @@ public sealed class ExpeditionJourneyDiagnostic(ITestOutputHelper output)
             "after" => ExpeditionWorldProfile.CreateCivilizationV1(baseline.NaturalTerrain),
             "construction" => ExpeditionWorldProfile.CreateConstructionV1(baseline.NaturalTerrain),
             "remains" => ExpeditionWorldProfile.CreateConstructionV2(baseline.NaturalTerrain),
-            _ => ExpeditionWorldProfile.Create(baseline.NaturalTerrain)
+            "outposts" => ExpeditionWorldProfile.Create(baseline.NaturalTerrain) with { PopulationVersion = null },
+            _ => throw new ArgumentOutOfRangeException(nameof(variant))
         };
         var sampler = new ExpeditionNatureSampler(seed, profile);
         var plans = new List<ExpeditionRegionPlan>(Length) { ExpeditionWorld.Initial(seed) };

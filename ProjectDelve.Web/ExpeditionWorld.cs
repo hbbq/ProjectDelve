@@ -16,7 +16,7 @@ public sealed record ExpeditionRegionPlan(ExpeditionRegion Region, ExpeditionEdg
 
 internal static class ExpeditionWorld
 {
-    internal const int Stride = 60;
+    internal const int Stride = ExpeditionRegionGeometry.RegionStride;
 
     internal static ExpeditionRegionPlan Initial(ulong seed)
     {

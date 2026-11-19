@@ -469,3 +469,31 @@ The generator places the guaranteed Machine during protected deployment construc
 A separate region-seeded draw requests at most one additional public Station with probability 1/12. The planner tries at most 96 locations. It requires a connected, passable 5 × 5 pad clear of reservations, route corridors, entrances and internal Edges. The ordinary Machine placement and completion checks accept or omit the candidate. Population checks preserve operating access with initial Monster footprints occupied. The chance of an actual placement is consequently at most 1/12.
 
 Ordinary WLD1 retains its existing Machine selection. Authored Sites and scenarios can explicitly select the Station from the canonical Machine catalog. [Placement code](ProjectDelve.Generation/ExpeditionStationGenerator.cs) · [Playable workshop](VISION_AND_MACHINES.md#play-the-workshop)
+
+## Expedition introductory Population
+
+### Ordinary inputs and placement
+
+The default recipe has Medium density and difficulty 3. Each control samples its own field at the floor of the region center, rounds `(2 * field - 1) * RegionalVariation` to the nearest integer (halves away from zero), adds it to the baseline and clamps the result to the enabled bands. At the default regional wavelength of 360 Cells, the field combines scales of 360, 108 and 27 Cells with weights 60%, 30% and 10%. An explicit Off stays disabled.
+
+On a 60 × 60 board, Low, Medium and High respectively target 16, 36 and 65 encounters, with Unit ceilings of 80, 144 and 256. Density also influences room occupation, compound sizes and patrol requests. Legal space, connectivity, encounter spacing and bounded placement work determine actual totals. Wilderness candidates use 12 × 12 Cell patches with placement weights 0, 2 or 10 (20%, 40% and 40% of patch draws). Sites and road patrols get placement opportunities before wilderness encounters.
+
+Wilderness draws a lone Monster or a clustered group of two to five of the same Type. Selection weights for a Type are its relative weight times 16, 8, 3, 1 or 1 for a difficulty-to-threat difference of 0 through 4. Every available pooled Type can therefore occur even at difficulty 1. Buildings, camps, dungeon rooms and road patrols have additional role, size and composition rules. Ordinary deployment protections reserve Cells and keep required destinations accessible with figures on the board. Several Skeleton Archers can still share the first encounter within Attack or approach distance.
+
+### New-run policy
+
+New runs record `populationVersion: "ExpeditionPopulation1"` on the world profile. After `ExpeditionFields1` samples the geographic center and resolves the normal Population settings, the Expedition adapter adjusts only the Population step. The signed region coordinates give the zero-based index `i = |X| + |Y|` because both forward directions are fixed for the journey. Saves and retries do not advance it.
+
+| Index | Effective difficulty for ordinary bands 1, 2, 3, 4, 5 | Highest density | Arrival points |
+| --- | --- | --- | --- |
+| 0 | 1, 1, 1, 1, 1 | Low | 2 |
+| 1 | 1, 1, 2, 2, 2 | Medium | 3 |
+| 2 | 1, 2, 2, 3, 3 | High | Unrestricted |
+| 3 | 1, 2, 3, 3, 4 | High | Unrestricted |
+| 4 onward | 1, 2, 3, 4, 5 | High | Unrestricted |
+
+For indices 0–3 the integer formula is `1 + floor(((normalDifficulty - 1) * i + 2) / 4)`. Density uses the lesser of the ordinary resolved band and the listed cap. An absent or Off Population stays disabled. From index 4 the adapter passes ordinary Population through directly. Profiles without this field also use the ordinary path, including during legacy frontier upgrades.
+
+Each candidate encounter in the first two regions is checked before Engine placement. Take the minimum Manhattan distance from each candidate Monster’s footprint to the actual five ordered Hero placements, including the Station operator. Within `max(8, base RNG + 3)`, count one point per Monster or two for base RNG above 1. Only a fully accepted encounter consumes its points from the shared allowance. This applies across room, camp, patrol and wilderness requests. It reads no Hero inventory, combat state or play history. Population can affect encounter Loot and final Site Loot positions through ordinary occupation and supply rules.
+
+The [seeded comparison and reproduction instructions](EXPEDITION_INTRO_RESULTS.md) cover population, arrival exposure and later-region equality.

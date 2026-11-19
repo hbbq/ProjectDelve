@@ -573,12 +573,52 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ResumedFrontierUsesRecordedPopulationPolicyAndPreservesSource(bool useIntro)
+    {
+        const string id = "population-policy";
+        var settings = ExpeditionWorld.Configure(WorldSeed, new(new(), new(0, 0, 0),
+            Civilization: new(Enabled: false), Routes: new(Enabled: false), Population: new(PopulationDensity.High, 5)));
+        var profile = ExpeditionWorldProfile.Create(settings.NaturalTerrain) with
+        {
+            PopulationVersion = useIntro ? ExpeditionWorldProfile.CurrentPopulationVersion : null
+        };
+        var store = new ExpeditionStore(root, id);
+        var runner = ExpeditionRunner.Create(store, WorldSeed, ContentBundle.Canonical, OpenBoard,
+            settings.ToString(), profile);
+        var headPath = Path.Combine(root, "expedition-" + id, "head.json");
+        using (var json = JsonDocument.Parse(File.ReadAllBytes(headPath)))
+        {
+            var savedProfile = json.RootElement.GetProperty("worldProfile");
+            Assert.Equal(useIntro, savedProfile.TryGetProperty("populationVersion", out var population));
+            if (useIntro) Assert.Equal(profile.PopulationVersion, population.GetString());
+        }
+        FinishOpenBoard(runner);
+        runner.Save();
+        var reopened = ExpeditionRunner.Open(root, id);
+        Assert.Equal(profile, reopened.Head.WorldProfile);
+        Assert.Equal(JsonSerializer.Serialize(runner.Snapshot()), JsonSerializer.Serialize(reopened.Snapshot()));
+        var source = reopened.Head.ActiveCheckpoint;
+        var sourceBytes = File.ReadAllBytes(CheckpointPath(source, id));
+        var transition = reopened.Region.TransitionId;
+        var receipt = reopened.Continue(transition);
+        Assert.Equal(source, receipt.Source);
+        Assert.Equal(profile, reopened.Head.WorldProfile);
+        var expected = ExpeditionWorld.Generate(reopened.Region, ContentBundle.Canonical(), settings, profile);
+        Assert.Equal(expected.Units, reopened.Scenario.Units.Where(u => u.SideId == HeroesVsMonsters.Monsters).ToList());
+        Assert.Equal(receipt, reopened.Continue(transition));
+        Assert.Equal(sourceBytes, File.ReadAllBytes(CheckpointPath(source, id)));
+    }
+
+    [Theory]
     [InlineData("natureVersion", "Unsupported Expedition nature version")]
     [InlineData("fieldVersion", "Unsupported Expedition field version")]
     [InlineData("coordinates", "Unsupported Expedition coordinate convention")]
     [InlineData("civilizationVersion", "Unsupported Expedition civilization version")]
     [InlineData("constructionVersion", "Unsupported Expedition construction version")]
     [InlineData("stationVersion", "Unsupported Expedition Station version")]
+    [InlineData("populationVersion", "Unsupported Expedition population version")]
     public void UnknownPinnedVersionRejectsOpenWithoutTouchingEitherSaveFile(string property, string diagnostic)
     {
         const string id = "unsupported-profile";

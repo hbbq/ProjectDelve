@@ -6,6 +6,7 @@ namespace ProjectDelve.Generation;
 /// <summary>Expedition adapter over the ordinary WLD1 construction pipeline.</summary>
 public static class ExpeditionRegionGeometry
 {
+    public const int RegionStride = 60;
     public const string ArrivalStationId = "expedition/arrival-equipment-station";
     public const string AdditionalStationId = "expedition/additional-equipment-station";
     public static ScenarioDefinition Generate(WorldGenerationRecipe recipe, Cell entrySeam, Cell exitSeam,
@@ -22,13 +23,18 @@ public static class ExpeditionRegionGeometry
         if (recipe.Seed is null) throw new ArgumentException("Expedition generation requires the recorded world seed.", nameof(recipe));
 
         var expedition = new ExpeditionGeometryPlan(recipe.Window, recipe.HeroCapacity, entrySeam, exitSeam, exitArea, localSeed)
-        { StationsEnabled = profile?.StationVersion == ExpeditionWorldProfile.CurrentStationVersion };
+        {
+            StationsEnabled = profile?.StationVersion == ExpeditionWorldProfile.CurrentStationVersion,
+            Introduction = ExpeditionPopulationIntroduction.For(profile, recipe.Window)
+        };
         if (profile is not null)
         {
             var sampler = new ExpeditionNatureSampler(recipe.Seed.Value, profile);
             // Downstream WLD1 stages use their ordinary seed inputs, scoped to this region.
             // The pinned sampler owns the distinct global world coordinates and seed.
             var regionalRecipe = sampler.ResolveRegion(recipe) with { Seed = localSeed };
+            if (expedition.Introduction is { } introduction && regionalRecipe.Population is { } population)
+                regionalRecipe = regionalRecipe with { Population = introduction.Adjust(population) };
             ExpeditionCivilizationAllocation? civilization = null;
             if (profile.CivilizationVersion == ExpeditionWorldProfile.CivilizationV1 &&
                 recipe.Civilization is { Enabled: true })
@@ -61,6 +67,7 @@ public static class ExpeditionRegionGeometry
 
 internal sealed class ExpeditionGeometryPlan
 {
+    internal ExpeditionPopulationIntroduction? Introduction { get; init; }
     internal bool StationsEnabled { get; init; }
     internal ulong LocalSeed { get; }
     internal IReadOnlySet<int> DeploymentDomain { get; }

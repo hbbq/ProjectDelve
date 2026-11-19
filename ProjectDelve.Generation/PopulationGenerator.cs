@@ -78,6 +78,9 @@ public static partial class PopulationGenerator
             var area = GeneratedArea.From(path + "/natural-" + i, cells, w);
             candidates.Add(new(random.Next(5) < 2 ? "LoneMonster" : "WildernessGroup", area.Id, cells, area.Bounds));
         }
+        var remainingArrivalPoints = context.Expedition?.Introduction?.ArrivalBudget ?? 0;
+        var formation = remainingArrivalPoints > 0 ? context.Deployment!.PlacementOrder.Take(context.Deployment.Capacity)
+            .Select(i => new Cell(i % w, i / w)).ToArray() : null;
         for (var candidateIndex = 0; candidateIndex < candidates.Count; candidateIndex++)
         {
             var location = candidates[candidateIndex];
@@ -112,6 +115,12 @@ public static partial class PopulationGenerator
             }
             if (groupCount + encounter.GroupIds.Count > MaxGroups)
             { Fail(location, "Group allowance exhausted."); attempts.Add(new(location, requested, 0, "Budget")); continue; }
+            var arrivalCost = formation is null ? 0 : ExpeditionPopulationIntroduction.ArrivalCost(encounter.Units, types, formation);
+            if (arrivalCost > remainingArrivalPoints)
+            {
+                Fail(location, "Initial occupation would exceed the Expedition arrival threat budget.");
+                attempts.Add(new(location, requested, 0, "Placement")); continue;
+            }
             var beforeUnits = state.Units.Count; var beforeFigures = state.Physical.Figures.Count;
             try
             {
@@ -145,6 +154,7 @@ public static partial class PopulationGenerator
             if (location.Region is not null && (componentCount != 1 || allComponents.Any(c => c.UnitIds.Any(memberIds.Contains) && c.UnitIds.Any(id => !memberIds.Contains(id)))))
             { Rollback(); Fail(location, "Independent room region would share an Alert network with another encounter."); attempts.Add(new(location, requested, 0, "Alert")); continue; }
             accepted.Add(encounter); unitCount += encounter.Units.Count; groupCount += encounter.GroupIds.Count;
+            remainingArrivalPoints -= arrivalCost;
             attempts.Add(new(location, requested, encounter.Units.Count, encounter.Units.Count < requested ? "Reduced" : "Accepted",
                 requested > remainingUnits, budget.WorkLimitRejections > workRejections));
             foreach (var unit in encounter.Units) foreach (var cell in FootprintGeometry.OccupiedCells(types[unit.UnitTypeId].Footprint, unit.Anchor))
