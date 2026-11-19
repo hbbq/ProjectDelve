@@ -37,6 +37,10 @@ public sealed record ExpeditionWorldProfile(string NatureVersion, string FieldVe
     internal const string ConstructionV2 = "ExpeditionConstruction2";
     internal const string ConstructionV3 = "ExpeditionConstruction3";
     public const string CurrentConstructionVersion = ConstructionV3;
+    public const string CurrentStationVersion = "ExpeditionStations1";
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? StationVersion { get; init; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? CivilizationVersion { get; init; }
@@ -45,7 +49,7 @@ public sealed record ExpeditionWorldProfile(string NatureVersion, string FieldVe
     public string? ConstructionVersion { get; init; }
 
     public static ExpeditionWorldProfile Create(NaturalTerrainSettings nature, ExpeditionSpatialSettings? spatial = null) =>
-        CreateCivilizationV1(nature, spatial) with { ConstructionVersion = CurrentConstructionVersion };
+        CreateCivilizationV1(nature, spatial) with { ConstructionVersion = CurrentConstructionVersion, StationVersion = CurrentStationVersion };
 
     public static ExpeditionWorldProfile CreateConstructionV1(NaturalTerrainSettings nature, ExpeditionSpatialSettings? spatial = null) =>
         CreateCivilizationV1(nature, spatial) with { ConstructionVersion = ConstructionV1 };
@@ -63,6 +67,8 @@ public sealed record ExpeditionWorldProfile(string NatureVersion, string FieldVe
 
     public ExpeditionWorldProfile Validate()
     {
+        if (StationVersion is not (null or CurrentStationVersion))
+            throw new ArgumentException($"Unsupported Expedition Station version '{StationVersion}'.");
         if (NatureVersion != NatureV1)
             throw new ArgumentException($"Unsupported Expedition nature version '{NatureVersion}'.");
         if (FieldVersion != FieldsV1)

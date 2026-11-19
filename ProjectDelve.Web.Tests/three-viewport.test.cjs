@@ -30,6 +30,20 @@ test('mixed-water surfaces share fixed artwork in flat and tabletop without rais
   }finally{h.cleanup();}
 });
 
+test('tabletop displays a one-Cell equipment rack at the projected Station position', async () => {
+  const f = fixture();
+  f.presentation.machines = [{ id:'workshop', typeId:'equipment-station', name:'Equipment Station',
+    position:{ x:3, y:2 }, ownerSide:'heroes', resourceStorage:[] }];
+  const h = await harness(f);
+  try {
+    h.viewport.setPresentation('tabletop'); h.viewport.settle(); h.flush();
+    const rack = h.rendered.at(-1).scene.getObjectByName('equipment-station-rack');
+    assert.ok(rack);
+    assert.deepEqual(rack.position.toArray(), [3.5, 0, 2.5]);
+    assert.deepEqual(h.failures, []);
+  } finally { h.cleanup(); }
+});
+
 for(const presentation of ['flat','tabletop'])test(`${presentation} Beacon rotates without lights and releases owned resources on replacement`,async()=>{
   const f=fixture();f.presentation.machines=[{id:'beacon',typeId:'beacon',name:'Beacon',position:{x:3,y:3},resourceStorage:[]}];
   const h=await harness(f);try{

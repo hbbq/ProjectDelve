@@ -1,0 +1,53 @@
+html:has(#equipment-station-dialog[open]) { height: 100dvh; max-height: 100dvh; overflow: hidden; overscroll-behavior: none; }
+body:has(#equipment-station-dialog[open]) { position: fixed; inset: 0; width: 100%; height: 100dvh; max-height: 100dvh; margin: 0; overflow: hidden; overscroll-behavior: none; box-sizing: border-box; }
+.equipment-station { width: min(1400px, 96vw); max-width: 96vw; max-height: 92dvh; padding: 1.4rem; border: 1px solid #bca06b; border-radius: 6px; background: #1b2722; color: #eee6d2; overflow: auto; font-size: .84rem; }
+.equipment-station { overscroll-behavior: contain; touch-action: pan-y; }
+.equipment-station::backdrop { background: #080e14d9; }
+.equipment-station h2 { margin: 0; font: 400 1.65rem/1.25 Georgia, serif; color: #f0d9ab; }
+.equipment-station > p { margin: .5rem 0; }
+.equipment-station summary { cursor: pointer; color: #d6ba81; }
+.station-explanation, .station-original { color: #b6bdac; font-size: .78rem; }
+.station-roster { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 1rem; align-items: start; }
+.station-unit { border: 1px solid #bca06b55; border-radius: 5px; padding: .8rem; min-width: 0; }
+.station-unit h3 { margin: 0; }
+.station-unit > p { margin: .45rem 0; }
+.station-unit > details { margin: .35rem 0; }
+.station-unit h4 { margin-bottom: .5rem; }
+.station-object { display: grid; gap: .3rem; padding: .65rem; margin-bottom: .6rem; background: #bca06b0d; border: 1px solid #bca06b25; border-radius: 4px; overflow-wrap: anywhere; }
+.station-object p { margin: .2rem 0; }
+.station-object label { display: grid; gap: .3rem; }
+.equipment-station select, .station-actions button { min-height: 44px; max-width: 100%; }
+.station-stats { width: 100%; border-collapse: collapse; margin: .9rem 0; font-variant-numeric: tabular-nums; }
+.station-stats th, .station-stats td { padding: .3rem; border-bottom: 1px solid #49545a; text-align: right; }
+.station-stats th:first-child { text-align: left; }
+.station-stats tr:first-child th { font-size: .8rem; }
+.station-ability { margin: .7rem 0; padding-top: .5rem; border-top: 1px solid #49545a; }
+.station-ability p { margin: .3rem 0; }
+.station-actions { display: flex; flex-wrap: wrap; gap: .6rem; position: sticky; bottom: -1.4rem; padding: .75rem 0; background: #1b2722; border-top: 1px solid #bca06b55; margin-top: 1rem; z-index: 1; }
+.station-primary { background: #326e5c; color: white; }
+.station-focus-label { display: none; }
+.station-stat-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: .3rem; margin: .3rem 0 .5rem; }
+.station-stat { display: flex; align-items: baseline; justify-content: center; gap: .35rem; padding: .4rem .15rem; background: #bca06b12; border-radius: 3px; font-variant-numeric: tabular-nums; }
+.station-stat small { color: #b6bdac; font-size: .62rem; }
+.station-stat strong { font-size: 1.02rem; }
+.station-stat span { font-size: .8rem; font-weight: 700; }
+.station-positive { color: #a9e0ae; }
+.station-negative { color: #ffb29c; }
+.station-normalized-label { font-size: .58rem; color: #b6bdac; letter-spacing: .12em; }
+.station-movement, .station-delta { font-size: .75rem; }
+.station-reserved { color: #f0d9ab; padding: .6rem; border-left: 3px solid #d6ba81; background: #bca06b12; }
+#equipment-station-diagnostics:empty { display: none; }
+#equipment-station-diagnostics { color: #ffcd95; }
+.equipment-station :focus-visible { outline: 3px solid #e9c570; outline-offset: 3px; }
+@media (max-width: 700px) {
+  html:has(#equipment-station-dialog[open]) { scrollbar-gutter: auto; }
+  /* The mobile board normally extends below the viewport down to its field guide. */
+  body.playing:has(#equipment-station-dialog[open]) #playtest-main { height: 100dvh; overflow: clip; contain: strict; }
+  .equipment-station { width: 100%; max-width: 100%; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; padding: 1rem; box-sizing: border-box; }
+  .station-focus-label { display: grid; gap: .3rem; margin: .65rem 0; }
+  .station-unit[data-focused="false"] { display: none; }
+  .station-roster { display: block; }
+  .station-actions { bottom: -1rem; }
+  .station-actions button { flex: 1 1 42%; }
+  .station-primary { flex-basis: 100% !important; }
+}

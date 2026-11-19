@@ -6,6 +6,8 @@ namespace ProjectDelve.Generation;
 /// <summary>Expedition adapter over the ordinary WLD1 construction pipeline.</summary>
 public static class ExpeditionRegionGeometry
 {
+    public const string ArrivalStationId = "expedition/arrival-equipment-station";
+    public const string AdditionalStationId = "expedition/additional-equipment-station";
     public static ScenarioDefinition Generate(WorldGenerationRecipe recipe, Cell entrySeam, Cell exitSeam,
         ObjectiveArea exitArea, ulong localSeed, ContentBundle content, ExpeditionWorldProfile? profile = null)
         => Execute(recipe, entrySeam, exitSeam, exitArea, localSeed, content, profile: profile).Context.Materialize();
@@ -19,7 +21,8 @@ public static class ExpeditionRegionGeometry
         recipe.Validate();
         if (recipe.Seed is null) throw new ArgumentException("Expedition generation requires the recorded world seed.", nameof(recipe));
 
-        var expedition = new ExpeditionGeometryPlan(recipe.Window, recipe.HeroCapacity, entrySeam, exitSeam, exitArea, localSeed);
+        var expedition = new ExpeditionGeometryPlan(recipe.Window, recipe.HeroCapacity, entrySeam, exitSeam, exitArea, localSeed)
+        { StationsEnabled = profile?.StationVersion == ExpeditionWorldProfile.CurrentStationVersion };
         if (profile is not null)
         {
             var sampler = new ExpeditionNatureSampler(recipe.Seed.Value, profile);
@@ -58,6 +61,7 @@ public static class ExpeditionRegionGeometry
 
 internal sealed class ExpeditionGeometryPlan
 {
+    internal bool StationsEnabled { get; init; }
     internal ulong LocalSeed { get; }
     internal IReadOnlySet<int> DeploymentDomain { get; }
     internal ImmutableArray<int> EndpointIndices { get; }
@@ -131,6 +135,9 @@ internal sealed class ExpeditionGeometryPlan
         var reached = MandatoryConnectivityRepair.ActualReachable(state.Physical.Board,
             [deployment.PlacementOrder[0]], occupied);
         return EndpointIndices.All(reached.Contains) && deployment.PlacementOrder.All(reached.Contains) &&
-            reached.Contains(deployment.DepartureIndex) && (extraLocations?.All(reached.Contains) ?? true);
+            reached.Contains(deployment.DepartureIndex) && (extraLocations?.All(reached.Contains) ?? true) &&
+            (!StationsEnabled || state.Physical.Board.Machines.Where(m => m.Type.Operation.EquipmentStation is not null)
+                .All(m => MachineGeometry.PotentialOperatingPositions(state.Physical.Board, m)
+                    .Any(cell => reached.Contains(cell.Y * width + cell.X))));
     }
 }

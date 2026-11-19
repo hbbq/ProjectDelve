@@ -10,6 +10,7 @@ import { loadPresentationProfiles } from "./presentation-profiles.js";
 import { cursorSize, setCursorSize, loadCursorAssets, onCursorPresentationChange } from "./presentation-cursors.js";
 import { advanceChoices, bindAdvanceControls } from "./primary-advance.js";
 import { mountExpeditions } from "./expedition.js";
+import { mountEquipmentStation } from "./equipment-station.js";
 const unitFacing = createUnitFacing();
 
 const ui = Object.fromEntries(["game-setup", "scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context", "world-effects", "objectives", "orders", "game-result", "commentary-toggle", "commentary-panel", "commentary-context", "commentary-text", "decision-commentary", "side-controllers", "controller-status", "controller-retry", "controller-cancel"]
@@ -256,6 +257,8 @@ let pendingReplacement;
 let pendingExpedition;
 let expeditionCommandError = "";
 let expeditionUI;
+let equipmentStationUI;
+const snapshotDecisionIds = new WeakMap();
 let streamConnected = false;
 let commandNumber = 0;
 const playbackQueue = [];
@@ -1488,6 +1491,7 @@ function updateControls() {
     if (latestUpdate.status === "faulted") ui.prompt.textContent = "Game progression stopped after an error.";
   }
   expeditionUI?.update();
+  equipmentStationUI?.update();
   const continueExpedition = document.getElementById("result-continue-expedition");
   if (continueExpedition) {
     continueExpedition.disabled = busy;
@@ -1585,6 +1589,7 @@ function receiveUpdate(update) {
     pending.resolve(!update.error && !["error", "fault"].includes(update.kind));
   }
   if (sameSession && (update.sequence < receivedSequence || (update.sequence === receivedSequence && update.kind !== "baseline"))) return;
+  snapshotDecisionIds.set(update.snapshot, update.decisionId);
   streamConnected = true;
   if (update.kind === "baseline" || (update.commandId === pendingCommandId && ["boundary", "fault", "error"].includes(update.kind))) {
     commandPending = false; pendingCommandId = null;
@@ -1640,6 +1645,7 @@ async function drainUpdates() {
         playbackOperationActive = false;
         ui.error.textContent = update.error ?? "";
         renderSnapshot();
+        if (update.equipmentDiagnostics) equipmentStationUI?.diagnostics(update.equipmentDiagnostics);
       }
     }
     if (generation === playbackGeneration && latestUpdate && displayedSequence === receivedSequence) {
@@ -2450,4 +2456,12 @@ onCursorPresentationChange(refreshActiveCursor);
 void loadCursorAssets();
 void loadPresentationProfiles().then(refreshActiveCursor);
 expeditionUI = mountExpeditions({ command: sendCommand, getSnapshot: () => snapshot, ready: () => !busy && streaming && streamConnected && !!latestUpdate, errorMessage: () => expeditionCommandError || ui.error.textContent });
+equipmentStationUI = mountEquipmentStation({
+  getView: () => snapshot ? { ...snapshot, decisionId: snapshotDecisionIds.get(snapshot) } : null,
+  request, command: sendCommand,
+  ready: () => !busy && streaming && streamConnected && !!latestUpdate,
+  visible: () => !document.getElementById("playtest-main").hidden,
+  commandError: () => expeditionCommandError || ui.error.textContent
+});
+globalThis.delveSetPlayMode = () => equipmentStationUI?.update();
 await refresh();

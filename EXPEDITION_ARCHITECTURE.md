@@ -4,6 +4,8 @@ The original investigation, [Phase 1 baseline](#phase-1-implementation) and [Pha
 
 ## Recommendation
 
+The [Equipment Station policy](#equipment-stations-in-generated-regions) records the current arrival and optional placement guarantees.
+
 Build Expedition as a coordinator over a succession of ordinary Scenarios. The Engine resolves each map independently and emits its existing `GameCompleted` result. The coordinator owns world coordinates, successor generation, Hero transfer and durable saves. Keep WLD1’s construction pipeline and introduce a versioned base-nature sampler plus an explicit entry/exit plan. Establish a protected passage before optional structures can make the exit impossible. Implement resurrection as optional Scenario setup with a narrowly scoped Engine lifecycle extension.
 
 The first implementation can prove the architecture with two adjacent 60 × 60 regions, one party, one Reach Area objective and a real save/reload between regions. Full spatial variation, resurrection and the saved-expedition UI can land independently after that slice. This report proposes details for approval. [Repository working instructions](AGENTS.md) · [Rules and generation constraints](CONSTRAINTS.md)
@@ -457,3 +459,13 @@ In 48 paired default-recipe regions for seeds 17, 42 and 889, Phase 4 requested 
 With initial Monster footprints blocked, all 48 regions passed occupied Expedition endpoint and deployment checks. Both Door thresholds remained reachable at all 29 outposts. Ten compounds had zero initial Monsters. The others had two to four. The ordinary Site Loot pass placed 23 exploration markers in guardhouse Rooms.
 
 Median Debug generation time rose from 3.77 to 4.13 seconds per region. Median Civilization time rose from 0.75 to 0.85 seconds. Mean completion-guard work rose from 25,686 to 27,770 units. Timings are observations from the paired parallel-seed export.
+
+## Equipment Stations in generated regions
+
+`ExpeditionStations1` is independent of the recorded nature, field and Civilization construction versions. New Expeditions enable it at creation. Reopening an older Expedition loads its materialized active region. Its first successful frontier handoff publishes the Station policy with the new head. Failure leaves the prior checkpoint and policy available for retry.
+
+The generator places the guaranteed Machine during protected deployment construction, before routes or Sites. It prepares a small grass pad adjacent to the maneuver core, keeping the Machine outside deployment Cells, required endpoints and the departure. Party setup assigns the arriving Side as owner and checks for a legal Action-timed Operate source in the actual arrival formation. If refreshed Hero content requires a different operator, setup can exchange two starting positions after validating the complete placement. An incompatible party produces a setup diagnostic before the new head is published. The guarantee also applies when Civilization is disabled.
+
+A separate region-seeded draw requests at most one additional public Station with probability 1/12. The planner tries at most 96 locations. It requires a connected, passable 5 × 5 pad clear of reservations, route corridors, entrances and internal Edges. The ordinary Machine placement and completion checks accept or omit the candidate. Population checks preserve operating access with initial Monster footprints occupied. The chance of an actual placement is consequently at most 1/12.
+
+Ordinary WLD1 retains its existing Machine selection. Authored Sites and scenarios can explicitly select the Station from the canonical Machine catalog. [Placement code](ProjectDelve.Generation/ExpeditionStationGenerator.cs) · [Playable workshop](VISION_AND_MACHINES.md#play-the-workshop)

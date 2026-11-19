@@ -25,6 +25,10 @@ public sealed record BrowserEntryStatus(BrowserEntryAvailability Status, string 
 public sealed record BrowserDecision(string? UnitId, string Prompt,
     IReadOnlyList<BrowserChoice> Candidates, BrowserChoice? NoneChoice)
 {
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public EquipmentStationInteraction? EquipmentStation { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? ReservedConsumptionObjectId { get; init; }
     public DicePool? Roll { get; init; }
     public string? DisplayPrompt { get; init; }
     public IReadOnlyDictionary<string, BrowserEntryStatus> EntryStatuses { get; init; } = new Dictionary<string, BrowserEntryStatus>();
@@ -393,6 +397,7 @@ public static class BrowserProjection
                 : new ChoiceInteraction(InteractionKind.Direct);
             string Label(Func<string, string> name) => c.Kind switch
             {
+                _ when request.Kind == DecisionKind.MachineInteraction => "Cancel",
                 _ when c.Action is UnitAction.PickupResource or UnitAction.GiveResource or UnitAction.Operate =>
                     $"{entry!.Name} ({entry.Category})" + (c.MachineId is not null ? $" to {state.Physical.Board.Machines.Single(m => m.Id == c.MachineId).Type.Name} ({c.MachineId})" : c.TargetId is null ? "" : $" to {name(c.TargetId)}") +
                     (c.Destination is null ? "" : $" from ({c.Destination.X},{c.Destination.Y})"),
@@ -455,9 +460,10 @@ public static class BrowserProjection
                 + (pool.BreakTarget is null ? "" : $" at {BreakTargetLabel(pool.BreakTarget)} ({pool.SuccessCount}/6)")
                 + (pool.Door is null ? "" : $" at door {pool.Door.A.X},{pool.Door.A.Y} – {pool.Door.B.X},{pool.Door.B.Y} ({pool.SuccessCount}/6)")
             : request.Kind == DecisionKind.SelectUnit ? "Choose a Unit"
+            : request.Kind == DecisionKind.MachineInteraction ? "Redistribute Equipment and Items"
             : continuation?.Name ?? "Choose an activation choice";
         var prompt = Prompt(id => id);
-        BrowserChoice? none = !request.AllowsNone ? null : new(null,
+        BrowserChoice? none = !request.AllowsNone || request.Kind == DecisionKind.MachineInteraction ? null : new(null,
             request.Kind == DecisionKind.Move ? "Stay here" : continuation is not null ? $"Decline {continuation.Name}" : "Take no action",
             null, true, request.Kind == DecisionKind.Move
                 ? new(InteractionKind.Unit, UnitId: request.UnitId) : new(InteractionKind.Direct), [])
@@ -491,7 +497,7 @@ public static class BrowserProjection
         }
         string DisplayPrompt()
         {
-            if (request.Roll is not null || request.Kind == DecisionKind.SelectUnit || continuation is not null)
+            if (request.Roll is not null || request.Kind is DecisionKind.SelectUnit or DecisionKind.MachineInteraction || continuation is not null)
                 return Prompt(id => PlayerName(state, id, individualNames));
             var options = new List<string>();
             bool Has(ActivationChoiceKind kind) => request.Candidates.Any(c => c.Kind == kind);
@@ -510,8 +516,14 @@ public static class BrowserProjection
             };
             return char.ToUpperInvariant(instruction[0]) + instruction[1..] + ".";
         }
+        var station = request.MachineInteraction is { } interaction &&
+            placementState.ControllerFor(request) == ControllerKind.Human &&
+            (FogOfWar.ViewingSide(placementState) is not { } viewer || viewer == interaction.SideId) ? interaction : null;
         return new(request.UnitId, prompt, candidates, none)
-        { Roll = request.Roll, DisplayPrompt = DisplayPrompt(), EntryStatuses = statuses };
+        {
+            Roll = request.Roll, DisplayPrompt = DisplayPrompt(), EntryStatuses = statuses,
+            EquipmentStation = station?.EquipmentStation, ReservedConsumptionObjectId = station?.ReservedConsumptionObjectId
+        };
     }
 
     public static BrowserOutcome Outcome(RulesEvent e, GameState state, IReadOnlyDictionary<string, string>? individualNames = null)
@@ -647,6 +659,12 @@ public static class BrowserProjection
                 description = $"{e.ResourceType?.Name} created at {e.Cell?.X},{e.Cell?.Y}";
                 break;
             case "MachineOperated":
+                if (e.MachineId is { } operatedId && state.Physical.Board.Machines.Any(machine =>
+                    machine.Id == operatedId && machine.Type.Operation.EquipmentStation is not null))
+                {
+                    description = $"{name(e.UnitId)}: redistributed Equipment and Items";
+                    break;
+                }
                 description = e.ResourceType is null
                     ? $"{name(e.UnitId)}: operated {e.MachineId}, revealed Cells for Side {e.SideId}"
                     : $"{name(e.UnitId)}: operated {e.MachineId}, spent {string.Join(", ", e.ConsumedResources.Select(r => $"{r.Quantity} {r.Type.Name}"))}, output {e.ResourceType.Name} at {e.Cell?.X},{e.Cell?.Y}";

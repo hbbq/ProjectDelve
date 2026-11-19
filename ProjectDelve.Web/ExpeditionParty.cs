@@ -117,8 +117,12 @@ internal static class ExpeditionParty
         var party = heroes.Select((hero, index) => new UnitPlacement(hero.TypeId, SideId, setup.Deployment.PlacementOrder[index],
             UnitId: hero.InstanceId, GroupId: GroupId) { Inventory = inventory.GetValueOrDefault(hero.InstanceId) ?? [] }).ToList();
         var sides = existing.Objectives.Select(o => o.SideId).Append(SideId).Distinct(StringComparer.Ordinal);
-        return terrain with
+        var prepared = terrain with
         {
+            // Ownership can be assigned only once the Expedition Side exists. The
+            // generation pipeline validates its detached terrain before adding Heroes.
+            Machines = terrain.Machines?.Select(machine => machine.Id == ExpeditionRegionGeometry.ArrivalStationId
+                ? machine with { OwnerSide = SideId } : machine).ToList(),
             UnitTypeIds = terrain.UnitTypeIds.Concat(heroes.Select(h => h.TypeId)).Distinct(StringComparer.Ordinal).ToList(),
             Units = [.. terrain.Units, .. party],
             Agency = [.. terrain.Agency, .. heroes.Select(h => new AgencyAssignment(h.TypeId, SideId, ControllerKind.Human, GroupId))],
@@ -127,6 +131,25 @@ internal static class ExpeditionParty
                 ? new SideObjective(side, ScenarioObjective.ReachArea) { Count = 2, Area = exitArea, Selectors = [.. heroes.Select(h => UnitSelector.ForUnit(h.InstanceId))] }
                 : new SideObjective(side, ScenarioObjective.NoObjective)).ToList()
         };
+        if (prepared.Machines?.Any(m => m.Id == ExpeditionRegionGeometry.ArrivalStationId) != true) return prepared;
+        var state = GameEngine.CreateGame(prepared, content);
+        if (heroes.Any(hero => GameEngine.CanOperateMachineWithAction(state, hero.InstanceId,
+                ExpeditionRegionGeometry.ArrivalStationId))) return prepared;
+        // Refreshed definitions may move the usable Operate source to another original.
+        // Try only complete Engine-validated placements, keeping all five physical IDs.
+        var first = party[0];
+        foreach (var hero in party.Skip(1))
+        {
+            var candidate = prepared with { Units = prepared.Units.Select(unit =>
+                unit.UnitId == hero.UnitId ? unit with { Anchor = first.Anchor } :
+                unit.UnitId == first.UnitId ? unit with { Anchor = hero.Anchor } : unit).ToList() };
+            GameState candidateState;
+            try { candidateState = GameEngine.CreateGame(candidate, content); }
+            catch (ArgumentException) { continue; }
+            if (GameEngine.CanOperateMachineWithAction(candidateState, hero.UnitId!, ExpeditionRegionGeometry.ArrivalStationId))
+                return candidate;
+        }
+        throw new ArgumentException("Expedition refreshed originals cannot immediately Operate the arrival Equipment Station from a legal deployment placement.");
     }
 
     private static void ValidateRoster(IReadOnlyList<ExpeditionHero> heroes, GameState? previous)

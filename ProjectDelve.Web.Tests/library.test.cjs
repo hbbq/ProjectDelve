@@ -22,7 +22,7 @@ const fixture = {
   campaigns: [{ id: 'c-one', name: 'Campaign', description: 'Public introduction', revision: 2, scenarioIds: ['s-two', 'deleted', 's-one'] }]
 };
 function harness(hash = '#home') {
-  const elements = new Map(), events = {}, calls = [], modes = [], played = [], inspections = [], location = { hash };
+  const elements = new Map(), events = {}, calls = [], modes = [], playModes = [], played = [], inspections = [], location = { hash };
   const get = id => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id); };
   get('library-search').parentElement = new Element();
   const editor = { canLeave: () => true, open: async id => { editor.opened = id; } };
@@ -34,12 +34,21 @@ function harness(hash = '#home') {
     mountContentBrowser: () => browser,
     addEventListener: (name, action) => { events[name] = action; },
     delveSetDesignerMode: designer => modes.push(designer), delvePlayDesign: async transport => { played.push(transport); return true; },
+    delveSetPlayMode: playing => playModes.push(playing),
     fetch: async (url, options) => { calls.push({ url, ...options }); return { ok: true, status: 200, json: async () => url.endsWith('/transport') ? { transport: 'DELVE1:test-owned' } : structuredClone(fixture) }; }
   });
   vm.runInContext(source('library-state.js').replace(/^export /gm, ''), context);
   vm.runInContext(source('library.js').replace(/^import .*\r?\n/gm, '').replace(/void applyRoute\(\);\s*$/, ''), context);
-  return { run: code => vm.runInContext(code, context), get, context, location, events, calls, modes, played, inspections, editor, browser };
+  return { run: code => vm.runInContext(code, context), get, context, location, events, calls, modes, playModes, played, inspections, editor, browser };
 }
+test('navigation publishes gameplay visibility only after the gameplay surface changes', async () => {
+  const h = harness('#home'); await h.run('applyRoute()');
+  assert.equal(h.playModes.at(-1), false); assert.equal(h.get('playtest-main').hidden, true);
+  h.location.hash = '#play'; await h.run('applyRoute()');
+  assert.equal(h.playModes.at(-1), true); assert.equal(h.get('playtest-main').hidden, false);
+  h.location.hash = '#expeditions'; await h.run('applyRoute()');
+  assert.equal(h.playModes.at(-1), false); assert.equal(h.get('playtest-main').hidden, true);
+});
 
 test('library routes retain direct Designer/playtest links and decode scenario identities', () => {
   const h = harness();

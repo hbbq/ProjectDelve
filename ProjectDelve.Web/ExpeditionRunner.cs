@@ -54,9 +54,12 @@ public sealed class ExpeditionRunner
         var store = new ExpeditionStore(storageRoot, id);
         var saved = store.ReadHead();
         var recipe = saved.GenerationRecipe is { } code ? WorldGenerationRecipe.Parse(code) : ExpeditionWorld.Configure(saved.WorldSeed);
-        var profile = saved.WorldProfile ?? ExpeditionWorldProfile.CreateV1(recipe.NaturalTerrain);
+        var recordedProfile = saved.WorldProfile ?? ExpeditionWorldProfile.CreateV1(recipe.NaturalTerrain);
+        recordedProfile.Validate();
+        var profile = recordedProfile with { StationVersion = ExpeditionWorldProfile.CurrentStationVersion };
         return new(store, latest ?? ContentBundle.Canonical, (_, plan, content) => ExpeditionWorld.Generate(plan, content, recipe, profile),
-            saved, Load(store, saved), saved.Version == ExpeditionStore.LegacyHeadVersion ? (recipe.ToString(), profile) : null);
+            saved, Load(store, saved), saved.Version == ExpeditionStore.LegacyHeadVersion || profile != recordedProfile
+                ? (recipe.ToString(), profile) : null);
     }
 
     internal static ExpeditionRunner Create(ExpeditionStore store, ulong worldSeed, Func<ContentBundle> latest,
@@ -86,6 +89,7 @@ public sealed class ExpeditionRunner
     internal ScenarioDefinition Scenario { get { lock (gate) return current.Scenario; } }
     internal bool HasUnsavedChanges { get { lock (gate) return dirty; } }
     internal bool AutoChoose { get { lock (gate) return current.AutoChooseSingleRelevantChoice; } }
+    internal EquipmentAllocation? EquipmentDraft { get { lock (gate) return current.EquipmentDraft; } }
     internal bool CanContinue { get { lock (gate) return MayContinue(current.State); } }
 
     // The web runner supplies the same ordinary Engine resolution and automation loop,
@@ -105,11 +109,16 @@ public sealed class ExpeditionRunner
         return GameEngine.Advance(state, new OrderAwareAutomatedProvider(), random, autoChooseSingleRelevantChoice: false);
     });
 
-    public ExpeditionHead Save()
+    public ExpeditionHead Save() => Save(null);
+
+    internal ExpeditionHead Save(EquipmentAllocation? equipmentDraft)
     {
         lock (gate)
         {
-            if (dirty) CommitCheckpoint(current);
+            if (equipmentDraft is not null && current.State.MachineInteraction is null)
+                throw new ExpeditionInputException("An Equipment draft requires a pending Machine interaction.");
+            if (equipmentDraft is not null) CommitCheckpoint(current with { EquipmentDraft = equipmentDraft });
+            else if (dirty) CommitCheckpoint(current);
             return head;
         }
     }
@@ -146,7 +155,7 @@ public sealed class ExpeditionRunner
             var saved = AtStage(ExpeditionFailureStage.SuccessorCheckpoint, plan, head.WorldSeed, () => store.WriteCheckpoint(successor));
             var receipt = new ExpeditionTransition(transitionId, head.ActiveCheckpoint, saved);
             var next = head with { Revision = checked(head.Revision + 1), ActiveCheckpoint = saved, Transitions = head.Transitions.Add(receipt), CurrentRegionCompleted = false, SavedAtUtc = DateTimeOffset.UtcNow };
-            if (head.Version == ExpeditionStore.LegacyHeadVersion && frontierUpgrade is { } upgrade)
+            if (frontierUpgrade is { } upgrade)
                 next = next with { Version = ExpeditionStore.HeadVersion, GenerationRecipe = upgrade.Recipe, WorldProfile = upgrade.Profile };
 
             try { store.ReplaceHead(head, next); }
@@ -168,7 +177,9 @@ public sealed class ExpeditionRunner
         {
             var random = new ExpeditionRandom(current.GameplayRandomState);
             var result = command(current.State, random);
-            current = current with { State = result.State, GameplayRandomState = random.State, AutoChooseSingleRelevantChoice = autoChoose ?? current.AutoChooseSingleRelevantChoice };
+            current = current with { State = result.State, GameplayRandomState = random.State,
+                AutoChooseSingleRelevantChoice = autoChoose ?? current.AutoChooseSingleRelevantChoice,
+                EquipmentDraft = Equals(current.State.MachineInteraction, result.State.MachineInteraction) ? current.EquipmentDraft : null };
             dirty = true;
             if (result.State.IsCompleted) CommitCheckpoint(current);
             return PlaytestGame.Detach(result);

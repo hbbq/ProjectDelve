@@ -14,7 +14,7 @@ internal static class WorkerBehavior
         var transport = queries.CanTransportResource(unitId);
         var moves = request.Candidates.Where(c => c.Kind == ActivationChoiceKind.Move ||
             request.Kind == DecisionKind.Move).ToList();
-        var actions = request.Candidates.Where(c => c.Action.HasValue).ToList();
+        var actions = request.Candidates.Where(c => c.Action.HasValue && !c.RequiresMachineInteraction).ToList();
         var stay = request.Candidates.FirstOrDefault(c => c.Kind == ActivationChoiceKind.Stay)?.Key;
         var canMove = moves.Count > 0 || stay is not null || request.Kind == DecisionKind.Move;
 
@@ -58,7 +58,7 @@ internal static class WorkerBehavior
             return canMove ? stay ?? operate : operate;
         // Move requests do not contain Actions; consult the same Action rules at the origin.
         if (canMove && queries.ResourceActionsFrom(unitId, current, cargo?.Type)
-                .Any(c => c.Action == UnitAction.Operate))
+                .Any(c => c.Action == UnitAction.Operate && !c.RequiresMachineInteraction))
             return stay ?? Fallback();
 
         if (canMove)
@@ -74,7 +74,7 @@ internal static class WorkerBehavior
             var machineGoal = paths.SelectMany(p =>
                 queries.ResourceActionsFrom(unitId, p.Key,
                     queries.Resources.SingleOrDefault(r => r.Position == p.Key)?.Type ?? (transport ? cargo?.Type : null))
-                .Where(a => a.Action == UnitAction.Operate)
+                .Where(a => a.Action == UnitAction.Operate && !a.RequiresMachineInteraction)
                 .Select(a => new Goal(p.Key, MovementRules.Cost(p.Value), a.MachineId!)))
                 .OrderBy(g => g.Distance).ThenBy(g => g.Position.Y).ThenBy(g => g.Position.X)
                 .ThenBy(g => g.Identity, StringComparer.Ordinal).FirstOrDefault();

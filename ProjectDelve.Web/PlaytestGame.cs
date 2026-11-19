@@ -1,5 +1,6 @@
 using ProjectDelve.Engine;
 using ProjectDelve.Generation;
+using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
@@ -80,6 +81,7 @@ public sealed partial class PlaytestGame : IDisposable
 
     public CommandAcceptance Accept(GameCommand request)
     {
+        ValidateAllocationShape(request.EquipmentAllocation);
         request = Detach(request);
         lock (gate)
         {
@@ -100,7 +102,9 @@ public sealed partial class PlaytestGame : IDisposable
         }
     }
     private static bool EquivalentCommand(GameCommand left, GameCommand right) =>
-        (left with { Controllers = null, ControllerAssignments = null }) == (right with { Controllers = null, ControllerAssignments = null }) &&
+        (left with { Controllers = null, ControllerAssignments = null, EquipmentAllocation = null }) ==
+        (right with { Controllers = null, ControllerAssignments = null, EquipmentAllocation = null }) &&
+        EquivalentAllocations(left.EquipmentAllocation, right.EquipmentAllocation) &&
         (left.Controllers is null ? right.Controllers is null : right.Controllers is not null &&
             left.Controllers.Count == right.Controllers.Count && left.Controllers.All(p => right.Controllers.GetValueOrDefault(p.Key) == p.Value)) &&
         (left.ControllerAssignments is null ? right.ControllerAssignments is null : right.ControllerAssignments is not null &&
@@ -125,6 +129,8 @@ public sealed partial class PlaytestGame : IDisposable
         if (expeditionOperationQueued || resetQueued || (busy && !reset)) throw Error(409, "The game is still resolving.");
         if (status == "faulted" && !reset) throw Error(409, "Restart the game after the resolution fault.");
         var priorDecisionId = decisionId;
+        if (request.EquipmentAllocation is not null && request.Operation is not ("machine/confirm" or "expedition/save"))
+            throw Error(400, "This command does not accept an Equipment allocation.");
         ScenarioDefinition? replacement = null;
         GameState? materializedImport = null;
         switch (request.Operation)
@@ -135,6 +141,12 @@ public sealed partial class PlaytestGame : IDisposable
             case "expedition/leave":
             case "expedition/continue":
                 ValidateExpeditionCommand(request);
+                break;
+            case "machine/confirm":
+            case "machine/cancel":
+                RequireMachineDecision(request.DecisionId);
+                if (request.Operation == "machine/confirm" && request.EquipmentAllocation is null)
+                    throw Error(400, "Supply the complete Equipment and Item allocation.");
                 break;
             case "controller/retry":
                 if (status != "controller-error" || state.IsCompleted || gambitRequest is null) throw Error(409, "No recoverable controller attempt is pending.");
@@ -149,6 +161,7 @@ public sealed partial class PlaytestGame : IDisposable
             case "decision":
                 if (status != "waiting-human" || stable.Result.NextInput is not { } pending) throw Error(409, "No player decision is pending.");
                 if (!legacy && request.DecisionId != decisionId) throw Error(409, "The pending decision changed.");
+                if (pending.Kind == DecisionKind.MachineInteraction) RequireMachineDecision(request.DecisionId);
                 ValidateKey(pending, request.CandidateKey); NormalizeCommentary(request.Commentary); break;
             case "preferences":
                 if (GambitSide is not null && request.AutoChooseSingleRelevantChoice == true) throw Error(400, "Gambit requires all legal alternatives to remain available.");
@@ -259,6 +272,11 @@ public sealed partial class PlaytestGame : IDisposable
                         busy = true;
                     }
                 try { item.Completion.TrySetResult(Execute(item)); }
+                catch (EquipmentAllocationException error) when (item.Request.Operation == "machine/confirm")
+                {
+                    RecoverAllocationFailure(item, error);
+                    item.Completion.TrySetResult(null);
+                }
                 catch (Exception error) when (IsExpeditionFailure(item, error))
                 {
                     RecoverExpeditionFailure(item, error);
@@ -296,7 +314,7 @@ public sealed partial class PlaytestGame : IDisposable
             {
                 if (request.Controllers is null && request.ControllerAssignments is null && request.Operation is "scenario" or "scenario/import") controllerBindings = [];
                 ApplyControllers(created, request.Controllers, request.ControllerAssignments);
-                expedition = null; expeditionView = null;
+                expedition = null; expeditionView = null; equipmentDraft = null;
                 state = created; definition = replacement; committed.Clear(); acknowledgedCursor = historyOffset = 0; gambitRequest = null; controllerError = null; gambitAdmitted = false; delegatedActivation = null; historyOverflow = false;
                 scenarioId = request.Operation == "scenario" ? request.ScenarioId! : request.Operation == "scenario/import" ? "imported" : scenarioId;
                 if (request.Operation != "restart") generationCode = request.Operation == "scenario/import" ? request.GenerationCode : null;
@@ -321,6 +339,13 @@ public sealed partial class PlaytestGame : IDisposable
                 stable = Detach(Response(state, null)); Publish("boundary", stable, request.CommandId, owned: true); return item.Legacy ? Detach(stable) : null;
             }
         }
+        if (request.Operation is "machine/confirm" or "machine/cancel")
+            lock (gate)
+            {
+                if (resetQueued || request.SessionId != sessionId || request.ExpectedRevision != revision)
+                    return null;
+                RequireMachineDecision(request.DecisionId);
+            }
         var submittedDecisionId = request.DecisionId ?? decisionId ?? Guid.NewGuid().ToString("N");
         var commentaries = new List<DecisionCommentary>();
         var eventCount = 0;
@@ -355,6 +380,10 @@ public sealed partial class PlaytestGame : IDisposable
             var submittedState = state;
             var submittedPending = state.Pending;
             if (request.Operation == "round") result = GameEngine.StartRound(state, random, autoChoose, Observe);
+            else if (request.Operation == "machine/confirm")
+                result = GameEngine.ConfirmEquipmentStation(state, request.EquipmentAllocation!, random, autoChoose, Observe);
+            else if (request.Operation == "machine/cancel")
+                result = GameEngine.CancelMachineInteraction(state, random, autoChoose, Observe);
             else if (item.RestoredAutomation) result = new(state, [], state.Pending);
             else if (request.Operation == "preferences")
             {
@@ -464,6 +493,7 @@ public sealed partial class PlaytestGame : IDisposable
                 committed.AddRange(Detach(events.Select((e, index) =>
                     FogOfWar.ObserveEvent(atEvents.GetValueOrDefault(index) ?? result.State, gambitSide, e)).OfType<RulesEvent>().ToList()));
             }
+            if (!Equals(state.MachineInteraction, result.State.MachineInteraction)) equipmentDraft = null;
             state = result.State; revision++; status = resetQueued ? "resolving" : StatusFor(state);
             decisionId = state.Pending is null || resetQueued ? null : Guid.NewGuid().ToString("N");
             PublishGambitRequest();
@@ -517,14 +547,16 @@ public sealed partial class PlaytestGame : IDisposable
         : UsesExternal(current, current.Pending) ? "waiting-external" : "resolving";
     private GameResponse Response(GameState current, DecisionRequest? pending) => new(revision, new(current, [], pending), autoChoose, scenarioId)
         { SessionId = sessionId, VisualSeed = visualSeed, GenerationCode = generationCode, Controllers = ControllersFor(current), ControllerAssignments = ControllerAssignmentsFor(current), ControllerStatus = CurrentControllerStatus, Expedition = ExpeditionView(current) };
-    private void Publish(string kind, GameResponse snapshot, string? commandId = null, string? error = null, DecisionCommentary? commentary = null, bool owned = false)
+    private void Publish(string kind, GameResponse snapshot, string? commandId = null, string? error = null,
+        DecisionCommentary? commentary = null, bool owned = false, ImmutableArray<EquipmentAllocationDiagnostic>? equipmentDiagnostics = null)
     {
         if (FogOfWar.ViewingSide(snapshot.Result.State) is { } viewingSide &&
             (kind == "event" && !snapshot.Result.Events.Any(e => FogOfWar.ObserveEvent(snapshot.Result.State, viewingSide, e) is not null) ||
              kind == "commentary" && (commentary?.UnitId is not { } id || !FogOfWar.IsUnitObservable(snapshot.Result.State, viewingSide, id)))) return;
         lastPublishedAvailability = ControllerAvailable;
         snapshot = snapshot with { SessionId = sessionId, VisualSeed = visualSeed, GenerationCode = generationCode, Controllers = ControllersFor(snapshot.Result.State), ControllerAssignments = ControllerAssignmentsFor(snapshot.Result.State), ControllerStatus = CurrentControllerStatus, Expedition = ExpeditionView(snapshot.Result.State) };
-        published = new(sessionId, ++sequence, kind, status, revision, decisionId, owned ? snapshot : Detach(snapshot), commandId, error, commentary);
+        published = new(sessionId, ++sequence, kind, status, revision, decisionId, owned ? snapshot : Detach(snapshot), commandId, error, commentary)
+            { EquipmentDiagnostics = equipmentDiagnostics };
         journal.Enqueue(published); while (journal.Count > capacity) journal.Dequeue();
         foreach (var subscriber in subscribers.ToArray())
             if (!subscriber.Writer.TryWrite(Detach(published))) { subscribers.Remove(subscriber); subscriber.Writer.TryComplete(); }

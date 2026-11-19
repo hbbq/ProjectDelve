@@ -8,7 +8,7 @@ public sealed class SupplementalContentDiscoveryTests
     [Fact]
     public void MachineCatalogExposesCanonicalDefinitionsAndConcreteOperationData()
     {
-        Assert.Equal(new[] { MachineTypes.DiamondPress, MachineTypes.SlotMachine, MachineTypes.Beacon }, MachineTypes.All);
+        Assert.Equal(new[] { MachineTypes.DiamondPress, MachineTypes.SlotMachine, MachineTypes.Beacon, MachineTypes.EquipmentStation }, MachineTypes.All);
         Assert.Equal(MachineTypes.All.Length, MachineTypes.All.Select(type => type.Id).Distinct().Count());
 
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
@@ -26,6 +26,15 @@ public sealed class SupplementalContentDiscoveryTests
                     .GetProperty("faces").EnumerateArray().Select(face => face.GetProperty("id").GetString()));
             else if (type.Operation.Reveal is { } reveal)
                 Assert.Equal(reveal.Distance, operation.GetProperty("reveal").GetProperty("distance").GetInt32());
+            else if (type.Operation.EquipmentStation is not null)
+            {
+                Assert.Equal(JsonValueKind.Object, operation.GetProperty("equipmentStation").ValueKind);
+                Assert.Null(type.Storage);
+                Assert.Empty(type.Operation.Costs);
+                Assert.Null(type.Operation.MaxUsesTotal);
+                Assert.Null(type.Operation.MaxUsesPerSide);
+                Assert.False(type.Operation.RequiresOutputCell);
+            }
             else
                 Assert.Equal(type.Operation.OutputType!.Id, operation.GetProperty("outputType").GetProperty("id").GetString());
         }

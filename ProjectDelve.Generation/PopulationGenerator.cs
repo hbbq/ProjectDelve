@@ -129,7 +129,9 @@ public static partial class PopulationGenerator
             }
             if (context.Expedition is { } expedition && !expedition.HasOccupiedAccess(state, context.Deployment!, outpostDoors))
             {
-                Rollback(); Fail(location, outpostDoors.Length == 0
+                Rollback(); Fail(location, expedition.StationsEnabled
+                    ? "Initial occupation would disconnect required Expedition deployment, seam, exit-pad, Door or Station operating access."
+                    : outpostDoors.Length == 0
                     ? "Initial occupation would disconnect ordinary Expedition deployment, seam or exit-pad access."
                     : "Initial occupation would disconnect required Expedition access, including the outpost gate or guardhouse Door.");
                 attempts.Add(new(location, requested, 0, "Placement")); continue;

@@ -5,17 +5,20 @@ namespace ProjectDelve.Engine;
 
 public sealed record MachineResource(ResourceType Type, int Quantity);
 public sealed record MachineReveal(int Distance);
+public sealed record EquipmentStationOperation;
 public sealed record MachineOperation(ImmutableArray<MachineResource> Costs, ResourceType? OutputType = null, int OutputQuantity = 1)
 {
     public ResourceOutputTable? OutputTable { get; init; }
     public MachineReveal? Reveal { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public EquipmentStationOperation? EquipmentStation { get; init; }
     public int? MaxUsesTotal { get; init; }
     public int? MaxUsesPerSide { get; init; }
-    [JsonIgnore] public bool RequiresOutputCell => Reveal is null;
-    public string OutputDescription => Reveal is { } reveal ? $"Reveal Distance {reveal.Distance} for the operator's Side" : OutputTable is null ? OutputType!.Name :
+    [JsonIgnore] public bool RequiresOutputCell => Reveal is null && EquipmentStation is null;
+    public string OutputDescription => EquipmentStation is not null ? "Redistribute Equipment and Items among eligible Units on the operator's Side" : Reveal is { } reveal ? $"Reveal Distance {reveal.Distance} for the operator's Side" : OutputTable is null ? OutputType!.Name :
         "d6: " + string.Join(", ", OutputTable.Faces.Select((type, i) => $"{i + 1} {type.Name}"));
     [JsonIgnore] public string Description => (Costs.IsEmpty ? "" : "Spend " + string.Join(", ", Costs.Select(c => $"{c.Quantity} {c.Type.Name}")) + " -> ") +
-        (Reveal is null ? $"Output {OutputQuantity} {OutputDescription} on the operator's Cell" : OutputDescription);
+        (EquipmentStation is not null ? OutputDescription : Reveal is null ? $"Output {OutputQuantity} {OutputDescription} on the operator's Cell" : OutputDescription);
 }
 public sealed record MachineType(string Id, string Name,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] ResourceStorage? Storage, MachineOperation Operation)
@@ -42,7 +45,9 @@ public static class MachineTypes
         new([new(ResourceTypes.Fruit, 3)]), new([new(ResourceTypes.Fruit, 3)], null) { OutputTable = RacingSlotTable.Table });
     public static MachineType Beacon { get; } = new("beacon", "Beacon", null,
         new([]) { Reveal = new(15), MaxUsesPerSide = 1 }) { RequiredTerrainTypeId = "stone-floor" };
-    public static ImmutableArray<MachineType> All { get; } = [DiamondPress, SlotMachine, Beacon];
+    public static MachineType EquipmentStation { get; } = new("equipment-station", "Equipment Station", null,
+        new([]) { EquipmentStation = new() });
+    public static ImmutableArray<MachineType> All { get; } = [DiamondPress, SlotMachine, Beacon, EquipmentStation];
 }
 
 /// <summary>Geographic authoring query only; does not grant an actor permission to Operate.</summary>
@@ -61,6 +66,23 @@ public static class MachineGeometry
                 .Select(x => new Cell(x, y)))
             .Where(cell => geometry.CanStop(ordinary, cell) && MachineRules.GeometricallyOperable(potential, cell, machine))
             .ToImmutableArray();
+    }
+}
+
+public static partial class GameEngine
+{
+    /// <summary>Stationary Action eligibility for authoring and planning. Does not start an
+    /// activation or spend anything; uses the supplied state's current Action budget.</summary>
+    public static bool CanOperateMachineWithAction(GameState state, string unitId, string machineId)
+    {
+        var actor = state.Units.SingleOrDefault(u => u.Id == unitId);
+        if (actor is null || actor.Dormant || state.ActionsRemaining <= 0 ||
+            !state.Physical.Figures.Any(f => f.Id == unitId)) return false;
+        return state.AbilitiesOf(unitId).Where(ability => ability.Definition.Timing == AbilityTiming.Action &&
+                ability.Definition.Mechanic is Operate && state.CanUseAbility(unitId, ability))
+            .SelectMany(ability => MachineRules.Candidates(state, actor, ability))
+            .Any(candidate => candidate.Action == UnitAction.Operate && candidate.MachineId == machineId &&
+                FogOfWar.Allows(state, actor.SideId, candidate));
     }
 }
 
@@ -105,7 +127,10 @@ internal static class MachineRules
         var operation = type.Operation;
         if (operation is null || operation.Costs.IsDefault || operation.MaxUsesTotal < 0 || operation.MaxUsesPerSide < 0 ||
             operation.OutputQuantity != 1 ||
-            (operation.Reveal is { } reveal ? reveal.Distance < 0 || operation.OutputType is not null || operation.OutputTable is not null :
+            (operation.EquipmentStation is not null ? type.Storage is not null || !operation.Costs.IsEmpty ||
+                operation.Reveal is not null || operation.OutputType is not null || operation.OutputTable is not null ||
+                operation.MaxUsesTotal is not null || operation.MaxUsesPerSide is not null :
+             operation.Reveal is { } reveal ? reveal.Distance < 0 || operation.OutputType is not null || operation.OutputTable is not null :
              type.Storage is null || operation.Costs.IsEmpty || (operation.OutputTable is null ? !ResourceRules.ValidType(operation.OutputType) :
                 operation.OutputType is not null || operation.OutputTable.Faces.IsDefault || operation.OutputTable.Faces.Length != 6 ||
                 operation.OutputTable.Faces.Any(t => !ResourceRules.ValidType(t)))) ||
@@ -158,10 +183,12 @@ internal static class MachineRules
                 yield return new($"{ability.CandidatePrefix}:machine:{machine.Id}{suffix}", Destination: source,
                     Action: UnitAction.GiveResource) { MachineId = machine.Id, Ability = ability };
             }
-            if (ability.Definition.Mechanic is Operate && CanOperateFrom(state, actor, machine, cell))
+            if (ability.Definition.Mechanic is Operate &&
+                (machine.Type.Operation.EquipmentStation is null || ability.Definition.Timing == AbilityTiming.Action) && CanOperateFrom(state, actor, machine, cell))
             {
                 yield return new($"{ability.CandidatePrefix}:{machine.Id}{suffix}", Destination: source,
-                    Action: UnitAction.Operate) { MachineId = machine.Id, Ability = ability };
+                    Action: UnitAction.Operate) { MachineId = machine.Id, Ability = ability,
+                        RequiresMachineInteraction = machine.Type.Operation.EquipmentStation is not null };
             }
         }
     }

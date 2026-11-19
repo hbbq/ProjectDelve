@@ -4,6 +4,13 @@ namespace ProjectDelve.Engine;
 
 public static partial class GameEngine
 {
+    private static void CommitAbilityInvocation(GameState state, string unitId, ResolvedAbility ability, ResolutionEvents events)
+    {
+        if (ability.Definition.Timing == AbilityTiming.Action) state.ActionsUsedThisActivation++;
+        ConsumeAbilityUse(state, unitId, ability, events);
+        PayAbilityCosts(state, unitId, ability, events);
+    }
+
     // ApplyDecision commits the ordinary Action budget before calling this once.
     // Limited uses and Item ownership change before the concrete mechanic runs.
     private static void ConsumeAbilityUse(GameState state, string unitId, ResolvedAbility ability, ResolutionEvents events)

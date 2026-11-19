@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 using System.Threading.Channels;
 using ProjectDelve.Engine;
 
@@ -20,6 +22,7 @@ public sealed record GameCommand
     public string? ExpeditionSeed { get; init; }
     public string? ExpeditionRecipe { get; init; }
     public string? TransitionId { get; init; }
+    public EquipmentAllocation? EquipmentAllocation { get; init; }
     public Dictionary<string,string>? Controllers { get; init; }
     public List<ControllerSelection>? ControllerAssignments { get; init; }
     public bool? AutoChooseSingleRelevantChoice { get; init; }
@@ -28,7 +31,15 @@ public sealed record ControllerSelection(string TypeId, string SideId, string Co
 public sealed record CommandAcceptance(string CommandId, string SessionId, bool Accepted);
 public sealed record GameUpdate(string SessionId, long Sequence, string Kind, string Status,
     long Revision, string? DecisionId, GameResponse Snapshot, string? CommandId = null, string? Error = null,
-    DecisionCommentary? Commentary = null);
+    DecisionCommentary? Commentary = null)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ImmutableArray<EquipmentAllocationDiagnostic>? EquipmentDiagnostics { get; init; }
+}
+public sealed record EquipmentStationPreviewRequest(string SessionId, long ExpectedRevision, string DecisionId,
+    EquipmentAllocation? Allocation = null);
+public sealed record EquipmentStationPreviewResponse(string SessionId, long Revision, string DecisionId,
+    EquipmentStationPreview Preview, EquipmentAllocation? SavedDraft);
 // Presentation metadata, separate from rules events and game state.
 public sealed record DecisionCommentary(string DecisionId, string? UnitId, ControllerKind Controller,
     string SideId, DecisionKind DecisionKind, string? CandidateKey, string Text, int EventIndex);

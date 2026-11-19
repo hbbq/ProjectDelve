@@ -46,8 +46,8 @@ Amphibious permits Water traversal and occupancy while retaining terrain
 restrictions, Edges, figures, Machines, footprint and FoW checks. Phase permits
 its established traversal but still requires a normally legal endpoint. Combined
 Phase and Amphibious can therefore end on otherwise legal Water, including
-remaining there while Lying. Losing Equipment on restricted terrain has no
-new removal or forced-relocation mechanic.
+remaining there while Lying. Equipment Station redistribution checks the
+resulting occupancy before transferring a movement-capability grant.
 
 ## Machine declarations and operation
 
@@ -58,11 +58,11 @@ ownership is independent of Machine identity or display name. Machines occupy
 one Cell and block movement, attack LOS and ordinary FoW vision.
 
 `MachineType.Storage` is optional. `MachineOperation` declares Resource costs
-and either one Resource output (fixed Type or six-face output table), or a
-typed `MachineReveal(Distance)`. Reveal has no Resource output and does not
-require a Resource-free operator Cell. Authored costs still come from that
-Machine's storage. `RequiredTerrainTypeId`, when present, is checked against
-the underlying terrain at creation.
+and one typed effect. It can produce a fixed Resource Type or use a six-face
+output table, reveal with `MachineReveal(Distance)`, or redistribute objects
+with `EquipmentStationOperation`. Only Resource output requires a Resource-free
+operator Cell. Authored costs come from the Machine's storage.
+`RequiredTerrainTypeId`, when present, is checked at creation.
 
 `MaxUsesTotal` and `MaxUsesPerSide` are optional nonnegative operation limits;
 zero makes the corresponding operation unavailable. Every successful Operate
@@ -85,6 +85,81 @@ Its lantern animation never explores Cells automatically. Civilization places
 Beacons as standalone Machines with bounded deterministic attempts and
 protected open pads; previews expose placement and omission counts. See
 [World Generator Designer](WORLD_GENERATOR_DESIGNER.md).
+
+## Equipment Station interaction
+
+`PendingMachineInteraction` captures the Machine, operator, operating Side,
+and source-bound Operate candidate. Its typed Station payload records the
+eligible Units and opening allocation. The Engine can serialize this boundary without
+spending the Action or Ability, paying Costs, or advancing the RNG. Cancel
+returns to the activation. Confirm validates and commits the full allocation
+and ordinary Operate accounting before publishing the result.
+
+The Station owns the pool of eligible recipients, proposed assignments,
+diagnostics, and normalized preview. Each Unit is evaluated alone, Upright and
+at maximum HP through existing Engine queries. The preview retains physical
+object IDs and use information. Confirmation validates the resulting inventory
+on the live board, including movement-capability occupancy.
+
+A Single Use Item that supplies Operate stays with its owner while the decision
+is open. The transfer pool and projected resulting inventory exclude that Item.
+Confirm consumes it through the ordinary Ability path and requires a separate
+actual transfer. Cancel preserves the Item.
+
+`POST /api/game/machine/preview` takes `sessionId`, `expectedRevision`,
+`decisionId`, and an optional `allocation`. A request without an allocation
+previews the saved draft if present, or the opening allocation. The response
+contains the preview and saved draft. Previews do not save or advance play.
+Submit `machine/confirm` with `equipmentAllocation` or `machine/cancel`
+through the existing game command endpoint. Invalid proposals publish a
+recoverable error with `equipmentDiagnostics` for the same pending decision.
+To save provisional edits, include `equipmentAllocation` on `expedition/save`.
+An invalid allocation can be saved as a draft and will be re-evaluated on resume.
+
+The observed human decision exposes the Station roster, opening allocation and
+any reserved Item. Choosing Operate opens a modal editor. On desktop, Unit
+cards compare loadouts side by side. At narrow widths, the Unit selector shows
+one loadout at a time. Use **Give to** on an individual object to change its
+proposed owner. Copies have separate labels. A preview returns normalized
+stats, movement and source-specific Ability definitions with remaining uses.
+Opening-stat details, Ability sources and object details expand on demand.
+Reset restores the opening pool. Cancel returns to the activation. Confirm
+becomes available when the Engine accepts the complete allocation. In an
+Expedition, **Save draft** checkpoints the current proposal. **Back to
+Expeditions** then returns to the saved list. Resume reopens the editor and
+requests a fresh Engine preview of the saved allocation.
+
+### Play the workshop
+
+Open **Scenarios**, find **Equipment Station Workshop** and select **Play
+scenario**. It is also in the **Test Scenarios** campaign. Choose **Start
+round**, **Stay**, **Operate**, then the Equipment Station target. The
+Barbarian is the only awake Unit. All four friendly Units participate.
+
+- Give the Barbarian's Lucky Boots to the Cleric. Their isolated MOV values
+  change from 4 to 3 and 3 to 4 respectively. The Cleric stays wounded and
+  Lying on the board.
+- Give the Berserker Ring to the Cleric. Berserk follows the ring with one of
+  its two uses remaining. The two Second Wind Items can go to different Units.
+- Move the Rogue's Swim Tube to another Unit. The Rogue still occupies Water.
+  The Engine flags the proposed placement and keeps the draft editable. Return
+  the tube to the Rogue to confirm the other transfers. The Grunt accepts Items
+  and cannot own Equipment.
+
+The authored record is `equipment-station-workshop` in the [bundled
+library](ProjectDelve.Web/Content/Library/library.json). It carries the
+published Berserker Ring definition for portable imports and a scenario-local
+Item ownership permission for the Grunt. Paste the [DELVE1
+export](scenarios/equipment-station-workshop.delve1) into **Settings → Game →
+DELVE1 scenario → Load scenario** to open an independent copy. The library
+transport endpoint is `/api/library/scenarios/equipment-station-workshop/transport`.
+
+The inspected desktop and mobile Edge captures and their index are in
+[`.playwright-cli/equipment-station/REPORT.md`](.playwright-cli/equipment-station/REPORT.md).
+
+Default automation skips interactive Operate candidates. An existing
+candidate-key Decision Provider can cancel an open interaction. The typed
+Engine confirmation and Web player command carry the full allocation.
 
 ## Visibility and automation
 

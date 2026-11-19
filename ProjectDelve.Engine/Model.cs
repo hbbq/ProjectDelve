@@ -363,7 +363,7 @@ public static class BoardProperties
 public sealed record PhysicalState(Board Board, List<Figure> Figures);
 // Normal Unit choices use Activation. Move is also used for the narrow post-attack
 // continuation; Move/Act requests support the providers' existing ranking routines.
-public enum DecisionKind { SelectUnit, Activation, Move, Act, Cleave, RollDice }
+public enum DecisionKind { SelectUnit, Activation, Move, Act, Cleave, RollDice, MachineInteraction }
 public enum ActivationChoiceKind { Action, Move, Stay, EndTurn, SelectUnit, FreeAction, BonusAction, Cleave, RollDice }
 // Every candidate is legal. Relevance guides decision stops and presentation only;
 // choices default to relevant unless their rule component supplies a narrower policy.
@@ -379,6 +379,8 @@ public sealed record Candidate(string Key, Cell? Destination = null, List<Cell>?
     public LootCardKind? ObjectKind { get; init; }
     public string? EquipmentTypeId { get; init; }
     public string? AbilityName { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool RequiresMachineInteraction { get; init; }
     public string? MachineId { get; init; }
     public ImmutableArray<string> TargetIds { get; init; } = [];
 }
@@ -387,6 +389,8 @@ public sealed record DecisionRequest(DecisionKind Kind, string TypeId, string? U
 {
     public ActivationToken? Token { get; init; }
     public DicePool? Roll { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PendingMachineInteraction? MachineInteraction { get; init; }
 }
 public sealed record AttackTargetResult(string TargetId, int DefenceDice, int Blocks, int Damage);
 // One roll and separate per-Unit Damage; there is deliberately no total Damage.
@@ -400,6 +404,13 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
     bool IsMoveAfterAttack = false, string? AbilityName = null, int Healing = 0,
     AttackResult? Attack = null, Posture? Posture = null)
 {
+    [JsonIgnore] public ImmutableArray<EquipmentTransfer> EquipmentTransfers { get; init; } = [];
+    [JsonPropertyName("equipmentTransfers"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ImmutableArray<EquipmentTransfer>? SerializedEquipmentTransfers
+    {
+        get => EquipmentTransfers.IsDefaultOrEmpty ? null : EquipmentTransfers;
+        init => EquipmentTransfers = value ?? [];
+    }
     public ImmutableArray<BreakOutcome> BreakOutcomes { get; init; } = [];
     public ImmutableArray<string> BreakSourceVisibleSideIds { get; init; } = [];
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -659,6 +670,8 @@ public sealed class GameState
     // Optional immediate resolution created by a qualifying Attack, never activation history.
     public bool CleavePending { get; set; }
     public DecisionRequest? Pending { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PendingMachineInteraction? MachineInteraction { get; set; }
     public bool RoundComplete { get; set; }
 
     public List<CellMarker> CellMarkers { get; set; } = [];
@@ -686,6 +699,9 @@ public sealed class GameState
 
     /// <summary>Copies mutable state without evaluating derived stats or preparing presentation data.</summary>
     public GameState DetachedCopy() => Copy();
+
+    private static PendingMachineInteraction? CopyMachineInteraction(PendingMachineInteraction? interaction) => interaction is null ? null :
+        interaction with { Operation = interaction.Operation with { Path = interaction.Operation.Path is null ? null : [.. interaction.Operation.Path] } };
 
     internal GameState Copy() => new()
     {
@@ -719,8 +735,8 @@ public sealed class GameState
         ModifiersThisTurn = [.. ModifiersThisTurn],
         CurrentUnitId = CurrentUnitId, MoveAfterAttackAllowance = MoveAfterAttackAllowance,
         AdvanceOnKillCells = AdvanceOnKillCells,
-        CleavePending = CleavePending,
-        Pending = Pending is null ? null : Pending with { Candidates = Pending.Candidates.Select(candidate =>
+        CleavePending = CleavePending, MachineInteraction = CopyMachineInteraction(MachineInteraction),
+        Pending = Pending is null ? null : Pending with { MachineInteraction = CopyMachineInteraction(Pending.MachineInteraction), Candidates = Pending.Candidates.Select(candidate =>
             candidate with { Path = candidate.Path is null ? null : [.. candidate.Path] }).ToList() },
         RoundComplete = RoundComplete
     };

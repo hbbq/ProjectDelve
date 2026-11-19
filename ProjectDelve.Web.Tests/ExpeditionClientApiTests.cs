@@ -19,12 +19,157 @@ public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDispos
     private const ulong Seed = 889;
     private const string Boots = "fixture-carried-boots";
     private const string HiddenItem = "fixture-undiscovered-potion";
+    private const string Station = "fixture-equipment-station";
+    private const string StationItem = "fixture-station-item";
     private const string HiddenFailure = "private generator diagnostic at (41,49)";
     private readonly string root = Path.Combine(Path.GetTempPath(), "delve-expedition-client-" + Guid.NewGuid().ToString("N"));
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
         Converters = { new JsonStringEnumConverter() }
     };
+
+    [Fact]
+    public async Task EquipmentStationPreviewInvalidDraftResumeAndIdempotentConfirmPreserveTheExpeditionBoundary()
+    {
+        var catalog = new ExpeditionCatalog(root, ContentBundle.Canonical, generate: StationFixture);
+        var owner = ExpeditionParty.Originals[0].InstanceId;
+        var recipient = ExpeditionParty.Originals[1].InstanceId;
+        var invalid = new EquipmentAllocation([new(Boots, recipient), new(Boots, owner)]);
+        var valid = new EquipmentAllocation([new(Boots, recipient), new(StationItem, recipient)]);
+        ExpeditionStore store;
+        ExpeditionCheckpoint saved;
+        EquipmentStationPreviewRequest previousBinding;
+        string invalidPreview;
+
+        await using (var host = await Host.Start(root, catalog))
+        {
+            var created = await host.Send(Create("Station fixture", "889"));
+            store = new ExpeditionStore(root, created.Snapshot.Expedition!.Id);
+            await host.Send(new() { Operation = "preferences", AutoChooseSingleRelevantChoice = false });
+            await host.Send(new() { Operation = "round" });
+            for (var i = 0; i < 12 && host.Current.Snapshot.Result.NextInput?.UnitId != owner; i++)
+                await host.Send(new() { Operation = "decision", CandidateKey = Pass(host.Current.Snapshot.Result.NextInput!).Key });
+
+            Assert.Equal(owner, host.Current.Snapshot.Result.NextInput!.UnitId);
+            foreach (var id in new[] { Boots, StationItem })
+            {
+                var pickup = Assert.Single(host.Current.Snapshot.Result.NextInput!.Candidates,
+                    candidate => candidate.ObjectId == id);
+                await host.Send(new() { Operation = "decision", CandidateKey = pickup.Key });
+            }
+            var stay = Assert.Single(host.Current.Snapshot.Result.NextInput!.Candidates,
+                candidate => candidate.Kind == ActivationChoiceKind.Stay);
+            await host.Send(new() { Operation = "decision", CandidateKey = stay.Key });
+            var operate = Assert.Single(host.Current.Snapshot.Result.NextInput!.Candidates,
+                candidate => candidate.MachineId == Station);
+            await host.Send(new() { Operation = "decision", CandidateKey = operate.Key });
+            var cancelled = await host.Send(new() { Operation = "machine/cancel" });
+            Assert.Null(cancelled.Snapshot.Result.State.MachineInteraction);
+            Assert.Equal(1, cancelled.Snapshot.Result.State.ActionsRemaining);
+            Assert.Equal(0L, cancelled.Snapshot.Result.State.Physical.Board.Machines.Single().TotalUses);
+            var opened = await host.Send(new() { Operation = "decision", CandidateKey = operate.Key });
+            Assert.Equal(DecisionKind.MachineInteraction, opened.Snapshot.Result.NextInput!.Kind);
+            Assert.Equal(0, opened.Snapshot.Result.State.ActionsUsedThisActivation);
+            Assert.Equal("Redistribute Equipment and Items", opened.Snapshot.Presentation.Decision!.DisplayPrompt);
+            Assert.Equal("Cancel", Assert.Single(opened.Snapshot.Presentation.Decision.Candidates).Label);
+            var stationEditor = Assert.IsType<EquipmentStationInteraction>(opened.Snapshot.Presentation.Decision.EquipmentStation);
+            Assert.Contains(recipient, stationEditor.EligibleUnitIds);
+            Assert.Contains(new EquipmentAssignment(Boots, owner), stationEditor.OriginalAllocation.Assignments);
+            previousBinding = host.PreviewBinding(invalid);
+
+            var head = store.ReadHead();
+            invalidPreview = Encode((await host.PreviewStation(previousBinding)).Preview);
+            Assert.Equal(invalidPreview, Encode((await host.PreviewStation(previousBinding)).Preview));
+            Assert.DoesNotContain(HiddenItem, invalidPreview);
+            Assert.Equal(Encode(head), Encode(store.ReadHead()));
+            var preview = (await host.PreviewStation(host.PreviewBinding(valid))).Preview;
+            Assert.True(preview.CanConfirm);
+            var bootsAbility = Assert.Single(preview.Units.Single(u => u.UnitId == recipient).AbilityPreviews,
+                a => a.Ability.SourceInstanceId == Boots);
+            Assert.Equal(bootsAbility.Ability.CardEntry(), bootsAbility.Content);
+            using (var stale = await host.PostPreview(previousBinding with { ExpectedRevision = opened.Revision - 1 }))
+                Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+
+            var rejected = await host.Send(new() { Operation = "machine/confirm", EquipmentAllocation = invalid }, "error");
+            Assert.NotEmpty(rejected.EquipmentDiagnostics!.Value);
+            Assert.Equal("waiting-human", rejected.Status);
+            Assert.Equal(opened.Revision, rejected.Revision);
+            Assert.Equal(opened.DecisionId, rejected.DecisionId);
+            Assert.Equal(0, rejected.Snapshot.Result.State.ActionsUsedThisActivation);
+            Assert.Equal(Encode(head), Encode(store.ReadHead()));
+
+            await host.Send(new() { Operation = "expedition/save", EquipmentAllocation = invalid });
+            saved = store.ReadCheckpoint(store.ReadHead().ActiveCheckpoint);
+            Assert.Equal(invalid.Assignments.ToArray(), saved.EquipmentDraft!.Assignments.ToArray());
+            Assert.Equal(DecisionKind.MachineInteraction, saved.State.Pending!.Kind);
+        }
+
+        await using var resumedHost = await Host.Start(root, catalog);
+        var resumed = await resumedHost.Send(new() { Operation = "expedition/resume", ExpeditionId = saved.ExpeditionId });
+        Assert.NotEqual(previousBinding.SessionId, resumed.SessionId);
+        Assert.NotEqual(previousBinding.DecisionId, resumed.DecisionId);
+        using (var stale = await resumedHost.PostPreview(previousBinding))
+            Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+        var restored = await resumedHost.PreviewStation(resumedHost.PreviewBinding());
+        Assert.Equal(invalid.Assignments.ToArray(), restored.SavedDraft!.Assignments.ToArray());
+        Assert.Equal(invalidPreview, Encode(restored.Preview));
+
+        var random = new ExpeditionRandom(saved.GameplayRandomState);
+        var expected = GameEngine.ConfirmEquipmentStation(saved.State, valid, random, false).State;
+        var confirm = resumedHost.Prepare(new() { Operation = "machine/confirm", EquipmentAllocation = valid });
+        var committed = await resumedHost.Send(confirm, prepared: true);
+        Assert.Null(committed.Snapshot.Result.State.MachineInteraction);
+        Assert.Contains(committed.Snapshot.Result.State.Units.Single(unit => unit.Id == recipient).Inventory, obj => obj.Id == Boots);
+        Assert.Equal(HttpStatusCode.Accepted, await resumedHost.PostStatus(confirm with
+            { EquipmentAllocation = new([.. valid.Assignments.Reverse()]) }));
+        Assert.Equal(HttpStatusCode.Conflict, await resumedHost.PostStatus(confirm with { EquipmentAllocation = invalid }));
+        Assert.Equal(HttpStatusCode.Conflict, await resumedHost.PostStatus(confirm with { CommandId = "new-stale-confirm" }));
+        Assert.Equal(HttpStatusCode.Conflict, await resumedHost.PostStatus(confirm with
+            { CommandId = "new-stale-cancel", Operation = "machine/cancel", EquipmentAllocation = null }));
+
+        await resumedHost.Send(new() { Operation = "expedition/save" });
+        var after = store.ReadCheckpoint(store.ReadHead().ActiveCheckpoint);
+        Assert.Null(after.EquipmentDraft);
+        Assert.Equal(1L, after.State.Physical.Board.Machines.Single().TotalUses);
+        Assert.Equal(random.State, after.GameplayRandomState);
+        Assert.Equal(Encode(expected), Encode(after.State));
+        Assert.Equal(random.RollD6(), new ExpeditionRandom(after.GameplayRandomState).RollD6());
+    }
+
+    [Fact]
+    public async Task EquipmentStationInteractionIsPrivateToTheOperatingSide()
+    {
+        var state = GameEngine.CreateGame(new()
+        {
+            Board = new() { Width = 12, Height = 12 },
+            UnitTypeIds = [UnitTypeIds.Barbarian, UnitTypeIds.Cleric, UnitTypeIds.Wizard],
+            Units = [new(UnitTypeIds.Barbarian, "red", new(1, 1), UnitId: "operator") { Inventory = [new(Boots, "lucky-boots")] },
+                new(UnitTypeIds.Cleric, "red", new(1, 2), UnitId: "recipient"), new(UnitTypeIds.Wizard, "blue", new(10, 10), UnitId: "viewer")],
+            Agency = [new(UnitTypeIds.Barbarian, "red", ControllerKind.Human), new(UnitTypeIds.Cleric, "red", ControllerKind.Human),
+                new(UnitTypeIds.Wizard, "blue", ControllerKind.Human)],
+            Machines = [new(Station, new(2, 1), MachineTypes.EquipmentStation)],
+            FogOfWarSides = ["blue"]
+        });
+        var random = new ExpeditionRandom(889);
+        state = GameEngine.StartRound(state, random, false).State;
+        for (var i = 0; i < 8 && state.Pending?.UnitId != "operator"; i++)
+            state = GameEngine.Advance(state, new Choice(Pass(state.Pending!).Key), random, false).State;
+        Assert.Equal("operator", state.Pending!.UnitId);
+        state = GameEngine.Advance(state, new Choice(Pass(state.Pending).Key), random, false).State;
+        var operate = Assert.Single(state.Pending!.Candidates, candidate => candidate.MachineId == Station);
+        state = GameEngine.Advance(state, new Choice(operate.Key), random, false).State;
+
+        await using var host = await Host.Start(root, initialState: state);
+        Assert.Null(host.Current.Snapshot.Result.State.MachineInteraction);
+        Assert.Null(host.Current.Snapshot.Result.NextInput);
+        Assert.Null(host.Current.Snapshot.Presentation.Decision);
+        Assert.DoesNotContain(Boots, await host.GameSnapshot());
+        using (var preview = await host.PostPreview(host.PreviewBinding()))
+            Assert.Equal(HttpStatusCode.Forbidden, preview.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, await host.Reject(new() { Operation = "machine/cancel" }));
+        Assert.Equal(HttpStatusCode.Forbidden, await host.Reject(new() { Operation = "machine/confirm",
+            EquipmentAllocation = new([new(Boots, "recipient")]) }));
+    }
 
     [Fact]
     public async Task CreationValidatesInputsAndPublishesAFullWld1Region()
@@ -366,6 +511,22 @@ public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDispos
         };
     }
 
+    private static ScenarioDefinition StationFixture(ulong seed, ExpeditionRegionPlan plan, ContentBundle content)
+    {
+        var scenario = Fixture(seed, plan, content);
+        var deployment = scenario.Setup!.Deployment;
+        var start = deployment.PlacementOrder[0];
+        var position = new[] { new Cell(start.X - 1, start.Y), new(start.X, start.Y - 1),
+            new(start.X + 1, start.Y), new(start.X, start.Y + 1) }.First(cell =>
+            cell.X >= 0 && cell.Y >= 0 && cell.X < scenario.Board.Width && cell.Y < scenario.Board.Height &&
+            !deployment.Cells.Contains(cell) && cell != deployment.Departure);
+        return scenario with
+        {
+            Machines = [new(Station, position, MachineTypes.EquipmentStation)],
+            GroundObjects = [.. scenario.GroundObjects!, new(new OwnedObject(StationItem) { ItemTypeId = "second-wind" }, start)]
+        };
+    }
+
     private sealed class Choice(string key) : IDecisionProvider
     {
         public string? Choose(DecisionRequest request, IGameplayQueries queries) => key;
@@ -375,11 +536,11 @@ public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDispos
     {
         public GameUpdate Current { get; private set; } = null!;
 
-        public static async Task<Host> Start(string root, ExpeditionCatalog? catalog = null)
+        public static async Task<Host> Start(string root, ExpeditionCatalog? catalog = null, GameState? initialState = null)
         {
             var contentRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../ProjectDelve.Web"));
             var app = PlaytestHost.Build(["--urls", "http://127.0.0.1:0", "--contentRoot", contentRoot, "--Expeditions:Path", root],
-                null, CourtyardFixture.Create(), expeditionCatalog: catalog);
+                null, initialState ?? CourtyardFixture.Create(), expeditionCatalog: catalog);
             await app.StartAsync();
             var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
             var client = new HttpClient { BaseAddress = new Uri(address) };
@@ -392,6 +553,17 @@ public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDispos
 
         public async Task<ExpeditionCatalogView> Catalog() => (await client.GetFromJsonAsync<ExpeditionCatalogView>("/api/expeditions", Json))!;
         public Task<string> GameSnapshot() => client.GetStringAsync("/api/game");
+        public EquipmentStationPreviewRequest PreviewBinding(EquipmentAllocation? allocation = null) =>
+            new(Current.SessionId, Current.Revision, Current.DecisionId!, allocation);
+        public Task<HttpResponseMessage> PostPreview(EquipmentStationPreviewRequest request) =>
+            client.PostAsJsonAsync("/api/game/machine/preview", request, Json);
+        public async Task<EquipmentStationPreviewResponse> PreviewStation(EquipmentStationPreviewRequest request)
+        {
+            using var response = await PostPreview(request);
+            response.EnsureSuccessStatusCode();
+            Assert.True(response.Headers.CacheControl?.NoStore);
+            return (await response.Content.ReadFromJsonAsync<EquipmentStationPreviewResponse>(Json))!;
+        }
         public Task<HttpResponseMessage> ExportScenario(string? sessionId = null) => client.GetAsync(
             "/api/expeditions/current/scenario" + (sessionId is null ? "" : "?sessionId=" + Uri.EscapeDataString(sessionId)));
 

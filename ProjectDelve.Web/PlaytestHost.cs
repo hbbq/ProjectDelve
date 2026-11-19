@@ -114,6 +114,12 @@ public static class PlaytestHost
             try { return Results.Accepted(value: game.Accept(request)); }
             catch (PlaytestRequestException error) { return Results.Problem(error.Message, statusCode: error.StatusCode); }
         });
+        app.MapPost("/api/game/machine/preview", (EquipmentStationPreviewRequest request, PlaytestGame game, HttpContext context) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            try { return Results.Ok(game.PreviewEquipmentStation(request)); }
+            catch (PlaytestRequestException error) { return Results.Problem(error.Message, statusCode: error.StatusCode); }
+        });
         app.MapGet("/api/game/updates", Stream);
         var controller = app.MapGroup("/api/controllers/gambit");
         controller.AddEndpointFilter(async (context, next) =>

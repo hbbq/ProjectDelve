@@ -28,6 +28,9 @@ public static class FogOfWar
     public static GameState Observe(GameState state, string? side)
     {
         var copy = state.Copy();
+        if (copy.MachineInteraction is { } interaction && side is not null && interaction.SideId != side)
+            copy.MachineInteraction = null;
+        copy.Pending = ObserveDecision(state, side, copy.Pending);
         // Unopened card identities are never presentation data, including without FoW.
         copy.LootDeck = null;
         copy.ActivationTypeOrder = null;
@@ -91,7 +94,6 @@ public static class FogOfWar
         copy.CompleteAfterDefeatEffects = false;
         copy.BreakInProgress = null;
         copy.AttackAwaitingConsequences = null;
-        copy.Pending = ObserveDecision(state, side, state.Pending);
         if (copy.CurrentUnitId is null) copy.ModifiersThisTurn.Clear();
         copy.FogOfWarSides = [side!];
         copy.ExploredCells = new(StringComparer.Ordinal) { [side!] = new(state.ExploredCells.GetValueOrDefault(side!) ?? []) };
@@ -115,6 +117,7 @@ public static class FogOfWar
 
     public static DecisionRequest? ObserveDecision(GameState state, string? side, DecisionRequest? request)
     {
+        if (request?.MachineInteraction is { } interaction && side is not null && interaction.SideId != side) return null;
         if (request is null || !IsEnabled(state, side)) return request;
         if (request.Token?.SideId != side) return null;
         return request with { Candidates = request.Candidates.Select(c => Preview(state, side!, c)).ToList(),
@@ -150,6 +153,8 @@ public static class FogOfWar
 
     public static RulesEvent? ObserveEvent(GameState state, string? side, RulesEvent e)
     {
+        if (side is not null && side != e.SideId && !e.EquipmentTransfers.IsDefaultOrEmpty)
+            e = e with { EquipmentTransfers = [] };
         if (!IsEnabled(state, side)) return e.BreakOutcomes.IsEmpty && e.BreakSourceVisibleSideIds.IsEmpty ? e : e with
             { BreakOutcomes = e.BreakOutcomes.Select(o => o with { BeforeVisibleSideIds = [] }).ToImmutableArray(), BreakSourceVisibleSideIds = [] };
         var isBreak = e.Kind is "ObjectBreakResolved" or "AdjacentObjectsBreakResolved";

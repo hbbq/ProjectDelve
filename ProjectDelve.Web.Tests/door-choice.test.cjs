@@ -235,6 +235,7 @@ function harness(initial, fetchImpl, extras = {}) {
   document.getElementById("coordinates").checked = false;
   const context = vm.createContext({ document, initial, submitted, setTimeout, clearTimeout,
     mountExpeditions: () => ({ update() {} }),
+    mountEquipmentStation: () => ({ update() {}, diagnostics() {} }),
     fetch: (url, options) => url === './presentation/profiles.json'
       ? Promise.resolve({ ok: true, json: async () => JSON.parse(fs.readFileSync(path.join(__dirname, '../ProjectDelve.Web/wwwroot/presentation/profiles.json'), 'utf8')) })
       : url.startsWith('./presentation/cursors/') ? Promise.resolve({ok:false,status:404})

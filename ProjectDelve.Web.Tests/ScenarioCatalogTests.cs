@@ -56,6 +56,13 @@ public sealed class ScenarioCatalogTests
     }
 
     [Fact]
+    public void WorkshopTransportLoadsThroughTheNormalImportBoundary()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "../../../../scenarios/equipment-station-workshop.delve1");
+        _ = ScenarioDefinitionTransport.Materialize(File.ReadAllText(path).Trim(), beforeCreation: null);
+    }
+
+    [Fact]
     public async Task EveryCatalogEntryCanBeLoadedThroughTheWebHost()
     {
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../ProjectDelve.Web"));

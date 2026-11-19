@@ -282,6 +282,28 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
   }
   function machine(m,visual){
     const group=new THREE.Group(),x=m.position.x+.5,z=m.position.y+.5;
+    if(m.typeId==='equipment-station'){
+      // A freestanding quartermaster's rack, all inside its one-Cell base.
+      group.name='equipment-station-rack';
+      group.position.set(x,0,z);
+      const oak='#996c42',iron='#474e52',brass='#e8b659';
+      const band=m.ownerSide?`hsl(${sideHue(m.ownerSide)},65%,65%)`:brass;
+      box(group,band,0,.045,0,.9,.09,.76);
+      for(const px of [-.33,.33]){
+        box(group,iron,px,.38,-.17,.075,.66,.09);
+        box(group,oak,px,.19,.22,.09,.28,.09);
+      }
+      box(group,oak,0,.69,-.17,.81,.10,.13);
+      box(group,oak,0,.30,.045,.85,.085,.55);
+      for(const px of [-.19,-.02]){
+        box(group,'#d5d9ce',px,.50,-.07,.052,.31,.03);
+        box(group,brass,px,.635,-.07,.125,.035,.045);
+        box(group,iron,px,.71,-.07,.038,.12,.045);
+      }
+      mesh(group,geometries.gem,brass,.20,.49,-.02,.14,.19,.05);
+      mesh(group,geometries.gem,band,.20,.50,.015,.105,.14,.04);
+      return group;
+    }
     if(m.typeId==='beacon'){
       group.position.set(x,0,z);
       box(group,'#787b79',0,.06,0,.84,.12,.84);

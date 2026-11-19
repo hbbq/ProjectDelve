@@ -26,6 +26,7 @@ function showMode() {
   $('designer-main').hidden = route.mode !== 'designer';
   $('content-browser').hidden = route.mode !== 'content';
   $('playtest-main').hidden = route.mode !== 'play';
+  globalThis.delveSetPlayMode?.(route.mode === 'play');
   $('playtest-tools').hidden = route.mode !== 'play';
   document.body.classList.toggle('designing', route.mode === 'designer');
   document.body.classList.toggle('playing', route.mode === 'play');

@@ -11,6 +11,7 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
 
     public string? Choose(DecisionRequest request, IGameplayQueries queries) => request.Kind switch
     {
+        DecisionKind.MachineInteraction => "cancel-machine-interaction",
         DecisionKind.RollDice => request.Candidates.Single().Key,
         DecisionKind.Activation => SelectActivation(request, queries),
         DecisionKind.SelectUnit => SelectUnit(request, queries),
@@ -23,6 +24,7 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
     internal static string SelectActivation(DecisionRequest request, IGameplayQueries queries,
         IReadOnlyCollection<string>? orderedTargetIds = null, Func<string?>? ordinaryMovement = null)
     {
+        request = request with { Candidates = request.Candidates.Where(c => !c.RequiresMachineInteraction).ToList() };
         var objectChoice = request.Candidates.FirstOrDefault(c => (c.Ability is null && c.ObjectId is not null && c.Kind == ActivationChoiceKind.FreeAction || c.Ability?.Definition.Mechanic is AdjacentUnitPostureChangeMechanic { Selector: RelationshipSelector.Friendlies, NewPosture: Posture.Upright }));
         if (objectChoice is not null) return objectChoice.Key;
         if (request.Candidates.Any(c => c.Kind == ActivationChoiceKind.EndTurn) &&
@@ -214,6 +216,7 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
     internal static string? SelectAction(DecisionRequest request, IGameplayQueries queries,
         IReadOnlyCollection<string>? orderedTargetIds = null)
     {
+        request = request with { Candidates = request.Candidates.Where(c => !c.RequiresMachineInteraction).ToList() };
         var shell = request.Candidates.Where(c => c.Action == UnitAction.TargetUnitAttack)
             .OrderBy(c => queries.ManhattanDistanceBetweenUnits(request.UnitId!, c.TargetId!))
             .ThenBy(c => queries.PositionOf(c.TargetId!).Y).ThenBy(c => queries.PositionOf(c.TargetId!).X)

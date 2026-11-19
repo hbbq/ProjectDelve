@@ -33,6 +33,8 @@ internal sealed record ExpeditionCheckpoint(int Version, string ExpeditionId, ul
     ScenarioDefinition Scenario, ContentBundle Content, GameState State, ulong GameplayRandomState)
 {
     public bool AutoChooseSingleRelevantChoice { get; init; } = true;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public EquipmentAllocation? EquipmentDraft { get; init; }
 }
 
 internal enum ExpeditionWritePoint { CheckpointBeforeReplace, HeadBeforeReplace, HeadAfterReplace }
@@ -87,6 +89,7 @@ internal sealed class ExpeditionStore
         if (checkpoint.Version != CheckpointVersion || checkpoint.ExpeditionId != Id || checkpoint.Plan is null || checkpoint.Plan.Region != reference.Region ||
             checkpoint.Scenario is null || checkpoint.Content is null || checkpoint.State is null)
             throw new InvalidDataException("The Expedition checkpoint does not match its reference or supported schema.");
+        ValidateEquipmentDraft(checkpoint);
         return checkpoint;
     }
 
@@ -97,6 +100,7 @@ internal sealed class ExpeditionStore
         // A codec regression must fail before the new digest can become authoritative.
         var decoded = Decode<ExpeditionCheckpoint>(bytes);
         GameEngine.ValidateRestoredState(decoded.State);
+        ValidateEquipmentDraft(decoded);
         if (decoded.State.Round == 0) _ = GameEngine.CreateGame(decoded.Scenario, decoded.Content);
         var reference = new ExpeditionCheckpointRef(checkpoint.Plan.Region, Digest(bytes));
         var path = CheckpointPath(reference);
@@ -116,6 +120,14 @@ internal sealed class ExpeditionStore
         }
         if (!OperatingSystem.IsWindows()) FlushDirectory(directory);
         return reference;
+    }
+
+    private static void ValidateEquipmentDraft(ExpeditionCheckpoint checkpoint)
+    {
+        if (checkpoint.EquipmentDraft is { } draft &&
+            (draft.Assignments.IsDefault || checkpoint.State.MachineInteraction is null ||
+             checkpoint.State.Pending?.Kind != DecisionKind.MachineInteraction))
+            throw new InvalidDataException("An Equipment draft requires a matching pending Machine interaction.");
     }
 
     internal void ReplaceHead(ExpeditionHead? expected, ExpeditionHead next)

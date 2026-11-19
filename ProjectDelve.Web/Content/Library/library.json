@@ -2,6 +2,68 @@
   "version": 1,
   "scenarios": [
     {
+      "id": "equipment-station-workshop",
+      "name": "Equipment Station Workshop",
+      "revision": 1,
+      "coverArt": null,
+      "definition": {
+        "board": {
+          "width": 8, "height": 6, "defaultTerrain": "StoneFloor",
+          "cells": [
+            { "position": { "x": 0, "y": 0 }, "terrain": "Tree" },
+            { "position": { "x": 1, "y": 0 }, "terrain": "Grass" },
+            { "position": { "x": 7, "y": 0 }, "terrain": "Tree" },
+            { "position": { "x": 5, "y": 1 }, "terrain": "Water" },
+            { "position": { "x": 6, "y": 1 }, "terrain": "Water" },
+            { "position": { "x": 6, "y": 2 }, "terrain": "Water" },
+            { "position": { "x": 1, "y": 4 }, "terrain": "StoneFloorWithTable" },
+            { "position": { "x": 7, "y": 5 }, "terrain": "Tree" }
+          ]
+        },
+        "machines": [
+          { "id": "workshop", "position": { "x": 3, "y": 2 }, "ownerSide": "heroes",
+            "type": { "id": "equipment-station", "name": "Equipment Station", "storage": null,
+              "operation": { "costs": [], "equipmentStation": {} } } }
+        ],
+        "unitTypeIds": ["barbarian-type", "cleric-type", "rogue-type", "grunt-type"],
+        "unitTypes": [
+          { "id": "grunt-type", "displayName": "Grunt", "mov": 3, "rng": 1, "atk": 3, "def": 3,
+            "hp": 1, "lootDropSuccesses": 1, "canHaveItems": true }
+        ],
+        "equipmentTypes": [
+          { "id": "berserker-ring", "name": "Berserker Ring", "localAbilities": [
+            { "key": "ability-1", "name": "Berserk", "timing": "BonusAction", "usage": { "maxUses": 2 },
+              "mechanic": { "kind": "selfModifiers", "modifiers": [{ "stat": "Atk", "amount": 2 }] } }
+          ] }
+        ],
+        "units": [
+          { "unitTypeId": "barbarian-type", "unitId": "barbarian", "sideId": "heroes", "anchor": { "x": 2, "y": 2 },
+            "inventory": [
+              { "id": "field-boots", "equipmentTypeId": "lucky-boots", "lootCardId": "lucky-boots" },
+              { "id": "field-ring", "equipmentTypeId": "berserker-ring", "abilityUseCounts": { "ability-1": 1 } },
+              { "id": "wind-a", "itemTypeId": "second-wind", "lootCardId": "second-wind" },
+              { "id": "wind-b", "itemTypeId": "second-wind", "lootCardId": "second-wind" }
+            ] },
+          { "unitTypeId": "cleric-type", "unitId": "cleric", "sideId": "heroes", "anchor": { "x": 2, "y": 3 },
+            "dormant": true, "posture": "Lying", "initialHp": 2,
+            "inventory": [{ "id": "field-bell", "equipmentTypeId": "goat-bell" }] },
+          { "unitTypeId": "rogue-type", "unitId": "rogue", "sideId": "heroes", "anchor": { "x": 6, "y": 1 },
+            "dormant": true, "inventory": [
+              { "id": "swim-tube", "equipmentTypeId": "swim-tube" }, { "id": "river-boots", "equipmentTypeId": "lucky-boots" }
+            ] },
+          { "unitTypeId": "grunt-type", "unitId": "grunt", "sideId": "heroes", "anchor": { "x": 5, "y": 4 }, "dormant": true }
+        ],
+        "agency": [
+          { "unitTypeId": "barbarian-type", "sideId": "heroes", "controller": "Human" },
+          { "unitTypeId": "cleric-type", "sideId": "heroes", "controller": "Human" },
+          { "unitTypeId": "rogue-type", "sideId": "heroes", "controller": "Human" },
+          { "unitTypeId": "grunt-type", "sideId": "heroes", "controller": "Human" }
+        ],
+        "objectives": [{ "sideId": "heroes", "objective": "NoObjective" }],
+        "loot": { "composition": [] }
+      }
+    },
+    {
       "id": "local-fixed-furniture",
       "name": "Fixed Furniture - Shared Components",
       "coverArt": null,
@@ -598,6 +660,7 @@
       "description": "Explore Project Delve test scenarios. Fixed Furniture - Shared Components, Environmental Production - Three Sources and the Local Terrain, World Cards, Abilities and Equipment rooms demonstrate scenario-local content.",
       "coverArt": null,
       "scenarioIds": [
+        "equipment-station-workshop",
         "local-fixed-furniture",
         "local-environmental-production",
         "local-terrain-curiosity-room",
@@ -635,7 +698,7 @@
         "labyrinth-shaper",
         "genombrottet"
       ],
-      "revision": 7
+      "revision": 8
     }
   ]
 }

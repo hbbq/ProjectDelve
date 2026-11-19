@@ -16,6 +16,8 @@ The physical tabletop game is the source of truth. The digital implementation ex
 
 Vision and neutral Machine mechanics, source identity and occupancy are described in [Vision and Machines](VISION_AND_MACHINES.md). The [V1 implementation report](VISION_NEUTRAL_V1_IMPLEMENTATION.md) records tests, benchmarks and Edge QA.
 
+To try Equipment redistribution, open **Scenarios → Equipment Station Workshop → Play scenario**, then choose **Start round → Stay → Operate** and select the Station. The workshop includes a partially spent ring, duplicate Items and a Rogue who needs a Swim Tube to stay on Water. [Workshop guide and DELVE1 import](VISION_AND_MACHINES.md#play-the-workshop)
+
 ## Rules and constraints
 
 [CONSTRAINTS.md](CONSTRAINTS.md) is the authoritative living specification for game-design decisions and implementation constraints that have been established so far.

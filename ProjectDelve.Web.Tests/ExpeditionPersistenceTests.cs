@@ -335,10 +335,75 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
         Assert.Equal(source, receipt.Source);
         Assert.Equal(ExpeditionStore.HeadVersion, retry.Head.Version);
         Assert.Equal(settings.ToString(), retry.Head.GenerationRecipe);
-        Assert.Equal(ExpeditionWorldProfile.CreateV1(settings.NaturalTerrain), retry.Head.WorldProfile);
+        Assert.Equal(ExpeditionWorldProfile.CreateV1(settings.NaturalTerrain) with
+            { StationVersion = ExpeditionWorldProfile.CurrentStationVersion }, retry.Head.WorldProfile);
         Assert.Equal(retry.Head.WorldProfile, ExpeditionRunner.Open(root, id).Head.WorldProfile);
         Assert.Equal(sourceBytes, File.ReadAllBytes(CheckpointPath(source, id)));
         Assert.Equal(receipt, retry.Continue(original.Region.TransitionId));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public void StationsUpgradeOnlyAtSuccessfulFrontierAndKeepArchivedGeometryAndOtherPolicies(int policy)
+    {
+        const ulong seed = 889;
+        const string id = "station-frontier";
+        var settings = ExpeditionWorld.Configure(seed, new(new(0, 0, 60, 60), new(0, 0, 0),
+            Civilization: new(Enabled: false), Routes: new(Enabled: false), Population: new(PopulationDensity.Off)));
+        var profile = policy switch
+        {
+            0 => ExpeditionWorldProfile.CreateV1(settings.NaturalTerrain),
+            1 => ExpeditionWorldProfile.CreateCivilizationV1(settings.NaturalTerrain),
+            2 => ExpeditionWorldProfile.CreateConstructionV1(settings.NaturalTerrain),
+            3 => ExpeditionWorldProfile.CreateConstructionV2(settings.NaturalTerrain),
+            _ => ExpeditionWorldProfile.Create(settings.NaturalTerrain) with { StationVersion = null }
+        };
+        var store = new ExpeditionStore(root, id);
+        var runner = ExpeditionRunner.Create(store, seed, ContentBundle.Canonical, OpenBoard, settings.ToString(), profile);
+        FinishOpenBoard(runner);
+        var source = runner.Head.ActiveCheckpoint;
+        var sourceBytes = File.ReadAllBytes(CheckpointPath(source, id));
+        var headPath = Path.Combine(root, "expedition-" + id, "head.json");
+        var headBytes = File.ReadAllBytes(headPath);
+        var incompatible = ContentBundle.Canonical();
+        incompatible = incompatible with
+        { Terrain = incompatible.Terrain.Select(t => t.Id == "dirt" ? t with { BlocksVision = true } : t).ToImmutableArray() };
+        var failed = ExpeditionRunner.Open(root, id, () => incompatible);
+        Assert.Equal(profile, failed.Head.WorldProfile);
+        Assert.Equal(headBytes, File.ReadAllBytes(headPath));
+        Assert.Throws<ExpeditionOperationException>(() => failed.Continue(runner.Region.TransitionId));
+        Assert.Equal(headBytes, File.ReadAllBytes(headPath));
+        Assert.Equal(sourceBytes, File.ReadAllBytes(CheckpointPath(source, id)));
+
+        var noOperate = ContentBundle.Canonical();
+        noOperate = noOperate with { Units = noOperate.Units.Select(type =>
+            ExpeditionParty.Originals.Any(hero => hero.TypeId == type.Id)
+                ? type with { LocalAbilities = type.LocalAbilities.Where(ability => ability.Mechanic is not Operate).ToImmutableArray() }
+                : type).ToImmutableArray() };
+        var failedParty = ExpeditionRunner.Open(root, id, () => noOperate);
+        Assert.Equal(ExpeditionFailureStage.PartySetup, Assert.Throws<ExpeditionOperationException>(() =>
+            failedParty.Continue(runner.Region.TransitionId)).Stage);
+        Assert.Equal(headBytes, File.ReadAllBytes(headPath));
+        Assert.Equal(sourceBytes, File.ReadAllBytes(CheckpointPath(source, id)));
+
+        var reopened = ExpeditionRunner.Open(root, id);
+        Assert.Equal(profile, reopened.Head.WorldProfile);
+        Assert.Equal(ScenarioDefinitionJson.ToJson(runner.Scenario), ScenarioDefinitionJson.ToJson(reopened.Scenario));
+        reopened.Continue(runner.Region.TransitionId);
+        Assert.Equal(profile with { StationVersion = ExpeditionWorldProfile.CurrentStationVersion }, reopened.Head.WorldProfile);
+        Assert.Equal(sourceBytes, File.ReadAllBytes(CheckpointPath(source, id)));
+        var station = Assert.Single(reopened.Snapshot().Physical.Board.Machines,
+            m => m.Id == ExpeditionStationGenerator.ArrivalId);
+        Assert.Equal(ExpeditionParty.SideId, station.OwnerSide);
+        Assert.Contains(reopened.Scenario.Setup!.Deployment.PlacementOrder[0],
+            MachineGeometry.PotentialOperatingPositions(reopened.Snapshot().Physical.Board, station));
+        var resumed = ExpeditionRunner.Open(root, id);
+        Assert.Equal(reopened.Head.WorldProfile, resumed.Head.WorldProfile);
+        Assert.Equal(ScenarioDefinitionJson.ToJson(reopened.Scenario), ScenarioDefinitionJson.ToJson(resumed.Scenario));
     }
 
     [Theory]
@@ -447,7 +512,8 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
             location.Groups.Any(group => group.Id == "public-space" &&
                 group.Positions.Contains(built.Position with { X = built.Position.X + 1 })));
         Assert.DoesNotContain(built.Position, square.Groups.SelectMany(g => g.Positions));
-        Assert.Equal(profile, ExpeditionRunner.Open(root, id, Latest).Head.WorldProfile);
+        Assert.Equal(profile with { StationVersion = ExpeditionWorldProfile.CurrentStationVersion },
+            ExpeditionRunner.Open(root, id, Latest).Head.WorldProfile);
     }
 
     [Theory]
@@ -502,7 +568,8 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
         Assert.Equal(useOutposts, successor.Scenario.Setup.RequiredLocations.Any(location =>
             location.Groups.Any(group => group.Id == "courtyard")));
         Assert.Contains(successor.Plan.ExitSeam.Y * board.Width + successor.Plan.ExitSeam.X, reached);
-        Assert.Equal(profile, ExpeditionRunner.Open(root, id, Latest).Head.WorldProfile);
+        Assert.Equal(profile with { StationVersion = ExpeditionWorldProfile.CurrentStationVersion },
+            ExpeditionRunner.Open(root, id, Latest).Head.WorldProfile);
     }
 
     [Theory]
@@ -511,6 +578,7 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
     [InlineData("coordinates", "Unsupported Expedition coordinate convention")]
     [InlineData("civilizationVersion", "Unsupported Expedition civilization version")]
     [InlineData("constructionVersion", "Unsupported Expedition construction version")]
+    [InlineData("stationVersion", "Unsupported Expedition Station version")]
     public void UnknownPinnedVersionRejectsOpenWithoutTouchingEitherSaveFile(string property, string diagnostic)
     {
         const string id = "unsupported-profile";

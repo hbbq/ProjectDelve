@@ -44,6 +44,7 @@ public static partial class GameEngine
         state.BonusActionUseCountsThisActivation.Clear();
         state.ModifiersThisTurn.Clear();
         state.Pending = null;
+        state.MachineInteraction = null;
         state.CompletedUnitIds.Clear();
         state.RoundComplete = false;
         var events = new ResolutionEvents(state, random, observe);
@@ -128,7 +129,7 @@ public static partial class GameEngine
         out string? choice)
     {
         choice = null;
-        if (request.Kind == DecisionKind.RollDice) return false;
+        if (request.Kind is DecisionKind.RollDice or DecisionKind.MachineInteraction) return false;
         if (request.Candidates.Count == 0 && request.AllowsNone) return true;
         // Ordinary forced choices are independent of relevance and its preference.
         if (request.Candidates.Count == 1 && !request.AllowsNone)
@@ -153,13 +154,17 @@ public static partial class GameEngine
     private static void ApplyDecision(GameState state, DecisionRequest request, string? choice,
         IRandomProvider random, ResolutionEvents events)
     {
+        if (request.Kind == DecisionKind.MachineInteraction)
+        {
+            state.MachineInteraction = null;
+            return;
+        }
+        if (choice is not null && TryOpenEquipmentStation(state, request, request.Candidates.Single(c => c.Key == choice))) return;
         if (choice is not null && request.Candidates.Single(c => c.Key == choice).Ability is { } ability)
         {
             if (!state.CanUseAbility(request.UnitId!, ability))
                 throw new InvalidOperationException("Ability invocation is unavailable.");
-            if (ability.Definition.Timing == AbilityTiming.Action) state.ActionsUsedThisActivation++;
-            ConsumeAbilityUse(state, request.UnitId!, ability, events);
-            PayAbilityCosts(state, request.UnitId!, ability, events);
+            CommitAbilityInvocation(state, request.UnitId!, ability, events);
             if (IsSharedActiveMechanic(ability.Definition.Mechanic))
             {
                 ResolveAbility(state, request, request.Candidates.Single(c => c.Key == choice), events);
@@ -502,6 +507,9 @@ public static partial class GameEngine
 
     private static DecisionRequest CreateDecisionCore(GameState state)
     {
+        if (state.MachineInteraction is { } interaction)
+            return new(DecisionKind.MachineInteraction, state.Units.Single(u => u.Id == interaction.OperatorId).TypeId,
+                interaction.OperatorId, [new("cancel-machine-interaction")], true) { MachineInteraction = interaction };
         DicePool? pool = null;
         if (state.BreakInProgress is { } breaking)
             pool = BreakDicePool(breaking);
@@ -850,6 +858,7 @@ public static partial class GameEngine
     {
         ArgumentNullException.ThrowIfNull(state);
         ValidateScenario(state);
+        ValidateMachineInteractionState(state);
     }
 
     internal static void ValidateScenario(GameState state)
