@@ -21,6 +21,7 @@ public sealed record WorldGenerationPlan(WorldDefinition World, WorldWindow Wind
     public string LootPreset { get; init; } = "All";
     public LootAbundance LootAbundance { get; init; } = LootAbundance.Standard;
     internal (ulong WorldSeed, ExpeditionWorldProfile Profile)? ExpeditionNature { get; init; }
+    internal ExpeditionCivilizationAllocation? ExpeditionCivilization { get; init; }
     // All WLD1 schedules establish deployment before accepting protected construction.
     private WorldGenerationPlan WithHeroDeployment(HeroDeploymentSettings settings)
     {
@@ -231,6 +232,7 @@ public sealed record WorldGenerationExecution(WorldGenerationContext Context, Wo
 public sealed partial class WorldGenerationContext
 {
     internal ExpeditionGeometryPlan? Expedition { get; set; }
+    internal ExpeditionCivilizationAllocation? ExpeditionCivilization { get; init; }
     internal HeroDeployment? Deployment { get; set; }
     internal CompletionGuard? Completion { get; set; }
     internal MandatoryRepairReport? MandatoryRepair { get; set; }
@@ -272,7 +274,10 @@ public static class WorldGenerationPipeline
     {
         plan.Validate(); content ??= ContentBundle.Canonical();
         var context = new WorldGenerationContext(plan.World, plan.Window)
-        { Loot = PopulationLoot.FromPreset(plan.LootPreset), LootAbundance = plan.LootAbundance, Expedition = expedition };
+        {
+            Loot = PopulationLoot.FromPreset(plan.LootPreset), LootAbundance = plan.LootAbundance, Expedition = expedition,
+            ExpeditionCivilization = plan.ExpeditionCivilization
+        };
         List<WorldPreviewFrame> frames = []; List<WorldStageMeasurement> measurements = [];
         List<string> palette = ["grass", "dirt", "tree", "solid-rock", "water", "stone-floor"];
         var paletteIndex = palette.Select((id, i) => (id, i)).ToDictionary(p => p.id, p => p.i, StringComparer.Ordinal);
@@ -448,9 +453,12 @@ public static class WorldGenerationPipeline
             context.PublishedSetup = PlayReadyScenarioSetup.Publish(context);
             var finalDefinition = context.Materialize();
             var finalState = GameEngine.CreateGame(finalDefinition, content);
-            if (expedition is not null && !expedition.HasOccupiedAccess(finalState, context.Deployment!))
+            var outpostDoors = ExpeditionGeometryPlan.OutpostDoorCells(context.Sites).ToArray();
+            if (expedition is not null && !expedition.HasOccupiedAccess(finalState, context.Deployment!, outpostDoors))
                 throw new PlayReadyGenerationException(plan, "final-materialization", context.ConstructionBoard!.Revision,
-                    "Initial population disconnects ordinary Expedition deployment, seam or exit-pad access.", context.MandatoryRepair);
+                    outpostDoors.Length == 0 ? "Initial population disconnects ordinary Expedition deployment, seam or exit-pad access."
+                        : "Initial population disconnects required Expedition access, including the outpost gate or guardhouse Door.",
+                    context.MandatoryRepair);
             var validation = PlayReadyScenarioSetup.Validate(finalDefinition, finalState);
             var failures = context.Completion!.ActualFailures(finalState);
             if (!validation.Valid || !failures.IsEmpty)

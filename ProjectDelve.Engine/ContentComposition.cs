@@ -119,6 +119,8 @@ public static class ContentComposition
                     !assembly.Components.Any(c => overridden.Contains(new(ContentFamily.FixedComponent, c.Definition.Id)))) return terrain;
                 var declaration = new TerrainAssemblyDefinition(terrain.Id, terrain.Name, assembly.Surface.Id)
                 {
+                    VillageCenterpiece = assembly.VillageCenterpiece,
+                    Landmark = assembly.Landmark,
                     Components = [.. assembly.Components.Select(c => new FixedComponentPlacement(c.Slot, c.Definition.Id, c.QuarterTurns))],
                     DestroyedTerrainTypeId = terrain.DestroyedTerrainTypeId
                 };

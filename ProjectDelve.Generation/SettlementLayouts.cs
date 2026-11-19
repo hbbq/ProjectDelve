@@ -29,18 +29,31 @@ internal static class SettlementLayouts
         }
         var road = family == SettlementFamily.RoadsideHamlet ? route.ToHashSet() : [];
         var shift = family == SettlementFamily.RoadsideHamlet ? scope.Random("route-sample").Next(route.Count) : 0;
-        for (var attempt = 0; attempt < samples; attempt++)
+        var preferred = request.Preferences is { AnchorWeight: > 0 } ? request.Preferences.PreferredAnchor : null;
+        var nearRoad = Array.Empty<int>();
+        if (family == SettlementFamily.RoadsideHamlet && preferred is { } anchor)
+        {
+            if (!Spend(route.Count)) return null;
+            var width = scope.Draft.Width;
+            nearRoad = route.OrderBy(i => Distance(i, anchor, width))
+                .DistinctBy(i => (i % width / 6, i / width / 6)).Take(4).ToArray();
+        }
+        for (var attempt = 0; attempt < samples + nearRoad.Length; attempt++)
         {
             if (!Spend(1)) return null;
             var random = scope.Random("geometry", attempt);
             var layout = family == SettlementFamily.RoadsideHamlet
-                ? Roadside(route[(int)((shift + (long)attempt * route.Count / samples) % route.Count)], road, count, request, scope.Draft, random, Spend)
+                ? Roadside(attempt < samples ? route[(int)((shift + (long)attempt * route.Count / samples) % route.Count)]
+                    : nearRoad[attempt - samples], road, count, request, scope.Draft, random, Spend)
                 : Centered(family, count, request, scope.Draft, random, attempt, route, Spend);
             if (exhausted) return null;
             if (layout is not null && SiteGeometry.Fits(layout.Bounds, area))
             {
                 var clearance = ClearanceCost(layout, scope.Draft);
-                candidates.Add(layout with { Cost = layout.Cost + clearance });
+                var preference = preferred is { } hub
+                    ? request.Preferences!.AnchorWeight * layout.Space.Cells.Min(i => Distance(i, hub, scope.Draft.Width))
+                    : 0;
+                candidates.Add(layout with { Cost = layout.Cost + clearance + preference });
             }
         }
         return candidates;
@@ -167,8 +180,9 @@ internal static class SettlementLayouts
         var yMax = area.Y + area.Height - bounds.Height - bounds.Y;
         if (xMin > xMax || yMin > yMax) return null;
         var preferred = request.Preferences?.PreferredAnchor ?? (route.Count > 0 ? route[random.Next(route.Count)] : -1);
-        var x = attempt % 3 != 2 && preferred >= 0 ? Math.Clamp(preferred % width + (attempt == 0 ? 0 : random.Next(21) - 10), xMin, xMax) : xMin + random.Next(xMax - xMin + 1);
-        var y = attempt % 3 != 2 && preferred >= 0 ? Math.Clamp(preferred / width + (attempt == 0 ? 0 : random.Next(21) - 10), yMin, yMax) : yMin + random.Next(yMax - yMin + 1);
+        var radius = request.Preferences is { AnchorWeight: > 0 } && attempt >= 6 ? 22 : 10;
+        var x = attempt % 3 != 2 && preferred >= 0 ? Math.Clamp(preferred % width + (attempt == 0 ? 0 : random.Next(2 * radius + 1) - radius), xMin, xMax) : xMin + random.Next(xMax - xMin + 1);
+        var y = attempt % 3 != 2 && preferred >= 0 ? Math.Clamp(preferred / width + (attempt == 0 ? 0 : random.Next(2 * radius + 1) - radius), yMin, yMax) : yMin + random.Next(yMax - yMin + 1);
         int Index(Cell c) => (c.Y + y) * width + c.X + x;
         CellBounds Translate(CellBounds b) => new(b.X + x, b.Y + y, b.Width, b.Height);
         var lots = relativeLots.Select(l => new SettlementLot(l.Purpose, l.Purpose, Translate(l.Bounds), Opposite(l.Outward),

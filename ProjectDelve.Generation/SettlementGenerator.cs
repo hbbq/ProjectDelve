@@ -4,7 +4,11 @@ namespace ProjectDelve.Generation;
 
 public sealed record SettlementRequirements(int BuildingCount = 3, int MinimumRooms = 1, int MaximumRooms = 3,
     bool Furniture = true, string FloorTypeId = "stone-floor", string? ScenarioRole = null,
-    SettlementFamily? Family = null, bool AllowReducedBuildingCount = false);
+    SettlementFamily? Family = null, bool AllowReducedBuildingCount = false)
+{
+    public bool VillageCenter { get; init; }
+    public string? CenterpieceTypeId { get; init; }
+}
 public sealed record SettlementRequest(string Key, CellBounds Area, PreparationPolicy Preparation,
     SettlementRequirements? Requirements = null, SitePlacementPreferences? Preferences = null);
 
@@ -16,6 +20,8 @@ public static class SettlementGenerator
     {
         var id = scope.ObjectId(request.Key);
         var requirements = request.Requirements ?? new();
+        if (requirements.VillageCenter && requirements.Family is null)
+            requirements = requirements with { Family = SettlementFamily.MarketVillage };
         var start = scope.Budget.Attempts;
         Rejected<SitePlan> Fail(PlacementFailureCode code, string reason) =>
             new(new(id, "Settlement", code, reason, scope.Budget.Attempts - start));
@@ -27,6 +33,12 @@ public static class SettlementGenerator
             requirements.MaximumRooms < requirements.MinimumRooms ||
             requirements.Family is { } family && !Enum.IsDefined(family))
             return Fail(PlacementFailureCode.InvalidRequest, "Invalid Settlement area, family, building count (2..4), or room limits (1..3).");
+        if (requirements.VillageCenter && (requirements.Family != SettlementFamily.MarketVillage || requirements.BuildingCount < 3) ||
+            !requirements.VillageCenter && requirements.CenterpieceTypeId is not null)
+            return Fail(PlacementFailureCode.InvalidRequest, "Village Center requires a Market Village with at least three buildings; centerpieces require a Village Center.");
+        if (requirements.CenterpieceTypeId is { } centerpiece &&
+            !scope.Content.Terrain.Any(t => t.Id == centerpiece && IsVillageCenterpiece(t)))
+            return Fail(PlacementFailureCode.InvalidContent, "Village Centerpiece must be an eligible passive blocking assembly on usable land.");
         try
         {
             request.Preparation.Validate();
@@ -52,7 +64,7 @@ public static class SettlementGenerator
             .Where(f => f != SettlementFamily.RoadsideHamlet || route.Length > 0).ToArray();
         var order = families.ToList();
         call.Random("family").Shuffle(order);
-        var minimumCount = requirements.AllowReducedBuildingCount ? 2 : requirements.BuildingCount;
+        var minimumCount = requirements.AllowReducedBuildingCount ? requirements.VillageCenter ? 3 : 2 : requirements.BuildingCount;
         var firstFamily = order[0];
         var last = Fail(PlacementFailureCode.NoFootprint, "No complete Settlement layout could fit.");
         for (var count = requirements.BuildingCount; count >= minimumCount; count--)
@@ -143,6 +155,24 @@ public static class SettlementGenerator
         foreach (var cell in aprons.Where(i => !paths.Contains(i))) draft.ReplaceTerrain(cell, "grass");
         operations.Add(SiteGeometry.Operation(draft, before, id + "/approaches", id, "Prepared aprons and approaches", id, area));
 
+        int? centerpieceIndex = null;
+        if (requirements.CenterpieceTypeId is { } centerpiece)
+        {
+            var square = layout.Space.Cells.ToHashSet();
+            var centerX = square.Average(i => i % w);
+            var centerY = square.Average(i => i / w);
+            var candidates = square.Where(i => Ring(i, w).All(square.Contains) && RingIsUsable(draft, i))
+                .OrderBy(i => Math.Abs(i % w - centerX) + Math.Abs(i / w - centerY)).ThenBy(i => i).ToArray();
+            if (candidates.Length == 0)
+                return Fail(PlacementFailureCode.NoFootprint, "Village Centerpiece requires a complete usable public-square ring.");
+            centerpieceIndex = candidates[0];
+            before = draft.BuildPatch();
+            draft.ReplaceTerrain(centerpieceIndex.Value, centerpiece);
+            if (!RingIsUsable(draft, centerpieceIndex.Value))
+                return Fail(PlacementFailureCode.DisconnectedSpace, "Village Centerpiece access ring must remain usable.");
+            operations.Add(SiteGeometry.Operation(draft, before, id + "/centerpiece", id, "Placed public square centerpiece", id, area));
+        }
+
         var entrances = Entrances(id, layout, draft);
         var footprint = exterior.Concat(interiors).ToHashSet();
         var usable = footprint.Where(draft.Passable).ToHashSet();
@@ -150,6 +180,7 @@ public static class SettlementGenerator
         if (access is null) return Fail(PlacementFailureCode.BudgetExhausted, "Settlement access validation budget exhausted.");
         if (access.Count == 0) return Fail(PlacementFailureCode.DisconnectedSpace,
             "Settlement rooms, public space and frontage must share usable access.");
+        if (centerpieceIndex is { } center) access.UnionWith(Ring(center, w));
 
         var summary = SiteGeometry.Summary(draft.BuildPatch());
         if (summary.ChangedTerrain > request.Preparation.MaxChangedCells || summary.Cost > request.Preparation.MaxCost)
@@ -165,11 +196,13 @@ public static class SettlementGenerator
             new(usable.Count, usable.Count, true, needsConnection, SiteGeometry.TwoByTwo(draft, usable)), tags,
             requirements.ScenarioRole is { } role ? [new(role, GeneratedObjectKind.Site, id)] : [], [], null, summary)
         {
+            ConstructionProfile = requirements.VillageCenter ? SiteConstructionProfile.VillageCenter : null,
             SettlementLayout = new(layout.Family,
                 layout.Lots.Zip(buildings, (lot, building) => new SettlementLotInfo(id + "/lot-" + lot.Key, lot.Bounds, lot.Purpose, building.Id)).ToArray(),
                 [new(publicSpace.Id, layout.Space.Role, publicSpace)],
-                GeneratedArea.From(id + "/required-access", access, w), fallbacks),
-            PopulationIntent = PopulationIntent(id, layout.Family, publicSpace, buildings, access, w)
+                GeneratedArea.From(id + "/required-access", access, w), fallbacks) { CenterpieceIndex = centerpieceIndex },
+            PopulationIntent = PopulationIntent(id, layout.Family, publicSpace, buildings,
+                centerpieceIndex is { } blocked ? access.Append(blocked).ToHashSet() : access, w)
         };
         info = SiteRouteAccess.Publish(info, draft, request.Preferences);
         // Optional shoulders stay outside the protected footprint and use only
@@ -190,6 +223,26 @@ public static class SettlementGenerator
             } };
         operations.Add(new(id + "/commit", id, "Site ready for atomic commit", id, area, [], []));
         return new Planned<SitePlan>(new(draft.BuildPatch(), info, operations));
+    }
+
+    internal static bool IsVillageCenterpiece(TerrainDefinition terrain) => !terrain.Passable && terrain.Production is null &&
+        terrain.Assembly is { VillageCenterpiece: true, Surface: { Passable: true, Production: null } surface } assembly &&
+        !surface.Categories.Contains(TerrainCategories.Water) && surface.LegacyKind != TerrainKind.Rail &&
+        assembly.Components.Count(c => c.Definition.Presentation.Layer == FixedComponentLayer.Object) == 1 &&
+        assembly.Components.Any(c => c.Definition.BlocksMovement);
+
+    private static IEnumerable<int> Ring(int center, int width)
+    {
+        for (var dy = -1; dy <= 1; dy++)
+        for (var dx = -1; dx <= 1; dx++)
+            if (dx != 0 || dy != 0) yield return center + dy * width + dx;
+    }
+
+    private static bool RingIsUsable(BoardDraft draft, int center)
+    {
+        var ring = Ring(center, draft.Width).ToHashSet();
+        return ring.All(draft.Passable) && ring.All(cell => draft.Neighbors(cell)
+            .Where(ring.Contains).All(next => SiteGeometry.Crossable(draft, cell, next)));
     }
 
     internal static bool PreparePassingSpaces(BoardDraft draft, HashSet<int> exterior, HashSet<int> interiors,

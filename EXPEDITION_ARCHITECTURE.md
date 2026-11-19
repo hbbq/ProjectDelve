@@ -1,6 +1,6 @@
 # Expedition architecture investigation
 
-The original investigation, [Phase 1 baseline](#phase-1-implementation) and [Phase 2A](#phase-2a-full-wld1) are retained below. [Phase 2B](#phase-2b-persistent-nature-and-spatial-fields) describes the current world profile, measurements and compatibility boundary.
+The original investigation, [Phase 1 baseline](#phase-1-implementation) and [Phase 2A](#phase-2a-full-wld1) are retained below. [Phase 2B](#phase-2b-persistent-nature-and-spatial-fields) describes the pinned nature and fields. [Civilization construction Phase 4](#civilization-construction--phase-4) describes the current fortified outpost policy and its compatibility boundary.
 
 ## Recommendation
 
@@ -318,7 +318,7 @@ Use the generated regions to playtest the feel of several successive regions. Ke
 
 ## Phase 3 implemented — playable Client
 
-Open **Expeditions** from the main navigation. Enter a name and a decimal or `0x` hexadecimal world seed, or generate one. Select the default Expedition baseline or an existing WLD1 preset. An explicit WLD1 code overrides the preset. Expedition applies its world seed, 60 × 60 window and five-Hero capacity to the baseline. Newly created games pin the Phase 2B versions. The saved list shows name, seed, region and the last committed save time. **Resume** opens the ordinary game table. **Switch Expedition** saves the current table and returns to the list. [Management and table controls](ProjectDelve.Web/wwwroot/expedition.js) · [WLD1 configuration and catalog](ProjectDelve.Web/ExpeditionCatalog.cs)
+Open **Expeditions** from the main navigation. Enter a name and a decimal or `0x` hexadecimal world seed, or generate one. Select the default Expedition baseline or an existing WLD1 preset. An explicit WLD1 code overrides the preset. Expedition applies its world seed, 60 × 60 window and five-Hero capacity to the baseline. New Expeditions record the pinned nature and field versions and the current civilization policy. The saved list shows name, seed, region and the last committed save time. **Resume** opens the ordinary game table. **Switch Expedition** saves the current table and returns to the list. [Management and table controls](ProjectDelve.Web/wwwroot/expedition.js) · [WLD1 configuration and catalog](ProjectDelve.Web/ExpeditionCatalog.cs)
 
 The table reuses the existing renderer, decisions, activation UI, FoW and inventory. The compact Expedition row shows region, completed regions, exit progress and Save. The exit count calls the same Engine selector/footprint logic as Reach Area. A count of two can appear before the relevant Engine evaluation. The Continue control depends on the completed result for the Expedition Side. [Client integration](ProjectDelve.Web/wwwroot/app.js) · [Engine objective queries](ProjectDelve.Engine/ScenarioObjectives.cs)
 
@@ -343,3 +343,117 @@ The HTTP/SSE tests checked invalid creation inputs, isolation across two saves, 
 The latest focused Debug run took about **5.6 seconds** to create the seed-889 Grassland run and publish its first view. A controlled pending fixture acknowledged Save in **27 ms** and reopened from a fresh Web host in **13 ms**. The browser handoff produced a **79,370-byte** completed fixture checkpoint and a **690,080-byte** populated successor. The full test runs passed **3,712 Engine** and **844 Web** tests, and **1,122 Node** tests with one skipped. The build completed with a NuGet vulnerability-feed availability warning.
 
 The next step is a multi-region playtest to tune onboarding and calibrate pacing, using the existing save format and pinned profile.
+
+## Civilization geography — Phase 1
+
+New Expedition heads record `civilizationVersion: "ExpeditionCivilization1"` in the world profile. An absent value selects the original Expedition allocation. The version-1 head upgrade still uses the original policy. An unknown value stops Open with a diagnostic before any checkpoint write. The head and checkpoint formats otherwise keep their existing versions. Successor generation uses the current compatible Content, and archival keeps the concrete Scenario and effective Content. [World profile](ProjectDelve.Generation/ExpeditionNature.cs) · [Head validation](ProjectDelve.Web/ExpeditionStore.cs)
+
+The Expedition adapter resolves Enrichment, Routes, Population and Loot using `ExpeditionFields1` as before. For `ExpeditionCivilization1` it supplies a separate typed allocation to the existing Civilization stage and restores the saved Civilization settings as the baseline. Preparation Intensity stays fixed to that baseline. Ordinary WLD1 and older Expeditions use their existing density targets and layout paths. [Expedition adapter](ProjectDelve.Generation/ExpeditionRegionGeometry.cs) · [Civilization orchestration](ProjectDelve.Generation/CivilizationGenerator.cs)
+
+| Concern | Interpretation |
+| --- | --- |
+| Living settlement demand | Average nine absolute-Cell samples of the pinned Civilization field over the window. Map the middle of the signal to the saved recipe's nominal count and let low demand round to zero. The default 60 × 60 recipe requests 0–7 settlements. |
+| Camps and dungeons | Camps have separate geographic demand and can be absent. Dungeons use the saved baseline Site settings and existing rock feasibility, independent of the resolved settlement and camp counts. Explicit `None` for a category and disabled Civilization still apply. The separate Beacon Machine policy stays in effect while Civilization is enabled. |
+| Local organization | Sample an independent regional clustering signal. It controls how strongly candidate layouts favor one hub. The hub comes from a separate shorter-wavelength field sampled on an absolute-coordinate grid. At strong preferences, try a bounded neighborhood first, followed by a whole-board search if the neighborhood cannot supply a feasible plan. Roadside layouts can try nearby existing route frontage. |
+| Acceptance | Both searches share the existing Civilization budget and publish through the same completion guard. Each Site and approach fits in its own region. The bounded search may omit a request with diagnostics. Mandatory repair, final ordinary 1 × 1 access and occupied Expedition seam checks still run. |
+
+The signals vary before choices are rounded into discrete requests. Each board resolves its own allocation and construction, so neighboring regions can differ in count or visible placement at a seam. Setting Regional Variation to zero restores the saved recipe's nominal counts and disables hub preferences. [Civilization allocation](ProjectDelve.Generation/ExpeditionCivilization.cs) · [Settlement candidate ranking](ProjectDelve.Generation/SettlementLayouts.cs)
+
+### Reproducing civilization comparisons
+
+The diagnostic exports both policies for the same three sequences of 24 regions. It records exact Site and Building footprints, accepted and omitted requests, completion guard work, stage timings, and an ordinary seam-to-seam path treating all initial Monster footprints as obstacles. It verifies every required Expedition endpoint and deployment position and repeats the first generated region after the rest of the journey. The comparison checks fields and base terrain against both policies and can verify the before fingerprints against the archived journey corpus. [Journey exporter](ProjectDelve.Web.Tests/ExpeditionJourneyDiagnostic.cs) · [Comparison and plot script](tools/analyze-expedition-civilization.py)
+
+```powershell
+dotnet build ProjectDelve.sln --no-restore --artifacts-path .playwright-cli
+$results = Join-Path (Get-Location).Path '.tmp/civilization-geography-phase1'
+foreach ($variant in 'before','after') {
+    $env:PROJECTDELVE_EXPEDITION_JOURNEY_VARIANT = $variant
+    $env:PROJECTDELVE_EXPEDITION_JOURNEY_OUTPUT = Join-Path $results $variant
+    dotnet test ProjectDelve.Web.Tests/ProjectDelve.Web.Tests.csproj --no-build --no-restore --artifacts-path .playwright-cli --filter 'FullyQualifiedName~ExpeditionJourneyDiagnostic'
+}
+python tools/analyze-expedition-civilization.py (Join-Path $results 'before') (Join-Path $results 'after') (Join-Path $results 'comparison') --baseline .playwright-cli/expedition-spatial-journeys
+```
+
+Use an installed Python with Pillow for the comparison. Set `PROJECTDELVE_EXPEDITION_JOURNEY_SEEDS` to the same comma-separated seed list for both variants to run an additional corpus. The comparison reports settlement-free stretches and count-adjusted nearest-neighbor distances alongside the regional density and clustering signals.
+
+### Phase 1 measurements
+
+All 72 regions for seeds 17, 42 and 889 generated under both policies with identical base terrain, fields, journey plans and pre-Civilization terrain. The 72 before fingerprints matched the archived corpus. The first region of each journey reproduced after generating the remaining 23. Every region passed occupied seam, full exit pad and deployment access.
+
+The new policy yielded 37 settlement-free regions and 12 with exactly one settlement. The longest settlement-free stretch grew from zero to 4, 21 and 7 regions for seeds 17, 42 and 889 respectively. One region had no Sites of any of the three measured categories. Dungeons still appeared in 18 settlement-free regions. The highest living settlement count increased from four to seven. Average Site footprint fell from 739 to 420 Cells and average Building footprint fell from 232 to 119 Cells.
+
+In occupied regions with at least two settlements, the mean nearest-settlement distance fell from 27.3 to 21.4 Cells. The mean ratio to a uniform point reference matched on settlement count was 1.04 before and 1.03 after, so the aggregate change reflects both the mix of counts and placement. The higher clustering-signal third had a count-matched ratio of 0.92 versus 0.98 in the lower third. The two settlements in seed 17's second region were 16.1 Cells apart with a clustering signal of 0.86. Seed 17's fourteenth region had five settlements and a higher count-adjusted nearest distance, with a clustering signal of 0.43.
+
+Across the three journeys, the mean absolute change over one region step was 0.10 for density and 0.08 for clustering, versus 0.24 and 0.18 over four steps. A supplemental 24-region journey for seed 90 exercised more populated, high-clustering regions. Regions 8 and 21 each accepted four settlements. Their clustering signals were 0.03 and 0.98, and their mean nearest-settlement distances were 20.8 and 16.5 Cells. All 24 comparisons passed occupied access.
+
+In these Debug exports, median generation time fell from 4.46 to 3.54 seconds per region and median Civilization time fell from 1.09 to 0.64 seconds. Mean completion-guard work fell from 29,727 to 22,053 units overall and from 23,769 to 16,090 in Civilization. The peak Civilization planner work increased from 540,235 to 878,068 units within the existing two-million-work budget. Strong-hub fallback and independent dungeon attempts can increase planner work even when the map publishes fewer Sites.
+
+## Civilization construction — Phase 2
+
+Phase 2 world profiles record `constructionVersion: "ExpeditionConstruction1"`. A Phase 1 head with only `ExpeditionCivilization1` retains its original profile choices. Earlier profiles still use the original WLD1 allocation and selection. The construction policy uses the existing allocation, preparation allowances, geography and hub preferences. Profile selection is derived once per requested Site from stable region and request seeds, independent of terrain and placement retry streams. Cottages are more likely when the settlement allowance is small. Village Centers are eligible where it is larger. Camps independently choose from existing and primitive layouts. The original WLD1 recipe path uses its existing structure types. [Profile and adapter](ProjectDelve.Generation/ExpeditionRegionGeometry.cs) · [Selection and publication](ProjectDelve.Generation/CivilizationGenerator.cs)
+
+| Profile | Construction |
+| --- | --- |
+| Cottage | One enclosed Building and one Room on Stone Floor with an ordinary Door, optional table, and Dirt apron. The Building owns its interior. The Site protects the apron and can request an optional external route. |
+| Open camp | The existing campsite clearing and approach with dirt patches and campfire. |
+| Sheltered camp | The same campsite with a three-sided Wall shelter facing the hearth. |
+| Primitive hut | The campsite composes a small single-room dirt-floor Building using the ordinary Building planner. The hut has a Door and its own reserved interior. |
+| Village Center | The Market Village planner places at least three buildings around the communal square. An optional blocking centerpiece uses a Terrain Assembly with a passive raised Fixed Component. The surrounding ring and entrances remain ordinary required access. |
+
+All profiles publish through the existing private Site drafts, completion guard and final validation. A cottage or hut room participates in ordinary exploration Loot. Terrain preparation, internal approach checks and bounded searches can omit a Site with diagnostics. Existing construction protections, Expedition endpoints and initial Monster occupancy constraints still apply.
+
+The `VillageCenterpiece` flag is authored on a Terrain Assembly and carried through its resolved Content definition. It makes compatible passive blocking decor eligible for Village Center placement. The bundled well is the first example. Generation selects among the current published eligible assemblies. The resolved assembly includes the surface and Fixed Component for rendering, movement and saved-board reconstruction. [Terrain assembly model](ProjectDelve.Engine/FixedComponentContent.cs) · [Village planning](ProjectDelve.Generation/SettlementGenerator.cs)
+
+### Reproducing construction comparisons
+
+Use the Phase 1 commands above with `after` as the Phase 1 baseline, `construction` as the Phase 2 variant, and a fresh output folder. Set `PROJECTDELVE_EXPEDITION_JOURNEY_FULL_REGIONS=16` for shorter journeys. Pass the two folders to the same Python analyzer in baseline-first order. It checks identical pinned inputs, pre-Civilization terrain and allocation. It writes before/after mosaics, selected profile examples, occupied access paths, and requested, accepted and omitted counts. The original Phase 1 diagnostic still uses `after` for its own before/after analysis.
+
+The baseline runs for the paired 16-region journeys for seeds 17, 42 and 889 matched all 48 archived Phase 1 Scenario fingerprints. Both policies passed occupied entry-to-exit, exit pad and deployment access in every region. The after runs accepted 30 of 30 cottages, 22 of 22 open camps, 18 of 19 shelters, 16 of 16 huts, and 17 of 30 Village Centers, including 10 with centerpieces. The larger Village Center footprint accounted for all 13 new-policy settlement omissions. Cottages and huts reused existing building-room exploration Loot.
+
+Median end-to-end Debug diagnostics took 3.47 seconds before and 3.60 seconds after per region. Median Civilization time stayed near 0.61 seconds. Mean completion-guard work was 22,307 before and 22,039 after. These are observed timings for the paired corpus.
+
+## Civilization construction — Phase 3
+
+Phase 3 Expedition heads record `constructionVersion: "ExpeditionConstruction2"`. Earlier heads keep their recorded version, and existing checkpoints still load their saved Scenarios and Content. Successor generation uses the current published Content and the stored policy. Ordinary WLD1 keeps its current selection. [Version handling](ProjectDelve.Generation/ExpeditionNature.cs) · [Region adapter](ProjectDelve.Generation/ExpeditionRegionGeometry.cs)
+
+Two independently seeded, continuous fields give a region up to one ruin request and one landmark request. The policy samples the existing pinned field algorithm in global Cell coordinates under separate seed domains. Those samples and the preferred local anchors are independent of living settlement clustering, camp allocation, and Forest, Rock and Water. The recipe's overall Civilization switch governs the stage. Setting separate settlement or camp counts to zero leaves the two new opportunities available. Existing Sites and Beacons run first. A suitable primary-route approach permits a roadside marker, and isolated landmarks can appear without a route. The planners check feasibility locally, using bounded searches and the usual completion guard. Failed requests produce omission diagnostics. [Geographic allocation](ProjectDelve.Generation/ExpeditionCivilization.cs) · [Construction scheduling](ProjectDelve.Generation/CivilizationGenerator.cs)
+
+| Profile | Construction |
+| --- | --- |
+| Ruined cottage | One recognizable Building with a breached shell, a reachable Room and an optional surviving table. |
+| Partially collapsed building | One Building with broken Wall spans, exposed gravel and two reachable Rooms. |
+| Ruined hamlet | Two or three staggered Buildings with broken gravel paths and overgrown aprons. The Buildings retain their individual ownership. |
+| Roadside marker | Passive Landmark Terrain Assembly in a Site with a walkable approach off a primary route. |
+| Isolated landmark | Passive Landmark Terrain Assembly in a Site with a walkable approach and a preference for space away from primary routes. |
+
+Ruins use ordinary Building and Room publication and exploration Loot. Landmarks reserve their installed assembly and required approach through the Site plan. Published Terrain Assemblies are eligible through their authored `Landmark` flag and carry their ordinary Fixed Component and rendering data into the saved Scenario. Landmarks add no dedicated population, Loot allocation or interaction. All profiles reuse existing Site reservations, route metadata, protected geometry, entry and exit safeguards and initial-occupancy checks.
+
+For paired comparisons, run the journey diagnostic above with `construction` and `remains` and set `PROJECTDELVE_EXPEDITION_JOURNEY_FULL_REGIONS=16` for direct comparison with Phase 2. Supply those folders to the Python analyzer in that order. It checks matching fields, base nature, pre-Civilization terrain, seam plans and existing civilization allocations, and records placement results, the occupied access witness and wilderness runs. The optional `--baseline` argument checks archived Phase 2 Scenario fingerprints.
+
+### Phase 3 measurements
+
+Across 48 paired default-recipe regions for seeds 17, 42 and 889, Phase 3 placed all 35 requested ruins and all 14 requested landmarks. These comprised eight cottages, eight collapsed buildings, 19 hamlets, five roadside placements and nine isolated landmarks. Existing Site and Building footprints matched exactly. All 48 Phase 2 Scenario fingerprints matched the archive. A total of 36 ordinary exploration Loot markers appeared in ruin Buildings.
+
+Each policy produced 21 regions without living settlements. The longest settlement-free runs were 1, 14 and 3 regions for the three seeds respectively. Fourteen ruin Sites appeared in those regions. The only completely Site-free region in the Phase 2 sample became a ruined cottage and an isolated obelisk in Phase 3. Along those journeys, adjacent regional ruin and landmark signals had correlations of 0.76 and 0.88 respectively.
+
+A separate 24-region comparison for seed 889 set the base camp and settlement densities to None. Under those settings the existing recipe also requests zero mountain dungeons. Phase 3 produced 13 completely Site-free regions, including a nine-region run, alongside ten ruins and five landmarks. For this diagnostic set `PROJECTDELVE_EXPEDITION_JOURNEY_REMAINS_ONLY=1`, `PROJECTDELVE_EXPEDITION_JOURNEY_SEEDS=889` and `PROJECTDELVE_EXPEDITION_JOURNEY_FULL_REGIONS=24` for both variants.
+
+All regions passed entry-to-exit, exit pad and deployment access with initial Monster footprints treated as obstacles. Median Debug generation time was 4.07 seconds before and 4.27 seconds after. Median Civilization time was 0.65 and 0.86 seconds respectively. Mean completion-guard work rose from 22,039 to 25,686 units, and the largest paired increase was 7,193 units. These timings reflect the parallel seed exports and the local Debug environment.
+
+## Civilization construction — Phase 4
+
+New Expeditions record `constructionVersion: "ExpeditionConstruction3"`. A separate seed domain samples the pinned regional field for up to one fortified outpost request per region. A shorter-scale field supplies a preferred anchor. The opportunities are independent of terrain, settlements, camps, ruins and landmarks. Phase 4 schedules the request after all earlier Site profiles and Beacons, using the same bounded Civilization placement and completion budgets. The overall Civilization switch governs the stage. Earlier Expedition heads retain their stored version, and successor generation continues to use current published Content. [Allocation](ProjectDelve.Generation/ExpeditionCivilization.cs) · [Scheduling](ProjectDelve.Generation/CivilizationGenerator.cs)
+
+The outpost planner uses a 10–12 Cell rectangular enclosure per axis within a one-Cell exterior apron. A rectangular perimeter helper lays ordinary Wall Edges and a single ordinary Closed Door. It verifies every boundary Edge and the gate endpoints before the candidate can publish. The outpost owns the courtyard, apron and perimeter protection records. A nested Building plan owns the four-by-four single-Room guardhouse. An ordinary Door faces into the courtyard. The planner confirms both Doors, all approaches and the courtyard can be reached using ordinary potential Door passage. Existing roads influence plot and gate ranking and stay protected. The exterior apron participates in the shared Site port and route planner, including optional connections. Rejected drafts publish no edits. [Planner](ProjectDelve.Generation/OutpostGenerator.cs) · [Required locations](ProjectDelve.Generation/RequiredLocations.cs)
+
+The courtyard, approach and doorway endpoints are ordinary required locations. The Population stage excludes initial Monster footprints from the Door thresholds and approach and extends its existing occupied-access check to the gate and guardhouse Door. Guardhouse occupation and rewards come from the ordinary Building-room population and Site Loot passes. The courtyard remains open. The default party uses existing Open Door abilities to enter and exit. The perimeter uses standard Wall appearance and behavior. [Initial occupancy checks](ProjectDelve.Generation/PopulationGenerator.cs) · [Engine Door and guard tests](ProjectDelve.Engine.Tests/OutpostGenerationTests.cs)
+
+For paired measurements and board images, run the journey diagnostic above with the `remains` and `outposts` variants in that order and `PROJECTDELVE_EXPEDITION_JOURNEY_FULL_REGIONS=16`. The comparison checks identical pinned fields and pre-Civilization terrain, seams, prior allocation and existing Site geometry. It also records Outpost placement, cause of omission, distance to the nearest primary route, surrounding base terrain, initial population and exploration Loot. Pass the Phase 3 export directory as `--baseline` for archived Scenario fingerprints.
+
+### Phase 4 measurements
+
+In 48 paired default-recipe regions for seeds 17, 42 and 889, Phase 4 requested 30 outposts and placed 29. The rejected request was seed 889, region `(5, 10)`, visit 16. Every sampled plot conflicted with existing geometry or protection, and the final Scenario fingerprint matched its Phase 3 counterpart. All 48 Phase 3 baseline fingerprints matched the archive. Fourteen outposts appeared in regions without living settlements. Examples include a gate one Cell from a primary route, a cleared forest plot and an open-terrain outpost.
+
+With initial Monster footprints blocked, all 48 regions passed occupied Expedition endpoint and deployment checks. Both Door thresholds remained reachable at all 29 outposts. Ten compounds had zero initial Monsters. The others had two to four. The ordinary Site Loot pass placed 23 exploration markers in guardhouse Rooms.
+
+Median Debug generation time rose from 3.77 to 4.13 seconds per region. Median Civilization time rose from 0.75 to 0.85 seconds. Mean completion-guard work rose from 25,686 to 27,770 units. Timings are observations from the paired parallel-seed export.

@@ -19,6 +19,8 @@ internal static class SitePopulationAllocation
         var buildings = ZombieHousePopulationGenerator.Locations(context).ToDictionary(l => l.SourceId, StringComparer.Ordinal);
         foreach (var site in context.Sites.OrderBy(s => s.Id, StringComparer.Ordinal))
         {
+            // A passive landmark with no Buildings is distinct from the campsite fallback.
+            if (site.Kind == GeneratedSiteKind.Landmark) continue;
             var occupation = Pcg32.Stream(context.World.Seed, path + "/occupation/" + site.Id).Next(5);
             if (site.PopulationIntent is { EncounterRegions.Count: > 0 } intent)
             {

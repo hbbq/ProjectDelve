@@ -32,6 +32,7 @@ public sealed class CivilizationGenerationTests
     {
         var world = WorldGenerator.Generate(Recipe(width, height));
         Assert.Equal(DensityScaling.Campsites(world.Window, ContentDensity.Low) + DensityScaling.Settlements(world.Window, ContentDensity.Medium), world.Context.Sites.Count);
+        Assert.All(world.Context.Sites, site => Assert.Null(site.ConstructionProfile));
         var index = world.Preview.Frames.ToList().FindIndex(f => f.Stage == "Civilization");
         var frame = world.Preview.Frames[index];
         var terrain = world.Preview.Frames[index - 1].Terrain.Select(c => world.Preview.TerrainPalette[c - 'A']).ToArray();

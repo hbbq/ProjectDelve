@@ -14,15 +14,19 @@ internal sealed record ConstructionProtections(IReadOnlyCollection<ConstructionC
     /// This enumerates protection facts only; it makes no completeness claim about Site access ports.</summary>
     internal static ConstructionProtections FromSites(IEnumerable<SiteInfo> sites, int width)
     {
-        var cells = sites.OrderBy(s => s.Id, StringComparer.Ordinal).SelectMany(site =>
+        var orderedSites = sites.OrderBy(s => s.Id, StringComparer.Ordinal).ToArray();
+        var cells = orderedSites.SelectMany(site =>
             (site.MountainDungeon is { } dungeon
                 ? dungeon.ProtectedRock.Indices(width).Select(i => new ConstructionCellProtection(i,
                     dungeon.ProtectedRock.Id, "Immutable Mountain Dungeon rock shell", site.Id)) : Enumerable.Empty<ConstructionCellProtection>())
             .Concat(site.Buildings.OrderBy(b => b.Id, StringComparer.Ordinal).SelectMany(building =>
                 building.Footprint.Indices(width).Select(i => new ConstructionCellProtection(i,
                     building.Id, "Immutable constructed Building", site.Id))))).ToImmutableArray();
+        var edges = orderedSites.Where(site => site.Outpost is not null).SelectMany(site =>
+            site.Outpost!.Perimeter.Select(edge => new ConstructionEdgeProtection(edge, site.Id,
+                "Immutable fortified outpost perimeter", site.Id))).ToImmutableArray();
         // Cell protection also preserves all incident Edges. The snapshot resolves board bounds.
-        return new(cells, []);
+        return new(cells, edges);
     }
 }
 

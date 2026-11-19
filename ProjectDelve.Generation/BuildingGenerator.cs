@@ -7,7 +7,11 @@ public sealed record BuildingEntranceRequirement(CardinalSide? Side = null, int?
 public sealed record BuildingPreferences(int? NearIndex = null, CardinalSide? PreferredSide = null);
 public sealed record BuildingRequirements(int MinWidth = 5, int MaxWidth = 9, int MinHeight = 5, int MaxHeight = 9,
     int RoomCount = 2, string FloorTypeId = "stone-floor", bool Furniture = true,
-    BuildingEntranceRequirement? Entrance = null, string? ScenarioRole = null, string FurnitureTypeId = "stone-floor-with-table");
+    BuildingEntranceRequirement? Entrance = null, string? ScenarioRole = null, string FurnitureTypeId = "stone-floor-with-table")
+{
+    /// <summary>Author the initial shell with missing sections; this never destroys accepted geometry.</summary>
+    public bool RuinedShell { get; init; }
+}
 public sealed record BuildingRequest(string Key, CellBounds Plot, BuildingRequirements? Requirements = null,
     BuildingPreferences? Preferences = null, PreparationPolicy? Preparation = null);
 
@@ -96,12 +100,33 @@ public static class BuildingGenerator
             var before = draft.BuildPatch(); var preparation = SiteGeometry.Prepare(draft, all, r.FloorTypeId, policy);
             if (preparation is not null) { if (preparation.Code == PlacementFailureCode.BudgetExhausted) return Fail(preparation.Code, preparation.Reason); lastCode = preparation.Code; lastReason = preparation.Reason; continue; }
             var interior = SiteGeometry.Cells(c.Interior, w).ToHashSet();
+            var entranceEdge = EdgeKey.Between(c.Inside, c.Outside, w);
+            var entrance = new SitePortal(id + "/entrance", id, c.Inside, c.Outside, entranceEdge,
+                r.RuinedShell ? EdgeKind.None : EdgeKind.ClosedDoor);
+            List<SitePortal> exteriorPortals = [entrance];
+            if (r.RuinedShell)
+            {
+                // Missing sections belong to the initial shell, rather than a
+                // destruction edit to a completed building. Retain the other Walls.
+                var gaps = c.Side switch
+                {
+                    CardinalSide.North => Enumerable.Range(0, 2).Select(n => ((c.Interior.Y + c.Interior.Height - 1) * w + c.Interior.X + n, w)),
+                    CardinalSide.South => Enumerable.Range(0, 2).Select(n => (c.Interior.Y * w + c.Interior.X + n, -w)),
+                    CardinalSide.West => Enumerable.Range(0, 2).Select(n => ((c.Interior.Y + n) * w + c.Interior.X + c.Interior.Width - 1, 1)),
+                    _ => Enumerable.Range(0, 2).Select(n => ((c.Interior.Y + n) * w + c.Interior.X, -1))
+                };
+                foreach (var (insideGap, delta) in gaps)
+                    exteriorPortals.Add(new(id + "/gap-" + exteriorPortals.Count, id, insideGap, insideGap + delta,
+                        EdgeKey.Between(insideGap, insideGap + delta, w), EdgeKind.None));
+            }
+            HashSet<EdgeKey> missingEdges = r.RuinedShell ? exteriorPortals.Select(p => p.Edge).ToHashSet() : [];
             var conflict = false;
             foreach (var i in interior) foreach (var j in draft.Neighbors(i).Where(j => !interior.Contains(j)))
             {
                 try
                 {
                     var key = EdgeKey.Between(i, j, w);
+                    if (missingEdges.Contains(key)) continue;
                     if (policy.ReplaceExistingEdges) draft.ReplaceEdge(key, EdgeKind.Wall);
                     else draft.SetEdge(key, EdgeKind.Wall);
                 }
@@ -109,11 +134,15 @@ public static class BuildingGenerator
             }
             if (conflict) { lastCode = PlacementFailureCode.NoFootprint; lastReason = "Exterior Walls conflict with an earlier construction edit."; continue; }
             List<ConstructionOperation> operations = [new(id, scope.Path, "Building", id, c.Interior, [], []),
-                SiteGeometry.Operation(draft, before, id + "/shell", id, "Prepared floor and exterior Walls", id, area)];
-            before = draft.BuildPatch(); var entranceEdge = EdgeKey.Between(c.Inside, c.Outside, w); draft.ReplaceEdge(entranceEdge, EdgeKind.ClosedDoor);
-            var entrance = new SitePortal(id + "/entrance", id, c.Inside, c.Outside, entranceEdge, EdgeKind.ClosedDoor);
-            operations.Add(SiteGeometry.Operation(draft, before, id + "/entrance", id, "Exterior Door", id, c.Interior));
-            var rooms = RoomLayoutGenerator.Plan(new("rooms", c.Interior, r.RoomCount, r.Furniture, [entrance], r.FurnitureTypeId, policy.ReplaceExistingEdges), new GenerationScope(scope.RootSeed, id, draft));
+                SiteGeometry.Operation(draft, before, id + "/shell", id,
+                    r.RuinedShell ? "Prepared floor and incomplete exterior Walls" : "Prepared floor and exterior Walls", id, area)];
+            if (!r.RuinedShell)
+            {
+                before = draft.BuildPatch();
+                draft.ReplaceEdge(entranceEdge, EdgeKind.ClosedDoor);
+                operations.Add(SiteGeometry.Operation(draft, before, id + "/entrance", id, "Exterior Door", id, c.Interior));
+            }
+            var rooms = RoomLayoutGenerator.Plan(new("rooms", c.Interior, r.RoomCount, r.Furniture, exteriorPortals, r.FurnitureTypeId, policy.ReplaceExistingEdges), new GenerationScope(scope.RootSeed, id, draft));
             if (rooms is Rejected<RoomLayoutPlan> rejected)
             {
                 if (rejected.Failure.Code == PlacementFailureCode.BudgetExhausted) return Fail(rejected.Failure.Code, rejected.Failure.Reason);
@@ -129,7 +158,7 @@ public static class BuildingGenerator
             if (summary.ChangedTerrain > policy.MaxChangedCells || summary.Cost > policy.MaxCost)
             { lastCode = PlacementFailureCode.PreparationLimit; lastReason = "Completed building exceeds preparation allowance."; continue; }
             draft.Reserve(interior);
-            var portals = new[] { entrance }.Concat(layout.Portals).ToArray();
+            var portals = exteriorPortals.Concat(layout.Portals).ToArray();
             var building = new BuildingInfo(id, "Building", GeneratedArea.From(id + "/footprint", interior, w), layout.Rooms, portals,
                 new(usable.Length, usable.Count(reached.Contains), true,
                     !all.Any(i => draft.Neighbors(i).Any(j => !all.Contains(j) && SiteGeometry.Crossable(draft, i, j))), SiteGeometry.TwoByTwo(draft, usable)),

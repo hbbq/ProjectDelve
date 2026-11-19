@@ -50,6 +50,10 @@ public static partial class PopulationGenerator
             protectedCells.UnionWith(site.MountainDungeon!.RequiredAccess.Indices(w));
             protectedCells.UnionWith(site.Entrances.SelectMany(e => new[] { e.InsideIndex, e.OutsideIndex }));
         }
+        var outpostDoors = ExpeditionGeometryPlan.OutpostDoorCells(context.Sites).ToArray();
+        protectedCells.UnionWith(outpostDoors);
+        protectedCells.UnionWith(context.Sites.Where(site => site.Outpost is not null)
+            .SelectMany(site => site.Outpost!.Approach.Indices(w)));
         var occupied = state.Units.SelectMany(u => FootprintGeometry.OccupiedCells(state, u.Id)).Select(c => c.Y * w + c.X).ToHashSet();
         protectedCells.UnionWith((definition.LootMarkers ?? []).Select(m => m.Position.Y * w + m.Position.X));
         HashSet<int> encounterCells = [.. occupied]; HashSet<int> patrolCells = [];
@@ -123,9 +127,11 @@ public static partial class PopulationGenerator
                 Rollback(); Fail(location, "Engine placement: " + error.Message);
                 attempts.Add(new(location, requested, 0, budget.WorkLimitRejections > workRejections ? "Work" : "Placement")); continue;
             }
-            if (context.Expedition is { } expedition && !expedition.HasOccupiedAccess(state, context.Deployment!))
+            if (context.Expedition is { } expedition && !expedition.HasOccupiedAccess(state, context.Deployment!, outpostDoors))
             {
-                Rollback(); Fail(location, "Initial occupation would disconnect ordinary Expedition deployment, seam or exit-pad access.");
+                Rollback(); Fail(location, outpostDoors.Length == 0
+                    ? "Initial occupation would disconnect ordinary Expedition deployment, seam or exit-pad access."
+                    : "Initial occupation would disconnect required Expedition access, including the outpost gate or guardhouse Door.");
                 attempts.Add(new(location, requested, 0, "Placement")); continue;
             }
             var allComponents = PopulationTopology.Components(authoredUnits.Concat(accepted.SelectMany(e => e.Units)).Concat(encounter.Units), types.Values);

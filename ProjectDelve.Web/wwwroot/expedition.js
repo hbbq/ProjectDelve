@@ -1,4 +1,4 @@
-// Management actions use only the authoritative command path and projected metadata.
+// Management commands and read-only Scenario export use separate paths.
 export function createExpeditionActions({ command, changed = () => {} }) {
   let pending = false;
   return {
@@ -20,12 +20,14 @@ export function mountExpeditions({ command, getSnapshot, ready, errorMessage }) 
   const button = (id, text, action) => { const value = el('button', text); value.id = id; value.type = 'button'; value.addEventListener('click', action); return value; };
   const main = $('expedition-main'), bar = $('expedition-bar');
   let status, list, form, catalogLoaded = false, loading = false, failedOperation;
+  let exporting = false, exportSession, exportMessage = '';
   const actions = createExpeditionActions({ command, changed: update });
   const note = 'Save before closing or reloading this tab. Leaving through the app saves first; closing the browser may lose changes since the last save.';
   const busyMessage = { create: 'Generating the first region…', resume: 'Opening the saved region…',
     save: 'Saving the Expedition…', leave: 'Saving before leaving…', continue: 'Preparing the next region…' };
   async function perform(operation, body = {}) {
     if (actions.pending) return false;
+    clearExport();
     status.textContent = busyMessage[operation];
     try {
       const success = await actions.run(operation, body);
@@ -44,16 +46,69 @@ export function mountExpeditions({ command, getSnapshot, ready, errorMessage }) 
   const saveState = el('small');
   const tableStatus = el('p'); tableStatus.id = 'expedition-table-status'; tableStatus.setAttribute('role', 'status');
   const save = button('expedition-save', 'Save', () => perform('save'));
+  const copy = button('expedition-copy-delve1', 'Copy DELVE1', copyScenario);
+  copy.title = 'Copy the region’s starting Scenario, including unexplored areas.';
+  const transport = el('textarea');
+  transport.id = 'expedition-scenario-transport';
+  transport.setAttribute('aria-label', 'Initial region Scenario as DELVE1');
+  transport.readOnly = true;
+  transport.spellcheck = false;
+  transport.rows = 2;
+  transport.hidden = true;
+  function clearExport() {
+    exportSession = undefined;
+    exportMessage = '';
+    transport.hidden = true;
+    transport.value = '';
+  }
+  async function copyScenario() {
+    const snapshot = getSnapshot();
+    if (exporting || !snapshot?.expedition || !snapshot.sessionId) return;
+    const session = snapshot.sessionId;
+    clearExport();
+    exportSession = session;
+    exporting = true;
+    exportMessage = 'Exporting the region’s starting Scenario…';
+    update();
+    const stillCurrent = () => exportSession === session && getSnapshot()?.sessionId === session;
+    try {
+      const response = await fetch(`/api/expeditions/current/scenario?sessionId=${encodeURIComponent(session)}`, { cache: 'no-store' });
+      if (!response.ok) {
+        const problem = await response.json().catch(() => null);
+        throw new Error(problem?.detail || 'Could not export the region’s starting Scenario.');
+      }
+      const value = await response.text();
+      if (!stillCurrent()) return;
+      try {
+        await navigator.clipboard.writeText(value);
+        if (stillCurrent()) exportMessage = 'Starting Scenario copied as DELVE1. Live progress uses Expedition Save.';
+      } catch {
+        if (!stillCurrent()) return;
+        transport.value = value;
+        transport.hidden = false;
+        transport.focus();
+        transport.select();
+        exportMessage = 'Clipboard unavailable. Copy the selected starting Scenario with Ctrl+C or Command+C.';
+      }
+    } catch (error) {
+      if (stillCurrent()) exportMessage = error.message;
+    } finally {
+      exporting = false;
+      update();
+    }
+  }
   const switchRun = button('expedition-switch', 'Switch Expedition', () => { location.hash = '#expeditions'; });
   const nextRegion = button('expedition-continue', 'Continue Expedition', () => {
     const transitionId = getSnapshot()?.expedition?.transitionId;
     if (transitionId) return perform('continue', { transitionId });
   });
   const tableActions = el('div'); tableActions.className = 'expedition-table-actions';
-  tableActions.append(save, switchRun, nextRegion);
-  bar.append(regionProgress, saveState, tableActions, tableStatus);
+  tableActions.append(save, copy, switchRun, nextRegion);
+  bar.append(regionProgress, saveState, tableActions, tableStatus, transport);
   function update() {
-    const expedition = getSnapshot()?.expedition;
+    const snapshot = getSnapshot();
+    const expedition = snapshot?.expedition;
+    if (exportSession && exportSession !== snapshot?.sessionId) clearExport();
     bar.hidden = !expedition;
     if (expedition) {
       regionProgress.textContent = `Region (${expedition.region.x}, ${expedition.region.y}) · ${expedition.completedRegions} completed · Exit ${expedition.exitCount}/${expedition.exitRequired}`;
@@ -65,7 +120,8 @@ export function mountExpeditions({ command, getSnapshot, ready, errorMessage }) 
     const resultContinue = $('result-continue-expedition');
     if (resultContinue && expedition?.transitionId) resultContinue.textContent = nextRegion.textContent;
     for (const control of [...main.querySelectorAll('button'), ...bar.querySelectorAll('button')]) control.disabled = actions.pending || !ready();
-    tableStatus.textContent = status?.textContent ?? '';
+    copy.disabled ||= exporting || !snapshot?.sessionId;
+    tableStatus.textContent = exportMessage || status?.textContent || '';
   }
   const management = el('div'); management.className = 'expedition-management-grid';
   const saved = el('section');

@@ -207,7 +207,8 @@ public sealed class ExpeditionSpatialCorpusTests(ITestOutputHelper output)
         {
             var nature = seed == 17 ? new NaturalTerrainSettings(10, 4, 5, FeatureScale.Broad, WaterForm.Lakes)
                 : new NaturalTerrainSettings(15, 8, 50, FeatureScale.Broad, WaterForm.Mixed);
-            var profile = ExpeditionWorldProfile.Create(nature);
+            // Keep the geography and occupation corpus on its existing construction policy.
+            var profile = ExpeditionWorldProfile.CreateCivilizationV1(nature);
             var sampler = new ExpeditionNatureSampler(seed, profile);
             var generated = new List<WorldGenerationContext>();
             WorldGenerationRecipe? firstRecipe = null;

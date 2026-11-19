@@ -43,6 +43,7 @@ internal static class SiteLootGenerator
         var locations = new List<RewardLocation>(); var unrewarded = 0;
         foreach (var site in context.Sites.OrderBy(s => s.Id, StringComparer.Ordinal))
         {
+            if (site.Kind == GeneratedSiteKind.Landmark) continue;
             // Vacancy is independent of population, density, abundance and selected card mix.
             if (Pcg32.Stream(context.World.Seed, site.Id + "/site-loot/vacancy").Next(5) == 0)
             { unrewarded += Math.Max(1, site.Buildings.Count); continue; }

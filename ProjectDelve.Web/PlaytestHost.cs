@@ -85,6 +85,13 @@ public static class PlaytestHost
                 return Results.Problem("Could not read saved Expeditions. Check the Expedition storage location and try again.", statusCode: 503);
             }
         });
+        app.MapGet("/api/expeditions/current/scenario", (string? sessionId, PlaytestGame game, HttpContext context) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            try { return Results.Text(game.ExportExpeditionScenario(sessionId), "text/plain"); }
+            catch (PlaytestRequestException error) { return Results.Problem(error.Message, statusCode: error.StatusCode); }
+            catch (ArgumentException error) { return Results.Problem(error.Message, statusCode: 422); }
+        });
         app.MapGet("/api/game", (PlaytestGame game, HttpContext context) =>
         {
             context.Response.Headers.CacheControl = "no-store";

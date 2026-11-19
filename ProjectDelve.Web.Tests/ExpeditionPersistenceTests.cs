@@ -273,7 +273,7 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
         Assert.Equal("Classic", saved.LootPreset);
         Assert.Equal(LootAbundance.Sparse, saved.LootAbundance);
         Assert.Equal(ExpeditionStore.HeadVersion, runner.Head.Version);
-        Assert.Equal(ExpeditionWorldProfile.CreateV1(saved.NaturalTerrain, spatial), runner.Head.WorldProfile);
+        Assert.Equal(ExpeditionWorldProfile.Create(saved.NaturalTerrain, spatial), runner.Head.WorldProfile);
         using var head = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(root, "expedition-overrides", "head.json")));
         output.WriteLine($"Pinned world profile JSON: {Encoding.UTF8.GetByteCount(head.RootElement.GetProperty("worldProfile").GetRawText())} bytes in the head.");
         var state = runner.Snapshot();
@@ -342,9 +342,175 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
     }
 
     [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public void PinnedCivilizationPolicySurvivesSaveResumeAndAtomicSuccessor(int policy)
+    {
+        const string id = "civilization-policy";
+        var settings = ExpeditionWorld.Configure(WorldSeed);
+        var profile = policy switch
+        {
+            0 => ExpeditionWorldProfile.CreateV1(settings.NaturalTerrain),
+            1 => ExpeditionWorldProfile.CreateCivilizationV1(settings.NaturalTerrain),
+            2 => ExpeditionWorldProfile.CreateConstructionV1(settings.NaturalTerrain),
+            3 => ExpeditionWorldProfile.CreateConstructionV2(settings.NaturalTerrain),
+            _ => ExpeditionWorldProfile.Create(settings.NaturalTerrain)
+        };
+        var failHeadCommit = false;
+        var store = new ExpeditionStore(root, id, point =>
+        {
+            if (failHeadCommit && point == ExpeditionWritePoint.HeadBeforeReplace)
+                throw new IOException("injected policy head commit failure");
+        });
+        var canonical = ContentBundle.Canonical();
+        var initialContent = policy >= 3 ? canonical : canonical with
+        {
+            Terrain = [.. canonical.Terrain.Where(t => t.Assembly?.Landmark != true &&
+                (policy >= 2 || t.Id != "gravel-with-well"))],
+            FixedComponents = [.. canonical.FixedComponents.Where(c => policy >= 2 || c.Id != "well")]
+        };
+        var runner = ExpeditionRunner.Create(store, WorldSeed, () => initialContent, OpenBoard,
+            settings.ToString(), profile);
+        if (policy < 2)
+            Assert.DoesNotContain(store.ReadCheckpoint(runner.Head.ActiveCheckpoint).Content.Terrain, t => t.Id == "gravel-with-well");
+        var headPath = Path.Combine(root, "expedition-" + id, "head.json");
+        using (var json = JsonDocument.Parse(File.ReadAllBytes(headPath)))
+        {
+            var savedProfile = json.RootElement.GetProperty("worldProfile");
+            Assert.Equal(policy > 0, savedProfile.TryGetProperty("civilizationVersion", out var version));
+            if (policy > 0) Assert.Equal(ExpeditionWorldProfile.CurrentCivilizationVersion, version.GetString());
+            Assert.Equal(policy >= 2, savedProfile.TryGetProperty("constructionVersion", out var construction));
+            if (policy >= 2) Assert.Equal(profile.ConstructionVersion, construction.GetString());
+        }
+        FinishOpenBoard(runner);
+        runner.Save();
+        var reopened = ExpeditionRunner.Open(store, ContentBundle.Canonical, OpenBoard);
+        Assert.Equal(profile, reopened.Head.WorldProfile);
+        Assert.Equal(JsonSerializer.Serialize(runner.Snapshot()), JsonSerializer.Serialize(reopened.Snapshot()));
+        var source = reopened.Head.ActiveCheckpoint;
+        var sourceBytes = File.ReadAllBytes(CheckpointPath(source, id));
+        var headBytes = File.ReadAllBytes(headPath);
+        var transition = reopened.Region.TransitionId;
+        failHeadCommit = true;
+        Assert.Equal(ExpeditionFailureStage.HeadCommit,
+            Assert.Throws<ExpeditionOperationException>(() => reopened.Continue(transition)).Stage);
+        Assert.Equal(headBytes, File.ReadAllBytes(headPath));
+        Assert.Equal(sourceBytes, File.ReadAllBytes(CheckpointPath(source, id)));
+        failHeadCommit = false;
+        reopened = ExpeditionRunner.Open(store, ContentBundle.Canonical, OpenBoard);
+        Assert.Equal(source, reopened.Head.ActiveCheckpoint);
+        Assert.Equal(profile, reopened.Head.WorldProfile);
+        var receipt = reopened.Continue(transition);
+        Assert.Equal(source, receipt.Source);
+        Assert.Equal(profile, reopened.Head.WorldProfile);
+        Assert.Equal(profile, ExpeditionRunner.Open(store, ContentBundle.Canonical, OpenBoard).Head.WorldProfile);
+        Assert.Equal(receipt, reopened.Continue(transition));
+        Assert.Equal(sourceBytes, File.ReadAllBytes(CheckpointPath(source, id)));
+    }
+
+    [Fact]
+    public void SuccessorCanBuildWithARefreshedCenterpieceWithoutChangingTheSource()
+    {
+        const ulong seed = 0;
+        const string id = "construction-refresh";
+        const string centerpieceId = "frontier-well";
+        var settings = ExpeditionWorld.Configure(seed);
+        var profile = ExpeditionWorldProfile.CreateConstructionV1(settings.NaturalTerrain);
+        var store = new ExpeditionStore(root, id);
+        var runner = ExpeditionRunner.Create(store, seed, ContentBundle.Canonical, OpenBoard, settings.ToString(), profile);
+        FinishOpenBoard(runner);
+        var source = runner.Head.ActiveCheckpoint;
+        var originalBytes = File.ReadAllBytes(CheckpointPath(source, id));
+        var current = ContentBundle.Canonical();
+        ContentBundle Latest() => current with
+        {
+            Terrain = [.. current.Terrain.Where(t => t.Id != "gravel-with-well")],
+            Assemblies = [new(centerpieceId, "Frontier well", "gravel")
+            { VillageCenterpiece = true, Components = [new("object", "well")] }]
+        };
+
+        runner = ExpeditionRunner.Open(root, id, Latest);
+        var receipt = runner.Continue(runner.Region.TransitionId);
+        var successor = store.ReadCheckpoint(receipt.Successor);
+        Assert.Equal(source, receipt.Source);
+        Assert.Equal(originalBytes, File.ReadAllBytes(CheckpointPath(source, id)));
+        Assert.DoesNotContain(store.ReadCheckpoint(source).Content.Terrain, t => t.Id == centerpieceId);
+        var built = Assert.Single(successor.Scenario.Board.Cells, c => c.TerrainTypeId == centerpieceId);
+        var board = successor.State.Physical.Board;
+        var terrain = board.TerrainDefinitionAt(built.Position);
+        Assert.False(terrain.Passable);
+        Assert.True(terrain.Assembly!.VillageCenterpiece);
+        var square = Assert.Single(successor.Scenario.Setup!.RequiredLocations, location =>
+            location.Groups.Any(group => group.Id == "public-space" &&
+                group.Positions.Contains(built.Position with { X = built.Position.X + 1 })));
+        Assert.DoesNotContain(built.Position, square.Groups.SelectMany(g => g.Positions));
+        Assert.Equal(profile, ExpeditionRunner.Open(root, id, Latest).Head.WorldProfile);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SuccessorCanBuildWithARefreshedLandmarkWithoutChangingTheSource(bool useOutposts)
+    {
+        const string id = "landmark-refresh";
+        const string assemblyId = "frontier-marker";
+        var recipe = new WorldGenerationRecipe(new(), new(0, 0, 0),
+            Civilization: new(Campsites: ContentDensity.None, Settlements: ContentDensity.None),
+            Routes: new(Enabled: false), Population: new(PopulationDensity.Off));
+        var profile = useOutposts ? ExpeditionWorldProfile.Create(recipe.NaturalTerrain)
+            : ExpeditionWorldProfile.CreateConstructionV2(recipe.NaturalTerrain);
+        var seed = Enumerable.Range(0, 256).Select(value => (ulong)value).First(candidate =>
+        {
+            var next = ExpeditionWorld.Next(candidate, ExpeditionWorld.Initial(candidate));
+            var region = ExpeditionWorld.RecipeFor(next, ExpeditionWorld.Configure(candidate, recipe));
+            return ExpeditionCivilization.ResolveRemains(region, profile).LandmarkAnchor is not null &&
+                (!useOutposts || ExpeditionCivilization.ResolveOutpost(region, profile).Anchor is not null);
+        });
+        var settings = ExpeditionWorld.Configure(seed, recipe);
+        var store = new ExpeditionStore(root, id);
+        var runner = ExpeditionRunner.Create(store, seed, ContentBundle.Canonical, OpenBoard, settings.ToString(), profile);
+        FinishOpenBoard(runner);
+        var source = runner.Head.ActiveCheckpoint;
+        var sourceBytes = File.ReadAllBytes(CheckpointPath(source, id));
+        var canonical = ContentBundle.Canonical();
+        ContentBundle Latest() => canonical with
+        {
+            Terrain = [.. canonical.Terrain.Where(terrain => terrain.Assembly?.Landmark != true)],
+            Assemblies = [new(assemblyId, "Frontier marker", "gravel")
+            { Landmark = true, Components = [new("object", "well")] }]
+        };
+        runner = ExpeditionRunner.Open(root, id, Latest);
+        var receipt = runner.Continue(runner.Region.TransitionId);
+        var successor = store.ReadCheckpoint(receipt.Successor);
+        Assert.Equal(source, receipt.Source);
+        Assert.Equal(sourceBytes, File.ReadAllBytes(CheckpointPath(source, id)));
+        Assert.DoesNotContain(store.ReadCheckpoint(source).Content.Terrain, terrain => terrain.Id == assemblyId);
+        var marker = Assert.Single(successor.Scenario.Board.Cells, cell => cell.TerrainTypeId == assemblyId);
+        var board = successor.State.Physical.Board;
+        var terrain = board.TerrainDefinitionAt(marker.Position);
+        Assert.True(terrain.Assembly!.Landmark);
+        Assert.False(terrain.Passable);
+        var approach = Assert.Single(successor.Scenario.Setup!.RequiredLocations.SelectMany(location => location.Groups),
+            group => group.Id == "approach" && group.Positions.Contains(marker.Position with { X = marker.Position.X + 1 }));
+        Assert.Equal(8, approach.Positions.Count);
+        var reached = MandatoryConnectivityRepair.ActualReachable(board,
+            [successor.Plan.EntrySeam.Y * board.Width + successor.Plan.EntrySeam.X]);
+        Assert.All(approach.Positions, cell => Assert.Contains(cell.Y * board.Width + cell.X, reached));
+        Assert.Equal(useOutposts, successor.Scenario.Setup.RequiredLocations.Any(location =>
+            location.Groups.Any(group => group.Id == "courtyard")));
+        Assert.Contains(successor.Plan.ExitSeam.Y * board.Width + successor.Plan.ExitSeam.X, reached);
+        Assert.Equal(profile, ExpeditionRunner.Open(root, id, Latest).Head.WorldProfile);
+    }
+
+    [Theory]
     [InlineData("natureVersion", "Unsupported Expedition nature version")]
     [InlineData("fieldVersion", "Unsupported Expedition field version")]
     [InlineData("coordinates", "Unsupported Expedition coordinate convention")]
+    [InlineData("civilizationVersion", "Unsupported Expedition civilization version")]
+    [InlineData("constructionVersion", "Unsupported Expedition construction version")]
     public void UnknownPinnedVersionRejectsOpenWithoutTouchingEitherSaveFile(string property, string diagnostic)
     {
         const string id = "unsupported-profile";

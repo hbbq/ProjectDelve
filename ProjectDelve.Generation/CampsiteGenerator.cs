@@ -3,8 +3,14 @@ using ProjectDelve.Engine;
 namespace ProjectDelve.Generation;
 
 public sealed record SitePlacementPreferences(int? PreferredAnchor = null, IReadOnlyList<int>? OpportunityAnchors = null,
-    IReadOnlyList<int>? RouteAnchors = null, CardinalSide? PreferredApproach = null);
-public sealed record CampsiteRequirements(int MinimumUsableArea = 18, int Radius = 3, string? ScenarioRole = null);
+    IReadOnlyList<int>? RouteAnchors = null, CardinalSide? PreferredApproach = null)
+{
+    internal int AnchorWeight { get; init; }
+}
+public sealed record CampsiteRequirements(int MinimumUsableArea = 18, int Radius = 3, string? ScenarioRole = null)
+{
+    public SiteConstructionProfile? ConstructionProfile { get; init; }
+}
 public sealed record CampsiteRequest(string Key, CellBounds Area, PreparationPolicy Preparation,
     CampsiteRequirements? Requirements = null, SitePlacementPreferences? Preferences = null,
     IReadOnlyList<string>? SourceFormationIds = null, string? SourceOpportunityId = null);
@@ -15,6 +21,8 @@ public static class CampsiteGenerator
     {
         var id = scope.ObjectId(request.Key); var requirements = request.Requirements ?? new(); var startAttempts = scope.Budget.Attempts;
         Rejected<SitePlan> Fail(PlacementFailureCode code, string reason) => new(new(id, "Campsite", code, reason, scope.Budget.Attempts - startAttempts));
+        if (requirements.ConstructionProfile is { } profile && profile is not (SiteConstructionProfile.OpenCamp or SiteConstructionProfile.ShelteredCamp or SiteConstructionProfile.PrimitiveHut))
+            return Fail(PlacementFailureCode.InvalidRequest, "Campsites support OpenCamp, ShelteredCamp or PrimitiveHut construction.");
         if (!SiteGeometry.Fits(request.Area, scope.Draft.AllowedArea) || requirements.Radius is < 2 or > 5 || requirements.MinimumUsableArea < 1 ||
             requirements.MinimumUsableArea > (2 * requirements.Radius + 1) * (2 * requirements.Radius + 1) - 1 ||
             request.Area.Width < 2 * requirements.Radius + 5 || request.Area.Height < 2 * requirements.Radius + 5)
@@ -22,8 +30,10 @@ public static class CampsiteGenerator
         try { request.Preparation.Validate(); if (requirements.ScenarioRole is { } role) GenerationScope.ValidKey(role); }
         catch (ArgumentException e) { return Fail(PlacementFailureCode.InvalidRequest, e.Message); }
         if (!scope.Content.Terrain.Any(t => t.Id == "campfire" && !t.Passable) || !scope.Content.Terrain.Any(t => t.Id == "grass" && t.Passable) ||
-            !scope.Content.Terrain.Any(t => t.Id == "stone-floor-with-table" && !t.Passable) || !scope.Content.Terrain.Any(t => t.Id == "stone-floor" && t.Passable))
-            return Fail(PlacementFailureCode.InvalidContent, "Campsite requires Grass, Stone Floor, Table and canonical Campfire terrain.");
+            (requirements.ConstructionProfile is null
+                ? !scope.Content.Terrain.Any(t => t.Id == "stone-floor-with-table" && !t.Passable) || !scope.Content.Terrain.Any(t => t.Id == "stone-floor" && t.Passable)
+                : !scope.Content.Terrain.Any(t => t.Id == "dirt" && t.Passable)))
+            return Fail(PlacementFailureCode.InvalidContent, "Campsite requires Grass, canonical Campfire, and the construction profile's floor and furniture terrain.");
         var call = scope.Child(request.Key, scope.Draft); var r = requirements.Radius;
         var candidates = new List<int>();
         if (request.Preferences?.PreferredAnchor is { } preferred) candidates.Add(preferred);
@@ -70,22 +80,81 @@ public static class CampsiteGenerator
             for (var v = -depth; v <= depth; v++)
                 if (roadside || Math.Abs(u) + Math.Abs(v) <= extent + depth - 2) cells.Add(Cell(u, v));
             for (var distance = 1; distance <= r + 2; distance++) cells.Add((cy + dy * distance) * draft.Width + cx + dx * distance);
+            if (requirements.ConstructionProfile == SiteConstructionProfile.ShelteredCamp)
+            {
+                // Keep the ground behind the shelter connected around its side Walls in small clearings.
+                cells.Add(Cell(-r - 1, -2));
+                cells.Add(Cell(-r - 1, 2));
+            }
+            // A hut has a real shell and its own complete apron, including the corners
+            // omitted by the irregular clearing. It shares the camp's private draft.
+            CellBounds? hutPlot = null;
+            if (requirements.ConstructionProfile == SiteConstructionProfile.PrimitiveHut)
+            {
+                var plotCells = Enumerable.Range(-r - 1, 4).SelectMany(u => Enumerable.Range(-2, 5).Select(v => Cell(u, v))).ToArray();
+                hutPlot = GeneratedArea.From(id + "/hut-plot", plotCells, draft.Width).Bounds;
+                cells.UnionWith(plotCells);
+            }
             var before = draft.BuildPatch();
             var preparation = SiteGeometry.Prepare(draft, cells, "grass", request.Preparation);
             if (preparation is not null) { if (preparation.Code == PlacementFailureCode.BudgetExhausted) return Fail(preparation.Code, preparation.Reason); lastCode = preparation.Code; lastReason = preparation.Reason; continue; }
             List<ConstructionOperation> operations = [new(id, scope.Path, "Campsite", id, area, [], [])];
             operations.Add(SiteGeometry.Operation(draft, before, id + "/prepare", id, "Clearing and access apron", id, area));
             before = draft.BuildPatch();
-            // The shared hearth and two separate supply/rest clusters use existing physical tiles.
-            foreach (var u in new[] { -r, r })
-            foreach (var v in new[] { -1, 1 })
+            List<BuildingInfo> buildings = [];
+            if (requirements.ConstructionProfile is null)
             {
-                // One anchor obstacle per wing; the second varies independently.
-                if (v == -1 || random.Next(3) != 0) draft.ReplaceTerrain(Cell(u, v), "stone-floor-with-table");
-                draft.ReplaceTerrain(Cell(u, 0), "stone-floor");
+                // Preserve legacy furnishing and random draws for unprofiled requests.
+                foreach (var u in new[] { -r, r })
+                foreach (var v in new[] { -1, 1 })
+                {
+                    if (v == -1 || random.Next(3) != 0) draft.ReplaceTerrain(Cell(u, v), "stone-floor-with-table");
+                    draft.ReplaceTerrain(Cell(u, 0), "stone-floor");
+                }
             }
-            draft.ReplaceTerrain(center, "campfire");
+            else
+            {
+                foreach (var u in new[] { -r, r })
+                foreach (var v in new[] { -1, 0, 1 }) draft.ReplaceTerrain(Cell(u, v), "dirt");
+                foreach (var v in new[] { -1, 1 }) draft.ReplaceTerrain(Cell(0, v), "dirt");
+                if (requirements.ConstructionProfile == SiteConstructionProfile.ShelteredCamp)
+                {
+                    // Three Wall sides leave a full open frontage toward the hearth.
+                    for (var v = -1; v <= 1; v++)
+                    {
+                        draft.ReplaceTerrain(Cell(-r + 1, v), "dirt");
+                        draft.ReplaceEdge(EdgeKey.Between(Cell(-r, v), Cell(-r - 1, v), draft.Width), EdgeKind.Wall);
+                    }
+                    foreach (var u in new[] { -r, -r + 1 })
+                    foreach (var v in new[] { -1, 1 })
+                        draft.ReplaceEdge(EdgeKey.Between(Cell(u, v), Cell(u, v + Math.Sign(v)), draft.Width), EdgeKind.Wall);
+                }
+            }
+            if (hutPlot is null) draft.ReplaceTerrain(center, "campfire");
             operations.Add(SiteGeometry.Operation(draft, before, id + "/furnish", id, "Shared hearth and supply clusters", id, area));
+            if (hutPlot is { } plot)
+            {
+                var entranceSide = dy > 0 ? CardinalSide.West : dy < 0 ? CardinalSide.East : dx > 0 ? CardinalSide.South : CardinalSide.North;
+                var entranceOutside = Cell(-r + 2, 1);
+                var hut = BuildingGenerator.Plan(new("hut", plot,
+                    new(MinWidth: plot.Width - 2, MaxWidth: plot.Width - 2,
+                        MinHeight: plot.Height - 2, MaxHeight: plot.Height - 2,
+                        RoomCount: 1, FloorTypeId: "dirt", Furniture: false,
+                        Entrance: new(entranceSide, entranceOutside)), Preparation: request.Preparation),
+                    new GenerationScope(scope.RootSeed, id, draft));
+                if (hut is Rejected<BuildingPlan> rejected)
+                {
+                    if (rejected.Failure.Code == PlacementFailureCode.BudgetExhausted) return Fail(rejected.Failure.Code, rejected.Failure.Reason);
+                    lastCode = rejected.Failure.Code; lastReason = rejected.Failure.Reason; continue;
+                }
+                var plan = ((Planned<BuildingPlan>)hut).Plan;
+                if (!draft.Accept(plan.Patch, out var error)) return Fail(PlacementFailureCode.ValidationFailed, error!);
+                buildings.Add(plan.Building with { Purpose = "Primitive hut" });
+                operations.AddRange(plan.Operations);
+                before = draft.BuildPatch();
+                draft.ReplaceTerrain(center, "campfire");
+                operations.Add(SiteGeometry.Operation(draft, before, id + "/hearth", id, "Camp hearth", id, area));
+            }
             var usable = cells.Where(draft.Passable).ToHashSet();
             var outside = (cy + dy * (r + 2)) * draft.Width + cx + dx * (r + 2);
             var inside = outside - dy * draft.Width - dx;
@@ -98,14 +167,16 @@ public static class CampsiteGenerator
             var patch = draft.BuildPatch(); var summary = SiteGeometry.Summary(patch);
             if (summary.Cost > request.Preparation.MaxCost || summary.ChangedTerrain > request.Preparation.MaxChangedCells)
             { lastCode = PlacementFailureCode.PreparationLimit; lastReason = "Complete campsite exceeds preparation allowance."; continue; }
-            draft.Reserve(cells);
+            draft.Reserve(cells.Where(i => !draft.IsReserved(i)));
             operations.Add(new(id + "/commit", id, "Site ready for atomic commit", id, area, [], []));
             var tags = new List<SiteTag> { SiteTag.Camp, SiteTag.Constructed }; if (summary.WaterFilled > 0 && needsConnection) tags.Add(SiteTag.ArtificialIsland);
             var site = new SiteInfo(id, GeneratedSiteKind.Campsite, GeneratedArea.From(id + "/footprint", cells, draft.Width),
-                GeneratedArea.From(id + "/exterior", usable, draft.Width), [], [portal],
+                GeneratedArea.From(id + "/exterior", usable.Except(buildings.SelectMany(b => b.Footprint.Indices(draft.Width))), draft.Width), buildings,
+                new[] { portal }.Concat(buildings.SelectMany(b => b.Portals)).ToArray(),
                 new(usable.Count, reached.Count, true, needsConnection, SiteGeometry.TwoByTwo(draft, usable)), tags,
                 requirements.ScenarioRole is { } roleId ? [new(roleId, GeneratedObjectKind.Site, id)] : [], request.SourceFormationIds ?? [], request.SourceOpportunityId, summary)
             {
+                ConstructionProfile = requirements.ConstructionProfile,
                 PopulationIntent = PopulationIntent(id, draft, cells, center, outside, r, roadside, Cell,
                     call.Random("alert-topology").Next(2) == 0 ? CampAlertTopology.Connected : CampAlertTopology.Separated)
             };

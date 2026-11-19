@@ -37,7 +37,7 @@ public sealed class ExpeditionCatalog
 
         var baseline = ExpeditionWorld.Configure(worldSeed, settings);
         return ExpeditionRunner.Create(new ExpeditionStore(root, id), worldSeed, latest, generate, baseline.ToString(),
-            ExpeditionWorldProfile.CreateV1(baseline.NaturalTerrain), displayName);
+            ExpeditionWorldProfile.Create(baseline.NaturalTerrain), displayName);
     }
 
     internal static void ValidateCreate(string? name, string? seed, string? recipe)

@@ -294,3 +294,15 @@ test("all four undirected rail shapes align every distinct mask by quarter turns
   }
   assert.equal(covered.size, 11);
 });
+
+test('passive landmark component recipes have distinct presentation without content ID dispatch', () => {
+  const run = catalog();
+  for (const recipe of ['Marker', 'Statue', 'Obelisk']) {
+    run(`var assembly={surface:{presentation:{recipe:'Grass'}},components:[{slot:'object',definition:{id:'local-object',presentation:{recipe:'${recipe}',layer:'Object'}}}]};`);
+    assert.equal(run("terrainLayers('Grass',{assembly}).components[0].fallback"),false);
+    assert.match(run("terrainLayers('Grass',{assembly}).base.image"),/grass/);
+  }
+  assert.notEqual(run('fixedComponentVisuals.Marker.detail'),run('fixedComponentVisuals.Obelisk.detail'));
+  assert.equal(run('fixedComponentVisuals.Marker.glyph.codePointAt(0)'), 0x25ae);
+  assert.equal(run('fixedComponentVisuals.Obelisk.glyph.codePointAt(0)'), 0x25b2);
+});

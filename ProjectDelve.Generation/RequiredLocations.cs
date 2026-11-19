@@ -111,6 +111,15 @@ internal static class RequiredLocations
         }
         if (site.Kind == GeneratedSiteKind.Campsite)
             Add(site.Id, "usable", site.Footprint.Indices(width).Concat(site.Exterior.Indices(width)).Where(usable));
+        if (site.Kind is GeneratedSiteKind.Ruin or GeneratedSiteKind.Landmark)
+            Add(site.Id, "approach", site.Exterior.Indices(width));
+        if (site.Outpost is { } outpost)
+        {
+            Add(outpost.Approach.Id, "approach", outpost.Approach.Indices(width));
+            Add(outpost.Courtyard.Id, "courtyard", outpost.Courtyard.Indices(width));
+            foreach (var portal in site.Buildings.SelectMany(building => building.Portals))
+                Add(portal.Id, "building-entrance", [portal.InsideIndex, portal.OutsideIndex]);
+        }
         return result.OrderBy(l => l.Id, StringComparer.Ordinal).ToImmutableArray();
     }
 

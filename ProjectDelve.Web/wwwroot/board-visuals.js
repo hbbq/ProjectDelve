@@ -153,6 +153,9 @@ export const fixedComponentVisuals = {
   Bed: { glyph: '▰', fill: '#697e9c', detail: 'linear-gradient(90deg, transparent 10%, #795538 11% 17%, #a6b9d1 18% 35%, #526d96 36% 78%, #795538 79% 86%, transparent 87%)' },
   Statue: { glyph: '◆', fill: '#a6aaa5', detail: 'radial-gradient(ellipse, #c3c5bb 0 20%, #747d7b 22% 34%, transparent 36%)' },
   Campfire: { glyph: '♨', fill: '#e99b36', detail: 'radial-gradient(ellipse, #ffe49a 0 10%, #ee982d 12% 24%, #7f4b28 26% 35%, transparent 37%)' },
+  Well: { glyph: '○', fill: '#8d928b', detail: 'radial-gradient(circle, #263e48 0 20%, #93978d 22% 36%, #656d68 38% 43%, transparent 45%)' },
+  Marker: { glyph: '\u25ae', fill: '#a49c7f', detail: 'linear-gradient(90deg, transparent 32%, #9e9579 34% 65%, transparent 67%)' },
+  Obelisk: { glyph: '\u25b2', fill: '#78838b', detail: 'linear-gradient(45deg, transparent 32%, #9aa3aa 34% 50%, #65737d 52% 65%, transparent 67%)' },
   generic: { glyph: '?', fill: '#a897ba', detail: 'linear-gradient(45deg, transparent 25%, #9783a5 26% 72%, transparent 73%)' }
 };
 

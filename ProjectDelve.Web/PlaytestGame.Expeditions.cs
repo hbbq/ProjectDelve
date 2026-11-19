@@ -12,6 +12,22 @@ public sealed partial class PlaytestGame
     // already hold that lock when they publish event frames through the game gate.
     private ExpeditionPlayView? expeditionView;
 
+    internal string ExportExpeditionScenario(string? expectedSessionId)
+    {
+        ScenarioDefinition scenario;
+        lock (gate)
+        {
+            if (expectedSessionId is not null && expectedSessionId != sessionId)
+                throw Error(409, "The game session changed. Refresh before exporting the region.");
+            if (expedition is null) throw Error(409, "Open an Expedition first.");
+
+            // The installed Scenario belongs to the same session as the published region.
+            // Read it under the game gate without acquiring the Expedition runner's lock.
+            scenario = definition;
+        }
+        return ScenarioDefinitionTransport.Encode(scenario);
+    }
+
     private void ValidateExpeditionCommand(GameCommand request)
     {
         if (expeditions is null) throw Error(503, "Expedition storage is unavailable.");

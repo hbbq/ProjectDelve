@@ -64,6 +64,11 @@ public sealed record TerrainAssemblyDefinition(
     [property: JsonRequired] string Name,
     [property: JsonRequired] string SurfaceId)
 {
+    // Authoring eligibility for generated public squares; never a gameplay property.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool VillageCenterpiece { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Landmark { get; init; }
     public ImmutableArray<FixedComponentPlacement> Components { get; init; } = [];
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? DestroyedTerrainTypeId { get; init; }
@@ -80,7 +85,13 @@ public sealed record ResolvedFixedComponent(
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record ResolvedTerrainAssembly(
     [property: JsonRequired] TerrainDefinition Surface,
-    [property: JsonRequired] ImmutableArray<ResolvedFixedComponent> Components);
+    [property: JsonRequired] ImmutableArray<ResolvedFixedComponent> Components)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool VillageCenterpiece { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Landmark { get; init; }
+}
 
 internal static class TerrainAssemblyContent
 {
@@ -103,6 +114,11 @@ internal static class TerrainAssemblyContent
         var resolved = assembly.Components.Select(c => new ResolvedFixedComponent(c.Slot,
             definitions.GetValueOrDefault(c.ComponentId) ?? throw new ArgumentException($"Unknown Fixed Component Type ID '{c.ComponentId}'."), c.QuarterTurns)).ToImmutableArray();
         ValidatePlacements(resolved);
+        if ((assembly.VillageCenterpiece || assembly.Landmark) && (!surface.Passable || surface.Production is not null ||
+            surface.Categories.Contains(TerrainCategories.Water) || surface.LegacyKind == TerrainKind.Rail ||
+            resolved.Count(c => c.Definition.Presentation.Layer == FixedComponentLayer.Object) != 1 ||
+            !resolved.Any(c => c.Definition.BlocksMovement)))
+            throw new ArgumentException("A Village Centerpiece or Landmark requires a passive usable land surface and one raised blocking object.");
         return new(assembly.Id, assembly.Name, resolved.Any(c => c.Definition.BlocksMovement) ? [] : surface.MovementPermissions,
             surface.BlocksLos || resolved.Any(c => c.Definition.BlocksLos))
         {
@@ -111,7 +127,7 @@ internal static class TerrainAssemblyContent
             AllowsResourceMarkers = surface.AllowsResourceMarkers,
             Production = surface.Production,
             DestroyedTerrainTypeId = assembly.DestroyedTerrainTypeId,
-            Assembly = new(surface, resolved)
+            Assembly = new(surface, resolved) { VillageCenterpiece = assembly.VillageCenterpiece, Landmark = assembly.Landmark }
         };
     }
 
@@ -121,6 +137,11 @@ internal static class TerrainAssemblyContent
         ValidateSurface(assembly.Surface);
         TerrainCatalog.Validate([assembly.Surface], againstCanonical: false);
         ValidatePlacements(assembly.Components);
+        if ((assembly.VillageCenterpiece || assembly.Landmark) && (!assembly.Surface.Passable || assembly.Surface.Production is not null ||
+            assembly.Surface.Categories.Contains(TerrainCategories.Water) || assembly.Surface.LegacyKind == TerrainKind.Rail ||
+            assembly.Components.Count(c => c.Definition.Presentation.Layer == FixedComponentLayer.Object) != 1 ||
+            !assembly.Components.Any(c => c.Definition.BlocksMovement)))
+            throw new ArgumentException("A Village Centerpiece or Landmark requires a passive usable land surface and one raised blocking object.");
         if (!terrain.MovementPermissions.SequenceEqual(assembly.Components.Any(c => c.Definition.BlocksMovement) ? [] : assembly.Surface.MovementPermissions) ||
             terrain.BlocksLos != (assembly.Surface.BlocksLos || assembly.Components.Any(c => c.Definition.BlocksLos)) ||
             terrain.BlocksVision != (assembly.Surface.BlocksVision || assembly.Components.Any(c => c.Definition.BlocksVision)) ||

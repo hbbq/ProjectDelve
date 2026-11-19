@@ -176,7 +176,7 @@ test('an assembly consumes only the printed surface of a borrowed combined visua
 test('Table component reuses its batched geometry on two surfaces while new recipes and fallbacks keep Cell picking',async()=>{
   const f=fixture(10),board=f.state.physical.board;
   board.terrainTypes=[['stone-table','StoneFloor','Table'],['grass-table','Grass','Table'],['bed','StoneFloor','Bed'],
-    ['statue','Gravel','Statue'],['camp','Grass','Campfire'],['new-object','Grass','uninstalled-object']]
+    ['statue','Gravel','Statue'],['camp','Grass','Campfire'],['well','Gravel','Well'],['new-object','Grass','uninstalled-object']]
     .map(([id,surface,recipe])=>({id,name:`Fixture ${id}`,presentation:{recipe:'generic'},assembly:componentAssembly(surface,recipe,1)}));
   board.terrain=board.terrainTypes.map((type,x)=>({position:{x,y:0},typeId:type.id}));
   const h=await harness(f);try{
@@ -197,7 +197,7 @@ test('Table component reuses its batched geometry on two surfaces while new reci
     }
     const cached=[...objects.children];h.viewport.renderFrame(f);h.flush();assert.deepEqual(objects.children,cached);
     h.viewport.setPresentation('flat');h.viewport.settle();h.flush();
-    assert.equal(h.rendered.at(-1).scene.getObjectByName('objects').children.length,6);
+    assert.equal(h.rendered.at(-1).scene.getObjectByName('objects').children.length,7);
     assert.equal(h.frames.size,0);assert.deepEqual(h.failures,[]);
   }finally{h.cleanup();}
 });

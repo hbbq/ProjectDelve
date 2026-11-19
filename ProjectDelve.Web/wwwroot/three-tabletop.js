@@ -233,6 +233,20 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
       box(group,'#a8afa7',0,.18,0,.39,.18,.39);
       mesh(group,geometries.gem,'#a8afa7',0,.49,0,.22,.32,.19);
       mesh(group,geometries.dome,'#b8beb5',0,.85,0,.13,.14,.13);
+    }else if(recipe==='Marker'){
+      box(group,'#777565',0,.05,0,.48,.10,.42);
+      box(group,'#aaa18a',0,.29,0,.29,.48,.19);
+      box(group,'#686252',0,.39,-.101,.14,.035,.008);
+    }else if(recipe==='Obelisk'){
+      box(group,'#68757e',0,.07,0,.56,.14,.56);
+      box(group,'#8d99a1',0,.48,0,.23,.72,.23);
+      mesh(group,geometries.gem,'#a9b2b8',0,.88,0,.16,.19,.16);
+    }else if(recipe==='Well'){
+      box(group,'#304852',0,.045,0,.42,.08,.42);
+      for(let i=0;i<12;i++){const a=i*Math.PI/6;box(group,i%2?'#9b9d90':'#7e857e',Math.cos(a)*.28,.16,Math.sin(a)*.28,.16,.32,.16,a);}
+      for(const dx of [-.31,.31])box(group,'#715437',dx,.42,0,.07,.65,.08);
+      box(group,'#91734d',0,.74,0,.77,.08,.15);
+      box(group,'#b69e76',0,.45,0,.02,.50,.02);
     }else if(recipe==='Campfire'){
       for(let i=0;i<8;i++){const a=i*Math.PI/4;mesh(group,geometries.lump,'#747370',Math.cos(a)*.29,.06,Math.sin(a)*.29,.08,.06,.08);}
       box(group,'#785333',0,.075,0,.46,.10,.10,.6);

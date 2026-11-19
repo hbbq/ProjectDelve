@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
 using ProjectDelve.Engine;
+using ProjectDelve.Generation;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -55,6 +56,8 @@ public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDispos
         var store = new ExpeditionStore(root, view.Id);
         var head = store.ReadHead();
         Assert.NotNull(head.WorldProfile);
+        Assert.Equal(ExpeditionWorldProfile.CurrentCivilizationVersion, head.WorldProfile.CivilizationVersion);
+        Assert.Equal(ExpeditionWorldProfile.CurrentConstructionVersion, head.WorldProfile.ConstructionVersion);
         var checkpoint = store.ReadCheckpoint(head.ActiveCheckpoint);
         Assert.Equal(60, checkpoint.Scenario.Board.Width);
         Assert.Equal(60, checkpoint.Scenario.Board.Height);
@@ -67,6 +70,64 @@ public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDispos
     }
 
     [Fact]
+    public async Task ScenarioExportCopiesTheSavedRegionWithoutChangingPlayOrTheCheckpoint()
+    {
+        var builds = 0;
+        var catalog = new ExpeditionCatalog(root, ContentBundle.Canonical, generate: (seed, plan, content) =>
+        {
+            builds++;
+            return Fixture(seed, plan, content);
+        });
+        await using var host = await Host.Start(root, catalog);
+        using (var inactive = await host.ExportScenario())
+            Assert.Equal(HttpStatusCode.Conflict, inactive.StatusCode);
+
+        var active = await host.Send(Create("Export test", "889"));
+        var id = active.Snapshot.Expedition!.Id;
+        var store = new ExpeditionStore(root, id);
+        await host.Send(new() { Operation = "preferences", AutoChooseSingleRelevantChoice = false });
+        await host.Send(new() { Operation = "round" });
+        var saved = await host.Send(new() { Operation = "expedition/save" });
+        var head = store.ReadHead();
+        var checkpoint = store.ReadCheckpoint(head.ActiveCheckpoint);
+        var directory = Path.Combine(root, "expedition-" + id);
+        var headBytes = File.ReadAllBytes(Path.Combine(directory, "head.json"));
+        var checkpointPath = Path.Combine(directory, head.ActiveCheckpoint.Digest + ".json");
+        var checkpointBytes = File.ReadAllBytes(checkpointPath);
+        var files = Directory.GetFiles(directory).Order().ToArray();
+
+        var legal = Pass(saved.Snapshot.Result.NextInput!);
+        var random = new ExpeditionRandom(checkpoint.GameplayRandomState);
+        var expected = GameEngine.Advance(checkpoint.State, new Choice(legal.Key), random, false);
+        await host.Send(new() { Operation = "decision", CandidateKey = legal.Key });
+        Assert.True(host.Current.Snapshot.Expedition!.HasUnsavedChanges);
+        var liveBefore = await host.GameSnapshot();
+        Assert.DoesNotContain(HiddenItem, liveBefore);
+
+        using (var stale = await host.ExportScenario("stale-session"))
+            Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+        using var response = await host.ExportScenario(active.SessionId);
+        response.EnsureSuccessStatusCode();
+        Assert.True(response.Headers.CacheControl?.NoStore);
+        Assert.Equal("text/plain", response.Content.Headers.ContentType?.MediaType);
+        var transport = await response.Content.ReadAsStringAsync();
+        Assert.StartsWith("DELVE1:", transport);
+        var scenario = ScenarioDefinitionTransport.Decode(transport, null, checkpoint.Content);
+        Assert.Equal(ScenarioDefinitionJson.ToJson(checkpoint.Scenario), ScenarioDefinitionJson.ToJson(scenario));
+        Assert.Contains(scenario.GroundObjects!, item => item.Object.Id == HiddenItem);
+        Assert.Equal(liveBefore, await host.GameSnapshot());
+        Assert.Equal(headBytes, File.ReadAllBytes(Path.Combine(directory, "head.json")));
+        Assert.Equal(checkpointBytes, File.ReadAllBytes(checkpointPath));
+        Assert.Equal(files, Directory.GetFiles(directory).Order().ToArray());
+        Assert.Equal(1, builds);
+
+        await host.Send(new() { Operation = "expedition/save" });
+        var after = store.ReadCheckpoint(store.ReadHead().ActiveCheckpoint);
+        Assert.Equal(random.State, after.GameplayRandomState);
+        Assert.Equal(Encode(expected.State), Encode(after.State));
+    }
+
+    [Fact]
     public async Task PendingChoiceRngAndFogSurviveSwitchAndServerRestart()
     {
         var catalog = new ExpeditionCatalog(root, ContentBundle.Canonical, generate: Fixture);
@@ -76,6 +137,8 @@ public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDispos
         await using (var host = await Host.Start(root, catalog))
         {
             first = (await host.Send(Create("First", "889"))).Snapshot.Expedition!;
+            Assert.Equal(ExpeditionWorldProfile.CurrentCivilizationVersion,
+                new ExpeditionStore(root, first.Id).ReadHead().WorldProfile!.CivilizationVersion);
             await host.Send(new() { Operation = "preferences", AutoChooseSingleRelevantChoice = false });
             await host.Send(new() { Operation = "round" });
             var playing = host.Current.Snapshot;
@@ -192,6 +255,8 @@ public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDispos
             Assert.True(await Task.Run(() => generatorEntered.Wait(TimeSpan.FromSeconds(10))));
             Assert.Equal(HttpStatusCode.Conflict, await host.Reject(new() { Operation = "scenario", ScenarioId = PlaytestScenarios.DefaultId }));
             Assert.Equal(HttpStatusCode.Conflict, await host.Reject(command));
+            using var sourceExport = await host.ExportScenario(host.Current.SessionId);
+            Assert.Equal(ScenarioDefinitionTransport.Encode(source.Scenario), await sourceExport.Content.ReadAsStringAsync());
         }
         finally { allowFailure.Set(); }
         var failed = await failing;
@@ -218,6 +283,11 @@ public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDispos
         Assert.Equal(completed.OriginalHeroIds.Order(), success.Snapshot.Result.State.Units.Select(unit => unit.Id).Order());
         Assert.Contains(success.Snapshot.Result.State.Units.SelectMany(unit => unit.Inventory), item => item.Id == Boots);
         Assert.DoesNotContain(HiddenItem, Encode(success));
+        using (var staleExport = await host.ExportScenario(requestForRetry.SessionId))
+            Assert.Equal(HttpStatusCode.Conflict, staleExport.StatusCode);
+        using var successorExport = await host.ExportScenario();
+        Assert.Equal(ScenarioDefinitionTransport.Encode(store.ReadCheckpoint(transition.Successor).Scenario),
+            await successorExport.Content.ReadAsStringAsync());
         Assert.Equal(2, builds);
     }
 
@@ -321,6 +391,9 @@ public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDispos
         }
 
         public async Task<ExpeditionCatalogView> Catalog() => (await client.GetFromJsonAsync<ExpeditionCatalogView>("/api/expeditions", Json))!;
+        public Task<string> GameSnapshot() => client.GetStringAsync("/api/game");
+        public Task<HttpResponseMessage> ExportScenario(string? sessionId = null) => client.GetAsync(
+            "/api/expeditions/current/scenario" + (sessionId is null ? "" : "?sessionId=" + Uri.EscapeDataString(sessionId)));
 
         public GameCommand Prepare(GameCommand request) => request with
         {

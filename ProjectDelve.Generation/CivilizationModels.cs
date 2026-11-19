@@ -6,7 +6,12 @@ using ProjectDelve.Engine;
 
 namespace ProjectDelve.Generation;
 
-public enum GeneratedSiteKind { Campsite, Settlement, MountainDungeon }
+public enum GeneratedSiteKind { Campsite, Settlement, MountainDungeon, Ruin, Landmark, FortifiedOutpost }
+public enum SiteConstructionProfile
+{
+    Cottage, OpenCamp, ShelteredCamp, PrimitiveHut, VillageCenter,
+    RuinedCottage, CollapsedBuilding, RuinedHamlet, RoadsideMarker, IsolatedLandmark, FortifiedOutpost
+}
 public enum MountainDungeonProfile { TunnelNetwork, ChamberComplex, DeepPassage }
 public sealed record MountainDungeonInfo(MountainDungeonProfile Profile, IReadOnlyList<RoomInfo> Rooms,
     GeneratedArea Corridors, GeneratedArea ProtectedRock, GeneratedArea RequiredAccess, GeneratedArea Lava,
@@ -60,11 +65,15 @@ public sealed record SettlementLayoutInfo(SettlementFamily Family, IReadOnlyList
     IReadOnlyList<SettlementPublicSpace> PublicSpaces, GeneratedArea Access, IReadOnlyList<string> FallbackReasons)
 {
     public bool SkippedExteriorPassingSpace { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? CenterpieceIndex { get; init; }
 }
 public sealed record PreparationSummary(int TreesRemoved, int RockExcavated, int WaterFilled, int ChangedTerrain, int ChangedEdges, int Cost)
 {
     public static PreparationSummary Empty { get; } = new(0, 0, 0, 0, 0, 0);
 }
+public sealed record OutpostInfo(GeneratedArea Enclosed, GeneratedArea Courtyard, GeneratedArea Approach,
+    IReadOnlyList<EdgeKey> Perimeter, string GateId);
 public sealed record SiteInfo(string Id, GeneratedSiteKind Kind, GeneratedArea Footprint, GeneratedArea Exterior,
     IReadOnlyList<BuildingInfo> Buildings, IReadOnlyList<SitePortal> Entrances, SpaceAccess Access,
     IReadOnlyList<SiteTag> Tags, IReadOnlyList<ScenarioRoleBinding> Roles, IReadOnlyList<string> SourceFormationIds,
@@ -75,6 +84,10 @@ public sealed record SiteInfo(string Id, GeneratedSiteKind Kind, GeneratedArea F
     public SitePopulationIntent? PopulationIntent { get; init; }
     public SettlementLayoutInfo? SettlementLayout { get; init; }
     public MountainDungeonInfo? MountainDungeon { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public OutpostInfo? Outpost { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public SiteConstructionProfile? ConstructionProfile { get; init; }
 }
 public sealed record ConstructionOperation(string Id, string? ParentId, string Name, string ObjectId, CellBounds Bounds,
     IReadOnlyList<TerrainChange> TerrainChanges, IReadOnlyList<EdgeChange> EdgeChanges);

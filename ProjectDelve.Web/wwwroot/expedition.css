@@ -31,6 +31,7 @@
 .expedition-table-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-left: auto; }
 #expedition-status, #expedition-table-status { white-space: pre-wrap; }
 #expedition-table-status { margin: 0; flex: 1 0 100%; }
+#expedition-scenario-transport { flex: 1 0 100%; min-width: 0; }
 #expedition-status:empty, #expedition-table-status:empty { display: none; }
 
 @media (max-width: 760px) {

@@ -31,9 +31,30 @@ public sealed record ExpeditionWorldProfile(string NatureVersion, string FieldVe
     public const string CurrentNatureVersion = NatureV1;
     public const string CurrentFieldVersion = FieldsV1;
     public const string CoordinateConvention = CoordinatesV1;
+    internal const string CivilizationV1 = "ExpeditionCivilization1";
+    public const string CurrentCivilizationVersion = CivilizationV1;
+    internal const string ConstructionV1 = "ExpeditionConstruction1";
+    internal const string ConstructionV2 = "ExpeditionConstruction2";
+    internal const string ConstructionV3 = "ExpeditionConstruction3";
+    public const string CurrentConstructionVersion = ConstructionV3;
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? CivilizationVersion { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ConstructionVersion { get; init; }
 
     public static ExpeditionWorldProfile Create(NaturalTerrainSettings nature, ExpeditionSpatialSettings? spatial = null) =>
-        CreateV1(nature, spatial);
+        CreateCivilizationV1(nature, spatial) with { ConstructionVersion = CurrentConstructionVersion };
+
+    public static ExpeditionWorldProfile CreateConstructionV1(NaturalTerrainSettings nature, ExpeditionSpatialSettings? spatial = null) =>
+        CreateCivilizationV1(nature, spatial) with { ConstructionVersion = ConstructionV1 };
+
+    public static ExpeditionWorldProfile CreateConstructionV2(NaturalTerrainSettings nature, ExpeditionSpatialSettings? spatial = null) =>
+        CreateCivilizationV1(nature, spatial) with { ConstructionVersion = ConstructionV2 };
+
+    public static ExpeditionWorldProfile CreateCivilizationV1(NaturalTerrainSettings nature, ExpeditionSpatialSettings? spatial = null) =>
+        CreateV1(nature, spatial) with { CivilizationVersion = CivilizationV1 };
 
     /// <summary>Explicit legacy migration target; remains V1 when Create gains a newer default.</summary>
     public static ExpeditionWorldProfile CreateV1(NaturalTerrainSettings nature, ExpeditionSpatialSettings? spatial = null) =>
@@ -48,6 +69,12 @@ public sealed record ExpeditionWorldProfile(string NatureVersion, string FieldVe
             throw new ArgumentException($"Unsupported Expedition field version '{FieldVersion}'.");
         if (Coordinates != CoordinatesV1)
             throw new ArgumentException($"Unsupported Expedition coordinate convention '{Coordinates}'.");
+        if (CivilizationVersion is not (null or CivilizationV1))
+            throw new ArgumentException($"Unsupported Expedition civilization version '{CivilizationVersion}'.");
+        if (ConstructionVersion is not (null or ConstructionV1 or ConstructionV2 or ConstructionV3))
+            throw new ArgumentException($"Unsupported Expedition construction version '{ConstructionVersion}'.");
+        if (ConstructionVersion is not null && CivilizationVersion != CivilizationV1)
+            throw new ArgumentException("Expedition construction requires the ExpeditionCivilization1 allocation.");
         if (Nature is null || Spatial is null) throw new ArgumentException("Expedition nature and spatial settings are required.");
         Nature.Validate(); Spatial.Validate();
         return this;

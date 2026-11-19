@@ -165,7 +165,9 @@ public sealed class ExpeditionJourneyTests(ITestOutputHelper output)
                     resumedPending = true;
                 }
             }
-            Assert.True(state.IsCompleted, $"Journey did not complete after {steps} legal decisions, round {state.Round}.");
+            Assert.True(state.IsCompleted, $"Journey did not complete after {steps} legal decisions, round {state.Round}. " +
+                string.Join(", ", state.Physical.Figures.Where(f => ExpeditionParty.Originals.Any(hero => hero.InstanceId == f.Id))
+                    .Select(f => $"{f.Id} at {f.Position}")));
             Assert.Equal(new[] { gearId, itemId }.Order(), pickedUp.Order());
             Assert.True(automatedDecision);
             Assert.True(resumedPending);
@@ -259,14 +261,19 @@ public sealed class ExpeditionJourneyTests(ITestOutputHelper output)
     {
         if (request.Kind is DecisionKind.SelectUnit or DecisionKind.RollDice) return request.Candidates[0];
         var position = state.Physical.Figures.Single(f => f.Id == request.UnitId).Position;
-        var occupied = state.Physical.Figures.Where(f => f.Id != request.UnitId)
-            .SelectMany(f => FootprintGeometry.OccupiedCells(state, f.Id)).ToHashSet();
+        var occupied = state.Units.Where(unit => unit.Id != request.UnitId)
+            .SelectMany(unit => FootprintGeometry.OccupiedCells(state, unit.Id)).ToHashSet();
+        var actorSide = state.Units.Single(unit => unit.Id == request.UnitId).SideId;
+        // Friendly Units may be passed during a Move, but an occupied Cell
+        // cannot be the destination. The Engine supplies the exact legal Moves.
+        var blocking = state.Units.Where(unit => unit.SideId != actorSide)
+            .SelectMany(unit => FootprintGeometry.OccupiedCells(state, unit.Id)).ToHashSet();
         var distance = new Dictionary<Cell, int>();
         var queue = new Queue<Cell>();
         foreach (var cell in ExitCells(exit).Where(c => !occupied.Contains(c))) { distance[cell] = 0; queue.Enqueue(cell); }
         while (queue.TryDequeue(out var cell))
             foreach (var next in graph.GetValueOrDefault(cell) ?? [])
-                if (!occupied.Contains(next) && distance.TryAdd(next, distance[cell] + 1)) queue.Enqueue(next);
+                if (!blocking.Contains(next) && distance.TryAdd(next, distance[cell] + 1)) queue.Enqueue(next);
         var best = request.Candidates.Where(c => c.Kind == ActivationChoiceKind.Move && c.Destination is not null &&
                 distance.GetValueOrDefault(c.Destination, int.MaxValue) < distance.GetValueOrDefault(position, int.MaxValue))
             .OrderBy(c => distance[c.Destination!]).ThenBy(c => c.Key, StringComparer.Ordinal).FirstOrDefault();

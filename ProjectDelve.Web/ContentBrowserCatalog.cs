@@ -162,7 +162,13 @@ public static class ContentBrowserCatalog
         IReadOnlyList<WorldCardDefinition> world = state is null ? canonical.WorldCards : state.WorldCardDefinitions;
         var terrain = state?.Physical.Board.TerrainTypes ?? canonical.Terrain;
         var components = FixedComponentCatalog.Resolve(source?.FixedComponentTypes, canonical.FixedComponents);
-        var assemblies = terrain.Where(t => t.Assembly is not null).Select(t => new TerrainAssemblyDefinition(t.Id, t.Name, t.Assembly!.Surface.Id) { DestroyedTerrainTypeId = t.DestroyedTerrainTypeId, Components = [.. t.Assembly.Components.Select(c => new FixedComponentPlacement(c.Slot, c.Definition.Id, c.QuarterTurns))] }).ToArray();
+        var assemblies = terrain.Where(t => t.Assembly is not null).Select(t => new TerrainAssemblyDefinition(t.Id, t.Name, t.Assembly!.Surface.Id)
+        {
+            VillageCenterpiece = t.Assembly.VillageCenterpiece,
+            Landmark = t.Assembly.Landmark,
+            DestroyedTerrainTypeId = t.DestroyedTerrainTypeId,
+            Components = [.. t.Assembly.Components.Select(c => new FixedComponentPlacement(c.Slot, c.Definition.Id, c.QuarterTurns))]
+        }).ToArray();
 
         foreach (var type in units)
         {

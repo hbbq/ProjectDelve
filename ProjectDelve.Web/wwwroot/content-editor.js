@@ -319,6 +319,8 @@ export function mountContentEditor(root, options) {
     const section = group('Terrain', text('The Engine validates these properties and resolves assembly components.'));
     if (state.family === 'terrainAssemblies') {
       section.append(referenceField('Surface', 'terrain', ['surfaceId']));
+      section.append(parameter({ name: 'villageCenterpiece', kind: 'Boolean', required: false }, ['villageCenterpiece'], 'Eligible Village Centerpiece'));
+      section.append(parameter({ name: 'landmark', kind: 'Boolean', required: false }, ['landmark'], 'Eligible Landmark'));
       section.append(parameter({ name: 'components', kind: 'List', required: true, maximumItems: 4, item: {
         kind: 'Object', required: true, members: [
           { name: 'slot', kind: 'String', required: true },

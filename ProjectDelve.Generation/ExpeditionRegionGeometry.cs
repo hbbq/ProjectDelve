@@ -26,8 +26,22 @@ public static class ExpeditionRegionGeometry
             // Downstream WLD1 stages use their ordinary seed inputs, scoped to this region.
             // The pinned sampler owns the distinct global world coordinates and seed.
             var regionalRecipe = sampler.ResolveRegion(recipe) with { Seed = localSeed };
+            ExpeditionCivilizationAllocation? civilization = null;
+            if (profile.CivilizationVersion == ExpeditionWorldProfile.CivilizationV1 &&
+                recipe.Civilization is { Enabled: true })
+            {
+                civilization = ExpeditionCivilization.Resolve(recipe, profile, sampler) with
+                {
+                    ConstructionVersion = profile.ConstructionVersion,
+                    Remains = profile.ConstructionVersion is ExpeditionWorldProfile.ConstructionV2 or ExpeditionWorldProfile.ConstructionV3
+                        ? ExpeditionCivilization.ResolveRemains(recipe, profile) : null,
+                    Outpost = profile.ConstructionVersion == ExpeditionWorldProfile.ConstructionV3
+                        ? ExpeditionCivilization.ResolveOutpost(recipe, profile) : null
+                };
+                regionalRecipe = regionalRecipe with { Civilization = recipe.Civilization };
+            }
             var regionalPlan = WorldGenerationPlan.FromRecipe(regionalRecipe) with
-            { ExpeditionNature = (recipe.Seed.Value, profile) };
+            { ExpeditionNature = (recipe.Seed.Value, profile), ExpeditionCivilization = civilization };
             return WorldGenerationPipeline.Execute(regionalPlan, content, expedition, beforeStage, sampler);
         }
 
@@ -101,7 +115,12 @@ internal sealed class ExpeditionGeometryPlan
         if (!board.TryCommit(draft.BuildPatch(), out var error)) throw new InvalidOperationException(error);
     }
 
-    internal bool HasOccupiedAccess(GameState state, HeroDeployment deployment)
+    internal static IEnumerable<int> OutpostDoorCells(IEnumerable<SiteInfo> sites) =>
+        sites.Where(site => site.Outpost is not null)
+            .SelectMany(site => site.Entrances.Concat(site.Buildings.SelectMany(building => building.Portals)))
+            .SelectMany(portal => new[] { portal.InsideIndex, portal.OutsideIndex });
+
+    internal bool HasOccupiedAccess(GameState state, HeroDeployment deployment, IEnumerable<int>? extraLocations = null)
     {
         // Initial figures are obstacles for this geographic guarantee: the route cannot depend
         // on their eventual movement or defeat. Use ordinary Land geometry with conditional
@@ -112,6 +131,6 @@ internal sealed class ExpeditionGeometryPlan
         var reached = MandatoryConnectivityRepair.ActualReachable(state.Physical.Board,
             [deployment.PlacementOrder[0]], occupied);
         return EndpointIndices.All(reached.Contains) && deployment.PlacementOrder.All(reached.Contains) &&
-            reached.Contains(deployment.DepartureIndex);
+            reached.Contains(deployment.DepartureIndex) && (extraLocations?.All(reached.Contains) ?? true);
     }
 }
