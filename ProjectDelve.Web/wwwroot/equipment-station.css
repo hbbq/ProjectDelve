@@ -3,6 +3,11 @@ body:has(#equipment-station-dialog[open]) { position: fixed; inset: 0; width: 10
 .equipment-station { width: min(1400px, 96vw); max-width: 96vw; max-height: 92dvh; padding: 1.4rem; border: 1px solid #bca06b; border-radius: 6px; background: #1b2722; color: #eee6d2; overflow: auto; font-size: .84rem; }
 .equipment-station { overscroll-behavior: contain; touch-action: pan-y; }
 .equipment-station::backdrop { background: #080e14d9; }
+.paid-machine { width: min(30rem, 94vw); height: fit-content; max-height: 90dvh; box-sizing: border-box; margin: auto; }
+html:has(.paid-machine[open]), body.playing:has(.paid-machine[open]) { height: 100dvh; max-height: 100dvh; overflow: hidden; overscroll-behavior: none; }
+.paid-machine section { margin: .75rem 0; padding: .75rem; border: 1px solid #bca06b55; border-radius: 5px; }
+.paid-machine section h3, .paid-machine section p { margin: 0 0 .4rem; }
+#paid-machine-message:empty { display: none; }
 .equipment-station h2 { margin: 0; font: 400 1.65rem/1.25 Georgia, serif; color: #f0d9ab; }
 .equipment-station > p { margin: .5rem 0; }
 .equipment-station summary { cursor: pointer; color: #d6ba81; }
@@ -16,7 +21,12 @@ body:has(#equipment-station-dialog[open]) { position: fixed; inset: 0; width: 10
 .station-object { display: grid; gap: .3rem; padding: .65rem; margin-bottom: .6rem; background: #bca06b0d; border: 1px solid #bca06b25; border-radius: 4px; overflow-wrap: anywhere; }
 .station-object p { margin: .2rem 0; }
 .station-object label { display: grid; gap: .3rem; }
-.equipment-station select, .station-actions button { min-height: 44px; max-width: 100%; }
+.equipment-station select, .equipment-station button { min-height: 44px; max-width: 100%; }
+.station-credits { padding: .75rem; border: 1px solid #bca06b77; color: #f0d9ab; font-variant-numeric: tabular-nums; }
+.station-sales { border: 1px solid #bca06b55; border-radius: 5px; padding: .8rem; margin-bottom: 1rem; }
+.station-sales[hidden] { display: none; }
+.station-sales h3 { margin-top: 0; }
+.station-sales .station-object { display: inline-grid; vertical-align: top; width: min(100%, 22rem); box-sizing: border-box; margin-right: .6rem; }
 .station-stats { width: 100%; border-collapse: collapse; margin: .9rem 0; font-variant-numeric: tabular-nums; }
 .station-stats th, .station-stats td { padding: .3rem; border-bottom: 1px solid #49545a; text-align: right; }
 .station-stats th:first-child { text-align: left; }
@@ -35,6 +45,9 @@ body:has(#equipment-station-dialog[open]) { position: fixed; inset: 0; width: 10
 .station-negative { color: #ffb29c; }
 .station-normalized-label { font-size: .58rem; color: #b6bdac; letter-spacing: .12em; }
 .station-movement, .station-delta { font-size: .75rem; }
+.station-upgrade { width: 100%; margin: .45rem 0; border: 1px solid #bca06b88; background: #34463d; color: #f0d9ab; white-space: normal; }
+.station-upgrade[aria-pressed="true"] { background: #326e5c; border-color: #a9e0ae; }
+.station-live-hp { font-size: .78rem; color: #d6ba81; font-variant-numeric: tabular-nums; }
 .station-reserved { color: #f0d9ab; padding: .6rem; border-left: 3px solid #d6ba81; background: #bca06b12; }
 #equipment-station-diagnostics:empty { display: none; }
 #equipment-station-diagnostics { color: #ffcd95; }
@@ -44,6 +57,8 @@ body:has(#equipment-station-dialog[open]) { position: fixed; inset: 0; width: 10
   /* The mobile board normally extends below the viewport down to its field guide. */
   body.playing:has(#equipment-station-dialog[open]) #playtest-main { height: 100dvh; overflow: clip; contain: strict; }
   .equipment-station { width: 100%; max-width: 100%; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; padding: 1rem; box-sizing: border-box; }
+  .paid-machine { width: min(94vw, 30rem); height: fit-content; max-height: 92dvh; margin: auto; border-radius: 6px; }
+  body.playing:has(.paid-machine[open]) #playtest-main { height: 100dvh; overflow: clip; contain: strict; }
   .station-focus-label { display: grid; gap: .3rem; margin: .65rem 0; }
   .station-unit[data-focused="false"] { display: none; }
   .station-roster { display: block; }

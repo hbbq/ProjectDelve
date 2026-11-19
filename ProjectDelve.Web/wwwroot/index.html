@@ -149,7 +149,9 @@
     <section id="expedition-bar" hidden aria-label="Current Expedition"></section>
     <section class="play-status" aria-label="Current play status">
       <p id="status" aria-live="polite">Loading...</p>
-      <div id="active-token"></div><div id="active-unit"></div>
+        <div id="active-token"></div><div id="active-unit"></div>
+        <div id="side-credits" aria-live="polite"></div>
+        <div id="expedition-party-size" aria-live="polite" hidden></div>
       <details class="bag-disclosure"><summary id="bag-count" data-tooltip-source="bag">Activation Bag</summary>
         <div id="bag" aria-label="Remaining Activation Bag membership"></div>
       </details>
@@ -456,6 +458,17 @@
           <details><summary>About preview and Quick Play</summary><p class="legend">This is an omniscient authoring preview. Quick Play adds five Human Heroes with Fog of War and No Objective, preserving your selected Loot deck and supply; Back to Designer returns to the original world. A world code is a recipe; DELVE1 preserves the exact scenario.</p></details>
         </div>
       </section>
+    </div>
+  </dialog>
+  <dialog id="paid-machine-dialog" class="equipment-station paid-machine" aria-labelledby="paid-machine-title">
+    <h2 id="paid-machine-title" tabindex="-1"></h2>
+    <p id="paid-machine-account" class="station-credits"></p>
+    <div id="paid-machine-offers"></div>
+    <p>Confirm spends one Action. Cancel is free.</p>
+    <p id="paid-machine-message" role="status"></p>
+    <div class="station-actions">
+      <button id="paid-machine-cancel" type="button">Cancel</button>
+      <button id="paid-machine-save" type="button" hidden>Save Expedition</button>
     </div>
   </dialog>
 </body>

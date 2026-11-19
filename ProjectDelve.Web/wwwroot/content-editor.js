@@ -158,11 +158,11 @@ export function mountContentEditor(root, options) {
   }
   function renderAbility(ability, index) {
     const card = node('section', 'ce-ability'); card.dataset.abilityKey = ability.key;
-    const path = ['localAbilities', index], mechanic = state.mechanic(ability.mechanic?.kind);
+    const path = [...state.abilityPath, index], mechanic = state.mechanic(ability.mechanic?.kind);
     const header = node('div', 'ce-list-heading'); header.append(node('h5', '', `Ability ${index + 1}`), button('Remove Ability', () => { state.removeAbility(index); changed(); render(); }, 'ce-text-button'));
     for (const [label, direction] of [['Move up', -1], ['Move down', 1]]) {
       const move = button(label, () => { if (state.moveAbility(index, direction)) { changed(); render(); } }, 'ce-text-button');
-      move.disabled = index + direction < 0 || index + direction >= state.definition.localAbilities.length;
+      move.disabled = index + direction < 0 || index + direction >= state.localAbilities.length;
       move.setAttribute('aria-label', `${label} Ability ${index + 1}`); header.append(move);
     }
     const lockedKey = state.existingAbilities.has(ability);
@@ -223,7 +223,7 @@ export function mountContentEditor(root, options) {
     registerContainer(path, card); return card;
   }
   function renderCosts(ability, abilityIndex) {
-    const path = ['localAbilities', abilityIndex, 'costs'], costs = ability.costs ?? [];
+    const path = [...state.abilityPath, abilityIndex, 'costs'], costs = ability.costs ?? [];
     const section = node('section', 'ce-costs'); section.append(node('h5', '', 'Costs'), text('Costs are retained in the order shown. Validate to see Engine-generated Ability text.'));
     const available = state.availableCosts(ability);
     costs.forEach((cost, index) => {
@@ -251,7 +251,7 @@ export function mountContentEditor(root, options) {
     choice.dataset.costChoice = String(abilityIndex); choice.setAttribute('aria-label', `Cost for Ability ${abilityIndex + 1}`); choice.disabled = !available.length;
     const add = button('Add Cost', () => {
       if (state.addCost(abilityIndex, choice.value)) {
-        changed(); render(); controls.get(contentFieldPath([...path, state.definition.localAbilities[abilityIndex].costs.length - 1, 'kind']))?.focus();
+        changed(); render(); controls.get(contentFieldPath([...path, state.localAbilities[abilityIndex].costs.length - 1, 'kind']))?.focus();
       }
     });
     add.dataset.addCost = String(abilityIndex); add.disabled = !available.length;
@@ -259,16 +259,56 @@ export function mountContentEditor(root, options) {
     if (!available.length) section.append(text('No editable Costs are supported for this mechanic, source, timing and usage.'));
     registerContainer(path, section, true); return section;
   }
+  function renderLevels() {
+    const group = node('section', 'ce-section');
+    const choose = select(Array.from({ length: state.levelCount }, (_, i) => ({ value: String(i + 1), label: `Level ${i + 1}` })),
+      String(state.level), value => { state.level = Number(value); render(); });
+    choose.id = 'content-editor-level'; choose.setAttribute('aria-label', 'Level to edit');
+    const add = button('Add next Level', () => { state.addLevel(); changed(); render(); });
+    add.id = 'content-editor-add-level';
+    const actions = node('div', 'ce-list-heading'); actions.append(choose, add);
+    if (state.level === state.levelCount && state.level > 1) {
+      const remove = button(`Remove Level ${state.level}`, () => { state.removeLastLevel(); changed(); render(); }, 'ce-text-button');
+      remove.id = 'content-editor-remove-level'; actions.append(remove);
+    }
+    const shared = state.family === 'units' ? 'Identity, Unique, footprint and ownership apply at every Level.' : 'Sell Value applies at every Level.';
+    group.append(node('h4', '', 'Levels'), actions, text(`Each new Level starts with a copy of the highest Level. ${shared}`));
+    if (state.level > 1) {
+      const path = [...state.levelPath, 'upgradeCost'];
+      const cost = input('number', state.get(path), value => set(path, value === '' ? undefined : Number(value)));
+      cost.id = 'content-editor-upgrade-cost'; cost.min = 0; cost.max = 2147483647; cost.step = 1;
+      group.append(field('Upgrade cost (Credits)', cost, path, 'Leave blank to keep this Level unavailable for purchase. Zero offers a free upgrade that still uses the Station Action.'));
+    }
+    form.append(group);
+  }
+  function renderModifiers() {
+    const fields = [['moveCountModifier', 'Moves per activation modifier'], ['actionCountModifier', 'Actions per activation modifier'],
+      ['bonusActionUseCountModifier', 'Uses per Bonus Action modifier']];
+    if (state.family === 'equipment') fields.unshift(['maxHpModifier', 'Maximum HP modifier']);
+    const section = group(`Level ${state.level} modifiers`);
+    for (const [key, label] of fields) {
+      const path = [...state.levelPath, key];
+      const control = input('number', state.get(path) ?? 0, value => set(path, value === '' ? undefined : Number(value)));
+      control.step = 1; section.append(field(label, control, path));
+    }
+    form.append(section);
+  }
   function renderEquipment() {
-    const section = group(['units', 'items'].includes(state.family) ? 'Abilities' : 'Abilities, modifiers & capabilities', text(state.family === 'items' ? 'Each declaration owns its name, timing and mechanic. Use consumes one physical Item; choose an Ability when using an Item with multiple Abilities.' : 'Each declaration owns its name, timing and mechanic. Passive modifiers and capabilities use this same list.'));
-    state.definition.localAbilities.forEach((ability, index) => section.append(renderAbility(ability, index)));
+    if (state.level === 1 && ['equipment', 'items'].includes(state.family)) {
+      const sellValue = input('number', state.definition.sellValue, value => set(['sellValue'], value === '' ? null : Number(value)));
+      sellValue.id = 'content-editor-sell-value'; sellValue.min = 0; sellValue.step = 1;
+      form.append(group('Equipment Station sale', field('Sell Value (Credits)', sellValue, ['sellValue'], 'Leave blank to make this Type unsellable. Zero allows a sale for no Credits.')));
+    }
+    if (state.family !== 'items') renderModifiers();
+    const section = group(state.family === 'items' ? 'Abilities' : `Level ${state.level} Abilities`, text(state.family === 'items' ? 'Each declaration owns its name, timing and mechanic. Use consumes one physical Item; choose an Ability when using an Item with multiple Abilities.' : 'Each declaration owns its name, timing and mechanic. Passive modifiers and capabilities use this same list.'));
+    state.localAbilities.forEach((ability, index) => section.append(renderAbility(ability, index)));
     const available = state.supportedMechanics().filter(mechanic => state.canAdd(mechanic));
     const choice = select(available.map(mechanic => ({ value: mechanic.id, label: mechanic.name })), available[0]?.id, () => {});
     choice.id = 'content-editor-add-mechanic'; choice.setAttribute('aria-label', 'Mechanic for new Ability');
-    const add = button('Add Ability', () => { if (state.addAbility(choice.value)) { changed(); render(); controls.get(contentFieldPath(['localAbilities', state.definition.localAbilities.length - 1, 'name']))?.focus(); } });
+    const add = button('Add Ability', () => { if (state.addAbility(choice.value)) { changed(); render(); controls.get(contentFieldPath([...state.abilityPath, state.localAbilities.length - 1, 'name']))?.focus(); } });
     add.id = 'content-editor-add-ability'; add.disabled = !available.length;
     const additions = node('div', 'ce-add-ability'); additions.append(choice, add); section.append(additions);
-    registerContainer(['localAbilities'], section); form.append(section);
+    registerContainer(state.abilityPath, section); form.append(section);
   }
   function renderLoot() {
     const section = group('Reward', text('A Loot Card has exactly one reward. Equipment and Item rewards reference independent definitions.'));
@@ -285,26 +325,37 @@ export function mountContentEditor(root, options) {
   function renderUnit() {
     const metadata = state.catalog.unitAuthoring;
     if (!metadata) { form.append(text('Unit authoring metadata is unavailable. Reload the content catalog.')); return; }
-    const stats = group('Stats');
-    for (const schema of metadata.stats ?? []) stats.append(parameter({ ...schema, required: true }, [schema.name], schema.name.toUpperCase()));
-    const movement = group('Movement & footprint');
+    const stats = group(`Level ${state.level} stats`);
+    for (const schema of metadata.stats ?? []) stats.append(parameter({ ...schema, required: true }, [...state.levelPath, schema.name], schema.name.toUpperCase()));
+    const movement = group(state.level === 1 ? 'Movement & footprint' : 'Movement');
     const capabilities = group('Capabilities', text('Open Door, Phase and other granted capabilities are declared in Abilities.'));
     const loot = group('Loot');
     const resources = group('Resources');
-    const automation = group('Automation', text('Preferences for automated decisions; these do not change legality.'));
+    const automation = group(state.level === 1 ? 'Automation' : 'Attack order', text('Preferences for automated decisions; these do not change legality.'));
     const fields = metadata.fields ?? [];
     const sections = { unique: stats, footprint: movement, movementPattern: movement, terrainRestrictedMovement: movement,
       terrainRestriction: movement, wakeDistance: capabilities, canHaveItems: capabilities, canHaveEquipment: capabilities, lootDropSuccesses: loot,
+      creditsDropSuccesses: loot, creditsDropAmount: loot,
       resourceStorage: resources, attackDefinitionOrder: automation, defaultController: automation, amphibious: movement, baseMovementCapabilities: movement };
-    for (const schema of fields) (sections[schema.name] ?? stats).append(parameter(schema, [schema.name]));
+    const levelFields = ['movementPattern', 'amphibious', 'baseMovementCapabilities', 'terrainRestrictedMovement', 'terrainRestriction', 'attackDefinitionOrder'];
+    for (const schema of fields) {
+      if (['actionCountModifier', 'moveCountModifier', 'bonusActionUseCountModifier'].includes(schema.name)) continue;
+      if (state.level === 1 || levelFields.includes(schema.name)) (sections[schema.name] ?? stats).append(parameter(schema, [...state.levelPath, schema.name]));
+    }
     // Metadata owns enum choices and bounds; these controls only select declarations.
-    if (!fields.some(schema => schema.name === 'footprint')) movement.append(parameter({ name: 'footprint', kind: 'Enum', required: true, allowedValues: metadata.footprints }, ['footprint']));
-    if (!fields.some(schema => schema.name === 'movementPattern')) movement.append(parameter({ name: 'movementPattern', kind: 'Enum', allowNull: true, allowedValues: metadata.movementPatterns }, ['movementPattern']));
-    const flags = String(state.definition.actions ?? 'None').split(',').map(value => value.trim());
+    if (state.level === 1 && !fields.some(schema => schema.name === 'footprint')) movement.append(parameter({ name: 'footprint', kind: 'Enum', required: true, allowedValues: metadata.footprints }, ['footprint']));
+    if (!fields.some(schema => schema.name === 'movementPattern')) movement.append(parameter({ name: 'movementPattern', kind: 'Enum', allowNull: true, allowedValues: metadata.movementPatterns }, [...state.levelPath, 'movementPattern']));
+    const actionPath = [...state.levelPath, 'actions'];
+    const flags = String(state.levelDefinition.actions ?? 'NormalAttack').split(',').map(value => value.trim());
     capabilities.append(field('Normal Attack', select([{ value: 'true', label: 'Available' }, { value: 'false', label: 'Unavailable' }], String(flags.includes('NormalAttack')), value => {
       const next = flags.filter(flag => flag !== 'NormalAttack' && flag !== 'None');
-      if (value === 'true') next.unshift('NormalAttack'); set(['actions'], next.join(', ') || 'None', true);
-    }), ['actions'], 'Other Actions are granted by their Ability declarations.'));
+      if (value === 'true') next.unshift('NormalAttack'); set(actionPath, next.join(', ') || 'None', true);
+    }), actionPath, 'Other Actions are granted by their Ability declarations.'));
+    form.append(stats, movement, capabilities); renderEquipment();
+    if (state.level > 1) {
+      if (fields.some(schema => schema.name === 'attackDefinitionOrder')) form.append(automation);
+      return;
+    }
     const selected = String(state.definition.behaviors ?? 'None').split(',').map(value => value.trim());
     for (const behavior of metadata.behaviors ?? []) {
       if (behavior.value === 'None') continue;
@@ -313,7 +364,11 @@ export function mountContentEditor(root, options) {
         if (value === 'true') next.push(behavior.value); set(['behaviors'], next.join(', ') || 'None', true);
       }), ['behaviors', behavior.value]));
     }
-    form.append(stats, movement, capabilities); renderEquipment(); form.append(loot, resources, automation);
+    form.append(loot, resources, automation);
+    const price = input('number', state.definition.recruitmentCost, value => set(['recruitmentCost'], value === '' ? null : Number(value)));
+    price.id = 'content-editor-recruitment-cost'; price.min = 0; price.max = 2147483647; price.step = 1;
+    form.append(group('Expedition recruitment', field('Recruitment cost (Credits)', price, ['recruitmentCost'],
+      'Leave blank to omit this Type from Station recruitment. Enter 0 for a free recruit.')));
   }
   function renderTerrain() {
     const section = group('Terrain', text('The Engine validates these properties and resolves assembly components.'));
@@ -348,6 +403,7 @@ export function mountContentEditor(root, options) {
     const name = input('text', state.definition[nameField], value => set([nameField], value)); name.id = 'content-editor-name';
     const identity = node('div', 'ce-two-columns'); identity.append(field(state.family === 'lootCards' ? 'Card ID' : 'Type ID', id, ['id'], state.existingId ? 'Existing identity stays fixed.' : 'Choose a new, stable ID distinct from canonical content.'), field('Name', name, [nameField]));
     form.append(group('Identity', identity));
+    if (['units', 'equipment'].includes(state.family)) renderLevels();
     if (['terrain', 'terrainAssemblies'].includes(state.family)) renderTerrain(); else if (state.family === 'units') renderUnit(); else if (['equipment', 'items'].includes(state.family)) renderEquipment(); else renderLoot();
     renderDiagnostics(); renderPreview(); updateStatus();
   }
@@ -378,7 +434,7 @@ export function mountContentEditor(root, options) {
   function renderPreview() {
     previewPanel.replaceChildren(node('h4', '', 'Engine preview'));
     if (!preview) { previewPanel.append(text('Validate to see the authoritative description and resolved references. Changes clear this preview until checked again.')); return; }
-    appendPreviewDefinition(previewPanel, preview);
+    appendPreviewDefinition(previewPanel, preview, state.level);
     for (const reference of preview.references ?? []) {
       const target = state.entries.find(entry => entry.key === reference.targetKey) ?? state.entries.find(entry => entry.family === reference.family && entry.id === reference.id);
       if (!reference.exists || !target) { previewPanel.append(text(`${reference.label}: ${reference.id} (unavailable)`)); continue; }
@@ -389,13 +445,18 @@ export function mountContentEditor(root, options) {
       appendPreviewDefinition(content, target); panel.append(text(reference.label), inspect, content); previewPanel.append(panel);
     }
   }
-  function appendPreviewDefinition(container, entry) {
+  function appendPreviewDefinition(container, entry, selectedLevel = 1) {
     container.append(node('h5', '', entry.name), node('code', '', entry.id));
-    if (entry.summary) container.append(node('p', '', entry.summary));
-    for (const ability of entry.abilities ?? []) {
+    const level = entry.levels?.find(value => value.level === selectedLevel);
+    if (!level && entry.summary) container.append(node('p', '', entry.summary));
+    if (level) container.append(node('h5', '', `Level ${level.level}`));
+    if (level?.level > 1) container.append(text(level.upgradeCost == null
+      ? 'Unavailable for purchase at an Equipment Station.'
+      : `Upgrade cost: ${level.upgradeCost} Credits`));
+    for (const ability of (level ?? entry).abilities ?? []) {
       const card = node('div', 'ce-preview-ability'); card.append(node('strong', '', ability.name), text(`${contentLabel(ability.timing)} · ${contentUsage(ability.usage)} · ${ability.key}`), node('p', '', ability.description)); container.append(card);
     }
-    for (const section of entry.sections ?? []) if (section.fields?.length) {
+    for (const section of (level ?? entry).sections ?? []) if (section.fields?.length) {
       const details = node('details'); details.append(node('summary', '', section.title));
       for (const field of section.fields) details.append(node('h6', '', field.label), readable(field.value)); container.append(details);
     }
@@ -407,7 +468,14 @@ export function mountContentEditor(root, options) {
       const result = await options.validate(state.request());
       if (version !== state.version || !opened) { notice = 'The form changed while validation was running. Validate the current values again.'; return false; }
       issues = result.diagnostics ?? []; preview = result.valid ? result.entry : null;
-      if (!result.valid) { notice = 'The definition needs attention.'; renderDiagnostics(); renderPreview(); return false; }
+      if (!result.valid) {
+        notice = 'The definition needs attention.';
+        const path = issues[0]?.path ?? '';
+        const level = path.match(/^definition\.additionalLevels\[(\d+)\]/);
+        if (level && Number(level[1]) + 2 <= state.levelCount) state.level = Number(level[1]) + 2;
+        else if (path.startsWith('definition.')) state.level = 1;
+        render(); return false;
+      }
       if (result.catalog) state.catalog = result.catalog;
       notice = 'Valid definition. Preview supplied by the Engine.'; renderPreview();
       if (save) {

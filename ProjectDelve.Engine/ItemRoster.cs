@@ -8,6 +8,7 @@ public static class ItemRoster
     {
         new("second-wind", "Second Wind")
         {
+            SellValue = 2,
             LocalAbilities = [new("use", "Second Wind", AbilityTiming.BonusAction, new ExtraActionsMechanic(Amount: 1))
             {
                 Usage = new(MaxUses: null)

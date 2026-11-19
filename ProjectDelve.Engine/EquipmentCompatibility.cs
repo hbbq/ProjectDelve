@@ -21,7 +21,7 @@ internal static class EquipmentCompatibility
                 inventory = inventory.Remove(item);
                 state.GroundObjects.Add(new(item, figure.Position));
             }
-            state.Units[index] = unit with { Inventory = inventory };
+            if (inventory != unit.Inventory) state.Units[index] = state.WithInventory(unit, inventory);
         }
     }
 }

@@ -7,12 +7,20 @@ namespace ProjectDelve.Engine;
 public sealed record ScenarioDefinition
 {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ExpeditionPartyRoster? Party { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ScenarioSetup? Setup { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<ScenarioContentReference>? ContentReferences { get; init; }
     public LootSettings? Loot { get; init; }
     public Dictionary<string, LootUnitOverride>? LootUnitOverrides { get; init; }
     public List<LootMarker>? LootMarkers { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<string, int>? SideCredits { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<CreditsPile>? CreditsPiles { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? AdditionalSideIds { get; init; }
     public List<GroundObject>? GroundObjects { get; init; }
     // Local definitions resolve with canonical content within this scenario/game only.
     public List<EquipmentDefinition>? EquipmentTypes { get; init; }
@@ -65,6 +73,9 @@ public sealed record UnitPlacement(string UnitTypeId, string SideId, Cell Anchor
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool Dormant = false, int? WakeDistance = null)
 {
     public List<OwnedObject>? Inventory { get; init; }
+    [JsonIgnore] public int Level { get; init; } = 1;
+    [JsonPropertyName("level"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? SerializedLevel { get => Level == 1 ? null : Level; init => Level = value ?? 1; }
 }
 public sealed record AgencyAssignment(string UnitTypeId, string SideId, ControllerKind Controller, string? GroupId = null);
 public sealed record InitialGroupOrder(string UnitTypeId, string SideId, OrderKind Kind, Cell? Destination = null,

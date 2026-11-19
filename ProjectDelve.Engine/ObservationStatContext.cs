@@ -17,9 +17,9 @@ internal sealed class ObservationStatContext
         var equipment = state.EquipmentTypes.ToDictionary(t => t.Id, StringComparer.Ordinal);
         foreach (var unit in state.Units.Where(u => u.CurrentHp > 0 && placed.Contains(u.Id)))
         {
-            var mechanics = types[unit.TypeId].LocalAbilities
-                .Concat(unit.Inventory.Select(state.EquipmentTypeId).OfType<string>()
-                    .SelectMany(id => equipment[id].LocalAbilities))
+            var mechanics = types[unit.TypeId].AtLevel(unit.Level).LocalAbilities
+                .Concat(unit.Inventory.Where(obj => state.EquipmentTypeId(obj) is not null)
+                    .SelectMany(obj => equipment[state.EquipmentTypeId(obj)!].AtLevel(obj.Level).LocalAbilities))
                 .Where(a => a.Timing == AbilityTiming.Passive &&
                     a.Mechanic is SelfModifiersMechanic or AdjacentUnitsStatModifiersMechanic)
                 .Select(a => a.Mechanic).ToArray();

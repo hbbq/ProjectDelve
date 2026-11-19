@@ -451,8 +451,13 @@ public static class WorldGenerationPipeline
                 throw new PlayReadyGenerationException(plan, "site-loot", context.ConstructionBoard!.Revision,
                     $"Completion registration {lootRegistration.Status}: {lootRegistration.Detail}", context.MandatoryRepair,
                     lootRegistration.Failures, completion: lootRegistration);
+            finalStage = "expedition-economy";
+            beforeStage?.Invoke(finalStage);
+            ExpeditionEconomyGenerator.Place(context);
             frames[^1] = frames[^1] with { SiteLootMarkers = context.SiteLootMarkers.ToArray(),
-                SiteLootStatistics = context.SiteLootStatistics, Population = context.Population };
+                SiteLootStatistics = context.SiteLootStatistics, Population = context.Population,
+                UnitAccessibility = context.UnitAccessibility,
+                Machines = context.ConstructionBoard?.State.Machines.ToArray() ?? [] };
             finalStage = "final-materialization";
             context.PublishedSetup = PlayReadyScenarioSetup.Publish(context);
             var finalDefinition = context.Materialize();

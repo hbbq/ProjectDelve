@@ -146,7 +146,7 @@ public static class AbilityContent
         }
         foreach (var unit in state.Units)
         {
-            var type = state.Types.Single(type => type.Id == unit.TypeId);
+            var type = state.UnitConfiguration(unit);
             var limited = AbilityQueries.NativeAbilities(type, unit.Id).Where(ability => ability.Definition.Usage.MaxUses is not null)
                 .ToDictionary(ability => ability.AccountingId, ability => ability.Definition.Usage.MaxUses!.Value);
             if (unit.AbilityUseCounts is null || unit.AbilityUseCounts.Any(pair => !limited.TryGetValue(pair.Key, out var max) || pair.Value < 0 || pair.Value > max))
@@ -158,8 +158,10 @@ public static class AbilityContent
         {
             if (obj is null || obj.AbilityUseCounts is null)
                 throw new ArgumentException("Physical objects require nonnull Ability use counters.");
+            if (state.EquipmentTypeId(obj) is null && obj.Level != 1)
+                throw new ArgumentException($"Object '{obj.Id}' cannot have Level {obj.Level}: only Equipment has Levels.");
             var limited = state.EquipmentTypeId(obj) is { } equipmentId
-                ? state.Equipment(equipmentId).LocalAbilities.Where(ability => ability.Usage.MaxUses is not null)
+                ? state.Equipment(equipmentId).AtLevel(obj.Level).LocalAbilities.Where(ability => ability.Usage.MaxUses is not null)
                     .ToDictionary(ability => ability.Key, ability => ability.Usage.MaxUses!.Value, StringComparer.Ordinal)
                 : new Dictionary<string, int>(StringComparer.Ordinal);
             if (obj.AbilityUseCounts.Any(pair => !limited.TryGetValue(pair.Key, out var max) || pair.Value < 0 || pair.Value > max))
@@ -180,6 +182,15 @@ public static class AbilityContent
         {
             Validate(equipment[index].LocalAbilities, AbilitySourceKind.Equipment, $"equipmentTypes[{index}].localAbilities");
             ValidateReferences(equipment[index].LocalAbilities, unitTypes, $"equipmentTypes[{index}].localAbilities");
+            var type = equipment[index];
+            if (!type.AdditionalLevels.IsDefaultOrEmpty)
+                for (int i = 0; i < type.AdditionalLevels.Length; i++)
+                {
+                    var path = $"equipmentTypes[{index}].additionalLevels[{i}].localAbilities";
+                    var abilities = type.AtLevel(i + 2).LocalAbilities;
+                    Validate(abilities, AbilitySourceKind.Equipment, path);
+                    ValidateReferences(abilities, unitTypes, path);
+                }
         }
         for (var index = 0; index < items.Count; index++)
         {
@@ -233,13 +244,13 @@ public static class AbilityQueries
     public static IEnumerable<ResolvedAbility> AbilitiesOf(this GameState state, string unitId)
     {
         var unit = state.Units.Single(unit => unit.Id == unitId);
-        var type = state.Types.Single(type => type.Id == unit.TypeId);
+        var type = state.UnitConfiguration(unit);
         foreach (var ability in NativeAbilities(type, unit.Id)) yield return ability;
         foreach (var obj in unit.Inventory)
         {
             if (state.EquipmentTypeId(obj) is { } equipmentId)
             {
-                var equipment = state.Equipment(equipmentId);
+                var equipment = state.Equipment(equipmentId).AtLevel(obj.Level);
                 foreach (var ability in equipment.LocalAbilities)
                     yield return new(ability, AbilitySourceKind.Equipment, equipment.Id, obj.Id, equipment.Name);
             }
@@ -279,18 +290,20 @@ public static class AbilityQueries
             AdjacentUnitsStatModifiersMechanic adjacent => adjacent.Modifiers.Any(modifier => modifier.Stat == stat),
             _ => false
         });
-        if (!state.Types.Any(type => type.LocalAbilities.Any(Relevant)) &&
-            !state.EquipmentTypes.Any(type => type.LocalAbilities.Any(Relevant))) return 0;
+        if (!state.Types.Any(type => type.LocalAbilities.Any(Relevant) ||
+                !type.AdditionalLevels.IsDefaultOrEmpty && type.AdditionalLevels.Any(l => l.LocalAbilities.Any(Relevant))) &&
+            !state.EquipmentTypes.Any(type => type.LocalAbilities.Any(Relevant) ||
+                !type.AdditionalLevels.IsDefaultOrEmpty && type.AdditionalLevels.Any(l => l.LocalAbilities.Any(Relevant)))) return 0;
         var target = state.Units.Single(unit => unit.Id == unitId);
         if (target.CurrentHp <= 0 || !state.Physical.Figures.Any(figure => figure.Id == unitId)) return 0;
         IEnumerable<AbilityMechanic> Passives(Unit source)
         {
-            var type = state.Types.Single(type => type.Id == source.TypeId);
+            var type = state.UnitConfiguration(source);
             foreach (var ability in type.LocalAbilities)
                 if (ability.Timing == AbilityTiming.Passive) yield return ability.Mechanic;
             foreach (var obj in source.Inventory)
                 if (state.EquipmentTypeId(obj) is { } id)
-                    foreach (var ability in state.Equipment(id).LocalAbilities)
+                    foreach (var ability in state.Equipment(id).AtLevel(obj.Level).LocalAbilities)
                         if (ability.Timing == AbilityTiming.Passive) yield return ability.Mechanic;
         }
         var total = 0;

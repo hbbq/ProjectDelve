@@ -12,7 +12,7 @@ test('Loot authoring retains individual identity through history, recovery and p
   run(`globalThis.draft = new DesignerDraft({maxBoardSize:50, unitTypes:[{unitTypeId:'unit',cellSpan:1,footprintOffsets:[{x:0,y:0}],definition:{id:'unit',mov:2,rng:1,atk:1,def:0,hp:1}}]});
     draft.place('unit','blue','Human',{x:1,y:1});
     globalThis.history = new DesignerHistory(draft); history.begin();
-    draft.configureLootType('unit',4,true,true);
+    draft.configureLootType('unit',4,true,true,2,7);
     draft.setLootDeck([{kind:'LuckyBoots',count:2},{kind:'PocketBreakfast',count:1}]);
     draft.setLootMarkers({x:2,y:1},2);
     draft.addObject('SecondWind',{unitKey:draft.unitKeys[0]});
@@ -21,12 +21,14 @@ test('Loot authoring retains individual identity through history, recovery and p
   const authored = plain(run('draft.snapshot()'));
   assert.equal(authored.units[0].inventory[0].kind, 'SecondWind');
   assert.equal(authored.lootUnitOverrides.unit.dropSuccesses,4);
+  assert.equal(authored.lootUnitOverrides.unit.creditsDropSuccesses,2);
+  assert.equal(authored.lootUnitOverrides.unit.creditsDropAmount,7);
   assert.notEqual(authored.groundObjects[0].object.id,authored.units[0].inventory[0].id);
   run('history.undo()'); assert.equal(run('draft.definition.loot.preset'), 'Classic');
   run('history.redo()'); assert.deepEqual(plain(run('draft.snapshot()')),authored);
   const restored = run('readDraftDocument(JSON.stringify(draftDocument(draft.snapshot())))');
   assert.deepEqual(plain(restored.definition),authored);
-  run(`globalThis.playtest = draft.snapshot(); playtest.units[0].inventory.length=0; playtest.loot.composition.length=0;`);
+  run(`globalThis.playtest = draft.snapshot(); playtest.units[0].inventory.length=0; playtest.loot.composition.length=0; playtest.lootUnitOverrides.unit.creditsDropAmount=100;`);
   assert.deepEqual(plain(run('draft.snapshot()')),authored);
   assert.throws(()=>run('draft.resize(2,2)'),/Shrinking/);
 });
@@ -58,6 +60,34 @@ test('zero drop overrides are explicit and default reset removes only optional s
   assert.equal(run('live.snapshot().unitTypes'),undefined);
   run(`live.configureLootType('unit',null,null,null)`);
   assert.equal(run('live.snapshot().lootUnitOverrides'),undefined);
+});
+
+test('Credits drop overrides retain explicit zero, legacy edits and scalar validation without changing the draft on failure', () => {
+  run(`live.configureLootType('unit',null,null,null,0,0)`);
+  assert.deepEqual(plain(run('live.snapshot().lootUnitOverrides')), {unit:{creditsDropSuccesses:0,creditsDropAmount:0}});
+  run(`live.configureLootType('unit',2,true,null)`);
+  const saved = plain(run('live.snapshot()'));
+  assert.deepEqual(saved.lootUnitOverrides.unit,{dropSuccesses:2,canHaveItems:true,creditsDropSuccesses:0,creditsDropAmount:0});
+  for (const value of [-1,7,1.5]) assert.throws(() => run(`live.configureLootType('unit',2,true,null,${value},3)`), /Credits drop successes/);
+  for (const value of [-1,2147483648,1.5]) assert.throws(() => run(`live.configureLootType('unit',2,true,null,1,${value})`), /Credits drop amount/);
+  assert.deepEqual(plain(run('live.snapshot()')),saved);
+  run(`live.configureLootType('unit',null,null,null,null,null)`);
+  assert.equal(run('live.snapshot().lootUnitOverrides'),undefined);
+});
+
+test('live Credits inheritance is retained through old callers, recovery and history without copying Type values', () => {
+  run(`globalThis.inheriting = new DesignerDraft({maxBoardSize:50,unitTypes:[]});
+    globalThis.inheritingHistory = new DesignerHistory(inheriting);
+    inheritingHistory.begin(); inheriting.configureLootType('unit',2,null,null,null,null,true); inheritingHistory.finish();`);
+  const overrides = {unit:{dropSuccesses:2,inheritCreditsDrop:true}};
+  assert.deepEqual(plain(run('inheriting.snapshot().lootUnitOverrides')),overrides);
+  run('inheritingHistory.undo()'); assert.equal(run('inheriting.definition.lootUnitOverrides'),undefined);
+  run('inheritingHistory.redo()');
+  assert.deepEqual(plain(run('readDraftDocument(JSON.stringify(draftDocument(inheriting.snapshot()))).definition.lootUnitOverrides')),overrides);
+  run(`inheriting.configureLootType('unit',2,true,null)`);
+  assert.equal(run('inheriting.definition.lootUnitOverrides.unit.inheritCreditsDrop'),true);
+  run(`inheriting.configureLootType('unit',2,null,null,0,0,false)`);
+  assert.deepEqual(plain(run('inheriting.snapshot().lootUnitOverrides')),{unit:{dropSuccesses:2,creditsDropSuccesses:0,creditsDropAmount:0}});
 });
 
 test('live deck multiplier survives recovery and Copy to Custom copies scaled quantities', () => {

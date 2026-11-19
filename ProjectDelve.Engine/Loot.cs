@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 
 namespace ProjectDelve.Engine;
 
@@ -8,6 +9,9 @@ public enum LootCategory { Immediate, Item, Equipment }
 [method: System.Text.Json.Serialization.JsonConstructor]
 public sealed record OwnedObject(string Id, LootCardKind Kind = LootCardKind.PocketBreakfast)
 {
+    [JsonIgnore] public int Level { get; init; } = 1;
+    [JsonPropertyName("level"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? SerializedLevel { get => Level == 1 ? null : Level; init => Level = value ?? 1; }
     public string? ItemTypeId { get; init; }
     public string? LootCardId { get; init; }
     public string? EquipmentTypeId { get; init; }
@@ -153,7 +157,10 @@ public sealed record LootSettings
         return rows.SelectMany(r => Enumerable.Repeat(r.Kind, r.Count)).ToList();
     }
 }
-public sealed record LootUnitOverride(int? DropSuccesses = null, bool? CanHaveItems = null, bool? CanHaveEquipment = null);
+public sealed record LootUnitOverride(int? DropSuccesses = null, bool? CanHaveItems = null, bool? CanHaveEquipment = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? CreditsDropSuccesses = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? CreditsDropAmount = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool InheritCreditsDrop = false);
 public sealed class LootDeck
 {
     public List<OwnedObject> DrawPile { get; set; } = [];
@@ -163,6 +170,17 @@ public sealed class LootDeck
 
 internal static class LootRules
 {
+    internal static void ValidateDrop(UnitType type)
+    {
+        void Require(bool valid, string path, string message)
+        { if (!valid) throw ScenarioValidationContext.At(new ArgumentException(message), path); }
+        Require(type.LootDropSuccesses is >= 0 and <= 6, "lootDropSuccesses", "Loot drops require 0 through 6 success faces.");
+        Require(type.CreditsDropSuccesses is >= 0 and <= 6, "creditsDropSuccesses", "Credits drops require 0 through 6 success faces.");
+        Require(type.LootDropSuccesses + type.CreditsDropSuccesses <= 6, "creditsDropSuccesses", "Combined drop successes cannot exceed 6.");
+        Require(type.CreditsDropAmount >= 0 && (type.CreditsDropSuccesses == 0 || type.CreditsDropAmount > 0),
+            "creditsDropAmount", "Enabled Credits drops require a positive amount; disabled amounts must be nonnegative.");
+    }
+
     private static void ValidateCardProvenance(GameState state, OwnedObject obj)
     {
         if (obj.LootCardId is not { } id) return;
@@ -182,8 +200,7 @@ internal static class LootRules
         AbilityContent.ValidateState(state);
         if (state.LootMarkers.Count > (state.LootDeck?.DrawPile.Count ?? 0))
             throw new ArgumentException("Every unopened Loot marker requires an available draw card.");
-        if (state.Types.Any(t => t.LootDropSuccesses is < 0 or > 6))
-            throw new ArgumentException("Loot drop successes must be between 0 and 6.");
+        foreach (var type in state.Types) ValidateDrop(type);
         if (state.GroundObjects.Any(g => g is null || g.Object is null))
             throw new ArgumentException("Known ground objects require an object card.");
         var objects = (state.LootDeck?.DrawPile ?? []).Concat(state.LootDeck?.DiscardPile ?? [])

@@ -59,7 +59,7 @@ public sealed class ExpeditionPartyTests
     }
 
     [Fact]
-    public void DeclaresAllOriginalsWithHumanAgencyFogAndTwoExplicitExitSelectors()
+    public void DeclaresAllOriginalsWithHumanAgencyFogAndDynamicPartyExitSelector()
     {
         var content = Content(); var terrain = Terrain();
         var prepared = ExpeditionParty.Prepare(terrain, content, Exit, Heroes, null);
@@ -72,8 +72,11 @@ public sealed class ExpeditionPartyTests
         Assert.NotEmpty(state.ExploredCells[ExpeditionParty.SideId]);
         var objective = Assert.Single(state.Objectives, o => o.SideId == ExpeditionParty.SideId);
         Assert.Equal(ScenarioObjective.ReachArea, objective.Objective); Assert.Equal(2, objective.Count); Assert.Equal(Exit, objective.Area);
-        Assert.Equal(Heroes.Select(h => h.InstanceId), objective.Selectors.Select(s => s.UnitId));
-        Assert.All(objective.Selectors, s => Assert.Equal(UnitSelectorKind.Unit, s.Kind));
+        var selector = Assert.Single(objective.Selectors);
+        Assert.Equal(UnitSelectorKind.Party, selector.Kind);
+        Assert.Equal(ExpeditionParty.SideId, selector.SideId);
+        Assert.Equal(Heroes.Select(h => h.InstanceId), state.Party!.MemberIds);
+        Assert.Equal(ExpeditionParty.InitialCapacity, state.Party.Capacity);
         Assert.All(state.Objectives.Where(o => o.SideId != ExpeditionParty.SideId), o => Assert.Equal(ScenarioObjective.NoObjective, o.Objective));
         Assert.Equal(0, state.Round);
     }

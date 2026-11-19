@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace ProjectDelve.Engine;
 
 public enum ScenarioObjective { EliminateEnemies, ReachArea, DefeatUnits, NoObjective }
-public enum UnitSelectorKind { Unit, SideAtStart, Group }
+public enum UnitSelectorKind { Unit, SideAtStart, Group, Party }
 public sealed record UnitSelector(UnitSelectorKind Kind,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? UnitId = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? SideId = null,
@@ -13,6 +13,7 @@ public sealed record UnitSelector(UnitSelectorKind Kind,
 {
     public static UnitSelector ForUnit(string unitId) => new(UnitSelectorKind.Unit, UnitId: unitId);
     public static UnitSelector SideAtStart(string sideId) => new(UnitSelectorKind.SideAtStart, SideId: sideId);
+    public static UnitSelector Party(string sideId) => new(UnitSelectorKind.Party, SideId: sideId);
     public static UnitSelector Group(string unitTypeId, string sideId, string? groupId = null) => new(UnitSelectorKind.Group, SideId: sideId, UnitTypeId: unitTypeId, GroupId: groupId);
 }
 public sealed record ObjectiveArea(int X, int Y, int W, int H);
@@ -204,11 +205,13 @@ public sealed record AbilityUses
     }
 }
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int Hp,
+public sealed partial record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int Hp,
     UnitAction Actions = UnitAction.NormalAttack, UnitBehavior Behaviors = UnitBehavior.None)
 {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ControllerKind? DefaultController { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? RecruitmentCost { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool Amphibious { get; init; }
     public ImmutableArray<string> BaseMovementCapabilities { get; init; } = MovementKinds.Default;
@@ -217,6 +220,10 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public bool CanHaveItems { get; init; }
     public bool CanHaveEquipment { get; init; }
     public int LootDropSuccesses { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public int CreditsDropSuccesses { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public int CreditsDropAmount { get; init; }
     public ImmutableArray<UnitAction> AttackDefinitionOrder { get; init; } = [];
     public bool Unique { get; init; }
     public Footprint Footprint { get; init; } = Footprint.OneByOne;
@@ -249,8 +256,9 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType Hero(string id, int mov, int rng, int atk, int def, int hp) =>
         new(id, mov, rng, atk, def, hp);
 
-    public Unit CreateUnit(string id, string sideId) => new(id, Id, sideId, Hp)
-        { WakeDistance = WakeDistance ?? DormantRules.DefaultWakeDistance };
+    public Unit CreateUnit(string id, string sideId) => CreateUnit(id, sideId, ConfigurationLevel);
+    public Unit CreateUnit(string id, string sideId, int level) => new(id, Id, sideId, AtLevel(level).Hp)
+        { Level = level, WakeDistance = WakeDistance ?? DormantRules.DefaultWakeDistance };
 
     public static UnitType Define(string id, string name, UnitAuthoring.BaseStats stats, params UnitAuthoring.Entry[] entries) =>
         UnitAuthoring.Define(id, name, stats, entries);
@@ -261,6 +269,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType CastleGuard(string id = UnitTypeIds.CastleGuard) => UnitRoster.CastleGuard(id);
     public static UnitType TowerTroll(string id = UnitTypeIds.TowerTroll) => UnitRoster.TowerTroll(id);
     public static UnitType Barbarian(string id = UnitTypeIds.Barbarian) => UnitRoster.Barbarian(id);
+    public static UnitType Tycoon(string id = UnitTypeIds.Tycoon) => UnitRoster.Tycoon(id);
     public static UnitType Rogue(string id = UnitTypeIds.Rogue) => UnitRoster.Rogue(id);
     public static UnitType Cleric(string id = UnitTypeIds.Cleric) => UnitRoster.Cleric(id);
     public static UnitType Wizard(string id = UnitTypeIds.Wizard) => UnitRoster.Wizard(id);
@@ -280,6 +289,9 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
 }
 public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp, string? GroupId = null) : IJsonOnDeserialized
 {
+    [JsonIgnore] public int Level { get; init; } = 1;
+    [JsonPropertyName("level"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? SerializedLevel { get => Level == 1 ? null : Level; init => Level = value ?? 1; }
     public string? SummonerUnitId { get; init; }
     void IJsonOnDeserialized.OnDeserialized()
     {
@@ -411,12 +423,47 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
         get => EquipmentTransfers.IsDefaultOrEmpty ? null : EquipmentTransfers;
         init => EquipmentTransfers = value ?? [];
     }
+    [JsonIgnore] public ImmutableArray<EquipmentSale> EquipmentSales { get; init; } = [];
+    [JsonPropertyName("equipmentSales"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ImmutableArray<EquipmentSale>? SerializedEquipmentSales
+    {
+        get => EquipmentSales.IsDefaultOrEmpty ? null : EquipmentSales;
+        init => EquipmentSales = value ?? [];
+    }
+    [JsonIgnore] public ImmutableArray<StationUpgrade> UnitUpgrades { get; init; } = [];
+    [JsonPropertyName("unitUpgrades"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ImmutableArray<StationUpgrade>? SerializedUnitUpgrades
+    {
+        get => UnitUpgrades.IsDefaultOrEmpty ? null : UnitUpgrades;
+        init => UnitUpgrades = value ?? [];
+    }
+    [JsonIgnore] public ImmutableArray<StationUpgrade> EquipmentUpgrades { get; init; } = [];
+    [JsonPropertyName("equipmentUpgrades"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ImmutableArray<StationUpgrade>? SerializedEquipmentUpgrades
+    {
+        get => EquipmentUpgrades.IsDefaultOrEmpty ? null : EquipmentUpgrades;
+        init => EquipmentUpgrades = value ?? [];
+    }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? UpgradeCost { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? RecruitedUnitId { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PaidServiceId { get; init; }
+    public int? PaidServiceCost { get; init; }
+    public string? PurchasedItemId { get; init; }
+    public string? PurchasedItemTypeId { get; init; }
+    public int? RecruitmentCost { get; init; }
     public ImmutableArray<BreakOutcome> BreakOutcomes { get; init; } = [];
     public ImmutableArray<string> BreakSourceVisibleSideIds { get; init; } = [];
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public AbilitySourceReference? AbilitySource { get; init; }
     public OwnedObject? ObjectCard { get; init; }
     public LootMarker? LootMarker { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? CreditsAmount { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? CreditsBalance { get; init; }
     // Observation-only contiguous paths, with at most one boundary step at each end.
     // Hidden interiors are never transported or joined into an invented route.
     public IReadOnlyList<List<Cell>>? ObservedMovement { get; init; }
@@ -448,7 +495,7 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
 // Old group-phase saves cannot be resumed as per-unit activations.
 [System.Text.Json.Serialization.JsonUnmappedMemberHandling(
     System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
-public sealed class GameState
+public sealed class GameState : IJsonOnDeserializing, IJsonOnDeserialized
 {
     [JsonRequired] public List<WorldCardDefinition> WorldCardDefinitions { get; set; } = [];
     [JsonRequired] public List<ItemDefinition> ItemTypes { get; set; } = [];
@@ -459,6 +506,8 @@ public sealed class GameState
     public List<string>? ActivationTypeOrder { get; set; }
     public LootDeck? LootDeck { get; set; }
     public List<LootMarker> LootMarkers { get; set; } = [];
+    public Dictionary<string, int> SideCredits { get; set; } = new(StringComparer.Ordinal);
+    public List<CreditsPile> CreditsPiles { get; set; } = [];
     public List<GroundObject> GroundObjects { get; set; } = [];
     // Only detached Side observations carry these values. Removing hidden providers
     // from presentation must not recalculate the visible Units' authoritative stats.
@@ -472,22 +521,28 @@ public sealed class GameState
 
     // Creating detached Unit data does not enter play; placement is the runtime entry boundary.
     public void PlaceUnit(string typeId, string id, string sideId, Cell cell, Posture posture = Posture.Upright, string? groupId = null,
-        bool dormant = false, int? wakeDistance = null, string? summonerUnitId = null, IReadOnlyList<OwnedObject>? inventory = null)
+        bool dormant = false, int? wakeDistance = null, string? summonerUnitId = null, IReadOnlyList<OwnedObject>? inventory = null,
+        int level = 1, int? initialHp = null)
     {
         var type = UnitContent.Find(typeId, Types)
             ?? throw new ArgumentException("Unit Type is not defined.", nameof(typeId));
-        if (type.Hp > 1 && !type.Unique)
+        var configuration = type.AtLevel(level);
+        if (configuration.Hp > 1 && !type.Unique)
             throw new ArgumentException("Maximum HP greater than 1 requires a Unique Unit Type.", nameof(typeId));
         if (!CanPlaceUnitType(type, sideId))
             throw new ArgumentException("A Unit of this Unique Unit Type is already in play on this Side.", nameof(typeId));
-        var entering = type.CreateUnit(id, sideId) with { GroupId = groupId, Dormant = dormant, SummonerUnitId = summonerUnitId,
+        var entering = type.CreateUnit(id, sideId, level) with { GroupId = groupId, Dormant = dormant, SummonerUnitId = summonerUnitId,
             WakeDistance = wakeDistance ?? type.WakeDistance ?? DormantRules.DefaultWakeDistance, Inventory = [.. inventory ?? []] };
+        var maximum = this.EffectiveMaxHpOf(entering);
+        if (initialHp is { } hp && (hp < 1 || hp > maximum))
+            throw new ArgumentException($"InitialHp for '{id}' must be between 1 and {maximum}.");
+        entering = entering with { CurrentHp = initialHp ?? maximum };
         if (summonerUnitId is not null && (string.IsNullOrWhiteSpace(summonerUnitId) || summonerUnitId == id) ||
             wakeDistance < 0 || Physical.Board.Machines.Any(m => m.Id == id) || Units.Any(u => u.Id == id || u.SummonerUnitId == id) || string.IsNullOrWhiteSpace(sideId) ||
             groupId is not null && string.IsNullOrWhiteSpace(groupId) ||
             !Enum.IsDefined(posture) || !Enum.IsDefined(type.Footprint) || !SpatialRules.CanPlaceUnit(this, type.Footprint, cell, placement: new MovementTraversal(Capabilities: MovementCapabilities.For(this, entering))) ||
             FootprintGeometry.OccupiedCells(type.Footprint, cell)
-                .Any(c => !TerrainCatalog.Accepts(type, Physical.Board.TerrainDefinitionAt(c))))
+                .Any(c => !TerrainCatalog.Accepts(configuration, Physical.Board.TerrainDefinitionAt(c))))
             throw new ArgumentException("Invalid Unit placement.");
         if (ActivationTypeOrder is {} order && !order.Contains(type.Id)) order.Add(type.Id);
         Units.Add(entering);
@@ -501,6 +556,8 @@ public sealed class GameState
     public bool AreHostile(string firstSide, string secondSide) =>
         firstSide != secondSide && !NeutralSides.Contains(firstSide) && !NeutralSides.Contains(secondSide);
     public List<SideObjective> Objectives { get; set; } = [];
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ExpeditionPartyRoster? Party { get; set; }
     public Dictionary<string, ImmutableArray<string>> ObjectiveStartUnitIds { get; set; } = new(StringComparer.Ordinal);
     public HashSet<string> DefeatedUnitIds { get; set; } = new(StringComparer.Ordinal);
     public GameCompletion? Completion { get; set; }
@@ -539,13 +596,34 @@ public sealed class GameState
     public List<DefeatEffect> PendingDefeatEffects { get; set; } = [];
     public bool CompleteAfterDefeatEffects { get; set; }
     // FIFO defeat consequences, retained across dice boundaries only until resolution completes.
-    public int MovesCompletedThisActivation { get; set; }
+    private int movesCompleted;
+    private bool readingJson, readMoveCount;
+    private bool? legacyMoveDone;
+    public int MovesCompletedThisActivation
+    {
+        get => movesCompleted;
+        set { movesCompleted = value; if (readingJson) readMoveCount = true; }
+    }
+    void IJsonOnDeserializing.OnDeserializing() => readingJson = true;
+    void IJsonOnDeserialized.OnDeserialized()
+    {
+        readingJson = false;
+        // Historical saves had only MoveDone. New saves have an exact count.
+        // The actor and loadout can occur later in the JSON property order.
+        if (!readMoveCount && legacyMoveDone is { } done) MoveDone = done;
+        legacyMoveDone = null;
+    }
     public int MoveOpportunityModifierThisActivation { get; set; }
-    public int EffectiveMovesPerActivation => (int)Math.Clamp(1L + MoveOpportunityModifierThisActivation, 0, int.MaxValue);
+    public int EffectiveMovesPerActivation => OpportunityCount(MoveOpportunityModifierThisActivation,
+        t => t.MoveCountModifier, e => e.MoveCountModifier);
     public bool MoveDone
     {
         get => MovesCompletedThisActivation >= EffectiveMovesPerActivation;
-        set { if (value != MoveDone) MovesCompletedThisActivation = value ? EffectiveMovesPerActivation : 0; }
+        set
+        {
+            if (readingJson) legacyMoveDone = value;
+            else if (value != MoveDone) MovesCompletedThisActivation = value ? EffectiveMovesPerActivation : 0;
+        }
     }
     public bool WaypointAdvancedThisActivation { get; set; }
     // Existing flag records whether an Action has been performed; counts govern opportunities.
@@ -557,10 +635,21 @@ public sealed class GameState
     public int ActionsUsedThisActivation { get; set; }
     public int ExtraActionsThisActivation { get; set; }
     public Dictionary<string, int> BonusActionUseCountsThisActivation { get; set; } = [];
-    public int EffectiveActionsPerActivation => Math.Max(0, 1 + ExtraActionsThisActivation +
-        this.WorldModifier(WorldModifierTarget.Actions));
-    public int EffectiveBonusActionUsesPerActivation => Math.Max(0, 1 +
-        this.WorldModifier(WorldModifierTarget.BonusActionUses));
+    public int EffectiveActionsPerActivation => OpportunityCount((long)ExtraActionsThisActivation + this.WorldModifier(WorldModifierTarget.Actions),
+        t => t.ActionCountModifier, e => e.ActionCountModifier);
+    public int EffectiveBonusActionUsesPerActivation => OpportunityCount(this.WorldModifier(WorldModifierTarget.BonusActionUses),
+        t => t.BonusActionUseCountModifier, e => e.BonusActionUseCountModifier);
+    private int OpportunityCount(long temporaryModifier, Func<UnitType, int> native, Func<EquipmentDefinition, int> equipment)
+    {
+        long total = 1 + temporaryModifier;
+        if (CurrentUnitId is { } id && Units?.FirstOrDefault(u => u.Id == id) is { } unit && Types is not null)
+        {
+            total += native(this.UnitConfiguration(unit));
+            if (!unit.Inventory.IsEmpty && IsUpright(id))
+                total += this.Equipped(unit).Sum(gear => (long)equipment(gear));
+        }
+        return (int)Math.Clamp(total, 0, int.MaxValue);
+    }
     public int ActionsRemaining => Math.Max(0, EffectiveActionsPerActivation - ActionsUsedThisActivation);
     public int BonusActionUsesThisActivation(string accountingId) => BonusActionUseCountsThisActivation.GetValueOrDefault(accountingId);
     public List<ModifierThisTurn> ModifiersThisTurn { get; set; } = [];
@@ -575,7 +664,7 @@ public sealed class GameState
 
     public bool HasEquipment(string unitId, LootCardKind kind) => IsUpright(unitId) &&
         this.ActiveEquipment(unitId).Any(e => e.Id == EquipmentCatalog.LegacyTypeId(kind));
-    public bool HasPhase(string unitId) => Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Mechanic<Phase>() is not null ||
+    public bool HasPhase(string unitId) => this.UnitConfiguration(unitId).Mechanic<Phase>() is not null ||
         this.AbilitiesOf(unitId).Any(ability => ability.SourceKind == AbilitySourceKind.Equipment && ability.Definition.Mechanic is Phase);
     public ImmutableArray<string> EffectiveMovementCapabilitiesOf(string unitId) =>
         MovementCapabilities.For(this, Units.Single(u => u.Id == unitId));
@@ -583,15 +672,15 @@ public sealed class GameState
     public bool HasAmphibious(string unitId) => HasAmphibious(Units.Single(u => u.Id == unitId));
     private bool HasAmphibious(Unit unit)
     {
-        var type = Types.Single(t => t.Id == unit.TypeId);
+        var type = this.UnitConfiguration(unit);
         return type.Amphibious || type.Mechanic<Amphibious>() is not null ||
-            unit.Inventory.Select(this.EquipmentTypeId).OfType<string>().Select(this.Equipment)
+            this.Equipped(unit)
                 .Any(e => e.LocalAbilities.Any(a => a.Mechanic is Amphibious));
     }
     public int EffectiveSightDistanceOf(string unitId) => EffectiveSightDistanceOf(unitId, null);
     internal int EffectiveSightDistanceOf(string unitId, ObservationStatContext? context) =>
         ObservationValues?.TryGetValue(unitId, out var observed) == true ? observed.SightDistance :
-        Math.Max(0, Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).SightDistance +
+        Math.Max(0, this.UnitConfiguration(unitId).SightDistance +
             (context?.Modifier(unitId, Stat.SightDistance) ?? this.AbilityModifier(unitId, Stat.SightDistance)) +
             (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.SightDistance).Sum(m => m.Amount) : 0));
     public bool HasOpenDoor(string unitId) => this.AbilitiesOf(unitId).Any(ability =>
@@ -602,7 +691,7 @@ public sealed class GameState
     {
         if (ObservationValues?.TryGetValue(unitId, out var observed) == true) return observed.Atk;
         var unit = Units.Single(u => u.Id == unitId);
-        var type = Types.Single(t => t.Id == unit.TypeId);
+        var type = this.UnitConfiguration(unit);
         var attack = type.Atk + (context?.Modifier(unitId, Stat.Atk) ?? this.AbilityModifier(unitId, Stat.Atk)) + this.WorldModifier(WorldModifierTarget.Atk) + (CurrentUnitId == unitId
             ? ModifiersThisTurn.Where(m => m.Stat == Stat.Atk).Sum(m => m.Amount) : 0);
         var figure = Physical.Figures.SingleOrDefault(f => f.Id == unitId);
@@ -639,21 +728,21 @@ public sealed class GameState
     public int EffectiveMovOf(string unitId) => EffectiveMovOf(unitId, null);
     internal int EffectiveMovOf(string unitId, ObservationStatContext? context) =>
         ObservationValues?.TryGetValue(unitId, out var observed) == true ? observed.Mov :
-        Math.Max(0, Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Mov +
+        Math.Max(0, this.UnitConfiguration(unitId).Mov +
         (context?.Modifier(unitId, Stat.Mov) ?? this.AbilityModifier(unitId, Stat.Mov)) +
         this.WorldModifier(WorldModifierTarget.Mov) +
         (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Mov).Sum(m => m.Amount) : 0));
     public int EffectiveRngOf(string unitId) => EffectiveRngOf(unitId, null);
     internal int EffectiveRngOf(string unitId, ObservationStatContext? context) =>
         ObservationValues?.TryGetValue(unitId, out var observed) == true ? observed.Rng :
-        Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Rng + (context?.Modifier(unitId, Stat.Rng) ?? this.AbilityModifier(unitId, Stat.Rng)) +
+        this.UnitConfiguration(unitId).Rng + (context?.Modifier(unitId, Stat.Rng) ?? this.AbilityModifier(unitId, Stat.Rng)) +
         (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Rng).Sum(m => m.Amount) : 0);
     public int EffectiveDefOf(string unitId) => EffectiveDefOf(unitId, null);
     internal int EffectiveDefOf(string unitId, ObservationStatContext? context)
     {
         if (ObservationValues?.TryGetValue(unitId, out var observed) == true) return observed.Def;
         var unit = Units.Single(u => u.Id == unitId);
-        var type = Types.Single(t => t.Id == unit.TypeId);
+        var type = this.UnitConfiguration(unit);
         var defence = type.Def + (context?.Modifier(unitId, Stat.Def) ?? this.AbilityModifier(unitId, Stat.Def)) + this.WorldModifier(WorldModifierTarget.Def) + (CurrentUnitId == unitId
             ? ModifiersThisTurn.Where(m => m.Stat == Stat.Def).Sum(m => m.Amount) : 0);
         var figure = Physical.Figures.SingleOrDefault(f => f.Id == unitId);
@@ -697,6 +786,9 @@ public sealed class GameState
         Resources.Add(new(type, position));
     }
 
+    public void PlaceCredits(int amount, Cell position) =>
+        CreditsPiles = CreditsRules.MergePiles([.. CreditsPiles, new(position, amount)], SideCredits, Physical.Board.Width, Physical.Board.Height);
+
     /// <summary>Copies mutable state without evaluating derived stats or preparing presentation data.</summary>
     public GameState DetachedCopy() => Copy();
 
@@ -711,9 +803,10 @@ public sealed class GameState
         EquipmentTypes = [.. EquipmentTypes],
         ObservationValues = ObservationValues is null ? null : new(ObservationValues, StringComparer.Ordinal),
         LootDeck = LootDeck?.Copy(), LootMarkers = [.. LootMarkers], GroundObjects = [.. GroundObjects],
+        SideCredits = new(SideCredits, StringComparer.Ordinal), CreditsPiles = [.. CreditsPiles],
         Physical = new PhysicalState(Physical.Board with { Edges = [.. Physical.Board.Edges], Terrain = [.. Physical.Board.Terrain], Machines = [.. Physical.Board.Machines] }, [.. Physical.Figures]),
         Types = [.. Types], Units = [.. Units], CellMarkers = [.. CellMarkers], Resources = [.. Resources], StoredResources = [.. StoredResources], Round = Round, Bag = [.. Bag],
-        NeutralSides = [.. NeutralSides], Objectives = [.. Objectives], Completion = Completion,
+        NeutralSides = [.. NeutralSides], Objectives = [.. Objectives], Completion = Completion, Party = Party,
         FogOfWarSides = [.. FogOfWarSides],
         VisionCache = VisionCache,
         ExploredCells = ExploredCells.ToDictionary(p => p.Key, p => new HashSet<Cell>(p.Value), StringComparer.Ordinal),

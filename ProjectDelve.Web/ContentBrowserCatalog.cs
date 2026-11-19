@@ -33,12 +33,17 @@ public sealed record ContentBrowserAbility(string Key, string Name, string Timin
     public string? PresentationProfileId { get; init; }
     public string EffectivePresentationProfileId => PresentationProfileId ?? MechanicId;
 }
+public sealed record ContentBrowserLevel(int Level, IReadOnlyList<ContentBrowserSection> Sections, IReadOnlyList<ContentBrowserAbility> Abilities)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? UpgradeCost { get; init; }
+}
 public sealed record ContentBrowserEntry(string Key, string Family, string Id, string Name, string Origin, string Summary,
     IReadOnlyList<ContentBrowserSection> Sections, IReadOnlyList<ContentBrowserAbility> Abilities,
     IReadOnlyList<ContentBrowserReference> References, JsonElement Definition)
 {
     public JsonElement? AuthoredDefinition { get; init; }
     public MechanicDescriptor? Mechanic { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public IReadOnlyList<ContentBrowserLevel>? Levels { get; init; }
     public string? Availability { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Published { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? PackageId { get; init; }
@@ -97,10 +102,8 @@ public static class ContentBrowserCatalog
         units ??= canonical.Units;
         List<ContentBrowserEntry> entries = [];
         foreach (var type in units)
-            entries.Add(Entry("units", type.Id, type.DisplayName ?? type.Id, type,
-                localUnitIds?.Contains(type.Id) == true ? !canonical.Units.Any(unit => unit.Id == type.Id) ? "scenario-local" : "scenario-override" : "canonical",
-                $"MOV {type.Mov} · RNG {type.Rng} · ATK {type.Atk} · DEF {type.Def} · HP {type.Hp}. {AbilitySummary(type.LocalAbilities.Length)}",
-                type.LocalAbilities, AbilityReferences(type.LocalAbilities).Concat(StorageReferences(type.ResourceStorage)), units) with { Sections = UnitSections(type) });
+            entries.Add(UnitEntry(type, localUnitIds?.Contains(type.Id) == true ?
+                !canonical.Units.Any(unit => unit.Id == type.Id) ? "scenario-local" : "scenario-override" : "canonical", units));
         entries.AddRange(equipment.Select(type => EquipmentEntry(type, canonical.Equipment.Any(row => row.Id == type.Id) ? "canonical" : "local", units)));
         entries.AddRange(items.Select(type => ItemEntry(type, canonical.Items.Any(row => row.Id == type.Id) ? "canonical" : "local", units)));
         entries.AddRange(loot.Select((type, index) => LootEntry(type, index < canonical.LootCards.Length ? "canonical" : "local") with
@@ -111,7 +114,7 @@ public static class ContentBrowserCatalog
         entries.AddRange(Build(null, null, terrainContent ?? canonical).Entries.Where(e => e.Family is "terrain" or "terrainAssemblies" or "fixedComponents"));
         entries.AddRange(MechanicCatalog.All.Select(MechanicEntry));
         var resources = canonical.Resources.Concat(units.SelectMany(type => type.ResourceStorage?.Capacities.Select(c => c.Type) ?? []))
-            .Concat(units.SelectMany(type => type.LocalAbilities.Select(ability => ability.Mechanic)
+            .Concat(units.SelectMany(type => UnitConfigurations(type).SelectMany(t => t.LocalAbilities).Select(ability => ability.Mechanic)
             .OfType<WaypointSlotMachine>().SelectMany(slot => slot.OutputTable.Faces))).DistinctBy(type => Element(type).GetRawText());
         entries.AddRange(resources.Select(type => Entry("resources", type.Id, string.IsNullOrWhiteSpace(type.Name) ? type.Id : type.Name,
             type, canonical.Resources.Contains(type) ? "canonical" : "scenario-override")));
@@ -176,16 +179,9 @@ public static class ContentBrowserCatalog
             var lootOverride = source?.LootUnitOverrides?.GetValueOrDefault(type.Id);
             var origin = authored is null && lootOverride is null ? "canonical" :
                 !canonical.Units.Any(unit => unit.Id == type.Id) ? "scenario-local" : "scenario-override";
-            var refs = AbilityReferences(type.LocalAbilities).ToList();
-            if (type.ResourceStorage is { } storage) refs.AddRange(StorageReferences(storage));
-            if (type.TerrainRestrictedMovement is { } restriction)
-                refs.Add(Reference("Restricted terrain", "terrain", TerrainCatalog.Legacy(restriction.Terrain).Id));
-            var entry = Entry("units", type.Id, type.DisplayName ?? type.Id, type, origin,
-                $"MOV {type.Mov} · RNG {type.Rng} · ATK {type.Atk} · DEF {type.Def} · HP {type.Hp}. {AbilitySummary(type.LocalAbilities.Length)}",
-                type.LocalAbilities, refs, units) with
+            var entry = UnitEntry(type, origin, units) with
             {
                 Availability = source is null ? "canonical" : declaredUnitIds.Contains(type.Id) ? "declared" : "referenced",
-                Sections = UnitSections(type),
                 AuthoredDefinition = lootOverride is not null ? Element(new { unitType = authored ?? UnitContent.Find(type.Id), lootOverride })
                     : authored is not null ? Element(authored) : null
             };
@@ -271,7 +267,8 @@ public static class ContentBrowserCatalog
 
         var machineTypes = MachineTypes.All.Concat(source?.Machines?.Select(m => m.Type) ?? []).DistinctBy(type => Element(type).GetRawText()).ToList();
         var resourceTypes = canonical.Resources.Concat(units.SelectMany(type => type.ResourceStorage?.Capacities.Select(c => c.Type) ?? []))
-            .Concat(units.SelectMany(type => type.LocalAbilities.Select(a => a.Mechanic).OfType<WaypointSlotMachine>().SelectMany(slot => slot.OutputTable.Faces)))
+            .Concat(units.SelectMany(type => UnitConfigurations(type).SelectMany(t => t.LocalAbilities).Select(a => a.Mechanic)
+                .OfType<WaypointSlotMachine>().SelectMany(slot => slot.OutputTable.Faces)))
             .Concat(machineTypes.SelectMany(type => (type.Storage?.Capacities ?? []).Select(c => c.Type)
                 .Concat(type.Operation.Costs.Select(c => c.Type)).Concat(type.Operation.OutputTable?.Faces ?? [])
                 .Concat(type.Operation.OutputType is { } output ? [output] : [])))
@@ -286,9 +283,16 @@ public static class ContentBrowserCatalog
             var refs = StorageReferences(type.Storage).Concat(type.Operation.Costs.Select(c => ResourceReference("Input", c.Type)))
                 .Concat((type.Operation.OutputTable?.Faces ?? []).Select(r => ResourceReference("Output", r)));
             if (type.Operation.OutputType is { } output) refs = refs.Append(ResourceReference("Output", output));
+            var summary = type.Operation.Description;
+            foreach (var service in type.Operation.PaidServices?.Services ?? [])
+            {
+                if (service.ItemTypeId is not { } item) continue;
+                if (items.Any(i => i.Id == item)) refs = refs.Append(Reference(service.Name, "items", item));
+                else summary += $" Item Type '{item}' is unavailable in this catalog.";
+            }
             entries.Add(Entry("machines", type.Id, type.Name, type, MachineTypes.All.Contains(type) ? "canonical" :
                 MachineTypes.All.Any(row => row.Id == type.Id) ? "scenario-override" : "scenario-local",
-                type.Operation.Description, references: refs));
+                summary, references: refs));
         }
         foreach (var type in CellMarkerTypes.All)
             entries.Add(Entry("cellMarkers", type.Id, type.Name, type, "canonical", CellMarkerTypes.Describe(type)));
@@ -328,9 +332,33 @@ public static class ContentBrowserCatalog
     private static List<ContentBrowserEntry> MarkPublications(List<ContentBrowserEntry> entries, ContentBundle canonical) => entries.Select(e => e with
     { Published = canonical.Publications.Any(p => p.Identity.TypeId == e.Id && (e.Family == "equipment" && p.Identity.Family == ContentFamily.Equipment || e.Family == "lootCards" && p.Identity.Family == ContentFamily.LootCard)) }).ToList();
 
-    private static ContentBrowserEntry EquipmentEntry(EquipmentDefinition type, string origin, IReadOnlyList<UnitType>? units = null) =>
-        Entry("equipment", type.Id, type.Name, type, origin, AbilitySummary(type.LocalAbilities.Length),
-            type.LocalAbilities, AbilityReferences(type.LocalAbilities), units);
+    private static IEnumerable<UnitType> UnitConfigurations(UnitType type) =>
+        Enumerable.Range(1, type.AdditionalLevels.IsDefaultOrEmpty ? 1 : type.AdditionalLevels.Length + 1).Select(type.AtLevel);
+
+    private static ContentBrowserEntry UnitEntry(UnitType type, string origin, IReadOnlyList<UnitType> units)
+    {
+        var configurations = UnitConfigurations(type).ToArray();
+        var refs = AbilityReferences(configurations.SelectMany(t => t.LocalAbilities)).Distinct().ToList();
+        refs.AddRange(StorageReferences(type.ResourceStorage));
+        foreach (var restriction in configurations.Select(t => t.TerrainRestrictedMovement).OfType<TerrainRestrictedMovement>().Distinct())
+            refs.Add(Reference("Restricted terrain", "terrain", TerrainCatalog.Legacy(restriction.Terrain).Id));
+        var entry = Entry("units", type.Id, type.DisplayName ?? type.Id, type, origin,
+            $"MOV {type.Mov} · RNG {type.Rng} · ATK {type.Atk} · DEF {type.Def} · HP {type.Hp}. {AbilitySummary(type.LocalAbilities.Length)}",
+            type.LocalAbilities, refs, units);
+        return entry with { Sections = UnitSections(type), Levels = configurations.Length == 1 ? null :
+            configurations.Select((t, i) => new ContentBrowserLevel(i + 1, UnitSections(t), Abilities(t.LocalAbilities, entry.Key, units))
+                { UpgradeCost = i == 0 ? null : type.AdditionalLevels[i - 1].UpgradeCost }).ToArray() };
+    }
+
+    private static ContentBrowserEntry EquipmentEntry(EquipmentDefinition type, string origin, IReadOnlyList<UnitType>? units = null)
+    {
+        var configs = Enumerable.Range(1, type.AdditionalLevels.IsDefaultOrEmpty ? 1 : type.AdditionalLevels.Length + 1).Select(type.AtLevel).ToArray();
+        var entry = Entry("equipment", type.Id, type.Name, type, origin, AbilitySummary(type.LocalAbilities.Length),
+            type.LocalAbilities, AbilityReferences(configs.SelectMany(t => t.LocalAbilities)).Distinct(), units);
+        return entry with { Levels = configs.Length == 1 ? null : configs.Select((t, index) => new ContentBrowserLevel(index + 1,
+            [new("Modifiers", Fields(Element(new { t.MaxHpModifier, t.MoveCountModifier, t.ActionCountModifier, t.BonusActionUseCountModifier })))],
+            Abilities(t.LocalAbilities, entry.Key, units)) { UpgradeCost = index == 0 ? null : type.AdditionalLevels[index - 1].UpgradeCost }).ToArray() };
+    }
     private static ContentBrowserEntry ItemEntry(ItemDefinition type, string origin, IReadOnlyList<UnitType>? units = null) =>
         Entry("items", type.Id, type.Name, type, origin, type.Describe(units), type.LocalAbilities, AbilityReferences(type.LocalAbilities), units);
     private static ContentBrowserEntry LootEntry(LootCardDefinition type, string origin)
@@ -362,13 +390,18 @@ public static class ContentBrowserCatalog
     {
         var key = Key(family, id);
         var value = Element(definition);
-        return new(key, family, id, name, origin, summary, [new("Definition values", Fields(value, "id", "name", "localAbilities"))],
-            (abilities ?? []).Select(ability => new ContentBrowserAbility(ability.Key, ability.Name, ability.Timing.ToString(), ability.Usage,
+        var fields = Fields(value, "id", "name", "localAbilities", "additionalLevels");
+        if (definition is EquipmentDefinition { SellValue: null } or ItemDefinition { SellValue: null })
+            fields = [.. fields, new("Sell Value", Element("Cannot be sold"))];
+        return new(key, family, id, name, origin, summary, [new("Definition values", fields)],
+            Abilities(abilities ?? [], key, units), (references ?? []).ToArray(), value);
+    }
+
+    private static ContentBrowserAbility[] Abilities(IEnumerable<LocalAbilityDefinition> abilities, string key, IReadOnlyList<UnitType>? units) =>
+            abilities.Select(ability => new ContentBrowserAbility(ability.Key, ability.Name, ability.Timing.ToString(), ability.Usage,
                 MechanicCatalog.FindByPayload(ability.Mechanic)!.Id, Parameters(ability.Mechanic),
                 ContentDescriptions.AbilityEntry(ability, ability.Key, units).Description, key)
-                { PresentationProfileId = ability.PresentationProfileId }).ToArray(),
-            (references ?? []).ToArray(), value);
-    }
+                { PresentationProfileId = ability.PresentationProfileId }).ToArray();
 
     private static JsonElement Element<T>(T value) => JsonSerializer.SerializeToElement(value, Json);
     private static IEnumerable<AdjacentUnitSummonMechanic> Summons(IEnumerable<LocalAbilityDefinition> abilities) =>
@@ -376,12 +409,14 @@ public static class ContentBrowserCatalog
     private static ContentBrowserSection[] UnitSections(UnitType type) =>
     [
         new("Stats", Fields(Element(new { type.Mov, type.Rng, type.Atk, type.Def, type.Hp }))),
+        new("Expedition recruitment", [new("Recruitment cost", type.RecruitmentCost is { } cost ? Element(cost) : Element("Unavailable"))]),
+        new("Activation modifiers", Fields(Element(new { type.MoveCountModifier, type.ActionCountModifier, type.BonusActionUseCountModifier }))),
         new("Movement and structure", Fields(Element(new
         {
-            type.Footprint, type.Unique, type.Actions, type.MovementPattern,
+            type.Footprint, type.Unique, type.Actions, type.SightDistance, type.MovementPattern,
             type.BaseMovementCapabilities, type.TerrainRestrictedMovement, type.TerrainRestriction, type.ResourceStorage, type.Amphibious
         }))),
-        new("Loot", Fields(Element(new { type.CanHaveItems, type.CanHaveEquipment, type.LootDropSuccesses }))),
+        new("Loot", Fields(Element(new { type.CanHaveItems, type.CanHaveEquipment, type.LootDropSuccesses, type.CreditsDropSuccesses, type.CreditsDropAmount }))),
         new("Automated policies", Fields(Element(new { type.DefaultController, type.Behaviors, type.AttackDefinitionOrder })))
     ];
     private static ContentBrowserSection[] TerrainSections(TerrainDefinition type, IReadOnlyList<ResourceType>? resources = null) =>

@@ -14,7 +14,7 @@ using Xunit.Abstractions;
 
 namespace ProjectDelve.Web.Tests;
 
-public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDisposable
+public sealed partial class ExpeditionClientApiTests(ITestOutputHelper output) : IDisposable
 {
     private const ulong Seed = 889;
     private const string Boots = "fixture-carried-boots";
@@ -28,14 +28,32 @@ public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDispos
         Converters = { new JsonStringEnumConverter() }
     };
 
-    [Fact]
-    public async Task EquipmentStationPreviewInvalidDraftResumeAndIdempotentConfirmPreserveTheExpeditionBoundary()
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task EquipmentStationPreviewInvalidDraftResumeAndIdempotentConfirmPreserveTheExpeditionBoundary(bool sellItem, bool upgrade)
     {
-        var catalog = new ExpeditionCatalog(root, ContentBundle.Canonical, generate: StationFixture);
+        ScenarioDefinition Region(ulong seed, ExpeditionRegionPlan plan, ContentBundle content)
+        {
+            var scenario = StationFixture(seed, plan, content);
+            return upgrade && plan.Region == default
+                ? scenario with { CreditsPiles = [new(scenario.Setup!.Deployment.PlacementOrder[0], 35)] }
+                : scenario;
+        }
+        var catalog = new ExpeditionCatalog(root, ContentBundle.Canonical, generate: Region);
         var owner = ExpeditionParty.Originals[0].InstanceId;
         var recipient = ExpeditionParty.Originals[1].InstanceId;
         var invalid = new EquipmentAllocation([new(Boots, recipient), new(Boots, owner)]);
-        var valid = new EquipmentAllocation([new(Boots, recipient), new(StationItem, recipient)]);
+        var valid = sellItem
+            ? new EquipmentAllocation([new(Boots, recipient)]) { SoldObjectIds = [StationItem] }
+            : new EquipmentAllocation([new(Boots, recipient), new(StationItem, recipient)]);
+        if (sellItem) invalid = invalid with { SoldObjectIds = [StationItem] };
+        if (upgrade)
+        {
+            invalid = invalid with { UpgradedUnitIds = [owner], UpgradedEquipmentIds = [Boots] };
+            valid = valid with { UpgradedUnitIds = [owner], UpgradedEquipmentIds = [Boots] };
+        }
         ExpeditionStore store;
         ExpeditionCheckpoint saved;
         EquipmentStationPreviewRequest previousBinding;
@@ -70,7 +88,7 @@ public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDispos
             var opened = await host.Send(new() { Operation = "decision", CandidateKey = operate.Key });
             Assert.Equal(DecisionKind.MachineInteraction, opened.Snapshot.Result.NextInput!.Kind);
             Assert.Equal(0, opened.Snapshot.Result.State.ActionsUsedThisActivation);
-            Assert.Equal("Redistribute Equipment and Items", opened.Snapshot.Presentation.Decision!.DisplayPrompt);
+            Assert.Equal("Manage Equipment and Items", opened.Snapshot.Presentation.Decision!.DisplayPrompt);
             Assert.Equal("Cancel", Assert.Single(opened.Snapshot.Presentation.Decision.Candidates).Label);
             var stationEditor = Assert.IsType<EquipmentStationInteraction>(opened.Snapshot.Presentation.Decision.EquipmentStation);
             Assert.Contains(recipient, stationEditor.EligibleUnitIds);
@@ -84,8 +102,11 @@ public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDispos
             Assert.Equal(Encode(head), Encode(store.ReadHead()));
             var preview = (await host.PreviewStation(host.PreviewBinding(valid))).Preview;
             Assert.True(preview.CanConfirm);
+            Assert.Equal(sellItem ? 2L : 0L, preview.TotalProceeds);
+            Assert.Equal(upgrade ? 36L : 0L, preview.TotalUpgradeCost);
+            Assert.Equal(preview.CurrentCredits + preview.TotalProceeds - preview.TotalUpgradeCost, preview.ResultingCredits);
             var bootsAbility = Assert.Single(preview.Units.Single(u => u.UnitId == recipient).AbilityPreviews,
-                a => a.Ability.SourceInstanceId == Boots);
+                a => a.Ability.SourceInstanceId == Boots && a.Ability.Key == "movement");
             Assert.Equal(bootsAbility.Ability.CardEntry(), bootsAbility.Content);
             using (var stale = await host.PostPreview(previousBinding with { ExpectedRevision = opened.Revision - 1 }))
                 Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
@@ -101,6 +122,9 @@ public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDispos
             await host.Send(new() { Operation = "expedition/save", EquipmentAllocation = invalid });
             saved = store.ReadCheckpoint(store.ReadHead().ActiveCheckpoint);
             Assert.Equal(invalid.Assignments.ToArray(), saved.EquipmentDraft!.Assignments.ToArray());
+            Assert.Equal(invalid.SoldObjectIds.ToArray(), saved.EquipmentDraft.SoldObjectIds.ToArray());
+            Assert.Equal(invalid.UpgradedUnitIds.ToArray(), saved.EquipmentDraft.UpgradedUnitIds.ToArray());
+            Assert.Equal(invalid.UpgradedEquipmentIds.ToArray(), saved.EquipmentDraft.UpgradedEquipmentIds.ToArray());
             Assert.Equal(DecisionKind.MachineInteraction, saved.State.Pending!.Kind);
         }
 
@@ -112,6 +136,9 @@ public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDispos
             Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
         var restored = await resumedHost.PreviewStation(resumedHost.PreviewBinding());
         Assert.Equal(invalid.Assignments.ToArray(), restored.SavedDraft!.Assignments.ToArray());
+        Assert.Equal(invalid.SoldObjectIds.ToArray(), restored.SavedDraft.SoldObjectIds.ToArray());
+        Assert.Equal(invalid.UpgradedUnitIds.ToArray(), restored.SavedDraft.UpgradedUnitIds.ToArray());
+        Assert.Equal(invalid.UpgradedEquipmentIds.ToArray(), restored.SavedDraft.UpgradedEquipmentIds.ToArray());
         Assert.Equal(invalidPreview, Encode(restored.Preview));
 
         var random = new ExpeditionRandom(saved.GameplayRandomState);
@@ -121,7 +148,17 @@ public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDispos
         Assert.Null(committed.Snapshot.Result.State.MachineInteraction);
         Assert.Contains(committed.Snapshot.Result.State.Units.Single(unit => unit.Id == recipient).Inventory, obj => obj.Id == Boots);
         Assert.Equal(HttpStatusCode.Accepted, await resumedHost.PostStatus(confirm with
-            { EquipmentAllocation = new([.. valid.Assignments.Reverse()]) }));
+            { EquipmentAllocation = valid with { Assignments = [.. valid.Assignments.Reverse()] } }));
+        if (sellItem)
+            Assert.Equal(HttpStatusCode.Conflict, await resumedHost.PostStatus(confirm with
+                { EquipmentAllocation = valid with { SoldObjectIds = [] } }));
+        if (upgrade)
+        {
+            Assert.Equal(HttpStatusCode.Conflict, await resumedHost.PostStatus(confirm with
+                { EquipmentAllocation = valid with { UpgradedUnitIds = [] } }));
+            Assert.Equal(HttpStatusCode.Conflict, await resumedHost.PostStatus(confirm with
+                { EquipmentAllocation = valid with { UpgradedEquipmentIds = [] } }));
+        }
         Assert.Equal(HttpStatusCode.Conflict, await resumedHost.PostStatus(confirm with { EquipmentAllocation = invalid }));
         Assert.Equal(HttpStatusCode.Conflict, await resumedHost.PostStatus(confirm with { CommandId = "new-stale-confirm" }));
         Assert.Equal(HttpStatusCode.Conflict, await resumedHost.PostStatus(confirm with
@@ -134,6 +171,29 @@ public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDispos
         Assert.Equal(random.State, after.GameplayRandomState);
         Assert.Equal(Encode(expected), Encode(after.State));
         Assert.Equal(random.RollD6(), new ExpeditionRandom(after.GameplayRandomState).RollD6());
+        if (sellItem)
+        {
+            var runner = ExpeditionRunner.Open(store, ContentBundle.Canonical, Region);
+            var region = runner.Snapshot();
+            for (var step = 0; step < 100 && !region.IsCompleted; step++)
+                region = region.Pending is { } decision
+                    ? runner.Decide(AdvanceTowardExit(region, decision, runner.Region.ExitArea).Key).State
+                    : runner.StartRound().State;
+            Assert.True(region.IsCompleted);
+            var transitionId = runner.Region.TransitionId;
+            var receipt = runner.Continue(transitionId);
+            Assert.Equal(receipt, runner.Continue(transitionId));
+            foreach (var reference in new[] { receipt.Source, receipt.Successor })
+            {
+                var checkpoint = store.ReadCheckpoint(reference);
+                Assert.Equal(upgrade ? 1 : 2, checkpoint.State.SideCredits[ExpeditionParty.SideId]);
+                Assert.Equal(upgrade ? 2 : 1, checkpoint.State.Units.Single(u => u.Id == owner).Level);
+                var boots = Assert.Single(checkpoint.State.Units.Single(u => u.Id == recipient).Inventory, o => o.Id == Boots);
+                Assert.Equal(upgrade ? 2 : 1, boots.Level);
+                Assert.DoesNotContain(checkpoint.State.Units.SelectMany(u => u.Inventory), o => o.Id == StationItem);
+                Assert.DoesNotContain(checkpoint.State.GroundObjects, o => o.Object.Id == StationItem);
+            }
+        }
     }
 
     [Fact]
@@ -148,6 +208,7 @@ public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDispos
             Agency = [new(UnitTypeIds.Barbarian, "red", ControllerKind.Human), new(UnitTypeIds.Cleric, "red", ControllerKind.Human),
                 new(UnitTypeIds.Wizard, "blue", ControllerKind.Human)],
             Machines = [new(Station, new(2, 1), MachineTypes.EquipmentStation)],
+            SideCredits = new() { ["red"] = 20 },
             FogOfWarSides = ["blue"]
         });
         var random = new ExpeditionRandom(889);
@@ -167,8 +228,31 @@ public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDispos
         using (var preview = await host.PostPreview(host.PreviewBinding()))
             Assert.Equal(HttpStatusCode.Forbidden, preview.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, await host.Reject(new() { Operation = "machine/cancel" }));
+        var hiddenBinding = host.PreviewBinding();
+        using (var recruit = await host.PostRecruit(new(hiddenBinding.SessionId, hiddenBinding.ExpectedRevision, hiddenBinding.DecisionId, UnitTypeIds.Tycoon)))
+            Assert.Equal(HttpStatusCode.Forbidden, recruit.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, await host.Reject(new() { Operation = "machine/recruit", RecruitTypeId = UnitTypeIds.Tycoon }));
         Assert.Equal(HttpStatusCode.Forbidden, await host.Reject(new() { Operation = "machine/confirm",
             EquipmentAllocation = new([new(Boots, "recipient")]) }));
+
+        var sale = GameEngine.ConfirmEquipmentStation(state, new([]) { SoldObjectIds = [Boots], UpgradedUnitIds = ["operator"] }, random, false);
+        var ownerEvent = Assert.Single(BrowserProjection.Observe(sale, "red").Events, e => e.Kind == "MachineOperated");
+        var controllerEvent = GambitProjection.Event(ownerEvent);
+        Assert.Equal(Boots, Assert.Single(controllerEvent.EquipmentSales!).ObjectId);
+        Assert.Equal("operator", Assert.Single(controllerEvent.UnitUpgrades!).TargetId);
+        Assert.Equal(24, controllerEvent.UpgradeCost);
+        Assert.Equal(0, controllerEvent.CreditsBalance);
+        Assert.Contains("upgraded", BrowserProjection.Outcome(ownerEvent, sale.State).Text);
+        Assert.DoesNotContain(BrowserProjection.Observe(sale, "blue").Events, e => e.Kind == "MachineOperated");
+        var publicBoard = PlaytestGame.Detach(sale.State);
+        publicBoard.FogOfWarSides.Clear();
+        var observed = FogOfWar.ObserveEvent(publicBoard, "blue", ownerEvent)!;
+        Assert.Null(GambitProjection.Event(observed).EquipmentSales);
+        Assert.Null(GambitProjection.Event(observed).UnitUpgrades);
+        Assert.Null(GambitProjection.Event(observed).UpgradeCost);
+        Assert.Null(observed.CreditsAmount);
+        Assert.Null(observed.CreditsBalance);
+        Assert.DoesNotContain("sold", BrowserProjection.Outcome(observed, publicBoard).Text);
     }
 
     [Fact]
@@ -523,7 +607,9 @@ public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDispos
         return scenario with
         {
             Machines = [new(Station, position, MachineTypes.EquipmentStation)],
-            GroundObjects = [.. scenario.GroundObjects!, new(new OwnedObject(StationItem) { ItemTypeId = "second-wind" }, start)]
+            GroundObjects = plan.Region == default
+                ? [.. scenario.GroundObjects!, new(new OwnedObject(StationItem) { ItemTypeId = "second-wind" }, start)]
+                : scenario.GroundObjects
         };
     }
 
@@ -557,6 +643,8 @@ public sealed class ExpeditionClientApiTests(ITestOutputHelper output) : IDispos
             new(Current.SessionId, Current.Revision, Current.DecisionId!, allocation);
         public Task<HttpResponseMessage> PostPreview(EquipmentStationPreviewRequest request) =>
             client.PostAsJsonAsync("/api/game/machine/preview", request, Json);
+        public Task<HttpResponseMessage> PostRecruit(RecruitmentPreviewRequest request) =>
+            client.PostAsJsonAsync("/api/game/machine/recruitment/preview", request, Json);
         public async Task<EquipmentStationPreviewResponse> PreviewStation(EquipmentStationPreviewRequest request)
         {
             using var response = await PostPreview(request);

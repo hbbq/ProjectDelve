@@ -371,7 +371,8 @@ export function mountContentBrowser(root, options = {}) {
     if(state.history.length) detail.append(legacyButton('\u2190 Previous definition',()=>{state.back();render();search.value=state.query;focusDetail();},'cb-text-button'));
     const heading=node('h3',entry.name);heading.tabIndex=-1;
     appendPortrait(detail, entry);
-    detail.append(heading,node('p',`${entry.id} \u00b7 ${entry.origin}`),node('p',entry.summary));
+    detail.append(heading,node('p',`${entry.id} \u00b7 ${entry.origin}`));
+    if (!entry.levels?.length) detail.append(node('p',entry.summary));
     if (entry.family === 'units') {
       for (const reference of boardVisuals.unit[entry.id]?.references ?? []) {
         const disclosure = node('details'), image = node('img');
@@ -383,8 +384,21 @@ export function mountContentBrowser(root, options = {}) {
         disclosure.append(image); detail.append(disclosure);
       }
     }
-    for(const group of entry.sections ?? []) if(group.fields?.length) detail.append(contentGroup(group.title,fields(group.fields)));
-    if(entry.abilities?.length) detail.append(section(`Owned abilities \u00b7 ${entry.abilities.length}`,...entry.abilities.map(renderAbility)));
+    function appendConfiguration(container, configuration) {
+      if (configuration.level > 1) container.append(node('p', configuration.upgradeCost == null
+        ? 'Unavailable for purchase at an Equipment Station.'
+        : `Upgrade cost: ${configuration.upgradeCost} Credits`));
+      for (const group of configuration.sections ?? []) if (group.fields?.length) container.append(contentGroup(group.title, fields(group.fields)));
+      if (configuration.abilities?.length) container.append(section(`Owned abilities \u00b7 ${configuration.abilities.length}`, ...configuration.abilities.map(renderAbility)));
+    }
+    if (entry.levels?.length) {
+      const panel = node('div');
+      const picker = select('content-inspect-level', entry.levels.map(level => [String(level.level), `Level ${level.level}`]), value => {
+        panel.replaceChildren(); appendConfiguration(panel, entry.levels.find(level => level.level === Number(value)));
+      });
+      picker.setAttribute('aria-label', 'Level to inspect'); picker.value = '1';
+      detail.append(picker, panel); appendConfiguration(panel, entry.levels[0]);
+    } else appendConfiguration(detail, entry);
     if(entry.mechanic) renderMechanic(entry.mechanic);
     for(const reference of entry.references ?? []) {const target=state.entries.find(e=>e.key===reference.targetKey);detail.append(target && reference.exists ? linkTo(target.key,target.name) : node('span',`${reference.id} \u00b7 unavailable`,'cb-missing'));}
     if(definitionFields[entry.family] && !(entry.family === 'terrain' && entry.definition?.assembly)) {

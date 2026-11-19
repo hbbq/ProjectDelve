@@ -106,6 +106,32 @@ public sealed class GeneratedMachineImportTests
         AssertCountersAndControls(played.Physical.Board.Machines);
     }
 
+    [Fact]
+    public async Task PaidServicesRoundTripThroughDesignerWithScenarioLocalPricesAndPublishedFireball()
+    {
+        await using var host = await Host.Start(usePublishedContent: true);
+        var definition = new ScenarioDefinition
+        {
+            Board = new() { Width = 6, Height = 4 }, UnitTypeIds = [UnitTypeIds.Tycoon],
+            Units = [new(UnitTypeIds.Tycoon, "blue", new(1, 1), InitialHp: 2)],
+            Agency = [new(UnitTypeIds.Tycoon, "blue", ControllerKind.Human)],
+            Loot = LootSettings.Empty, Objectives = [new("blue", ScenarioObjective.NoObjective)],
+            Machines = [new("care", new(1, 0), MachineTypes.DelveCare), new("vendor", new(2, 1), MachineTypes.MeteorOMat)]
+        };
+        var type = definition.Machines[0].Type;
+        var services = type.Operation.PaidServices!.Services;
+        definition.Machines[0] = definition.Machines[0] with { Type = type with { Operation = type.Operation with {
+            PaidServices = new(services.SetItem(0, services[0] with { Cost = 3, HealAmount = 1 })) } } };
+        var code = await DesignerRoundTrip(host.Client, definition, ScenarioDefinitionTransport.Encode(definition));
+        using var imported = await host.Client.PostAsJsonAsync("/api/game/scenario/import", new { expectedRevision = 0, transport = code });
+        await Success(imported);
+        var live = host.App.Services.GetRequiredService<PlaytestGame>().Snapshot().Result.State;
+        AssertMachines(definition.Machines, live.Physical.Board.Machines);
+        Assert.Equal(10, MachineTypes.DelveCare.Operation.PaidServices!.Services[0].Cost);
+        var item = Assert.Single(live.ItemTypes, i => i.Id == "last-resort-fireball");
+        Assert.IsType<FireballMechanic>(Assert.Single(item.LocalAbilities).Mechanic);
+    }
+
     private static void AssertCountersAndControls(IReadOnlyList<Machine> machines)
     {
         var beacon = machines.Single(m => m.Id == "beacon");
@@ -168,12 +194,12 @@ public sealed class GeneratedMachineImportTests
         public HttpClient Client => client;
         public Task<HttpResponseMessage> PostDraft(string path, ScenarioDefinition definition) =>
             client.PostAsync(path, new StringContent(ScenarioDefinitionJson.ToJson(definition), Encoding.UTF8, "application/json"));
-        public static async Task<Host> Start()
+        public static async Task<Host> Start(bool usePublishedContent = false)
         {
             var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../ProjectDelve.Web"));
             var directory = Path.Combine(Path.GetTempPath(), "delve-generated-machine-" + Guid.NewGuid().ToString("N"));
             var app = PlaytestHost.Build(["--urls", "http://127.0.0.1:0", "--contentRoot", root,
-                "--CanonicalContent:Directory", Path.Combine(directory, "canonical"),
+                "--CanonicalContent:Directory", usePublishedContent ? Path.Combine(root, "Content", "Canonical") : Path.Combine(directory, "canonical"),
                 "--ContentWorkspace:Path", Path.Combine(directory, "workspace"),
                 "--ContentLibrary:Path", Path.Combine(directory, "content-library"), "--Library:Path", Path.Combine(directory, "library")]);
             await app.StartAsync();

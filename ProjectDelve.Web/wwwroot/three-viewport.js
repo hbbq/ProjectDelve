@@ -13,6 +13,7 @@ import { createUnitFacing, observedMovementLegs, shortestYaw } from './unit-faci
 import { createTabletopMarks } from './three-tabletop-marks.js';
 import { layoutTabletopLabels } from './three-label-layout.js';
 import { groundLoot } from './loot-ui.js';
+import { creditsPiles } from './credits-ui.js';
 import { terrainLightSources, lootLightSources, unitLightSources } from './three-local-lighting.js';
 
 const flatHeights = Object.freeze({terrain:0,grid:.015,objects:.04,rails:.06,edges:.1,items:.15,movement:.3,fog:.6,units:.8,feedback:1.1,areas:1.2,board:-.1});
@@ -148,12 +149,23 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     if(m){group.add(plane(m,x,z,w,h,height,rotation,geometry));if(m.map)fallback.visible=false;
       (m.userData.fallbacks??=new Set()).add(fallback);(group.userData.fallbacks??=[]).push({material:m,node:fallback});}
   }
-  function glyph(value){
-    if(glyphs.has(value))return glyphs.get(value);
+  function glyph(value,fit=false){
+    const key=fit?`fitted:${value}`:value;
+    if(glyphs.has(key))return glyphs.get(key);
     const bitmap=document.createElement('canvas');bitmap.width=bitmap.height=128;
-    const ctx=bitmap.getContext('2d');ctx.clearRect(0,0,128,128);ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 70px system-ui';ctx.fillStyle='#fff2d4';ctx.strokeStyle='#11161c';ctx.lineWidth=5;ctx.strokeText(value,64,67);ctx.fillText(value,64,67);
+    const ctx=bitmap.getContext('2d');
+    ctx.clearRect(0,0,128,128);
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 70px system-ui';
+    ctx.fillStyle='#fff2d4';ctx.strokeStyle='#11161c';ctx.lineWidth=5;
+    if(fit){
+      ctx.strokeText(value,64,67,120);
+      ctx.fillText(value,64,67,120);
+    }else{
+      ctx.strokeText(value,64,67);
+      ctx.fillText(value,64,67);
+    }
     const texture=new THREE.CanvasTexture(bitmap);texture.colorSpace=THREE.SRGBColorSpace;
-    const m=new THREE.MeshBasicMaterial({map:texture,transparent:true,depthWrite:false});glyphs.set(value,m);return m;
+    const m=new THREE.MeshBasicMaterial({map:texture,transparent:true,depthWrite:false});glyphs.set(key,m);return m;
   }
   function plane(m,x,z,w=1,h=1,height=0,rotation=0,geometry=geometries.plane){
     const mesh=new THREE.Mesh(geometry,m);mesh.rotation.x=-Math.PI/2;mesh.position.set(x,height,z);mesh.scale.set(w,h,1);
@@ -226,12 +238,12 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     root.userData.appearance={...a};root.userData.footprint=frame.presentation.figures?.[id]?.occupiedCells??[figure.position];
     return root;
   }
-  const displayUnitLabel=(a,name=a.name)=>`${name}${a.groupId==null?'':` [${a.groupId}]`}${a.dormant?' Zz':''}`;
+  const displayUnitLabel=(a,name=a.name)=>`${name}${a.level>1?` · L${a.level}`:''}${a.groupId==null?'':` [${a.groupId}]`}${a.dormant?' Zz':''}`;
   function appearance(figure){
     const unit=frame.state.units.find(u=>u.id===figure.id),type=frame.state.types.find(t=>t.id===unit?.typeId),card=frame.presentation.cards?.[figure.id];
     const geometry=frame.presentation.figures?.[figure.id],cells=geometry?.occupiedCells;
     const footprint=cells?.length?{footprintWidth:Math.max(...cells.map(c=>c.x))-Math.min(...cells.map(c=>c.x))+1,footprintDepth:Math.max(...cells.map(c=>c.y))-Math.min(...cells.map(c=>c.y))+1}:{};
-    return{typeId:unit?.typeId,sideId:unit?.sideId,groupId:unit?.groupId??null,dormant:unit?.dormant??false,wakeDistance:unit?.wakeDistance,name:card?.individualName?.trim()||card?.displayName||type?.displayName||'Unit',posture:figure.posture,active:frame.state.currentUnitId===figure.id,cellSpan:geometry?.cellSpan??1,...footprint,hp:unit?.currentHp,maxHp:type?.hp??1};
+    return{typeId:unit?.typeId,sideId:unit?.sideId,groupId:unit?.groupId??null,dormant:unit?.dormant??false,wakeDistance:unit?.wakeDistance,name:card?.individualName?.trim()||card?.displayName||type?.displayName||'Unit',posture:figure.posture,active:frame.state.currentUnitId===figure.id,cellSpan:geometry?.cellSpan??1,...footprint,hp:unit?.currentHp,maxHp:card?.maxHp??type?.hp??1,level:card?.level};
   }
   function renderFrame(next){
     if(disposed)return;const begin=performance.now();postureChanges.clear();const identity=next.metadata.sessionId??next.metadata.scenarioId;
@@ -353,11 +365,16 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     for(const pile of lootPiles){
       retain(`loot:${boardCellKey(pile.position)}`,JSON.stringify(pile),'items',()=>physical.loot(pile));
     }
+    for(const pile of creditsPiles(frame.state)){
+      retain(`credits:${boardCellKey(pile.position)}`,JSON.stringify(pile),'items',()=>
+        plane(glyph(`C ${pile.amount}`,true),pile.position.x+.74,pile.position.y+.91,.50,.25,heights.items+.015));
+    }
     const labelIds=new Set();
     for(const figure of frame.state.physical.figures){const a=appearance(figure);
       updateUnit(figure,a);
       labelIds.add(figure.id);let label=labelNodes.get(figure.id);if(!label){label=document.createElement('div');label.className='three-token-info';label.innerHTML='<span class="three-hp"></span><span class="three-name"></span><span class="three-state"></span><span class="three-side"></span><span class="three-inventory"></span>';labels.append(label);labelNodes.set(figure.id,label);}
       label.appearance=a;label.position=figure.position;label.dataset.unitId=figure.id;label.dataset.groupId=a.groupId??'';label.dataset.dormant=String(a.dormant);label.title=`${a.name} · Side ${a.sideId} · ${a.posture}${a.maxHp>1?` · HP ${a.hp}/${a.maxHp}`:''}`;
+      if(a.level!=null) label.title+=` · Level ${a.level}`;
       const inventoryCount=frame.state.units.find(u=>u.id===figure.id)?.inventory?.length??0;
       label.title+=`${a.groupId==null?'':` - Group ${a.groupId}`}${a.dormant?' - Dormant':''}${a.wakeDistance==null?'':` - Wake Distance ${a.wakeDistance}`}`;
       const inventory = label.children[4];

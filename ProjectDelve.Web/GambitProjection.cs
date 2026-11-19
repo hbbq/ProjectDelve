@@ -15,6 +15,7 @@ public sealed record GambitUnit(string Id, string TypeId, string SideId, GambitA
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Posture? Posture,
     GambitStats EffectiveStats, IReadOnlyList<GambitAbilityUse> LimitedUses)
 {
+    public int Level { get; init; } = 1;
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? SummonerUnitId { get; init; }
 
@@ -37,7 +38,10 @@ public sealed record GambitGrantedAbility(GambitAbility Content, string Source,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AccountingId,
     int CopyCount);
 public sealed record GambitType(string Id, string Name, Footprint Footprint, GambitStats Stats, int Hp,
-    IReadOnlyList<GambitAbility> Abilities);
+    IReadOnlyList<GambitAbility> Abilities)
+{
+    public int Level { get; init; } = 1;
+}
 public sealed record GambitBagEntry(string TypeId, string SideId, int Count,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? GroupId = null);
 public sealed record GambitWorldEffects(int CardsPerRound, int Cycling, int DrawPileCount, int DiscardPileCount,
@@ -93,6 +97,10 @@ public sealed record GambitObservation(GambitBoard Board, IReadOnlyList<GambitUn
     public IReadOnlyList<ProjectDelve.Engine.Route> Routes { get; init; } = [];
     public IReadOnlyList<StoredResource> StoredResources { get; init; } = [];
     public IReadOnlyList<Resource> Resources { get; init; } = [];
+    public int CreditsBalance { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ExpeditionPartyRoster? Party { get; init; }
+    public IReadOnlyList<CreditsPile> CreditsPiles { get; init; } = [];
     public IReadOnlyList<CellMarker> CellMarkers { get; init; } = [];
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<LootMarker>? LootMarkers { get; init; }
@@ -155,7 +163,10 @@ public sealed record GambitAttackContext(string AttackerId, string ActionId,
     IReadOnlyList<GambitAttackTargetResult> Results,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GambitDice? AttackRoll);
 public sealed record GambitDefeatContext(string UnitId, string TypeId, string SideId, int CurrentHp,
-    Cell Position, IReadOnlyList<Cell> OccupiedCells, Posture Posture);
+    Cell Position, IReadOnlyList<Cell> OccupiedCells, Posture Posture)
+{
+    public int Level { get; init; } = 1;
+}
 public sealed record GambitEvent(string Kind,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? UnitId = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? TargetId = null,
@@ -197,6 +208,30 @@ public sealed record GambitEvent(string Kind,
 {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<BreakOutcome>? BreakOutcomes { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? CreditsAmount { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<EquipmentSale>? EquipmentSales { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? RecruitedUnitId { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? RecruitmentCost { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PaidServiceId { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? PaidServiceCost { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PurchasedItemId { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PurchasedItemTypeId { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<StationUpgrade>? UnitUpgrades { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<StationUpgrade>? EquipmentUpgrades { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? UpgradeCost { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? CreditsBalance { get; init; }
 }
 
 internal static class GambitProjection
@@ -238,7 +273,7 @@ internal static class GambitProjection
         var geometries = BrowserProjection.Figures(state);
         var units = state.Units.Select(unit =>
         {
-            var type = state.Types.Single(t => t.Id == unit.TypeId);
+            var type = state.UnitConfiguration(unit);
             geometries.TryGetValue(unit.Id, out var geometry);
             var posture = state.Physical.Figures.FirstOrDefault(f => f.Id == unit.Id)?.Posture;
             var entries = BrowserProjection.Entries(state, unit).ToArray();
@@ -253,19 +288,22 @@ internal static class GambitProjection
             var token = unit.Token;
             var agency = unit.SideId != bindingSide ? (state.AreHostile(bindingSide, unit.SideId) ? GambitAgency.Hostile : GambitAgency.Neutral)
                 : controllerBindings.GetValueOrDefault(token) == "Gambit" ? GambitAgency.Direct : GambitAgency.Allied;
-            return new GambitUnit(unit.Id, unit.TypeId, unit.SideId, agency, unit.CurrentHp, type.Hp,
+            return new GambitUnit(unit.Id, unit.TypeId, unit.SideId, agency, unit.CurrentHp, state.EffectiveMaxHpOf(unit),
                 geometry?.Anchor, type.Footprint == Footprint.TwoByTwo ? geometry?.OccupiedCells : null,
                 type.Footprint == Footprint.TwoByTwo ? geometry?.CellSpan : null, posture,
                 new(state.EffectiveMovOf(unit.Id), state.EffectiveRngOf(unit.Id), state.EffectiveAtkOf(unit.Id), state.EffectiveDefOf(unit.Id)), uses)
-                { SummonerUnitId = unit.SummonerUnitId, GroupId = unit.GroupId, Dormant = unit.Dormant, WakeDistance = unit.WakeDistance,
+                { Level = unit.Level, SummonerUnitId = unit.SummonerUnitId, GroupId = unit.GroupId, Dormant = unit.Dormant, WakeDistance = unit.WakeDistance,
                     Abilities = individualAbilities.Length == 0 ? null : individualAbilities,
                     MovementCapabilities = state.EffectiveMovementCapabilitiesOf(unit.Id),
                     Inventory = unit.Inventory.IsEmpty ? null : unit.Inventory.Select(o => BrowserProjection.Object(state, o)).ToArray() };
         }).ToArray();
-        var types = state.Types.Where(type => state.Units.Any(unit => unit.TypeId == type.Id)).Select(type => new GambitType(type.Id, type.DisplayName ?? type.Id, type.Footprint,
-            new(type.Mov, type.Rng, type.Atk, type.Def), type.Hp,
-            type.CardEntries(state.Types).Select(entry => new GambitAbility(entry.Id, entry.Name, entry.Category,
-                entry.Description, entry.MaxUses)).ToArray())).ToArray();
+        var types = (from definition in state.Types
+            from level in state.Units.Where(unit => unit.TypeId == definition.Id).Select(unit => unit.Level).Distinct().Order()
+            let type = definition.AtLevel(level)
+            select new GambitType(type.Id, type.DisplayName ?? type.Id, type.Footprint,
+                new(type.Mov, type.Rng, type.Atk, type.Def), type.Hp,
+                type.CardEntries(state.Types).Select(entry => new GambitAbility(entry.Id, entry.Name, entry.Category,
+                    entry.Description, entry.MaxUses)).ToArray()) { Level = level }).ToArray();
         var bag = state.Bag.GroupBy(token => token).OrderBy(group => group.Key.SideId).ThenBy(group => group.Key.TypeId).ThenBy(group => group.Key.GroupId, StringComparer.Ordinal)
             .Select(group => new GambitBagEntry(group.Key.TypeId, group.Key.SideId, group.Count(), group.Key.GroupId)).ToArray();
         var activation = new GambitActivation(state.ActiveToken, state.CurrentUnitId, state.CompletedUnitIds.ToArray(), state.MoveDone,
@@ -307,6 +345,7 @@ internal static class GambitProjection
             state.Round, state.RoundComplete, glossary, RenderAsciiBoard(sourceBoard, units, unknown))
             { Orders = state.Orders.ToArray(), Waypoints = state.Waypoints.ToArray(), Routes = state.Routes.ToArray(), CellMarkers = state.CellMarkers.ToArray(), Resources = state.Resources.ToArray(), StoredResources = state.StoredResources.ToArray(),
                 LootMarkers = state.LootMarkers.Count == 0 ? null : state.LootMarkers.ToArray(),
+                CreditsBalance = state.SideCredits.GetValueOrDefault(bindingSide), CreditsPiles = state.CreditsPiles.ToArray(), Party = state.Party,
                 GroundObjects = state.GroundObjects.Count == 0 ? null : BrowserProjection.GroundObjects(state),
                 ObjectiveStartUnitIds = state.ObjectiveStartUnitIds.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<string>)pair.Value.ToArray()),
                 DefeatedUnitIds = state.DefeatedUnitIds.Order(StringComparer.Ordinal).ToArray(), UnknownCells = unknown };
@@ -455,7 +494,15 @@ internal static class GambitProjection
             value.Dice is null ? null : new(Roll(value.Dice.Pool), value.Dice.Faces, value.Dice.Successes),
             value.WorldCard, value.CycledWorldCard, value.ResourceType, value.StoredQuantity, value.MachineId,
             value.ConsumedResources.IsEmpty ? null : value.ConsumedResources.ToArray(), value.CellMarkerType, value.ReplenishedUses,
-            value.TerrainTypeId, value.TerrainName) { BreakOutcomes = value.BreakOutcomes.IsDefaultOrEmpty ? null :
+            value.TerrainTypeId, value.TerrainName) { CreditsAmount = value.CreditsAmount, CreditsBalance = value.CreditsBalance,
+                EquipmentSales = value.EquipmentSales.IsDefaultOrEmpty ? null : value.EquipmentSales,
+                RecruitedUnitId = value.RecruitedUnitId, RecruitmentCost = value.RecruitmentCost,
+                PaidServiceId = value.PaidServiceId, PaidServiceCost = value.PaidServiceCost,
+                PurchasedItemId = value.PurchasedItemId, PurchasedItemTypeId = value.PurchasedItemTypeId,
+                UnitUpgrades = value.UnitUpgrades.IsDefaultOrEmpty ? null : value.UnitUpgrades,
+                EquipmentUpgrades = value.EquipmentUpgrades.IsDefaultOrEmpty ? null : value.EquipmentUpgrades,
+                UpgradeCost = value.UpgradeCost,
+                BreakOutcomes = value.BreakOutcomes.IsDefaultOrEmpty ? null :
                 value.BreakOutcomes.Select(o => o with { BeforeVisibleSideIds = [] }).ToArray() };
     }
 
@@ -465,5 +512,5 @@ internal static class GambitProjection
             new GambitAttackTargetResult(t.TargetId, t.DefenceDice, t.Blocks, t.Damage)).ToArray(),
         value.AttackRoll is null ? null : new(Roll(value.AttackRoll.Pool), value.AttackRoll.Faces, value.AttackRoll.Successes));
     private static GambitDefeatContext Defeat(DefeatContext value) => new(value.Unit.Id, value.Unit.TypeId,
-        value.Unit.SideId, value.Unit.CurrentHp, value.Figure.Position, value.OccupiedCells, value.Figure.Posture);
+        value.Unit.SideId, value.Unit.CurrentHp, value.Figure.Position, value.OccupiedCells, value.Figure.Posture) { Level = value.Unit.Level };
 }

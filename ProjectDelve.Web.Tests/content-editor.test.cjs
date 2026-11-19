@@ -68,6 +68,65 @@ const addCost = (h, id, ability = 0) => {
 };
 const clickLabel = (h, label) => h.root.all(element => element.attributes['aria-label'] === label)[0].listeners.click();
 
+for (const family of ['units', 'equipment']) test(`${family} edits a complete Level and reopens its independent Abilities and modifiers`, async () => {
+  const catalog = { ...costCatalog, unitAuthoring: { ...costCatalog.unitAuthoring,
+    stats: ['mov', 'rng', 'atk', 'def', 'hp'].map(name => ({ name, kind: 'Integer', required: true })),
+    fields: [
+      { name: 'terrainRestriction', kind: 'Object', allowNull: true, members: [{ name: 'categories', kind: 'List', required: true, item: { kind: 'String', required: true } }] },
+      { name: 'terrainRestrictedMovement', kind: 'Object', allowNull: true, members: [{ name: 'terrain', kind: 'Enum', required: true, allowedValues: ['Grass', 'Asphalt'] }] },
+      { name: 'attackDefinitionOrder', kind: 'List', required: true, item: { kind: 'Enum', required: true, allowedValues: ['NormalAttack', 'Fireball'] } }
+    ] } };
+  const original = { id: 'step', name: 'Step', displayName: 'Step', mov: 3, rng: 1, atk: 1, def: 1, hp: 1,
+    localAbilities: [{ key: 'stride', name: 'Stride', timing: 'Action', usage: { maxUses: 1 }, mechanic: { kind: 'costOperation', amount: 1 } }] };
+  if (family === 'units') Object.assign(original, { attackDefinitionOrder: ['NormalAttack', 'Fireball'], terrainRestriction: { categories: ['road'] } });
+  const h = harness({ callbacks: { catalog } });
+  await h.editor.open({ family, definition: original, existingId: 'step' });
+  h.byId('content-editor-add-level').listeners.click();
+  const path = 'definition.additionalLevels[0]';
+  if (family === 'units') {
+    h.change(path + '.mov', '4');
+    assert.equal(h.field(path + '.terrainRestriction.categories[0]').value, 'road');
+    h.change(path + '.terrainRestriction', 'omitted', 'change');
+    h.change(path + '.terrainRestrictedMovement', 'value', 'change');
+    h.change(path + '.terrainRestrictedMovement.terrain', 'Asphalt', 'change');
+    h.change(path + '.attackDefinitionOrder[0]', 'Fireball', 'change');
+    h.change(path + '.attackDefinitionOrder[1]', 'NormalAttack', 'change');
+  } else h.change(path + '.maxHpModifier', '2');
+  h.change(path + '.actionCountModifier', '1');
+  h.change(path + '.localAbilities[0].name', 'Paired stride');
+  h.change(path + '.localAbilities[0].timing', 'BonusAction', 'change');
+  h.change(path + '.localAbilities[0].usage.maxUses', '3');
+  addCost(h, 'paperPayment');
+  h.change(path + '.localAbilities[0].mechanic.amount', '2');
+  await h.editor.save();
+  const saved = h.saved[0].definition, high = saved.additionalLevels[0];
+  assert.deepEqual(saved.localAbilities, original.localAbilities);
+  assert.deepEqual(high.localAbilities, [{ key: 'stride', name: 'Paired stride', timing: 'BonusAction',
+    usage: { maxUses: 3 }, mechanic: { kind: 'costOperation', amount: 2 }, costs: [{ kind: 'paperPayment' }] }]);
+  assert.equal(high.actionCountModifier, 1);
+  if (family === 'units') {
+    assert.equal(high.mov, 4);
+    assert.deepEqual(high.attackDefinitionOrder, ['Fireball', 'NormalAttack']);
+    assert.deepEqual(high.terrainRestrictedMovement, { terrain: 'Asphalt' });
+    assert.equal(high.terrainRestriction, undefined);
+    assert.deepEqual(saved.terrainRestriction.categories, ['road']);
+    assert.deepEqual(saved.attackDefinitionOrder, ['NormalAttack', 'Fireball']);
+  }
+  else assert.equal(high.maxHpModifier, 2);
+  assert.equal(high.id, undefined);
+  assert.equal(original.additionalLevels, undefined);
+  await h.editor.open({ family, definition: saved, existingId: 'step' });
+  const choose = h.byId('content-editor-level'); choose.value = '2'; choose.listeners.change();
+  assert.equal(h.field(path + '.localAbilities[0].key').readOnly, true);
+  assert.equal(h.field(path + '.localAbilities[0].name').value, 'Paired stride');
+  h.byId('content-editor-add-level').listeners.click();
+  h.change('definition.additionalLevels[1].localAbilities[0].name', 'New name');
+  h.byId('content-editor-remove-level').listeners.click();
+  assert.equal(h.field(path + '.localAbilities[0].name').value, 'Paired stride');
+  h.byId('content-editor-remove-level').listeners.click(); await h.editor.save();
+  assert.equal(h.saved.at(-1).definition.additionalLevels, undefined);
+});
+
 for (const family of ['units', 'equipment', 'items']) test(`${family} Presentation Profile selector inherits, preserves overrides and unknown imports through save and copy`, async () => {
   const effectiveCatalog = { unitAuthoring: { stats: [], fields: [], behaviors: [] }, entries: ['fireball', 'targetUnitAttack'].map(id => ({ family: 'mechanics', id,
     mechanic: { id, name: id, family: 'Ability', profiles: [{ source: { units: 'Unit', equipment: 'Equipment', items: 'Item' }[family], timing: 'Action', usage: 'UnlimitedOnly' }], parameters: [], description: {} } })) };
@@ -150,6 +209,21 @@ function harness(options = {}) {
   const clickText = text => { const element = root.all(element => element.tagName === 'button' && element.textContent === text)[0]; assert.ok(element, text); return element.listeners.click(); };
   return { root, document, editor, validated, saved, byId, field, change, clickText, run: text => vm.runInContext(text, environment), environment };
 }
+
+for (const family of ['equipment', 'items']) test(`${family} Sell Value keeps null distinct from zero and uses authoritative validation`, async () => {
+  const h = harness({ validation: request => request.definition.sellValue < 0 ? { valid: false, diagnostics: [{ path: 'definition.sellValue', code: 'invalid-sell-value', message: 'Sell Value must be non-negative.' }] } : { valid: true, diagnostics: [], definition: request.definition } });
+  await h.editor.open({ family, definition: { id: 'test-sale', name: 'Test Sale', localAbilities: [] } });
+  assert.equal(h.field('definition.sellValue').value, '');
+  assert.equal(h.field('definition.sellValue').min, 0);
+  h.change('definition.sellValue', '0'); await h.editor.save();
+  assert.equal(h.saved[0].definition.sellValue, 0);
+  await h.editor.open({ family, definition: h.saved[0].definition, existingId: 'test-sale' });
+  h.change('definition.sellValue', '-1'); await h.editor.save();
+  assert.equal(h.saved.length, 1);
+  assert.match(h.root.textContent, /Sell Value must be non-negative/);
+  h.change('definition.sellValue', ''); await h.editor.save();
+  assert.equal(h.saved[1].definition.sellValue, null);
+});
 
 test('metadata selects supported families and profiles without ID-specific forms, retaining actual defaults and bounds', () => {
   const h = harness(); h.environment.catalog = catalog;
@@ -404,21 +478,50 @@ test('Unit copies retain authored fields and independent stable Ability identity
   assert.equal(h.run('state.profiles(state.mechanic("unitOnly"))[0].source'),'Unit');
 });
 
+test('destination Level price distinguishes omission, zero and positive Credits for Unit and Equipment authoring', async () => {
+  for (const family of ['units', 'equipment']) {
+    const definition = family === 'units'
+      ? { id: 'level-unit', displayName: 'Level Unit', mov: 3, rng: 1, atk: 1, def: 1, hp: 1, localAbilities: [],
+        additionalLevels: [{ mov: 4, rng: 1, atk: 1, def: 1, hp: 1, localAbilities: [] }] }
+      : { id: 'level-gear', name: 'Level Gear', localAbilities: [], additionalLevels: [{ localAbilities: [] }] };
+    const h = harness({ callbacks: { catalog: { ...catalog, unitAuthoring: { defaults: {}, stats: [], fields: [], behaviors: [] } } } });
+    await h.editor.open({ family, definition });
+    assert.equal(h.byId('content-editor-upgrade-cost'), undefined, 'Level 1 has no purchase price');
+    h.byId('content-editor-level').value = '2'; h.byId('content-editor-level').listeners.change();
+    const path = 'definition.additionalLevels[0].upgradeCost';
+    assert.equal(h.field(path).min, 0);
+    assert.match(h.root.textContent, /Leave blank to keep this Level unavailable for purchase/);
+    await h.editor.validate();
+    assert.equal(Object.hasOwn(h.validated.at(-1).definition.additionalLevels[0], 'upgradeCost'), false);
+    h.change(path, '0'); await h.editor.validate();
+    assert.equal(h.validated.at(-1).definition.additionalLevels[0].upgradeCost, 0);
+    h.change(path, '12'); await h.editor.validate();
+    assert.equal(h.validated.at(-1).definition.additionalLevels[0].upgradeCost, 12);
+    h.change(path, ''); await h.editor.save();
+    assert.equal(Object.hasOwn(h.saved.at(-1).definition.additionalLevels[0], 'upgradeCost'), false);
+    assert.equal(Object.hasOwn(definition.additionalLevels[0], 'upgradeCost'), false);
+  }
+});
+
 
 test('Unit sections group metadata fields and offer the unsaved candidate for self summoning', async () => {
   const summon={id:'adjacentUnitSummon',name:'Summon',family:'Ability',profiles:[{source:'Unit',timing:'Action',usage:'UnlimitedOnly'}],parameters:[{name:'unitTypeId',kind:'Reference',required:true,referenceCatalog:'units'}],description:{}};
   const field=(name,kind='Boolean')=>({name,kind,required:true});
   const effective={entries:[{family:'mechanics',id:summon.id,mechanic:summon}],unitAuthoring:{
     defaults:{id:'',displayName:'',actions:'NormalAttack',behaviors:'None',localAbilities:[]},stats:[{name:'hp',kind:'Integer',minimum:1}],
-    fields:[field('unique'),field('footprint','Enum'),field('canHaveItems'),field('canHaveEquipment'),field('lootDropSuccesses','Integer'),
+    fields:[field('unique'),field('footprint','Enum'),field('canHaveItems'),field('canHaveEquipment'),field('lootDropSuccesses','Integer'),field('creditsDropSuccesses','Integer'),field('creditsDropAmount','Integer'),
       {name:'resourceStorage',kind:'Object',allowNull:true,members:[]},{name:'attackDefinitionOrder',kind:'List',required:true,item:{kind:'String',required:true}}],behaviors:[]
   }};
   const h=harness({callbacks:{catalog:effective}});await h.editor.open({family:'units'});
   const headings=h.root.all(e=>e.tagName==='h4').map(e=>e.textContent);
-  assert.deepEqual(headings.slice(0,8),['Identity','Stats','Movement & footprint','Capabilities','Abilities','Loot','Resources','Automation']);
+  assert.deepEqual(headings.slice(0,10),['Identity','Levels','Level 1 stats','Movement & footprint','Capabilities','Level 1 modifiers','Level 1 Abilities','Loot','Resources','Automation']);
   const sectionOf=path=>{let node=h.field(path);while(node&&!node.className.split(' ').includes('ce-section'))node=node.parentElement;return node.children[0].textContent;};
-  for(const [path,section] of [['unique','Stats'],['footprint','Movement & footprint'],['canHaveItems','Capabilities'],['lootDropSuccesses','Loot'],['resourceStorage','Resources']])
+  assert.equal(sectionOf('definition.recruitmentCost'), 'Expedition recruitment');
+  assert.equal(h.field('definition.recruitmentCost').value, '');
+  h.change('definition.recruitmentCost','0');
+  for(const [path,section] of [['unique','Level 1 stats'],['footprint','Movement & footprint'],['canHaveItems','Capabilities'],['lootDropSuccesses','Loot'],['creditsDropSuccesses','Loot'],['creditsDropAmount','Loot'],['resourceStorage','Resources']])
     assert.equal(sectionOf('definition.'+path),section);
+  h.change('definition.lootDropSuccesses','2'); h.change('definition.creditsDropSuccesses','3'); h.change('definition.creditsDropAmount','7');
   h.change('definition.id','new-self');h.change('definition.displayName','New Self');h.clickText('Add Ability');
   let picker=h.field('definition.localAbilities[0].mechanic.unitTypeId');
   assert.match(picker.children.find(o=>o.value==='new-self').textContent,/New Self .* new-self/);
@@ -429,6 +532,10 @@ test('Unit sections group metadata fields and offer the unsaved candidate for se
   assert.equal(picker.children.some(o=>o.value==='new-self'),false);
   h.change('definition.localAbilities[0].mechanic.unitTypeId','renamed-self','change');await h.editor.validate();
   assert.equal(h.validated[0].definition.localAbilities[0].mechanic.unitTypeId,'renamed-self');
+  assert.equal(h.validated[0].definition.lootDropSuccesses,2);
+  assert.equal(h.validated[0].definition.creditsDropSuccesses,3);
+  assert.equal(h.validated[0].definition.creditsDropAmount,7);
+  assert.equal(h.validated[0].definition.recruitmentCost,0);
 });
 
 

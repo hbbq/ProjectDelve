@@ -23,6 +23,10 @@ public sealed record GameCommand
     public string? ExpeditionRecipe { get; init; }
     public string? TransitionId { get; init; }
     public EquipmentAllocation? EquipmentAllocation { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? RecruitTypeId { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ServiceId { get; init; }
     public Dictionary<string,string>? Controllers { get; init; }
     public List<ControllerSelection>? ControllerAssignments { get; init; }
     public bool? AutoChooseSingleRelevantChoice { get; init; }
@@ -39,7 +43,12 @@ public sealed record GameUpdate(string SessionId, long Sequence, string Kind, st
 public sealed record EquipmentStationPreviewRequest(string SessionId, long ExpectedRevision, string DecisionId,
     EquipmentAllocation? Allocation = null);
 public sealed record EquipmentStationPreviewResponse(string SessionId, long Revision, string DecisionId,
-    EquipmentStationPreview Preview, EquipmentAllocation? SavedDraft);
+    EquipmentStationPreview Preview, EquipmentAllocation? SavedDraft)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? SavedRecruitTypeId { get; init; }
+}
+public sealed record RecruitmentPreviewRequest(string SessionId, long ExpectedRevision, string DecisionId, string? RecruitTypeId = null);
+public sealed record RecruitmentPreviewResponse(string SessionId, long Revision, string DecisionId, RecruitmentPreview Preview);
 // Presentation metadata, separate from rules events and game state.
 public sealed record DecisionCommentary(string DecisionId, string? UnitId, ControllerKind Controller,
     string SideId, DecisionKind DecisionKind, string? CandidateKey, string Text, int EventIndex);

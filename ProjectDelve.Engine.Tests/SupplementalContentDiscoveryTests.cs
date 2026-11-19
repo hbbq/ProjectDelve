@@ -8,7 +8,7 @@ public sealed class SupplementalContentDiscoveryTests
     [Fact]
     public void MachineCatalogExposesCanonicalDefinitionsAndConcreteOperationData()
     {
-        Assert.Equal(new[] { MachineTypes.DiamondPress, MachineTypes.SlotMachine, MachineTypes.Beacon, MachineTypes.EquipmentStation }, MachineTypes.All);
+        Assert.Equal(new[] { MachineTypes.DiamondPress, MachineTypes.SlotMachine, MachineTypes.Beacon, MachineTypes.EquipmentStation, MachineTypes.DelveCare, MachineTypes.MeteorOMat }, MachineTypes.All);
         Assert.Equal(MachineTypes.All.Length, MachineTypes.All.Select(type => type.Id).Distinct().Count());
 
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
@@ -34,6 +34,13 @@ public sealed class SupplementalContentDiscoveryTests
                 Assert.Null(type.Operation.MaxUsesTotal);
                 Assert.Null(type.Operation.MaxUsesPerSide);
                 Assert.False(type.Operation.RequiresOutputCell);
+            }
+            else if (type.Operation.PaidServices is { } paid)
+            {
+                var services = operation.GetProperty("paidServices").GetProperty("services").EnumerateArray().ToArray();
+                Assert.Equal(paid.Services.Select(s => s.Id), services.Select(s => s.GetProperty("id").GetString()));
+                Assert.Equal(paid.Services.Select(s => s.Cost), services.Select(s => s.GetProperty("cost").GetInt32()));
+                Assert.Null(type.Storage); Assert.Empty(type.Operation.Costs); Assert.False(type.Operation.RequiresOutputCell);
             }
             else
                 Assert.Equal(type.Operation.OutputType!.Id, operation.GetProperty("outputType").GetProperty("id").GetString());

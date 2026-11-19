@@ -114,6 +114,31 @@ test('storage-free generated Machines open, render, edit, export, play and reope
   assert.deepEqual(plain(h.editor.draft.snapshot()), definition);
 });
 
+test('paid service prices and healing edits survive undo, recovery and export', async () => {
+  const definition = structuredClone(designerSetup);
+  const service = { id: 'patch', name: 'Treatment', cost: 10, healAmount: 2 };
+  definition.machines = [{ id: 'care', position: { x: 5, y: 4 }, type: {
+    id: 'care-type', name: 'Care', storage: null, operation: { costs: [], paidServices: { services: [service] } }
+  } }];
+  const storage = memoryStorage(), submitted = [];
+  const h = harness(async (_, body) => { submitted.push(plain(body)); return { transport: 'DELVE1:paid' }; },
+    undefined, storage);
+  h.context.generated = { title: 'Paid service fixture', code: 'WLD1:test-owned', definition };
+  assert.equal(h.run('delveOpenGenerated(generated)'), true);
+  h.down(h.cell(5, 4));
+  const form = h.editor.ui.properties.children[0];
+  inputField(form, 'Treatment · Credits').value = '0';
+  inputField(form, 'Treatment · HP restored').value = '1'; h.submit(form);
+  const read = editor => plain(editor.draft.snapshot().machines[0].type.operation.paidServices.services[0]);
+  const edited = { ...service, cost: 0, healAmount: 1 };
+  assert.deepEqual(read(h.editor), edited);
+  h.click('undo'); assert.deepEqual(read(h.editor), service);
+  h.click('redo'); assert.deepEqual(read(h.editor), edited);
+  assert.deepEqual(read(harness(undefined, undefined, storage).editor), edited);
+  await h.click('export');
+  assert.deepEqual(submitted.at(-1).machines[0].type.operation.paidServices.services[0], edited);
+});
+
 test('placement and selected Unit previews use registered portraits and retain unknown or failed image text controls', () => {
   const h = harness();
   h.run('boardVisuals.unit["opaque-large"] = { image: "./test-owned-portrait.webp" }');
@@ -479,6 +504,25 @@ test('Content destination refuses stale saves after another document opens or th
   assert.equal(destination.label, 'Scenario draft · Another draft');
 });
 
+test('Designer local Sell Values retain absent, null and zero through content history, document import and recovery', async () => {
+  const storage = memoryStorage(), h = harness(undefined, undefined, storage); let destination;
+  h.context.delveInspectContent = (definition, name, target) => { destination = target; };
+  h.click('content');
+  const equipment = { id: 'sale-test-equipment', name: 'Sale Test Equipment', sellValue: 0, localAbilities: [] };
+  const item = { id: 'sale-test-item', name: 'Sale Test Item', sellValue: null, localAbilities: [] };
+  const legacy = { id: 'sale-test-legacy', name: 'Sale Test Legacy', localAbilities: [] };
+  for (const [family, definition] of [['equipment', equipment], ['items', item], ['items', legacy]])
+    await destination.save({ family, definition, expectedRevision: destination.getRevision() });
+  const expected = plain(h.editor.draft.snapshot());
+  h.click('undo'); assert.deepEqual(plain(h.editor.draft.snapshot().itemTypes), [item]);
+  h.click('redo'); assert.deepEqual(plain(h.editor.draft.snapshot()), expected);
+  h.editor.loadDocument(JSON.stringify(h.editor.documentData()));
+  assert.deepEqual(plain(h.editor.draft.snapshot().equipmentTypes), [equipment]);
+  const recovered = harness(undefined, undefined, storage);
+  assert.deepEqual(plain(recovered.editor.draft.snapshot().itemTypes), [item, legacy]);
+  assert.equal(Object.hasOwn(recovered.editor.draft.snapshot().itemTypes[1], 'sellValue'), false);
+});
+
 test('Content destination includes detached local Unit definitions for Equipment summon references', () => {
   const h = harness(); let destination;
   const local = { id: 'paper-helper', displayName: 'Paper Helper', mov: 1, rng: 1, atk: 1, def: 0, hp: 2 };
@@ -524,7 +568,8 @@ test('choosing newly authored Equipment keeps the inventory or ground picker ope
   for (const destination of ['unit', 'ground']) {
     const h = harness(), draft = h.editor.draft;
     draft.applyContentDefinition('equipment', { id: 'first-object', name: 'First Object', localAbilities: [] });
-    draft.applyContentDefinition('equipment', { id: 'new-equipment', name: 'New Equipment', localAbilities: [] });
+    draft.applyContentDefinition('equipment', { id: 'new-equipment', name: 'New Equipment', localAbilities: [],
+      additionalLevels: [{ localAbilities: [], maxHpModifier: 2 }] });
     if (destination === 'unit') draft.place('goblin-type', 'blue', 'Human', { x: 1, y: 1 });
     h.editor.render(); h.editor.setTool('Select'); h.down(h.cell(1, 1));
     const form = h.editor.ui.properties.children[0];
@@ -549,6 +594,14 @@ test('choosing newly authored Equipment keeps the inventory or ground picker ope
     assert.equal(objects.length, 1);
     assert.equal(objects[0].equipmentTypeId, 'new-equipment');
     assert.equal(h.editor.history.past.length, historyCount + 1);
+    const level = inputField(h.editor.ui.properties.children[0], `Initial Equipment Level · ${objects[0].id}`);
+    assert.deepEqual(level.children.map(option => option.textContent), ['Level 1', 'Level 2']);
+    level.value = '2'; level.listeners.change({ stopPropagation() {} });
+    const after = draft.snapshot();
+    assert.equal((destination === 'unit' ? after.units[0].inventory[0] : after.groundObjects[0].object).level, 2);
+    h.click('undo');
+    const opening = draft.snapshot();
+    assert.equal((destination === 'unit' ? opening.units[0].inventory[0] : opening.groundObjects[0].object).level, undefined);
     h.click('undo');
     assert.deepEqual(plain(draft.snapshot()), before);
   }
@@ -2122,7 +2175,9 @@ test("restore bundled scenario uses token and preserves workspace on conflict", 
 });
 
 test('Loot overrides preserve other unfinished group edits and restore inheritance without copying content', () => {
-  const h = harness(); h.editor.draft.replace(designerSetup); h.editor.render();
+  const h = harness(); h.editor.draft.catalog = structuredClone(h.editor.draft.catalog);
+  for (const type of h.editor.draft.catalog.unitTypes) type.definition = {id:type.unitTypeId,lootDropSuccesses:0,creditsDropSuccesses:0,creditsDropAmount:0};
+  h.editor.draft.replace(designerSetup); h.editor.render();
   let form = h.editor.ui.agency.children[0];
   const id = form.dataset.groupType;
   enter(inputField(form, 'SideId'), 'unfinished-side');
@@ -2130,13 +2185,104 @@ test('Loot overrides preserve other unfinished group edits and restore inheritan
   change(inputField(panel, 'Drop probability'), '0');
   press(panel, 'Apply Loot settings');
   assert.equal(h.editor.draft.snapshot().lootUnitOverrides[id].dropSuccesses, 0);
+  assert.equal(h.editor.draft.snapshot().lootUnitOverrides[id].inheritCreditsDrop, true);
+  assert.equal(h.editor.draft.snapshot().lootUnitOverrides[id].creditsDropSuccesses, undefined);
   form = h.editor.ui.agency.children[0];
   assert.equal(inputField(form, 'SideId').value, 'unfinished-side');
   panel = form.querySelectorAll('details').find(d => d.dataset.lootType === id);
   change(inputField(panel, 'Drop probability'), 'default');
+  change(inputField(panel, 'Credits drop probability'), 'default');
   press(panel, 'Apply Loot settings');
   assert.equal(h.editor.draft.snapshot().lootUnitOverrides, undefined);
   assert.equal(inputField(h.editor.ui.agency.children[0], 'SideId').value, 'unfinished-side');
+});
+
+test('Credits drop form preserves scoped defaults, overrides, validation diagnostics and draft history', async () => {
+  const storage = memoryStorage(), submitted = [];
+  const h = harness(async (operation, body) => {
+    submitted.push({operation,body:plain(body)});
+    return {valid:false,errors:[{message:'Loot and Credits drop success faces must total at most 6.',path:'lootUnitOverrides.drop-fixture.creditsDropSuccesses'}]};
+  }, undefined, storage);
+  const definition = {
+    board:{width:3,height:3,defaultTerrain:'StoneFloor',cells:[],edges:[]},
+    unitTypeIds:['drop-fixture'],
+    unitTypes:[{id:'drop-fixture',displayName:'Drop Fixture',mov:2,rng:1,atk:1,def:0,hp:1,lootDropSuccesses:2,creditsDropSuccesses:3,creditsDropAmount:7}],
+    units:[],agency:[{unitTypeId:'drop-fixture',sideId:'A',controller:'Human'}],loot:{composition:[]}
+  };
+  h.editor.draft.replace(definition); h.editor.render();
+  const panel = () => h.editor.ui.agency.children[0].querySelectorAll('details').find(d => d.dataset.lootType === 'drop-fixture');
+  assert.match(inputField(panel(), 'Credits drop probability').children[0].textContent,/3\/6/);
+  assert.equal(inputField(panel(), 'Credits per drop (blank = Unit Type default)').placeholder,'7');
+  change(inputField(panel(), 'Credits drop probability'),'5');
+  enter(inputField(panel(), 'Credits per drop (blank = Unit Type default)'),'11');
+  press(panel(),'Apply Loot settings');
+  const saved = plain(h.editor.draft.snapshot());
+  assert.deepEqual(saved.lootUnitOverrides,{'drop-fixture':{creditsDropSuccesses:5,creditsDropAmount:11}});
+  assert.deepEqual(saved.unitTypes,definition.unitTypes);
+  await h.click('validate');
+  assert.equal(submitted.at(-1).body.lootUnitOverrides['drop-fixture'].creditsDropSuccesses,5);
+  assert.match(h.editor.ui.errors.textContent,/success faces must total at most 6/);
+  assert.match(h.editor.ui.status.textContent,/Invalid/);
+  h.click('undo'); assert.equal(h.editor.draft.definition.lootUnitOverrides,undefined);
+  h.click('redo'); assert.deepEqual(plain(h.editor.draft.snapshot()),saved);
+  const recovered = harness(undefined,undefined,storage);
+  assert.deepEqual(plain(recovered.editor.draft.snapshot()),saved);
+  h.editor.loadDocument(JSON.stringify(h.editor.documentData()));
+  assert.deepEqual(plain(h.editor.draft.snapshot()),saved);
+  change(inputField(panel(), 'Credits drop probability'),'0');
+  enter(inputField(panel(), 'Credits per drop (blank = Unit Type default)'),'0');
+  press(panel(),'Apply Loot settings');
+  assert.deepEqual(plain(h.editor.draft.snapshot().lootUnitOverrides),{'drop-fixture':{creditsDropSuccesses:0,creditsDropAmount:0}});
+  change(inputField(panel(), 'Credits drop probability'),'default');
+  enter(inputField(panel(), 'Credits per drop (blank = Unit Type default)'),'');
+  press(panel(),'Apply Loot settings');
+  assert.equal(h.editor.draft.definition.lootUnitOverrides,undefined);
+  assert.deepEqual(plain(h.editor.draft.snapshot().unitTypes),definition.unitTypes);
+});
+
+test('legacy Loot-only overrides preserve shape and can upgrade to live Unit Type Credits defaults', () => {
+  const h = harness();
+  const definition = {board:{width:3,height:3,defaultTerrain:'StoneFloor',cells:[],edges:[]},unitTypeIds:['drop-fixture'],
+    unitTypes:[{id:'drop-fixture',mov:2,rng:1,atk:1,def:0,hp:1,lootDropSuccesses:2,creditsDropSuccesses:3,creditsDropAmount:7}],
+    units:[],agency:[{unitTypeId:'drop-fixture',sideId:'A',controller:'Human'}],loot:{composition:[]},
+    lootUnitOverrides:{'drop-fixture':{dropSuccesses:6}}};
+  h.editor.draft.replace(definition); h.editor.render();
+  const panel = () => h.editor.ui.agency.children[0].querySelectorAll('details').find(d => d.dataset.lootType === 'drop-fixture');
+  assert.equal(inputField(panel(),'Credits drop probability').value,'legacy');
+  assert.match(inputField(panel(),'Credits drop probability').children.find(o => o.value === 'legacy').textContent,/Legacy Loot-only \(0\/6 Credits\)/);
+  assert.match(inputField(panel(),'Credits drop probability').children.find(o => o.value === 'default').textContent,/Unit Type default \(3\/6\)/);
+  press(panel(),'Apply Loot settings');
+  assert.deepEqual(plain(h.editor.draft.snapshot().lootUnitOverrides),definition.lootUnitOverrides);
+  h.editor.loadDocument(JSON.stringify(h.editor.documentData()));
+  assert.deepEqual(plain(h.editor.draft.snapshot().lootUnitOverrides),definition.lootUnitOverrides);
+  enter(inputField(panel(),'Credits per drop (blank = Unit Type default)'),'11');
+  press(panel(),'Apply Loot settings');
+  assert.deepEqual(plain(h.editor.draft.snapshot().lootUnitOverrides),{'drop-fixture':{dropSuccesses:6,creditsDropSuccesses:0,creditsDropAmount:11}});
+  h.editor.draft.replace(definition); h.editor.render();
+  change(inputField(panel(),'Drop probability'),'1');
+  change(inputField(panel(),'Credits drop probability'),'default');
+  press(panel(),'Apply Loot settings');
+  const inherited = {'drop-fixture':{dropSuccesses:1,inheritCreditsDrop:true}};
+  assert.deepEqual(plain(h.editor.draft.snapshot().lootUnitOverrides),inherited);
+  h.editor.loadDocument(JSON.stringify(h.editor.documentData()));
+  assert.equal(inputField(panel(),'Credits drop probability').value,'default');
+  assert.deepEqual(plain(h.editor.draft.snapshot().lootUnitOverrides),inherited);
+  // Reload the same declaration after its Type changes: defaults stay live.
+  const documentData = plain(h.editor.documentData());
+  documentData.definition.unitTypes[0].creditsDropSuccesses = 4;
+  documentData.definition.unitTypes[0].creditsDropAmount = 9;
+  h.editor.loadDocument(JSON.stringify(documentData));
+  assert.match(inputField(panel(),'Credits drop probability').children[0].textContent,/Unit Type default \(4\/6\)/);
+  assert.equal(inputField(panel(),'Credits per drop (blank = Unit Type default)').placeholder,'9');
+  assert.deepEqual(plain(h.editor.draft.snapshot().lootUnitOverrides),inherited);
+  h.editor.draft.replace({...definition,lootUnitOverrides:undefined}); h.editor.render();
+  assert.match(inputField(panel(),'Credits drop probability').children[0].textContent,/Unit Type default \(3\/6\)/);
+  change(inputField(panel(),'Drop probability'),'1'); press(panel(),'Apply Loot settings');
+  assert.deepEqual(plain(h.editor.draft.snapshot().lootUnitOverrides),inherited);
+  assert.equal(inputField(panel(),'Credits drop probability').value,'default');
+  h.editor.draft.replace({...definition,unitTypes:undefined,lootUnitOverrides:undefined}); h.editor.render();
+  change(inputField(panel(),'Drop probability'),'1'); press(panel(),'Apply Loot settings');
+  assert.deepEqual(plain(h.editor.draft.snapshot().lootUnitOverrides),inherited);
 });
 
 test('Unit properties author group, Dormant and optional Wake Distance', () => {

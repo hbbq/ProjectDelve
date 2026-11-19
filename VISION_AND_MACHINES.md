@@ -46,8 +46,7 @@ Amphibious permits Water traversal and occupancy while retaining terrain
 restrictions, Edges, figures, Machines, footprint and FoW checks. Phase permits
 its established traversal but still requires a normally legal endpoint. Combined
 Phase and Amphibious can therefore end on otherwise legal Water, including
-remaining there while Lying. Equipment Station redistribution checks the
-resulting occupancy before transferring a movement-capability grant.
+remaining there while Lying. The Equipment Station checks the resulting occupancy before transferring or selling an object that grants a movement capability.
 
 ## Machine declarations and operation
 
@@ -59,7 +58,7 @@ one Cell and block movement, attack LOS and ordinary FoW vision.
 
 `MachineType.Storage` is optional. `MachineOperation` declares Resource costs
 and one typed effect. It can produce a fixed Resource Type or use a six-face
-output table, reveal with `MachineReveal(Distance)`, or redistribute objects
+output table, reveal with `MachineReveal(Distance)`, or redistribute and sell objects
 with `EquipmentStationOperation`. Only Resource output requires a Resource-free
 operator Cell. Authored costs come from the Machine's storage.
 `RequiredTerrainTypeId`, when present, is checked at creation.
@@ -86,6 +85,12 @@ Beacons as standalone Machines with bounded deterministic attempts and
 protected open pads; previews expose placement and omission counts. See
 [World Generator Designer](WORLD_GENERATOR_DESIGNER.md).
 
+## Paid services in play
+
+Choose **Operate**, then DelveCare or Meteor-O-Mat. The service panel shows the operator, current HP, Side Credits and the result of each offer. At DelveCare, compare the 10-Credit treatment for up to 2 HP with the 50-Credit full heal. At Meteor-O-Mat, 15 Credits buys one Last Resort Fireball for the operator's inventory. Each offer has its own Confirm. An unavailable offer shows the reason. Cancel closes the panel for free. Save Expedition keeps the open Machine decision for resume.
+
+The Engine binds each purchase to the opening Operate source and recalculates the offer on Confirm. Browser commands contain the service ID and decision binding. Only the operating Side and full-information table see its accounting. The board and Unit card update through the existing events and observations. [Engine rules](CONSTRAINTS.md#paid-machine-services) · [Authoring](CONTENT_DESIGNER.md#paid-machine-placement)
+
 ## Equipment Station interaction
 
 `PendingMachineInteraction` captures the Machine, operator, operating Side,
@@ -95,16 +100,20 @@ spending the Action or Ability, paying Costs, or advancing the RNG. Cancel
 returns to the activation. Confirm validates and commits the full allocation
 and ordinary Operate accounting before publishing the result.
 
-The Station owns the pool of eligible recipients, proposed assignments,
+The Station owns the pool of eligible recipients, proposed assignments, sales and upgrades,
 diagnostics, and normalized preview. Each Unit is evaluated alone, Upright and
-at maximum HP through existing Engine queries. The preview retains physical
-object IDs and use information. Confirmation validates the resulting inventory
-on the live board, including movement-capability occupancy.
+at Effective Max HP through existing Engine queries. The preview uses the Unit's
+Level and each Equipment instance's Level. It retains physical object IDs and
+use information and compares the two loadouts' Move, Action and Bonus Action
+allowances. Confirmation validates immediate occupancy on the live board and
+clamps each bearer's HP to its resulting maximum. Equipment transfers preserve
+the copy's Level and remaining uses. Sell Value stays fixed per Type.
 
 A Single Use Item that supplies Operate stays with its owner while the decision
 is open. The transfer pool and projected resulting inventory exclude that Item.
-Confirm consumes it through the ordinary Ability path and requires a separate
-actual transfer. Cancel preserves the Item.
+Confirm consumes it through the ordinary Ability path. A transfer, sale or upgrade must also be selected. Cancel preserves the Item. Equipment that supplies Operate can itself be transferred, sold or upgraded. When upgrading the invoking source, the single use spent on this Operate remains spent if the destination retains the same limited Operate key. A replacement key starts full.
+
+The typed allocation has an `assignments` array for retained objects and an optional `soldObjectIds` array for sales. Together they must cover the opening pool exactly once. Optional `upgradedUnitIds` and `upgradedEquipmentIds` identify physical targets. Each selected target advances one priced Level. Any living, placed same-Side Unit can qualify, including a Unit without inventory. Equipment must be retained. The Engine resolves prices from the live definitions and settles the final balance as current Credits plus proceeds minus costs. A nonnegative final balance with room for outstanding piles is sufficient. An unchanged or invalid draft keeps the decision open.
 
 `POST /api/game/machine/preview` takes `sessionId`, `expectedRevision`,
 `decisionId`, and an optional `allocation`. A request without an allocation
@@ -120,7 +129,7 @@ The observed human decision exposes the Station roster, opening allocation and
 any reserved Item. Choosing Operate opens a modal editor. On desktop, Unit
 cards compare loadouts side by side. At narrow widths, the Unit selector shows
 one loadout at a time. Use **Give to** on an individual object to change its
-proposed owner. Copies have separate labels. A preview returns normalized
+proposed owner, or **Sell** to move it to **Marked for sale**. Choose a recipient there to undo a sale. Copies have separate labels. Select the priced next Level on a Unit or Equipment card to include its upgrade. The preview lists the operating Side's current Credits, total proceeds, upgrade costs and projected Credits. It also returns actual and projected HP alongside normalized
 stats, movement and source-specific Ability definitions with remaining uses.
 Opening-stat details, Ability sources and object details expand on demand.
 Reset restores the opening pool. Cancel returns to the activation. Confirm
@@ -129,12 +138,20 @@ Expedition, **Save draft** checkpoints the current proposal. **Back to
 Expeditions** then returns to the saved list. Resume reopens the editor and
 requests a fresh Engine preview of the saved allocation.
 
+### Recruit a Party member
+
+During an Expedition, choose **Recruit** in the Equipment Station. The panel shows Party size, capacity and available Credits. Select a Type to see its Level 1 stats, Abilities, price and proposed spawn Cell. The Engine reports blocked routes, unaffordable prices, a full Party and Unique conflicts. **Confirm recruitment** spends one Action and pays the opening Operate source. **Back to Manage** returns to the provisional inventory proposal. For a sale to finance recruitment, it must first be confirmed in a separate operation. **Save draft** preserves a selected recruit in an Expedition checkpoint and resume requests a fresh quote.
+
 ### Play the workshop
 
 Open **Scenarios**, find **Equipment Station Workshop** and select **Play
 scenario**. It is also in the **Test Scenarios** campaign. Choose **Start
 round**, **Stay**, **Operate**, then the Equipment Station target. The
 Barbarian is the only awake Unit. All four friendly Units participate.
+
+- The Heroes start with 34 Credits. Upgrading only the Barbarian costs 24 and leaves 10. Upgrading only the Barbarian's Lucky Boots costs 12 and leaves 22. To buy both in one Action, sell either Second Wind for 2. The resulting balance is zero. Restart the workshop to try another combination.
+- Give the Barbarian's Lucky Boots to the Cleric and upgrade those Boots in the same proposal. The Cleric receives the Level 2 copy, retains current HP and gains one Effective Max HP. The Barbarian keeps the other physical objects.
+- Try selling the Rogue's Swim Tube for 3 Credits while the Rogue stands on Water. Confirm stays unavailable until the proposed loadout allows the Rogue to occupy that Cell.
 
 - Give the Barbarian's Lucky Boots to the Cleric. Their isolated MOV values
   change from 4 to 3 and 3 to 4 respectively. The Cleric stays wounded and

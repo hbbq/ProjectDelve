@@ -28,6 +28,9 @@ public static class FogOfWar
     public static GameState Observe(GameState state, string? side)
     {
         var copy = state.Copy();
+        if (side is not null)
+            copy.SideCredits = new(StringComparer.Ordinal) { [side] = state.SideCredits.GetValueOrDefault(side) };
+        if (side is not null && copy.Party?.SideId != side) copy.Party = null;
         if (copy.MachineInteraction is { } interaction && side is not null && interaction.SideId != side)
             copy.MachineInteraction = null;
         copy.Pending = ObserveDecision(state, side, copy.Pending);
@@ -72,6 +75,7 @@ public static class FogOfWar
         copy.Resources.RemoveAll(r => !IsExplored(state, side, r.Position));
         copy.CellMarkers.RemoveAll(m => !IsExplored(state, side, m.Position));
         copy.LootMarkers.RemoveAll(m => !IsExplored(state, side, m.Position));
+        copy.CreditsPiles.RemoveAll(p => !IsExplored(state, side, p.Position));
         copy.GroundObjects.RemoveAll(g => !IsExplored(state, side, g.Position));
         copy.Bag.Clear(); // Generic presentation; authoritative bag is untouched.
         copy.Controllers.RemoveAll(c => c.Token.SideId != side && !groups.Contains(c.Token));
@@ -153,8 +157,18 @@ public static class FogOfWar
 
     public static RulesEvent? ObserveEvent(GameState state, string? side, RulesEvent e)
     {
+        if (side is not null && side != e.SideId && e.PaidServiceId is not null)
+            e = e with { PaidServiceId = null, PaidServiceCost = null, PurchasedItemId = null, PurchasedItemTypeId = null, CreditsAmount = null };
+        if (side is not null && side != e.SideId && e.RecruitedUnitId is not null)
+            e = e with { RecruitedUnitId = null, RecruitmentCost = null, CreditsAmount = null };
+        if (side is not null && side != e.SideId && e.CreditsBalance is not null)
+            e = e with { CreditsBalance = null };
         if (side is not null && side != e.SideId && !e.EquipmentTransfers.IsDefaultOrEmpty)
             e = e with { EquipmentTransfers = [] };
+        if (side is not null && side != e.SideId && !e.EquipmentSales.IsDefaultOrEmpty)
+            e = e with { EquipmentSales = [], CreditsAmount = null };
+        if (side is not null && side != e.SideId && (e.UpgradeCost is not null || !e.UnitUpgrades.IsDefaultOrEmpty || !e.EquipmentUpgrades.IsDefaultOrEmpty))
+            e = e with { UnitUpgrades = [], EquipmentUpgrades = [], UpgradeCost = null, CreditsAmount = null };
         if (!IsEnabled(state, side)) return e.BreakOutcomes.IsEmpty && e.BreakSourceVisibleSideIds.IsEmpty ? e : e with
             { BreakOutcomes = e.BreakOutcomes.Select(o => o with { BeforeVisibleSideIds = [] }).ToImmutableArray(), BreakSourceVisibleSideIds = [] };
         var isBreak = e.Kind is "ObjectBreakResolved" or "AdjacentObjectsBreakResolved";
@@ -198,7 +212,7 @@ public static class FogOfWar
         var observable = e.Kind switch
         {
             "ObjectBreakResolved" or "AdjacentObjectsBreakResolved" => !breakOutcomes.IsEmpty,
-            "LootDropRolled" or "LootCardDrawn" => cell,
+            "LootDropRolled" or "DefeatDropResolved" or "LootCardDrawn" or "CreditsCollected" => cell,
             "GameCompleted" or "RoundStarted" or "RoundCompleted" or "ActivationBagPopulated" or
             "WorldDeckShuffled" or "WorldDeckReshuffled" or "WorldDrawSkipped" or "WorldCardDrawn" or
             "WorldContinuousChanged" or "WorldCardDiscarded" => true,

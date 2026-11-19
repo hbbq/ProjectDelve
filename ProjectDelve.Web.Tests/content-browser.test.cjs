@@ -82,6 +82,35 @@ const heal = {
   dependencies: ['posture', 'health'], description: { template: 'Restore {amount} HP.', parameters: ['amount'], allowsOverride: true }, grantable: true
 };
 const unitAuthoring = { defaults: {id:'',displayName:'',mov:3,rng:1,atk:1,def:1,hp:1,actions:'NormalAttack',behaviors:'None',localAbilities:[],footprint:'OneByOne'}, stats:[{name:'hp',kind:'Integer',minimum:1}], fields:[], footprints:['OneByOne'],movementPatterns:['Adjacent'],behaviors:[] };
+test('definition inspection switches complete Level sections and replaces old Ability descriptions', async () => {
+  const data = structuredClone(catalog);
+  const entry = data.entries[0], old = entry.abilities[0];
+  entry.levels = [{ level: 1, sections: entry.sections, abilities: entry.abilities }, { level: 2,
+    sections: [{ title: 'Movement', fields: [{ label: 'MOV', value: 6 }, { label: 'Terrain restriction', value: { categories: ['ice'] } },
+      { label: 'Attack definition order', value: ['Fireball', 'NormalAttack'] }] }],
+    abilities: [{ ...old, name: 'Second Stitch', description: 'Restore 4 HP.', timing: 'BonusAction', usage: { maxUses: 3 } }] }];
+  const h = harness(() => ({ ok: true, json: async () => data }));
+  await h.viewer.showCanonical(); h.viewer.open(entry.key);
+  assert.match(h.byId('content-detail').textContent, /Restore 2 HP/);
+  h.change('content-inspect-level', '2');
+  const text = h.byId('content-detail').textContent;
+  assert.match(text, /Second Stitch/); assert.match(text, /Restore 4 HP/); assert.match(text, /MOV6/);
+  assert.match(text, /Terrain restriction.*ice/); assert.match(text, /Attack definition order.*Fireball.*NormalAttack/);
+  assert.doesNotMatch(text, /Restore 2 HP|Stitch the Air/);
+});
+test('Level inspector distinguishes an unpriced destination from explicit free and paid upgrades', async () => {
+  for (const price of [undefined, 0, 24]) {
+    const data = structuredClone(catalog), entry = data.entries[0];
+    entry.levels = [{ level: 1, sections: [], abilities: [] }, { level: 2, upgradeCost: price, sections: [], abilities: [] }];
+    const h = harness(() => ({ ok: true, json: async () => data }));
+    await h.viewer.showCanonical(); h.viewer.open(entry.key);
+    assert.doesNotMatch(h.byId('content-detail').textContent, /Upgrade cost|Unavailable for purchase/);
+    h.change('content-inspect-level', '2');
+    const text = h.byId('content-detail').textContent;
+    if (price == null) assert.match(text, /Unavailable for purchase at an Equipment Station/);
+    else assert.match(text, new RegExp(`Upgrade cost: ${price} Credits`));
+  }
+});
 const catalog = { unitAuthoring,
   context: { kind: 'canonical', name: 'Canonical content' },
   categories: [{ id: 'units', name: 'Units' }, { id: 'equipment', name: 'Equipment' }, { id: 'mechanics', name: 'Mechanics' }], diagnostics: [],

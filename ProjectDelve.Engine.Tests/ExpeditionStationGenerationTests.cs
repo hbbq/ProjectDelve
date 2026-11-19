@@ -11,14 +11,16 @@ public sealed class ExpeditionStationGenerationTests
             new(Enabled: false), new(PopulationDensity.Off));
 
     [Theory]
-    [InlineData(0, 0, 0, 0)]
-    [InlineData(0, 100, 0, 1)]
-    [InlineData(100, 0, 0, 2)]
-    [InlineData(0, 0, 100, 3)]
+    [InlineData(0, 0, 0, 0, 5)]
+    [InlineData(0, 100, 0, 1, 5)]
+    [InlineData(100, 0, 0, 2, 5)]
+    [InlineData(0, 0, 100, 3, 5)]
+    [InlineData(0, 0, 0, 0, 6)]
+    [InlineData(35, 12, 15, 1, 6)]
     public void ArrivalStationHasImmediateGeometricAccessWithoutConsumingDeploymentOrEndpoints(
-        int forest, int water, int rock, int edge)
+        int forest, int water, int rock, int edge, int capacity)
     {
-        var recipe = Recipe(new(forest, water, rock));
+        var recipe = Recipe(new(forest, water, rock)) with { HeroCapacity = capacity };
         Cell[] entries = [new(0, 30), new(30, 0), new(59, 30), new(30, 59)];
         Cell[] exits = [new(59, 20), new(20, 59), new(0, 20), new(20, 0)];
         ObjectiveArea[] pads = [new(57, 19, 2, 3), new(19, 57, 3, 2), new(1, 19, 2, 3), new(19, 1, 3, 2)];
@@ -29,6 +31,9 @@ public sealed class ExpeditionStationGenerationTests
         var station = Assert.Single(definition.Machines!, m => m.Id == ExpeditionStationGenerator.ArrivalId);
         Assert.Equal(MachineTypes.EquipmentStation, station.Type);
         var actor = definition.Setup!.Deployment.PlacementOrder[0];
+        Assert.Equal(capacity, definition.Setup.Deployment.Capacity);
+        Assert.True(definition.Setup.Deployment.Cells.Count >= 2 * capacity);
+        Assert.True(definition.Setup.Deployment.ManeuverCore.Count >= (3 * capacity + 1) / 2);
         Assert.True(MachineRules.GeometricallyOperable(state.Physical.Board, actor, station));
         Assert.DoesNotContain(station.Position, definition.Setup.Deployment.Cells);
         Assert.DoesNotContain(station.Position, definition.Setup.Deployment.PlacementOrder);

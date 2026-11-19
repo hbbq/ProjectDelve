@@ -3,6 +3,7 @@ namespace ProjectDelve.Engine;
 public static class UnitTypeIds
 {
     public const string Beastmaster = "beastmaster-type";
+    public const string Tycoon = "tycoon-type";
     public const string Jackalope = "jackalope-type";
     public const string GiantToad = "giant-toad-type";
     public const string DireBear = "dire-bear-type";
@@ -63,6 +64,15 @@ public static class UnitContent
             var path = $"unitTypes[{index}].localAbilities";
             AbilityContent.Validate(authored[index].LocalAbilities, AbilitySourceKind.Unit, path);
             AbilityContent.ValidateReferences(authored[index].LocalAbilities, resolved, path);
+            var type = authored[index];
+            if (!type.AdditionalLevels.IsDefaultOrEmpty)
+                for (int i = 0; i < type.AdditionalLevels.Length; i++)
+                {
+                    var abilities = type.AtLevel(i + 2).LocalAbilities;
+                    var levelPath = $"unitTypes[{index}].additionalLevels[{i}].localAbilities";
+                    AbilityContent.Validate(abilities, AbilitySourceKind.Unit, levelPath);
+                    AbilityContent.ValidateReferences(abilities, resolved, levelPath);
+                }
         }
         return resolved;
     }
@@ -75,6 +85,7 @@ public static class CanonicalUnitTypes
         new Dictionary<string, Func<UnitType>>(StringComparer.Ordinal)
         {
             [UnitTypeIds.Beastmaster] = () => UnitRoster.Beastmaster(),
+            [UnitTypeIds.Tycoon] = () => UnitRoster.Tycoon(),
             [UnitTypeIds.Jackalope] = () => UnitRoster.Jackalope(),
             [UnitTypeIds.GiantToad] = () => UnitRoster.GiantToad(),
             [UnitTypeIds.DireBear] = () => UnitRoster.DireBear(),

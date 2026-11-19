@@ -7,6 +7,36 @@ const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, '../ProjectDelve.Web/wwwroot/designer-state.js'), 'utf8');
 const plain = value => JSON.parse(JSON.stringify(value));
 
+test('authored Levels and individual ground, owned and Unit Levels travel with Designer history, documents and playtest snapshots', () => {
+  const { draft, history, draftDocument, readDraftDocument, DesignerDraft } = setup();
+  const unit = draft.definition.unitTypes[0], level = { mov: 5, rng: 2, atk: 2, def: 1, hp: 4, localAbilities: [] };
+  const gear = { ...equipment(), additionalLevels: [{ maxHpModifier: 1, localAbilities: [] }] };
+  history.transact(() => draft.applyContentDefinition('units', { ...unit, unique: true, additionalLevels: [level] }, unit.id));
+  history.transact(() => draft.applyContentDefinition('equipment', gear));
+  const key = draft.unitKeys[0];
+  history.transact(() => draft.addObject({ equipmentTypeId: gear.id }, { unitKey: key }));
+  history.transact(() => draft.addObject({ equipmentTypeId: gear.id }, { position: { x: 3, y: 3 } }));
+  const held = draft.definition.units[0].inventory[0].id, ground = draft.definition.groundObjects[0].object.id;
+  history.transact(() => draft.editUnit(key, { level: 2 }));
+  history.transact(() => draft.setObjectLevel(held, 2));
+  history.transact(() => draft.setObjectLevel(ground, 2));
+  history.undo();
+  assert.equal(draft.definition.units[0].inventory[0].level, 2);
+  assert.equal(draft.definition.groundObjects[0].object.level, undefined);
+  history.redo();
+  const opened = new DesignerDraft(draft.catalog);
+  opened.replace(readDraftDocument(JSON.stringify(draftDocument(draft.snapshot(), 'Levels'))).definition);
+  const playtest = opened.snapshot();
+  assert.deepEqual(plain(playtest), plain(draft.snapshot()));
+  assert.equal(opened.unitLevelCount(unit.id), 2);
+  assert.equal(opened.objectEquipment(playtest.groundObjects[0].object).additionalLevels[0].maxHpModifier, 1);
+  assert.equal(playtest.units[0].level, 2);
+  assert.equal(playtest.groundObjects[0].object.level, 2);
+  opened.setObjectLevel(held, 1);
+  assert.equal(opened.snapshot().units[0].inventory[0].level, undefined);
+  assert.equal(playtest.units[0].inventory[0].level, 2);
+});
+
 test('presentation overrides and inheritance survive content history, recovery, import/export and isolated Playtest snapshots', () => {
   const { draft, history, draftDocument, readDraftDocument, DesignerDraft } = setup();
   for (const [family, field] of [['units', 'unitTypes'], ['equipment', 'equipmentTypes'], ['items', 'itemTypes']]) {

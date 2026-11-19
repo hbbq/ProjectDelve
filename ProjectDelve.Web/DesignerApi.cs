@@ -9,6 +9,7 @@ public sealed record DesignerUnitType(string UnitTypeId, string DisplayName, int
     IReadOnlyList<Cell> FootprintOffsets, int CellSpan, ResourceStorage? ResourceStorage)
 {
     public UnitType? Definition { get; init; }
+    public int MaxLevel => Definition is { AdditionalLevels.IsDefaultOrEmpty: false } type ? type.AdditionalLevels.Length + 1 : 1;
     public int DefaultWakeDistance { get; init; }
 }
 public sealed record DesignerMetadataRequest(List<UnitType> UnitTypes, List<UnitPlacement>? Units = null, List<string>? MachineIds = null,

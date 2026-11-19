@@ -17,6 +17,11 @@ namespace ProjectDelve.Engine;
 
 public static class UnitRoster
 {
+    public static UnitType Tycoon(string id = UnitTypeIds.Tycoon) => UnitType.Define(id,
+        "The Tycoon", Stats(4, 1, 2, 2, 5), Loot(1, items: true, equipment: true),
+        Unique(), DefaultController(ControllerKind.Human), OpenDoor(), Operate()
+    ) with { RecruitmentCost = 75 };
+
     public static UnitType Beastmaster(string id = UnitTypeIds.Beastmaster) => UnitType.Define(id,
         "Beastmaster", Stats(3, 1, 2, 3, 5), Loot(1, items: true, equipment: true),
         Unique(), DefaultController(ControllerKind.Human), OpenDoor(), Operate(),
@@ -160,14 +165,14 @@ public static class UnitRoster
 
     public static UnitType Zombie(string id = UnitTypeIds.Zombie) => UnitType.Define(id,
         "Zombie",
-        Stats(2, 1, 3, 3, 1), Loot(1),
+        Stats(2, 1, 3, 3, 1), Loot(1, creditsDropSuccesses: 2, creditsDropAmount: 3),
         TransportResource(),
         Ability("Break Door", Unlimited(), TryOpenDoor(successes: 2), id: "break-door")
     ).WithBehaviors(UnitBehavior.ApproachThroughClosedDoors);
 
     public static UnitType SkeletonArcher(string id = UnitTypeIds.SkeletonArcher) => UnitType.Define(id,
         "Skeleton Archer",
-        Stats(3, 4, 3, 3, 1), Loot(1)
+        Stats(3, 4, 3, 3, 1), Loot(1, creditsDropSuccesses: 1, creditsDropAmount: 5)
     ).WithBehaviors(UnitBehavior.MaximizeAttackDistance);
 
     public static UnitType Goblin(string id = UnitTypeIds.Goblin) => UnitType.Define(id,
@@ -224,7 +229,22 @@ public static class UnitRoster
         Ability("Fury", Unlimited(), Fury(atkBonus: +1, adjacentEnemies: 2), id: "fury"),
         Ability("Cleave", Uses(2), Cleave(triggerDamage: 2, damage: 1), id: "cleave"),
         Ability("Rage", Uses(2), BonusActionSelfModifier(Modifier(Stat.Atk, +2)), id: "rage")
-    );
+    ) with
+    {
+        AdditionalLevels = [new(3, 1, 4, 3, 6)
+        {
+            UpgradeCost = 24,
+            LocalAbilities =
+            [
+                new("open-door", "Open Door", AbilityTiming.FreeAction, new OpenDoor()) { Usage = new(null) },
+                new("operate", "Operate", AbilityTiming.Action, new Operate()) { Usage = new(null) },
+                new("friendly-swap", "Friendly Swap", AbilityTiming.BonusAction, Swap(RelationshipSelector.Friendlies)) { Usage = new(null) },
+                new("fury", "Fury", AbilityTiming.Passive, Fury(atkBonus: +1, adjacentEnemies: 2)) { Usage = new(null) },
+                new("cleave", "Cleave", AbilityTiming.AfterAttack, Cleave(triggerDamage: 2, damage: 1)) { Usage = new(2) },
+                new("rage", "Rage", AbilityTiming.BonusAction, BonusActionSelfModifier(Modifier(Stat.Atk, +2))) { Usage = new(3) }
+            ]
+        }]
+    };
 
     public static UnitType Rogue(string id = UnitTypeIds.Rogue) => UnitType.Define(id,
         "Rogue",

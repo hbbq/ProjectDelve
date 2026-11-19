@@ -224,7 +224,8 @@ public sealed class DesignerApiTests
             Assert.Equal(type.DisplayName, entry.GetProperty("displayName").GetString());
             Assert.Equal(FootprintGeometry.OccupiedCells(type.Footprint, new(0, 0)),
                 entry.GetProperty("footprintOffsets").Deserialize<Cell[]>(Json));
-            Assert.Equal(new[] { "unitTypeId", "displayName", "maxHp", "footprintOffsets", "cellSpan", "resourceStorage", "definition", "defaultWakeDistance" }, entry.EnumerateObject().Select(p => p.Name));
+            Assert.Equal(new[] { "unitTypeId", "displayName", "maxHp", "footprintOffsets", "cellSpan", "resourceStorage", "definition", "maxLevel", "defaultWakeDistance" }, entry.EnumerateObject().Select(p => p.Name));
+            Assert.Equal(type.AdditionalLevels.IsDefaultOrEmpty ? 1 : type.AdditionalLevels.Length + 1, entry.GetProperty("maxLevel").GetInt32());
             Assert.Equal(type.WakeDistance ?? DormantRules.DefaultWakeDistance, entry.GetProperty("defaultWakeDistance").GetInt32());
             Assert.True(JsonElement.DeepEquals(JsonSerializer.SerializeToElement(type, Json), entry.GetProperty("definition")));
             Assert.Equal(JsonSerializer.SerializeToElement(type.ResourceStorage, Json).GetRawText(), entry.GetProperty("resourceStorage").GetRawText());
@@ -676,12 +677,16 @@ public sealed class DesignerApiTests
     [InlineData("lava-unit", "units[0]")]
     [InlineData("lava-resource", "resources[0]")]
     [InlineData("coal-on-grass", "board.cells[0]")]
+    [InlineData("drop-faces", "lootUnitOverrides[goblin-type].creditsDropSuccesses")]
+    [InlineData("drop-amount", "lootUnitOverrides[goblin-type].creditsDropAmount")]
     public async Task InvalidDraftUsesAuthoritativeFailureAndNeverMutatesGame(string invalid, string path)
     {
         await using var host = await Host.Start();
         var definition = CompleteData();
         definition = invalid switch
         {
+            "drop-faces" => definition with { LootUnitOverrides = new() { [UnitTypeIds.Goblin] = new(4, CreditsDropSuccesses: 3, CreditsDropAmount: 5) } },
+            "drop-amount" => definition with { LootUnitOverrides = new() { [UnitTypeIds.Goblin] = new(CreditsDropSuccesses: 1, CreditsDropAmount: 0) } },
             "coal-on-grass" => definition with { Board = definition.Board with { Cells = [new(new(4, 4), TerrainKind.Grass) { CoalGeneration = false }] } },
             "lava-unit" => definition with { Board = definition.Board with { Cells = [new(definition.Units[0].Anchor, TerrainKind.Lava)] } },
             "lava-resource" => definition with { Board = definition.Board with { Cells = [new(new(0, 0), TerrainKind.Lava)] },

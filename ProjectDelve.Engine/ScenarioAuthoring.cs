@@ -4,11 +4,11 @@ namespace ProjectDelve.Engine;
 public static class Scenario
 {
     public sealed record Placement(Cell Anchor, Posture Posture = Posture.Upright, int? InitialHp = null,
-        string? UnitId = null);
+        string? UnitId = null, int Level = 1);
     public sealed record UnitGroup(string UnitTypeId, string SideId, ControllerKind Controller, Placement[] Placements, string? GroupId = null);
 
     public static Placement At(int x, int y, Posture posture = Posture.Upright, int? initialHp = null,
-        string? unitId = null) => new(new(x, y), posture, initialHp, unitId);
+        string? unitId = null, int level = 1) => new(new(x, y), posture, initialHp, unitId, level);
 
     public static UnitGroup Group(string unitTypeId, string sideId, ControllerKind controller, params Placement[] placements) =>
         new(unitTypeId, sideId, controller, placements);
@@ -32,7 +32,7 @@ public static class Scenario
             {
                 ArgumentNullException.ThrowIfNull(placement);
                 units.Add(new(group.UnitTypeId, group.SideId, placement.Anchor, placement.Posture, placement.InitialHp,
-                    placement.UnitId, group.GroupId));
+                    placement.UnitId, group.GroupId) { Level = placement.Level });
             }
         }
         return new()

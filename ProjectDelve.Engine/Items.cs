@@ -6,6 +6,8 @@ namespace ProjectDelve.Engine;
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record ItemDefinition(string Id, string Name)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? SellValue { get; init; }
     public ImmutableArray<LocalAbilityDefinition> LocalAbilities { get; init; } = [];
     public string Describe(IReadOnlyList<UnitType>? existingTypes = null) => string.Join(" ", LocalAbilities.Select(ability => ability.CardEntry(existingTypes: existingTypes))
         .Select(entry => $"{entry.Category}: {entry.Description}")) + " Consume this Item.";
@@ -32,6 +34,8 @@ public static class ItemCatalog
                 throw ScenarioValidationContext.At(new ArgumentException("Items require unique nonblank IDs."), path + ".id");
             if (string.IsNullOrWhiteSpace(definition.Name))
                 throw ScenarioValidationContext.At(new ArgumentException("Items require nonblank names."), path + ".name");
+            if (definition.SellValue < 0)
+                throw ScenarioValidationContext.At(new ArgumentException("Sell Value must be a nonnegative integer."), path + ".sellValue");
             if (definition.LocalAbilities.IsDefault)
                 throw ScenarioValidationContext.At(new ArgumentException("Local Abilities cannot be null."), path + ".localAbilities");
             if (definition.LocalAbilities.IsEmpty)

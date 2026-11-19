@@ -56,7 +56,8 @@ public sealed class ExpeditionRunner
         var recipe = saved.GenerationRecipe is { } code ? WorldGenerationRecipe.Parse(code) : ExpeditionWorld.Configure(saved.WorldSeed);
         var recordedProfile = saved.WorldProfile ?? ExpeditionWorldProfile.CreateV1(recipe.NaturalTerrain);
         recordedProfile.Validate();
-        var profile = recordedProfile with { StationVersion = ExpeditionWorldProfile.CurrentStationVersion };
+        var profile = recordedProfile with { StationVersion = ExpeditionWorldProfile.CurrentStationVersion,
+            EconomyVersion = ExpeditionWorldProfile.CurrentEconomyVersion };
         return new(store, latest ?? ContentBundle.Canonical, (_, plan, content) => ExpeditionWorld.Generate(plan, content, recipe, profile),
             saved, Load(store, saved), saved.Version == ExpeditionStore.LegacyHeadVersion || profile != recordedProfile
                 ? (recipe.ToString(), profile) : null);
@@ -90,6 +91,7 @@ public sealed class ExpeditionRunner
     internal bool HasUnsavedChanges { get { lock (gate) return dirty; } }
     internal bool AutoChoose { get { lock (gate) return current.AutoChooseSingleRelevantChoice; } }
     internal EquipmentAllocation? EquipmentDraft { get { lock (gate) return current.EquipmentDraft; } }
+    internal string? RecruitmentDraft { get { lock (gate) return current.RecruitmentTypeId; } }
     internal bool CanContinue { get { lock (gate) return MayContinue(current.State); } }
 
     // The web runner supplies the same ordinary Engine resolution and automation loop,
@@ -111,13 +113,18 @@ public sealed class ExpeditionRunner
 
     public ExpeditionHead Save() => Save(null);
 
-    internal ExpeditionHead Save(EquipmentAllocation? equipmentDraft)
+    internal ExpeditionHead Save(EquipmentAllocation? equipmentDraft, string? recruitmentDraft = null)
     {
         lock (gate)
         {
-            if (equipmentDraft is not null && current.State.MachineInteraction is null)
-                throw new ExpeditionInputException("An Equipment draft requires a pending Machine interaction.");
-            if (equipmentDraft is not null) CommitCheckpoint(current with { EquipmentDraft = equipmentDraft });
+            if (equipmentDraft is not null && current.State.MachineInteraction?.EquipmentStation is null)
+                throw new ExpeditionInputException("An Equipment draft requires a pending Equipment Station.");
+            if (recruitmentDraft is not null &&
+                (string.IsNullOrWhiteSpace(recruitmentDraft) || equipmentDraft is not null ||
+                 current.State.MachineInteraction is not { EquipmentStation: not null } station || current.State.Party?.SideId != station.SideId))
+                throw new ExpeditionInputException("A recruitment draft requires its Party's pending Station and cannot include Equipment changes.");
+            if (equipmentDraft is not null) CommitCheckpoint(current with { EquipmentDraft = equipmentDraft, RecruitmentTypeId = null });
+            else if (recruitmentDraft is not null) CommitCheckpoint(current with { RecruitmentTypeId = recruitmentDraft, EquipmentDraft = null });
             else if (dirty) CommitCheckpoint(current);
             return head;
         }
@@ -179,7 +186,8 @@ public sealed class ExpeditionRunner
             var result = command(current.State, random);
             current = current with { State = result.State, GameplayRandomState = random.State,
                 AutoChooseSingleRelevantChoice = autoChoose ?? current.AutoChooseSingleRelevantChoice,
-                EquipmentDraft = Equals(current.State.MachineInteraction, result.State.MachineInteraction) ? current.EquipmentDraft : null };
+                EquipmentDraft = Equals(current.State.MachineInteraction, result.State.MachineInteraction) ? current.EquipmentDraft : null,
+                RecruitmentTypeId = Equals(current.State.MachineInteraction, result.State.MachineInteraction) ? current.RecruitmentTypeId : null };
             dirty = true;
             if (result.State.IsCompleted) CommitCheckpoint(current);
             return PlaytestGame.Detach(result);
@@ -188,6 +196,7 @@ public sealed class ExpeditionRunner
 
     private void CommitCheckpoint(ExpeditionCheckpoint boundary)
     {
+        boundary = boundary with { Version = ExpeditionStore.CheckpointVersion };
         var reference = AtStage(ExpeditionFailureStage.SourceCheckpoint, boundary.Plan, head.WorldSeed, () => store.WriteCheckpoint(boundary));
         var next = head with { Revision = checked(head.Revision + 1), ActiveCheckpoint = reference, CurrentRegionCompleted = MayContinue(boundary.State), SavedAtUtc = DateTimeOffset.UtcNow };
         try { store.ReplaceHead(head, next); }
@@ -233,12 +242,14 @@ public sealed class ExpeditionRunner
     private static ExpeditionCheckpoint Build(string id, ulong seed, ExpeditionRegionPlan plan, Func<ContentBundle> latest,
         Func<ulong, ExpeditionRegionPlan, ContentBundle, ScenarioDefinition> generate, GameState? previous)
     {
+        var members = ExpeditionParty.Members(previous);
         var content = AtStage(ExpeditionFailureStage.ContentRefresh, plan, seed,
-            () => ExpeditionParty.ResolveContent(latest(), previous, ExpeditionParty.Originals));
-        var terrain = AtStage(ExpeditionFailureStage.RegionGeneration, plan, seed, () => generate(seed, plan, content));
+            () => ExpeditionParty.ResolveContent(latest(), previous, members));
+        var terrain = AtStage(ExpeditionFailureStage.RegionGeneration, plan, seed,
+            () => generate(seed, plan with { DeploymentCapacity = members.Count }, content));
         return AtStage(ExpeditionFailureStage.PartySetup, plan, seed, () =>
         {
-            var scenario = ExpeditionParty.Prepare(terrain, content, plan.ExitArea, ExpeditionParty.Originals, previous);
+            var scenario = ExpeditionParty.Prepare(terrain, content, plan.ExitArea, members, previous);
             var state = GameEngine.CreateGame(scenario, content);
             if (state.Physical.Board.Width != ExpeditionWorld.Stride || state.Physical.Board.Height != ExpeditionWorld.Stride)
                 throw new ArgumentException("Expedition regions must be 60 by 60 Cells.");
@@ -259,6 +270,31 @@ public sealed class ExpeditionRunner
                 unit.TypeId == hero.TypeId && unit.SideId == ExpeditionParty.SideId)))
             throw new InvalidDataException("The Expedition checkpoint does not match its region plan or original roster.");
         GameEngine.ValidateRestoredState(checkpoint.State);
+        if (checkpoint.State.Party is null && checkpoint.Version == ExpeditionStore.LegacyCheckpointVersion)
+        {
+            // The stored bytes were verified before this in-memory migration.
+            // Ordinary Scenario Initial Unit selectors retain their existing meaning.
+            var state = checkpoint.State;
+            var party = ExpeditionParty.Founders;
+            SideObjective Objective(SideObjective objective) => objective.SideId == ExpeditionParty.SideId &&
+                objective.Objective == ScenarioObjective.ReachArea
+                    ? objective with { Selectors = [UnitSelector.Party(ExpeditionParty.SideId)] } : objective;
+            state.Party = party;
+            state.Objectives = state.Objectives.Select(Objective).ToList();
+            checkpoint = checkpoint with
+            {
+                Version = ExpeditionStore.CheckpointVersion,
+                Scenario = checkpoint.Scenario with
+                {
+                    Party = party,
+                    Objectives = checkpoint.Scenario.Objectives?.Select(Objective).ToList()
+                }
+            };
+            GameEngine.ValidateRestoredState(state);
+        }
+        if (checkpoint.State.Party is not { } roster || roster.SideId != ExpeditionParty.SideId ||
+            !roster.MemberIds.Take(head.OriginalHeroIds.Length).SequenceEqual(head.OriginalHeroIds))
+            throw new InvalidDataException("The Expedition Party does not preserve its founding roster.");
         return checkpoint;
     }
 

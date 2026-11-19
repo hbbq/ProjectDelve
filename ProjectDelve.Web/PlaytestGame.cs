@@ -131,6 +131,11 @@ public sealed partial class PlaytestGame : IDisposable
         var priorDecisionId = decisionId;
         if (request.EquipmentAllocation is not null && request.Operation is not ("machine/confirm" or "expedition/save"))
             throw Error(400, "This command does not accept an Equipment allocation.");
+        if (request.RecruitTypeId is not null && (string.IsNullOrWhiteSpace(request.RecruitTypeId) ||
+            request.EquipmentAllocation is not null || request.Operation is not ("machine/recruit" or "expedition/save")))
+            throw Error(400, "Choose a recruit separately from Equipment management.");
+        if (request.ServiceId is not null && request.Operation != "machine/service")
+            throw Error(400, "Only a paid Machine Confirm accepts a service ID.");
         ScenarioDefinition? replacement = null;
         GameState? materializedImport = null;
         switch (request.Operation)
@@ -143,8 +148,21 @@ public sealed partial class PlaytestGame : IDisposable
                 ValidateExpeditionCommand(request);
                 break;
             case "machine/confirm":
+            case "machine/recruit":
+            case "machine/service":
             case "machine/cancel":
                 RequireMachineDecision(request.DecisionId);
+                if (request.Operation != "machine/cancel" &&
+                    (request.Operation == "machine/service") != (stable.Result.State.MachineInteraction!.PaidServices is not null))
+                    throw Error(409, "That operation is unavailable at the open Machine.");
+                if (request.Operation == "machine/service" && string.IsNullOrWhiteSpace(request.ServiceId))
+                    throw Error(400, "Choose a service to confirm.");
+                if (request.Operation == "machine/recruit")
+                {
+                    if (string.IsNullOrWhiteSpace(request.RecruitTypeId)) throw Error(400, "Choose a Unit Type to recruit.");
+                    if (stable.Result.State.Party?.SideId != stable.Result.State.MachineInteraction!.SideId)
+                        throw Error(403, "Only the Expedition Party's Side can recruit.");
+                }
                 if (request.Operation == "machine/confirm" && request.EquipmentAllocation is null)
                     throw Error(400, "Supply the complete Equipment and Item allocation.");
                 break;
@@ -272,7 +290,7 @@ public sealed partial class PlaytestGame : IDisposable
                         busy = true;
                     }
                 try { item.Completion.TrySetResult(Execute(item)); }
-                catch (EquipmentAllocationException error) when (item.Request.Operation == "machine/confirm")
+                catch (EquipmentAllocationException error) when (item.Request.Operation is "machine/confirm" or "machine/recruit" or "machine/service")
                 {
                     RecoverAllocationFailure(item, error);
                     item.Completion.TrySetResult(null);
@@ -314,7 +332,7 @@ public sealed partial class PlaytestGame : IDisposable
             {
                 if (request.Controllers is null && request.ControllerAssignments is null && request.Operation is "scenario" or "scenario/import") controllerBindings = [];
                 ApplyControllers(created, request.Controllers, request.ControllerAssignments);
-                expedition = null; expeditionView = null; equipmentDraft = null;
+                expedition = null; expeditionView = null; equipmentDraft = null; recruitmentDraft = null;
                 state = created; definition = replacement; committed.Clear(); acknowledgedCursor = historyOffset = 0; gambitRequest = null; controllerError = null; gambitAdmitted = false; delegatedActivation = null; historyOverflow = false;
                 scenarioId = request.Operation == "scenario" ? request.ScenarioId! : request.Operation == "scenario/import" ? "imported" : scenarioId;
                 if (request.Operation != "restart") generationCode = request.Operation == "scenario/import" ? request.GenerationCode : null;
@@ -339,7 +357,7 @@ public sealed partial class PlaytestGame : IDisposable
                 stable = Detach(Response(state, null)); Publish("boundary", stable, request.CommandId, owned: true); return item.Legacy ? Detach(stable) : null;
             }
         }
-        if (request.Operation is "machine/confirm" or "machine/cancel")
+        if (request.Operation is "machine/confirm" or "machine/recruit" or "machine/service" or "machine/cancel")
             lock (gate)
             {
                 if (resetQueued || request.SessionId != sessionId || request.ExpectedRevision != revision)
@@ -382,6 +400,10 @@ public sealed partial class PlaytestGame : IDisposable
             if (request.Operation == "round") result = GameEngine.StartRound(state, random, autoChoose, Observe);
             else if (request.Operation == "machine/confirm")
                 result = GameEngine.ConfirmEquipmentStation(state, request.EquipmentAllocation!, random, autoChoose, Observe);
+            else if (request.Operation == "machine/recruit")
+                result = GameEngine.ConfirmRecruitment(state, request.RecruitTypeId!, random, autoChoose, Observe);
+            else if (request.Operation == "machine/service")
+                result = GameEngine.ConfirmPaidMachine(state, request.ServiceId!, random, autoChoose, Observe);
             else if (request.Operation == "machine/cancel")
                 result = GameEngine.CancelMachineInteraction(state, random, autoChoose, Observe);
             else if (item.RestoredAutomation) result = new(state, [], state.Pending);
@@ -493,7 +515,11 @@ public sealed partial class PlaytestGame : IDisposable
                 committed.AddRange(Detach(events.Select((e, index) =>
                     FogOfWar.ObserveEvent(atEvents.GetValueOrDefault(index) ?? result.State, gambitSide, e)).OfType<RulesEvent>().ToList()));
             }
-            if (!Equals(state.MachineInteraction, result.State.MachineInteraction)) equipmentDraft = null;
+            if (!Equals(state.MachineInteraction, result.State.MachineInteraction))
+            {
+                equipmentDraft = null;
+                recruitmentDraft = null;
+            }
             state = result.State; revision++; status = resetQueued ? "resolving" : StatusFor(state);
             decisionId = state.Pending is null || resetQueued ? null : Guid.NewGuid().ToString("N");
             PublishGambitRequest();
@@ -505,13 +531,19 @@ public sealed partial class PlaytestGame : IDisposable
             {
                 externalWait?.Dispose(); externalWait = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
                 cancellation = externalWait.Token;
-                context = new(sessionId, decisionId!, revision, Detach(state.Pending!), Detach(state));
+                context = ExternalContext(externalPending);
             }
         }
         // Invocation itself may be synchronous/slow: it also runs outside the single writer.
         if (context is not null) _ = Task.Run(() => SelectExternal(context, cancellation, request.CommandId));
         return response is null ? null : Detach(response with { SessionId = sessionId, Controllers = ControllersFor(state), ControllerAssignments = ControllerAssignmentsFor(state), ControllerStatus = stable.ControllerStatus, Expedition = ExpeditionView(state) });
     }
+    private ExternalDecisionContext ExternalContext(DecisionRequest request)
+    {
+        var observed = FogOfWar.Observe(state, request.Token!.SideId);
+        return new(sessionId, decisionId!, revision, Detach(observed.Pending!), Detach(observed));
+    }
+
     private async Task SelectExternal(ExternalDecisionContext context, CancellationToken cancellation, string? commandId)
     {
         string? key = null, commentary = null; Exception? error = null;

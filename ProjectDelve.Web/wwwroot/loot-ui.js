@@ -1,4 +1,8 @@
 // Presentation of already-observed objects. No pickup legality or deck inference.
+export function physicalObjectLabel(object) {
+  const name = object.content?.name ?? object.kind;
+  return object.level != null ? `${name} · Level ${object.level}` : name;
+}
 export function groundLoot(state, objects = state.groundObjects) {
   const cells = new Map();
   const at = position => {
@@ -9,7 +13,7 @@ export function groundLoot(state, objects = state.groundObjects) {
   for (const marker of state.lootMarkers ?? []) at(marker.position).unopened++;
   for (const known of objects ?? []) at(known.position).objects.push(known.object);
   return [...cells.values()].map(cell => ({ ...cell,
-    label: [cell.unopened ? `${cell.unopened} unopened Loot` : '', ...cell.objects.map(o => o.content?.name ?? o.kind)].filter(Boolean).join(' · ')
+    label: [cell.unopened ? `${cell.unopened} unopened Loot` : '', ...cell.objects.map(physicalObjectLabel)].filter(Boolean).join(' · ')
   }));
 }
 

@@ -52,7 +52,7 @@ internal sealed partial class GameplayQueries
                 .Distinct().Where(p => SpatialRules.AreFootprintsAdjacent(board,
                     FootprintGeometry.OccupiedCells(footprint, p), target) && FreeAutonomousPlacement(key.Actor, p)).ToArray();
         });
-        var type = world.Types.Single(t => t.Id == world.Units.Single(u => u.Id == unitId).TypeId);
+        var type = world.UnitConfiguration(unitId);
         if (type.MovementPattern is not null)
             return AutonomousPaths(unitId, position, closedDoorsTraversable)
                 .Where(p => goals.Contains(p.Key))

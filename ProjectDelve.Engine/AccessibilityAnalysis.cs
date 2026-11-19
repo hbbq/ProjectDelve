@@ -87,7 +87,7 @@ public sealed class AccessibilityAnalysis
     {
         var state = snapshot ?? throw new InvalidOperationException("Actor queries require a GameState capture.");
         var unit = state.Units.Single(u => u.Id == unitId);
-        var type = state.Types.Single(t => t.Id == unit.TypeId);
+        var type = state.UnitConfiguration(unit);
         return new(type.Footprint, state.EffectiveMovementCapabilitiesOf(unitId), state.EffectiveMovOf(unitId),
             state.HasPhase(unitId), type.MovementPattern, type.TerrainRestrictedMovement?.Terrain, type.TerrainRestriction);
     }

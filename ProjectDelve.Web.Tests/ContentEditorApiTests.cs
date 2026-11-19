@@ -20,6 +20,175 @@ public sealed class ContentEditorApiTests
     { Converters = { new JsonStringEnumConverter() } };
 
     [Fact]
+    public void UnitRecruitmentPriceKeepsMissingFreeAndPaidValuesDistinctInDesignerAndDelve1()
+    {
+        var type = new UnitType("test-recruit", 3, 1, 2, 2, 1);
+        var digests = new HashSet<string>();
+        foreach (int? price in new int?[] { null, 0, 75 })
+        {
+            var definition = JsonSerializer.SerializeToElement(type with { RecruitmentCost = price }, Json);
+            Assert.Equal(price.HasValue, definition.TryGetProperty("recruitmentCost", out _));
+            var result = ContentEditorApi.Validate(new("units", definition));
+            Assert.True(result.Valid, string.Join(" ", result.Diagnostics));
+            var field = Assert.Single(result.Entry!.Sections.SelectMany(s => s.Fields), f => f.Label == "Recruitment cost");
+            if (price.HasValue) Assert.Equal(price.Value, field.Value.GetInt32());
+            else Assert.Equal("Unavailable", field.Value.GetString());
+            var scenario = new ScenarioDefinition
+            {
+                Board = new() { Width = 3, Height = 3 }, UnitTypes = [result.Definition!.Value.Deserialize<UnitType>(Json)!],
+                UnitTypeIds = [type.Id], Units = [new(type.Id, "red", new(1, 1))], Agency = [new(type.Id, "red", ControllerKind.Human)]
+            };
+            var loaded = ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(scenario));
+            var played = GameEngine.CreateGame(loaded);
+            Assert.Null(played.Party);
+            Assert.Equal(price, played.Types.Single(t => t.Id == type.Id).RecruitmentCost);
+            Assert.True(digests.Add(CanonicalPublications.PayloadDigest(new() { Units = [.. loaded.UnitTypes!] },
+                new(ContentFamily.Unit, type.Id))));
+        }
+        foreach (var invalid in new[] { "-1", "1.5", "2147483648" })
+        {
+            var data = JsonSerializer.SerializeToNode(type, Json)!;
+            data["recruitmentCost"] = JsonNode.Parse(invalid);
+            var result = ContentEditorApi.Validate(new("units", JsonSerializer.SerializeToElement(data)));
+            Assert.False(result.Valid);
+            Assert.Contains(result.Diagnostics, d => d.Path == "definition.recruitmentCost");
+        }
+    }
+
+    [Fact]
+    public void LevelsRoundTripThroughTypedAuthoringCatalogTransportAndContentIdentity()
+    {
+        var type = new UnitType("fixture-levels", 3, 1, 1, 1, 1) { Unique = true, CanHaveEquipment = true };
+        var gear = new EquipmentDefinition("fixture-heart", "Heart");
+        var higher = type with { AdditionalLevels = [new(4, 2, 1, 2, 3)
+            { LocalAbilities = [new("step", "Step", AbilityTiming.BonusAction, new SelfExtraMovesMechanic(1)) { Usage = new(2) }] }] };
+        var heart = gear with { AdditionalLevels = [new() { MaxHpModifier = 2, LocalAbilities =
+            [new("open", "Open Door", AbilityTiming.FreeAction, new OpenDoor())] }] };
+        var unit = ContentEditorApi.Validate(new("units", JsonSerializer.SerializeToElement(higher, Json)));
+        var equipment = ContentEditorApi.Validate(new("equipment", JsonSerializer.SerializeToElement(heart, Json)));
+        Assert.True(unit.Valid, string.Join(" ", unit.Diagnostics));
+        Assert.True(equipment.Valid, string.Join(" ", equipment.Diagnostics));
+        Assert.Empty(unit.Entry!.Levels![0].Abilities);
+        Assert.Equal("Step", Assert.Single(unit.Entry.Levels[1].Abilities).Name);
+        Assert.Equal(2, equipment.Entry!.Levels![1].Level);
+        var scene = new ScenarioDefinition
+        {
+            Board = new() { Width = 3, Height = 3 }, UnitTypeIds = [type.Id],
+            UnitTypes = [unit.Definition!.Value.Deserialize<UnitType>(Json)!],
+            EquipmentTypes = [equipment.Definition!.Value.Deserialize<EquipmentDefinition>(Json)!],
+            Units = [new(type.Id, "blue", new(1, 1), UnitId: "actor") { Level = 2, Inventory = [new("heart", gear.Id) { Level = 2 }] }],
+            Agency = [new(type.Id, "blue", ControllerKind.Human)]
+        };
+        var played = GameEngine.CreateGame(ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(scene)));
+        var card = BrowserProjection.Cards(played)["actor"];
+        Assert.Equal(2, card.Level);
+        Assert.Equal(5, card.MaxHp);
+        Assert.Equal(3, card.BaseStats!.Hp);
+        Assert.Equal(2, card.OwnedObjects[0].Level);
+        Assert.Equal(new[] { "Maximum HP", "Open Door" }, card.OwnedObjects[0].Entries.Select(e => e.Content.Name));
+        var baseBundle = new ContentBundle { Units = [type], Equipment = [gear] };
+        var levelBundle = new ContentBundle { Units = [higher], Equipment = [heart] };
+        foreach (var identity in new[] { new ContentIdentity(ContentFamily.Unit, type.Id), new(ContentFamily.Equipment, gear.Id) })
+            Assert.NotEqual(CanonicalPublications.PayloadDigest(baseBundle, identity), CanonicalPublications.PayloadDigest(levelBundle, identity));
+        var broken = JsonSerializer.SerializeToNode(higher, Json)!;
+        broken["additionalLevels"]![0]!["hp"] = 0;
+        var invalid = ContentEditorApi.Validate(new("units", JsonSerializer.SerializeToElement(broken)));
+        Assert.False(invalid.Valid);
+        Assert.Contains(invalid.Diagnostics, d => d.Path.Contains("additionalLevels[0]"));
+        Assert.DoesNotContain("additionalLevels", JsonSerializer.Serialize(type, Json));
+        Assert.DoesNotContain("level", JsonSerializer.Serialize(new OwnedObject("plain", gear.Id), Json));
+    }
+
+    [Theory]
+    [InlineData("units")]
+    [InlineData("equipment")]
+    public void DestinationPriceRoundTripsAndDistinguishesUnpricedFreeAndPaidLevels(string family)
+    {
+        var unit = new UnitType("fixture-priced-unit", 3, 1, 1, 1, 1) { AdditionalLevels = [new(3, 1, 2, 1, 1)] };
+        var gear = new EquipmentDefinition("fixture-priced-gear", "Fixture Gear") { AdditionalLevels = [new()] };
+        var source = family == "units" ? JsonSerializer.SerializeToNode(unit, Json)! : JsonSerializer.SerializeToNode(gear, Json)!;
+        var level = source["additionalLevels"]![0]!.AsObject();
+        Assert.False(level.ContainsKey("upgradeCost"));
+        var digests = new HashSet<string>();
+        foreach (int? price in new int?[] { null, 0, 7 })
+        {
+            level["upgradeCost"] = price;
+            var result = ContentEditorApi.Validate(new(family, JsonSerializer.SerializeToElement(source)));
+            Assert.True(result.Valid, string.Join(" ", result.Diagnostics));
+            Assert.Null(result.Entry!.Levels![0].UpgradeCost);
+            Assert.Equal(price, result.Entry.Levels[1].UpgradeCost);
+            var scene = new ScenarioDefinition
+            {
+                Board = new() { Width = 2, Height = 2 }, UnitTypeIds = [unit.Id],
+                Units = [new(unit.Id, "red", new(0, 0)) { Level = 2 }], Agency = [new(unit.Id, "red", ControllerKind.Human)],
+                UnitTypes = [family == "units" ? result.Definition!.Value.Deserialize<UnitType>(Json)! : unit],
+                EquipmentTypes = [family == "equipment" ? result.Definition!.Value.Deserialize<EquipmentDefinition>(Json)! : gear]
+            };
+            var loaded = ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(scene));
+            Assert.Equal(2, GameEngine.CreateGame(loaded).Units.Single().Level);
+            Assert.Equal(price, family == "units" ? loaded.UnitTypes![0].AdditionalLevels[0].UpgradeCost
+                : loaded.EquipmentTypes![0].AdditionalLevels[0].UpgradeCost);
+            var bundle = new ContentBundle { Units = [.. loaded.UnitTypes!], Equipment = [.. loaded.EquipmentTypes!] };
+            var id = family == "units" ? new ContentIdentity(ContentFamily.Unit, unit.Id) : new(ContentFamily.Equipment, gear.Id);
+            Assert.True(digests.Add(CanonicalPublications.PayloadDigest(bundle, id)));
+            Assert.Equal(price.HasValue, result.Definition!.Value.GetProperty("additionalLevels")[0].TryGetProperty("upgradeCost", out _));
+        }
+        foreach (var invalid in new[] { "-1", "0.5", "2147483648" })
+        {
+            level["upgradeCost"] = JsonNode.Parse(invalid);
+            var result = ContentEditorApi.Validate(new(family, JsonSerializer.SerializeToElement(source)));
+            Assert.False(result.Valid);
+            Assert.Contains(result.Diagnostics, d => d.Path == "definition.additionalLevels[0].upgradeCost");
+        }
+    }
+
+    [Theory]
+    [InlineData("equipment")]
+    [InlineData("items")]
+    public void StationSellValuesSurviveAuthoringPlaytestAndTransportAndAffectContentIdentity(string family)
+    {
+        var gear = new EquipmentDefinition("fixture-gear", "Fixture Gear");
+        var item = new ItemDefinition("fixture-item", "Fixture Item")
+            { LocalAbilities = [new("use", "Fireball", AbilityTiming.Action, new FireballMechanic())] };
+        var identity = family == "equipment" ? new ContentIdentity(ContentFamily.Equipment, gear.Id)
+            : new ContentIdentity(ContentFamily.Item, item.Id);
+        var digests = new HashSet<string>();
+        foreach (int? price in new int?[] { null, 0, 7 })
+        {
+            var definition = family == "equipment" ? JsonSerializer.SerializeToElement(gear with { SellValue = price }, Json)
+                : JsonSerializer.SerializeToElement(item with { SellValue = price }, Json);
+            Assert.Equal(price.HasValue, definition.TryGetProperty("sellValue", out _));
+            var validated = ContentEditorApi.Validate(new(family, definition));
+            Assert.True(validated.Valid, string.Join(" ", validated.Diagnostics));
+            var field = Assert.Single(validated.Entry!.Sections.SelectMany(s => s.Fields), f => f.Label == "Sell Value");
+            if (price.HasValue) Assert.Equal(price.Value, field.Value.GetInt32());
+            else Assert.Equal("Cannot be sold", field.Value.GetString());
+            var scene = new ScenarioDefinition
+            {
+                Board = new() { Width = 4, Height = 4 }, UnitTypeIds = [UnitTypeIds.Barbarian],
+                Units = [new(UnitTypeIds.Barbarian, "blue", new(1, 1))],
+                Agency = [new(UnitTypeIds.Barbarian, "blue", ControllerKind.Human)],
+                EquipmentTypes = family == "equipment" ? [validated.Definition!.Value.Deserialize<EquipmentDefinition>(Json)!] : [],
+                ItemTypes = family == "items" ? [validated.Definition!.Value.Deserialize<ItemDefinition>(Json)!] : []
+            };
+            var loaded = ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(scene));
+            Assert.Equal(ScenarioDefinitionJson.ToJson(scene), ScenarioDefinitionJson.ToJson(loaded));
+            var play = GameEngine.CreateGame(loaded);
+            Assert.Equal(price, family == "equipment" ? play.Equipment(gear.Id).SellValue : play.Item(item.Id).SellValue);
+            var bundle = new ContentBundle { Equipment = [.. loaded.EquipmentTypes!], Items = [.. loaded.ItemTypes!] };
+            Assert.True(digests.Add(CanonicalPublications.PayloadDigest(bundle, identity)));
+        }
+        foreach (var bad in new[] { "-1", "2.5", "2147483648" })
+        {
+            var definition = family == "equipment" ? JsonSerializer.SerializeToNode(gear, Json)! : JsonSerializer.SerializeToNode(item, Json)!;
+            definition["sellValue"] = JsonNode.Parse(bad);
+            var invalid = ContentEditorApi.Validate(new(family, JsonSerializer.SerializeToElement(definition)));
+            Assert.False(invalid.Valid);
+            Assert.Contains(invalid.Diagnostics, d => d.Path == "definition.sellValue");
+        }
+    }
+
+    [Fact]
     public void MixedTerrainAndWaterOnlyUnitWithEquipmentGrantRoundTripThroughAuthoring()
     {
         var terrain = new TerrainDefinition("authored-crossing", "Crossing", ["land", "water"], false)

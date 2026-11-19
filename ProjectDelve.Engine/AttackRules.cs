@@ -32,7 +32,7 @@ internal static class AttackRules
             state.Physical.Figures[state.Physical.Figures.FindIndex(f => f.Id == attackerId)] = figure with { Position = from };
         }
         var attacker = state.Units.Single(u => u.Id == attackerId);
-        var stats = state.Types.Single(t => t.Id == attacker.TypeId);
+        var stats = state.UnitConfiguration(attacker);
         var attackDice = AttackDice(state, attackerId, targetId, action, mechanic);
         if (!state.IsUpright(attackerId) || attacker.CurrentHp <= 0 ||
             (action == UnitAction.NormalAttack ? !stats.HasAction(action) : !Matches(mechanic, action)) || attackDice <= 0)

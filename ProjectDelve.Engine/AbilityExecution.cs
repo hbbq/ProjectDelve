@@ -42,7 +42,7 @@ public static partial class GameEngine
                     break;
                 case AdjacentUnitHealMechanic heal:
                     foreach (var target in AbilityQueries.AdjacentRecipients(state, unit, heal.Selector)
-                                 .Where(target => target.CurrentHp < state.Types.Single(type => type.Id == target.TypeId).Hp))
+                                 .Where(target => target.CurrentHp < state.EffectiveMaxHpOf(target)))
                         yield return Bind(new($"{ability.CandidatePrefix}:{target.Id}", Action: UnitAction.AdjacentUnitHeal, TargetId: target.Id));
                     break;
                 case AdjacentUnitsPostureChangeMechanic posture:

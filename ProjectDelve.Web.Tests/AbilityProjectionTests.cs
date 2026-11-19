@@ -7,6 +7,33 @@ namespace ProjectDelve.Web.Tests;
 
 public sealed class AbilityProjectionTests
 {
+    [Fact]
+    public void BrowserAndControllerDescribeOnlyObservableInstancesAtTheirOwnLevel()
+    {
+        var type = new UnitType("lookout", 2, 1, 1, 1, 1)
+        {
+            AdditionalLevels = [new(3, 1, 2, 1, 1)
+                { LocalAbilities = [new("operate", "Signal", AbilityTiming.Action, new Operate())] }]
+        };
+        var state = new GameState
+        {
+            ResourceDefinitions = [.. ResourceTypes.All], Types = [type],
+            Physical = new(new Board(16, 3, []), [new("own", new(0, 0)), new("near", new(2, 0)), new("far", new(15, 0))]),
+            Units = [type.CreateUnit("own", "blue"), type.CreateUnit("near", "red") with { Level = 2 }, type.CreateUnit("far", "red") with { Level = 2 }],
+            FogOfWarSides = ["blue"]
+        };
+        FogOfWar.Refresh(state);
+        var cards = BrowserProjection.Cards(FogOfWar.Observe(state, "blue"));
+        Assert.Equal(1, cards["own"].Level);
+        Assert.Equal(2, cards["near"].Level);
+        Assert.False(cards.ContainsKey("far"));
+        Assert.DoesNotContain(cards["own"].Entries, e => e.Content.Name == "Signal");
+        Assert.Equal(2, cards["near"].Entries.Single(e => e.Content.Name == "Signal").SourceLevel);
+        var observation = GambitProjection.Observation(state, "blue", new Dictionary<ActivationToken, string>());
+        Assert.DoesNotContain(observation.Units, u => u.Id == "far");
+        Assert.Equal(new[] { 1, 2 }, observation.Types.Select(t => t.Level));
+        Assert.Contains(observation.Types[1].Abilities, a => a.Name == "Signal");
+    }
     [Theory]
     [InlineData("cleric-type")]
     [InlineData("wizard-type")]

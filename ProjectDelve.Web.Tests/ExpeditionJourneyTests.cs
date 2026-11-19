@@ -235,7 +235,7 @@ public sealed class ExpeditionJourneyTests(ITestOutputHelper output)
                 Agency = successor.Scenario.Agency.Where(a => a.SideId != ExpeditionParty.SideId).ToList(),
                 Machines = successor.Scenario.Machines?.Select(machine => machine.OwnerSide == ExpeditionParty.SideId
                     ? machine with { OwnerSide = null } : machine).ToList(),
-                FogOfWarSides = [], Objectives = []
+                FogOfWarSides = [], Objectives = [], Party = null
             };
             var validation = PlayReadyScenarioSetup.Validate(geometry, successor.Content);
             Assert.True(validation.Valid, string.Join("; ", validation.Diagnostics.Select(d => d.Message)));

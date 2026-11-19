@@ -474,7 +474,7 @@ internal sealed partial class GameplayQueries : IGameplayQueries
     public int AttackDefinitionOrder(string unitId, Candidate candidate)
     {
         if (candidate.Action is not { } action) return int.MaxValue;
-        var type = world.Types.Single(t => t.Id == world.Units.Single(u => u.Id == unitId).TypeId);
+        var type = world.UnitConfiguration(unitId);
         var order = type.AttackDefinitionOrder.IsDefaultOrEmpty
             ? ImmutableArray.Create(UnitAction.NormalAttack, UnitAction.FireBreath,
                 UnitAction.ClawAttack, UnitAction.Fireball)

@@ -6,6 +6,19 @@ const vm = require("node:vm");
 
 const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
 
+test('Credits render authoritative piles and update the active Side balance after collection', () => {
+  const initial = response();
+  initial.result.state.sideCredits = { blue: 2 };
+  initial.result.state.creditsPiles = [{position:{x:1,y:0},amount:5}];
+  initial.presentation.viewingSideId = 'blue';
+  const h = harness(initial);
+  assert.match(h.run('cells.get("1,0").textContent'), /Credits 5/);
+  assert.equal(h.run('document.getElementById("side-credits").textContent'), 'Side blue · Credits 2');
+  h.run(`snapshot.result.state.creditsPiles = []; snapshot.result.state.sideCredits.blue = 7; renderState(snapshot.result.state)`);
+  assert.doesNotMatch(h.run('cells.get("1,0").textContent'), /Credits/);
+  assert.equal(h.run('document.getElementById("side-credits").textContent'), 'Side blue · Credits 7');
+});
+
 for (const view of ['classic','enhanced']) test(`composed Terrain preserves base, component artwork, names and whole Cell targets (${view})`, () => {
   const initial=response();
   const assembly={surface:{presentation:{recipe:'Grass'}},components:[
@@ -244,6 +257,8 @@ function harness(initial, fetchImpl, extras = {}) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/board-visuals.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/tooltips.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/loot-ui.js"), "utf8").replace(/^export /gm, ""), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/credits-ui.js"), "utf8").replace(/^export /gm, ""), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/paid-machine.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/presentation-cursors.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/presentation-profiles.js"), "utf8").replace(/^import .*\r?\n/gm, "").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/playtest-viewport.js"), "utf8").replace(/^import .*\r?\n/gm, "").replace(/^export /gm, ""), context);
@@ -1666,6 +1681,33 @@ function update(sequence, kind, status = "resolving", view = response([]), sessi
   return { sessionId, sequence, kind, status, revision: view.revision,
     decisionId: status === "waiting-human" ? `decision-${sequence}` : null, snapshot: view, commandId };
 }
+test('paid Machine renders authoritative offers and posts only the selected service at the displayed decision', async () => {
+  const commands = [];
+  const h = streamHarness(async (url, options) => {
+    commands.push(JSON.parse(options.body)); return { ok: true, json: async () => ({}) };
+  });
+  const view = response();
+  view.sessionId = 'session-a'; view.presentation.machines = [];
+  view.presentation.decision.paidMachine = { operatorId: 'actor', machineId: 'clinic', currentCredits: 15,
+    currentHp: 1, effectiveMaxHp: 6, offers: [
+      { serviceId: 'a', name: 'Minor Treatment', cost: 10, canConfirm: true, resultingHp: 3, resultingCredits: 5, diagnostics: [] },
+      { serviceId: 'b', name: 'Full Treatment', cost: 50, canConfirm: false, resultingHp: 6, resultingCredits: -35,
+        diagnostics: [{ message: 'Insufficient Credits.' }] }
+    ] };
+  h.emit(update(0, 'baseline', 'waiting-human', view));
+  await settleStream();
+  assert.equal(h.elements.get('paid-machine-dialog').open, true);
+  const offers = h.elements.get('paid-machine-offers');
+  assert.match(offers.textContent, /HP 1 → 3 of 6/);
+  assert.match(offers.textContent, /Insufficient Credits/);
+  const [minor, full] = offers.querySelectorAll('button');
+  assert.equal(full.disabled, true);
+  await minor.listeners.click();
+  const { commandId, ...command } = commands.at(-1);
+  assert.ok(commandId);
+  assert.deepEqual(command, { operation: 'machine/service', serviceId: 'a', expectedRevision: 8, decisionId: 'decision-0', sessionId: 'session-a' });
+});
+
 function movementView(x = 1) {
   const view = response([]);
   view.presentation.decision = null; view.result.nextInput = null;
@@ -2833,6 +2875,22 @@ test("visual catalog resolves content IDs, optional images and missing-art fallb
   h.run('renderState(snapshot.result.state, true);');
   assert.equal(h.run('cells.get("49,49")'), first);
   assert.equal(h.elements.get("board").style.gridTemplateColumns, "repeat(50, minmax(0, 1fr))");
+});
+
+test('token, inventory and Unit card use the observed physical Levels, selected base stats and effective HP', () => {
+  const initial = response();
+  const card = initial.presentation.cards.actor;
+  Object.assign(card, { level: 2, maxHp: 9, baseStats: { mov: 7, rng: 2, atk: 3, def: 2 },
+    ownedObjects: [{ id: 'charm', level: 3, content: { category: 'Equipment', name: 'Charm' } }] });
+  initial.result.state.units[0].currentHp = 5;
+  initial.result.state.effectiveMov = { actor: 8 };
+  const h = harness(initial);
+  assert.equal(h.figure('actor').dataset.hpLabel, 'HP 5/9');
+  assert.match(h.figure('actor').title, /Level 2/);
+  const inspector = h.elements.get('unit-card');
+  assert.match(inspector.textContent, /HP 5 \/ 9/);
+  assert.match(inspector.textContent, /MOV 7 → 8/);
+  assert.match(inspector.textContent, /Charm · Level 3/);
 });
 
 for (const view of ["classic", "enhanced"]) test(`${view}: composited token names, HP, Side and posture use supplied presentation`, () => {

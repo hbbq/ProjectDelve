@@ -159,7 +159,7 @@ public static partial class GameEngine
             state.MachineInteraction = null;
             return;
         }
-        if (choice is not null && TryOpenEquipmentStation(state, request, request.Candidates.Single(c => c.Key == choice))) return;
+        if (choice is not null && (TryOpenEquipmentStation(state, request, request.Candidates.Single(c => c.Key == choice)) || TryOpenPaidMachine(state, request, request.Candidates.Single(c => c.Key == choice)))) return;
         if (choice is not null && request.Candidates.Single(c => c.Key == choice).Ability is { } ability)
         {
             if (!state.CanUseAbility(request.UnitId!, ability))
@@ -210,13 +210,13 @@ public static partial class GameEngine
                     ChangePosture(state, choice!, Posture.Upright, events);
                     CompleteUnit(state, random, events);
                 }
-                else if (state.Types.Single(t => t.Id == request.TypeId).Ability<DefeatSelf>() is { } selfDefeat)
+                else if (state.UnitConfiguration(choice!).Ability<DefeatSelf>() is { } selfDefeat)
                 {
                     var selfAbility = new ResolvedAbility(selfDefeat, AbilitySourceKind.Unit, request.TypeId, choice!);
                     events.Add(ResolveDefeat(state, choice!, choice, selfAbility.ActionId) with { AbilitySource = selfAbility.SourceReference });
                     state.CompleteAfterDefeatEffects = true;
                 }
-                else if (state.Types.Single(t => t.Id == request.TypeId).Mechanic<RunRails>() is { } rails)
+                else if (state.UnitConfiguration(choice!).Mechanic<RunRails>() is { } rails)
                 {
                     ResolveRunRails(state, choice!, rails, events);
                     CompleteUnit(state, random, events);
@@ -404,7 +404,7 @@ public static partial class GameEngine
     private static List<Candidate> ActionCandidates(GameState state, Unit unit)
     {
         var from = state.Physical.Figures.Single(f => f.Id == unit.Id).Position;
-        var type = state.Types.Single(t => t.Id == unit.TypeId);
+        var type = state.UnitConfiguration(unit);
         var candidates = new List<Candidate>();
         if (type.HasAction(UnitAction.NormalAttack))
         {
@@ -641,7 +641,7 @@ public static partial class GameEngine
     private static void CompleteAttackFollowUps(GameState state, AttackContinuation attack)
     {
         var attacker = state.Units.Single(u => u.Id == attack.AttackerId);
-        var type = state.Types.Single(t => t.Id == attacker.TypeId);
+        var type = state.UnitConfiguration(attacker);
         if (attacker.CurrentHp > 0 && state.IsUpright(attacker.Id))
         {
             if (type.Mechanic<Cleave>() is { } cleave && attack.Results.Any(r => r.Damage >= cleave.TriggerDamage) && CleaveCandidates(state, attacker).Count > 0)
@@ -764,8 +764,9 @@ public static partial class GameEngine
         var index = state.Units.FindIndex(u => u.Id == unitId);
         var unit = state.Units[index];
         var type = state.Types.Single(t => t.Id == unit.TypeId);
+        var configuration = type.AtLevel(unit.Level);
         var figure = state.Physical.Figures.Single(f => f.Id == unitId);
-        if (type.Mechanic<Undying>() is not null && figure.Posture == Posture.Upright)
+        if (configuration.Mechanic<Undying>() is not null && figure.Posture == Posture.Upright)
         {
             state.Units[index] = unit with { CurrentHp = 1 };
             state.Physical.Figures[state.Physical.Figures.IndexOf(figure)] = figure with { Posture = Posture.Lying };
@@ -780,7 +781,7 @@ public static partial class GameEngine
         state.Units[index] = state.Units[index] with { Inventory = [] };
         state.DefeatedUnitIds.Add(unitId);
         state.Physical.Figures.RemoveAll(f => f.Id == unitId);
-        foreach (var ability in AbilityQueries.NativeAbilities(type, unitId).Where(a => a.Definition.Timing == AbilityTiming.WhenDefeated))
+        foreach (var ability in AbilityQueries.NativeAbilities(configuration, unitId).Where(a => a.Definition.Timing == AbilityTiming.WhenDefeated))
             state.PendingDefeatEffects.Add(new(context, ability));
         return new("UnitDefeated", unitId)
             { SourceUnitId = sourceUnitId, ActionId = actionId, DefeatContext = context };
@@ -819,7 +820,8 @@ public static partial class GameEngine
     }
 
     // Capture at emission time, before later operations mutate this run's working state.
-    private sealed class ResolutionEvents(GameState state, IRandomProvider random, Action<RulesEvent, ResolutionStep>? observe)
+    private sealed class ResolutionEvents(GameState state, IRandomProvider random, Action<RulesEvent, ResolutionStep>? observe,
+        bool captureState = true)
     {
         public IRandomProvider Random { get; } = random;
         public List<string> LootArrivals { get; } = [];
@@ -828,10 +830,10 @@ public static partial class GameEngine
 
         public void Add(RulesEvent resolved)
         {
-            FogOfWar.Refresh(state);
+            if (captureState) FogOfWar.Refresh(state);
             if (resolved.WorldCard is null && state.WorldDeck?.ResolvingCard is { } card)
                 resolved = resolved with { WorldCard = card };
-            Steps.Add(new ResolutionStep(Events.Count, state.Copy()));
+            if (captureState) Steps.Add(new ResolutionStep(Events.Count, state.Copy()));
             Events.Add(resolved);
             if (observe is not null)
             {
@@ -864,13 +866,21 @@ public static partial class GameEngine
     internal static void ValidateScenario(GameState state)
     {
         ContentComposition.ValidateSnapshot(state);
+        PartyRules.Validate(state);
         TerrainCatalog.Validate(state.Physical.Board.TerrainTypes, againstCanonical: false);
         TerrainCatalog.ValidateDestructionReferences(state.Physical.Board.TerrainTypes);
         LootRules.Validate(state);
+        CreditsRules.Validate(state);
         ValidateWorldDeck(state);
         RouteRules.ValidateDefinitions(state);
         ResourceRules.ValidateStorage(state);
         MachineRules.Validate(state);
+        // A transfer or Level change can reduce any allowance below its spent
+        // count. Preserve that spending until this activation completes.
+        if (state.MovesCompletedThisActivation < 0 || state.ActionsUsedThisActivation < 0 ||
+            state.BonusActionUseCountsThisActivation is null ||
+            state.BonusActionUseCountsThisActivation.Any(pair => string.IsNullOrWhiteSpace(pair.Key) || pair.Value < 0))
+            throw new ArgumentException("Spent activation opportunities must be nonnegative and Bonus Action counters require source keys.");
         foreach (var marker in state.CellMarkers) CellMarkerRules.Validate(marker, state.Physical.Board);
         if (state.CellMarkers.Select(m => m.Position).Distinct().Count() != state.CellMarkers.Count)
             throw new ArgumentException("A Cell may contain at most one Cell Marker.");
@@ -895,7 +905,7 @@ public static partial class GameEngine
         if (state.Units.Any(u => !state.Types.Any(t => t.Id == u.TypeId) ||
             u.SummonerUnitId is not null && (string.IsNullOrWhiteSpace(u.SummonerUnitId) || u.SummonerUnitId == u.Id) ||
             u.WakeDistance < 0 ||
-            u.CurrentHp < 0 || u.CurrentHp > state.Types.Single(t => t.Id == u.TypeId).Hp ||
+            u.CurrentHp < 0 || u.CurrentHp > state.EffectiveMaxHpOf(u) ||
             string.IsNullOrWhiteSpace(u.SideId)))
             throw new ArgumentException("Invalid Unit state.");
         if (state.Types.Any(t => t.Unique && state.Units.Where(u => u.TypeId == t.Id && u.CurrentHp > 0)

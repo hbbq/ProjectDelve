@@ -1,0 +1,262 @@
+{
+  "ContentRevision": "1ba7ee5772045e64ac6b2670acfb1b7c7fd68e630e40e955f1a6d985921b4ef2",
+  "LocalSeedRequestsOutOf1200": {
+    "delvecare": 87,
+    "meteor-o-mat": 93
+  },
+  "Rows": [
+    {
+      "Seed": 17,
+      "RegionIndex": 0,
+      "RequestedCare": false,
+      "RequestedMeteor": true,
+      "Placed": [
+        "meteor-o-mat"
+      ],
+      "Omissions": []
+    },
+    {
+      "Seed": 17,
+      "RegionIndex": 1,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 17,
+      "RegionIndex": 2,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 17,
+      "RegionIndex": 3,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 17,
+      "RegionIndex": 4,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 17,
+      "RegionIndex": 5,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 42,
+      "RegionIndex": 0,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 42,
+      "RegionIndex": 1,
+      "RequestedCare": true,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": [
+        {
+          "CandidateId": "expedition/delvecare",
+          "Detail": "Optional placement omitted: No legal occupied-access-safe open pad in 96 bounded attempts."
+        }
+      ]
+    },
+    {
+      "Seed": 42,
+      "RegionIndex": 2,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 42,
+      "RegionIndex": 3,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 42,
+      "RegionIndex": 4,
+      "RequestedCare": true,
+      "RequestedMeteor": false,
+      "Placed": [
+        "delvecare"
+      ],
+      "Omissions": []
+    },
+    {
+      "Seed": 42,
+      "RegionIndex": 5,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 889,
+      "RegionIndex": 0,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 889,
+      "RegionIndex": 1,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 889,
+      "RegionIndex": 2,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 889,
+      "RegionIndex": 3,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 889,
+      "RegionIndex": 4,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 889,
+      "RegionIndex": 5,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 2026,
+      "RegionIndex": 0,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 2026,
+      "RegionIndex": 1,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 2026,
+      "RegionIndex": 2,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 2026,
+      "RegionIndex": 3,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 2026,
+      "RegionIndex": 4,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 2026,
+      "RegionIndex": 5,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 77341,
+      "RegionIndex": 0,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 77341,
+      "RegionIndex": 1,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 77341,
+      "RegionIndex": 2,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 77341,
+      "RegionIndex": 3,
+      "RequestedCare": false,
+      "RequestedMeteor": true,
+      "Placed": [
+        "meteor-o-mat"
+      ],
+      "Omissions": []
+    },
+    {
+      "Seed": 77341,
+      "RegionIndex": 4,
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 77341,
+      "RegionIndex": 5,
+      "RequestedCare": false,
+      "RequestedMeteor": true,
+      "Placed": [
+        "meteor-o-mat"
+      ],
+      "Omissions": []
+    }
+  ]
+}

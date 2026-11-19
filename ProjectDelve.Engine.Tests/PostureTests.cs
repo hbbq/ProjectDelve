@@ -73,7 +73,7 @@ public sealed class PostureTests
     public void SameTypeUnitsHaveIndependentPostureAndIndividualActivationsAfterSerialization()
     {
         var state = State();
-        state.Types[0] = state.Types[0] with { Hp = 1, Unique = false };
+        state.Types[0] = state.Types[0] with { Hp = 1, Unique = false, AdditionalLevels = default };
         state.Units[0] = state.Units[0] with { CurrentHp = 1 };
         state.Units.Add(state.Types[0].CreateUnit("second", "blue"));
         state.Units.Add(state.Types[0].CreateUnit("third", "blue"));

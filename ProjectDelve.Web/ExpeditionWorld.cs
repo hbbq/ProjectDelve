@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json.Serialization;
 using ProjectDelve.Engine;
 using ProjectDelve.Generation;
 
@@ -12,7 +13,12 @@ public enum ExpeditionEdge { North, East, South, West }
 
 public sealed record ExpeditionRegionPlan(ExpeditionRegion Region, ExpeditionEdge EntryEdge, Cell EntrySeam,
     ExpeditionEdge ExitEdge, Cell ExitSeam, ObjectiveArea ExitArea, ExpeditionRegion NextRegion,
-    ulong LocalSeed, ulong TransitionSeed, string TransitionId);
+    ulong LocalSeed, ulong TransitionSeed, string TransitionId)
+{
+    // A generation request uses the committed roster size. Stored region identity
+    // remains determined solely by the seed and transition history.
+    [JsonIgnore] public int DeploymentCapacity { get; init; } = ExpeditionParty.Originals.Count;
+}
 
 internal static class ExpeditionWorld
 {
@@ -105,7 +111,7 @@ internal static class ExpeditionWorld
     }
 
     internal static WorldGenerationRecipe RecipeFor(ExpeditionRegionPlan plan, WorldGenerationRecipe settings) =>
-        settings with { Window = RegionWindow(plan.Region) };
+        settings with { Window = RegionWindow(plan.Region), HeroCapacity = plan.DeploymentCapacity };
 
     internal static ScenarioDefinition Generate(ulong seed, ExpeditionRegionPlan plan, ContentBundle content) =>
         Generate(plan, content, Configure(seed));

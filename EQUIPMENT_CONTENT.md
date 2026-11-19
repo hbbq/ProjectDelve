@@ -14,6 +14,18 @@ Equipment is independent content. A definition has a stable Type ID, a display n
 
 The engine resolves canonical definitions and a scenario's local definitions into one catalog. All Equipment queries use that catalog. Names and IDs identify content and its source; they do not select gameplay handlers. Runtime ownership, position, remaining draw cards and Action accounting remain in game state, separate from definitions.
 
+## Physical Levels
+
+Physical Equipment carries a `level` through ownership changes and ground drops. Omission means Level 1. For another Level, add a complete entry to the Type's ordered `additionalLevels` with its own `localAbilities`. Both Level 1 and later Levels support signed `maxHpModifier`, `moveCountModifier`, `actionCountModifier` and `bonusActionUseCountModifier`. The last modifier affects each Bonus Action's per-activation limit. Omitted modifiers contribute zero. Equipment activation-count and ordinary stat modifiers require an Upright bearer. Maximum HP applies in either Posture.
+
+Lucky Boots Level 2 grant +2 MOV, +1 maximum HP and Second Step, a once-per-game Bonus Action granting one extra Move. The Station previews the selected copy's effects. Transferring it preserves its remaining use, clamps the donor's HP if necessary and leaves the recipient's current HP unchanged unless a clamp is required. A non-Unique wearer keeps maximum HP 1.
+
+Each additional Equipment Level can set `UpgradeCost` in C# or `"upgradeCost": 12` in JSON. The Station quotes this price to advance a retained physical instance by one Level. A blank price leaves the Level available for initial placement and restoration. Explicit zero enables a free purchase during a normal Station Confirm. Level 2 Lucky Boots cost 12 Credits. Their resale value remains 4 Credits at either Level.
+
+## Equipment Station Sell Value
+
+Set `SellValue` in C# or `"sellValue": 4` in a JSON Equipment or Item Type to price one physical copy. Omit the property for an unsellable Type. Explicit zero permits a sale for zero Credits. The typed field participates in content validation, saved definitions and content digests. Copies with different remaining uses have the same price. [Station workflow and workshop](VISION_AND_MACHINES.md#equipment-station-interaction)
+
 ## Adding canonical Equipment
 
 Add an `EquipmentDefinition` to `EquipmentRoster.All` in [EquipmentRoster.cs](ProjectDelve.Engine/EquipmentRoster.cs) using supported declarations. `EquipmentCatalog` retains validation and scenario-local resolution separately from the authored content. For example:

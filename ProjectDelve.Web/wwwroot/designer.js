@@ -41,6 +41,9 @@ function globalField(form, label, value, { entries, type = "text", list } = {}) 
   if (list) input.setAttribute("list", list);
   input.value = value ?? ""; wrapper.append(input); form.append(wrapper); return input;
 }
+function levelOptions(count) {
+  return Array.from({ length: count }, (_, index) => ({ value: String(index + 1), label: `Level ${index + 1}` }));
+}
 
 // A renderer for drafts, deliberately separate from GameState, choices and event playback.
 export function mountDesigner(catalog, request, playDesign, projectMetadata = body => request("metadata", body)) {
@@ -641,6 +644,8 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       if (selection?.kind === "machine" && selection.key === draft.machineKeys[index]) node.classList.add("editor-selected");
     }
     const unopened = (draft.definition.lootMarkers ?? []).filter(m => sameCell(m.position, cell)).length;
+    const credits = (draft.definition.creditsPiles ?? []).filter(pile => sameCell(pile.position, cell)).reduce((sum, pile) => sum + pile.amount, 0);
+    if (credits) { const marker = element('span', `Credits ${credits}`); marker.className = 'credits-ground'; node.append(marker); node.title += ` · Credits ${credits}`; }
     const known = (draft.definition.groundObjects ?? []).filter(g => sameCell(g.position, cell)).length;
     if (unopened || known) { const loot = element('span', `▣ ${unopened} · ◆ ${known}`); loot.className = 'loot-ground'; node.append(loot); }
     const cellMarker = (draft.definition.cellMarkers ?? []).find(marker => sameCell(marker.position, cell));
@@ -725,7 +730,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       node.style.top = `${(unit.anchor.y + span / 2) / board.height * 100}%`;
       node.style.width = `${(span > 1 ? span * 95 : 70) / board.width}%`;
       styleSide(node, unit.sideId);
-      node.title = `${name} · ${unit.sideId} · ${unit.posture} · HP ${unit.initialHp ?? metadata?.maxHp}`;
+      node.title = `${name} · Level ${unit.level ?? 1} · ${unit.sideId} · ${unit.posture} · HP ${unit.initialHp ?? 'full'}`;
       node.title += `${groupLabel(unit.groupId)}${unit.dormant ? " - Dormant" : ""}${unit.wakeDistance != null ? ` - Wake Distance ${unit.wakeDistance}` : ""}`;
       ui.board.append(node);
       unitNodes.set(draft.unitKeys[index], node);
@@ -761,7 +766,8 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       const x = field(form, "Anchor X", unit.anchor.x, { type: "number" });
       const y = field(form, "Anchor Y", unit.anchor.y, { type: "number" });
       const posture = field(form, "Posture", unit.posture, { entries: catalog.postures });
-      const hp = field(form, `Initial HP (blank = full; max ${draft.metadata(unit.unitTypeId)?.maxHp ?? "?"})`, unit.initialHp, { type: "number" });
+      const hp = field(form, "Initial HP (blank = full)", unit.initialHp, { type: "number" });
+      const level = field(form, "Initial Unit Level", String(unit.level ?? 1), { entries: levelOptions(draft.unitLevelCount(unit.unitTypeId)) });
       const agency = draft.definition.agency.find(row => sameGroup(row, unit)) ??
         draft.definition.agency.find(row => sameGroup(row, { ...unit, groupId: null }));
       const controller = field(form, "Controller for new group", agency?.controller ?? draft.defaultController(unit.unitTypeId), { entries: catalog.controllers });
@@ -784,7 +790,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       form.addEventListener("submit", event => { event.preventDefault(); commit(() => draft.editUnit(key,
         { unitTypeId: type.value, sideId: side.value, anchor: { x: Number(x.value), y: Number(y.value) },
           groupId: group.value.trim() || null, dormant: dormant.value === "Yes", wakeDistance: wake.value === "" ? null : Number(wake.value),
-          posture: posture.value, initialHp: hp.value === "" ? null : Number(hp.value),
+          posture: posture.value, level: Number(level.value), initialHp: hp.value === "" ? null : Number(hp.value),
           unitId: unitId.value.trim() ? unitId.value : null }, controller.value)); });
       form.append(element("button", "Apply Unit"));
       form.append(button("Move Unit on board", () => beginPick("cell", `Choose top-left anchor for ${draft.metadata(unit.unitTypeId)?.displayName ?? unit.unitTypeId}`, anchor => commit(() => {
@@ -815,11 +821,34 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
         const input = field(form, `Initial ${capacity.type.name} (capacity ${capacity.capacity})`, quantity, { type: "number" });
         input.step = "1"; return { type: capacity.type, input };
       });
-      form.addEventListener("submit", event => { event.preventDefault(); commit(() => draft.editMachine(key, {
-        id: id.value, ownerSide: owner.value === "" ? null : owner.value, position: { x: Number(x.value), y: Number(y.value) },
-        storedResources: [...(machine.storedResources ?? []).filter(row => !quantities.some(q => q.type.id === row.type.id)),
-          ...quantities.map(q => ({ type: q.type, quantity: Number(q.input.value) }))]
-      })); });
+      const operation = machine.type.operation;
+      const services = operation?.paidServices?.services.map(service => {
+        const price = field(form, `${service.name} · Credits`, service.cost, { type: "number" });
+        price.min = "0"; price.max = "2147483647"; price.step = "1";
+        let healing;
+        if (service.healAmount != null) {
+          healing = field(form, `${service.name} · HP restored`, service.healAmount, { type: "number" });
+          healing.min = "1"; healing.max = "2147483647"; healing.step = "1";
+        }
+        if (service.fullHeal) form.append(element("p", `${service.name} restores the operator to Effective Max HP.`));
+        if (service.itemTypeId) form.append(element("p", `${service.name} gives the operator one ${service.itemTypeId} Item.`));
+        return { service, price, healing };
+      });
+      form.addEventListener("submit", event => {
+        event.preventDefault();
+        const changes = {
+          id: id.value, ownerSide: owner.value || null, position: { x: Number(x.value), y: Number(y.value) },
+          storedResources: [...(machine.storedResources ?? []).filter(row => !quantities.some(q => q.type.id === row.type.id)),
+            ...quantities.map(q => ({ type: q.type, quantity: Number(q.input.value) }))]
+        };
+        if (services) {
+          const edited = services.map(({ service, price, healing }) => ({
+            ...service, cost: Number(price.value), ...(healing ? { healAmount: Number(healing.value) } : {})
+          }));
+          changes.type = { ...machine.type, operation: { ...operation, paidServices: { ...operation.paidServices, services: edited } } };
+        }
+        commit(() => draft.editMachine(key, changes));
+      });
       form.append(element("button", "Apply Machine"));
       form.append(button("Move Machine on board", () => beginPick("cell", "Move Machine", position => commit(() => draft.editMachine(key, { position })))));
       form.append(button("Delete Machine", () => commit(() => { draft.removeMachine(key); selection = null; }, [form.dataset.formKey])));
@@ -828,6 +857,9 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       const position = { ...selection.position };
       form.append(element("p", `Cell (${position.x}, ${position.y})`));
       const lootCount = field(form, 'Unopened Loot markers', (draft.definition.lootMarkers ?? []).filter(m => sameCell(m.position, position)).length, { type: 'number' });
+      const creditsAmount = field(form, 'Credits pile (0 removes)', (draft.definition.creditsPiles ?? []).filter(pile => sameCell(pile.position, position)).reduce((sum, pile) => sum + pile.amount, 0), { type: 'number' });
+      creditsAmount.min = '0'; creditsAmount.step = '1';
+      form.append(button('Apply Credits pile', () => commit(() => draft.setCreditsPile(position, Number(creditsAmount.value)), [form.dataset.formKey])));
       form.append(button('Apply Loot markers', () => commit(() => draft.setLootMarkers(position, Number(lootCount.value)), [form.dataset.formKey])));
       objectEditor(form, (draft.definition.groundObjects ?? []).filter(g => sameCell(g.position, position)).map(g => g.object), { position });
       const resource = draft.definition.resources?.find(row => sameCell(row.position, position));
@@ -860,6 +892,8 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
         ? field(form, "Coal generation", explicit?.coalGeneration === false ? "Off" : "On", { entries: ["On", "Off"] }) : null;
       form.addEventListener("submit", event => { event.preventDefault(); commit(() => {
         const markerCount = Number(lootCount.value);
+        if (Number(creditsAmount.value) !== (draft.definition.creditsPiles ?? []).filter(pile => sameCell(pile.position, position)).reduce((sum, pile) => sum + pile.amount, 0))
+          draft.setCreditsPile(position, Number(creditsAmount.value));
         if (markerCount !== (draft.definition.lootMarkers ?? []).filter(marker => sameCell(marker.position, position)).length)
           draft.setLootMarkers(position, markerCount);
         const defaultReference = draft.defaultTerrainSelection();
@@ -882,7 +916,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   }
   function unitLabel(index) {
     const unit = draft.definition.units[index];
-    return `${index + 1}. ${draft.metadata(unit.unitTypeId)?.displayName ?? unit.unitTypeId} · ${unit.sideId} @ ${unit.anchor.x},${unit.anchor.y}${unit.unitId ? ` · ID ${unit.unitId}` : ""}`;
+    return `${index + 1}. ${draft.metadata(unit.unitTypeId)?.displayName ?? unit.unitTypeId} · Level ${unit.level ?? 1} · ${unit.sideId} @ ${unit.anchor.x},${unit.anchor.y}${unit.unitId ? ` · ID ${unit.unitId}` : ""}`;
   }
   function orderFields(form, initial) {
     const kind = field(form, "Starting Order", initial?.kind ?? "Normal", {
@@ -1072,11 +1106,13 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   }
   function renderData() {
     ui.order.replaceChildren(...draft.definition.unitTypeIds.map(id => element("li", `${draft.metadata(id)?.displayName ?? id} (${id})`)));
-    const sides = [...new Set([...draft.definition.units, ...draft.definition.agency].map(row => row.sideId))];
+    const sides = [...new Set([...draft.definition.units.map(row => row.sideId), ...draft.definition.agency.map(row => row.sideId), ...(draft.definition.additionalSideIds ?? [])])];
     ui["side-settings"].replaceChildren(...sides.map(side => {
       const form = editorForm(`side:${side}`, true);
       form.dataset.sideId = side;
       form.append(element("strong", side));
+      const credits = field(form, 'Initial Credits', Object.hasOwn(draft.definition.sideCredits ?? {}, side) ? draft.definition.sideCredits[side] : 0, { type: 'number' });
+      credits.min = '0'; credits.step = '1'; credits.dataset.sideCredits = side;
       const neutral = field(form, "Neutral (no hostility in either direction)", (draft.definition.neutralSides ?? []).includes(side) ? "Yes" : "No", { entries: ["No", "Yes"] });
       const fog = field(form, "Fog of War — permanent exploration", (draft.definition.fogOfWarSides ?? []).includes(side) ? "Enabled" : "Disabled", { entries: ["Disabled", "Enabled"] });
       fog.dataset.fogSide = side;
@@ -1086,6 +1122,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       form.addEventListener("submit", event => { event.preventDefault(); commit(() => {
         draft.setNeutral(side, neutral.value === "Yes");
         draft.setFogOfWar(side, fog.value === "Enabled");
+        draft.setSideCredits(side, Number(credits.value));
       }); });
       form.append(element("button", "Apply Side")); return form;
     }));
@@ -1111,12 +1148,27 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       const lootType = draft.definition.unitTypes?.find(t => t.id === row.unitTypeId) ?? draft.metadata(row.unitTypeId)?.definition;
       const lootPanel = element('details'); lootPanel.dataset.lootType = row.unitTypeId; lootPanel.dataset.formKey = `loot-type:${row.unitTypeId}`; lootPanel.append(element('summary', 'Loot & ownership · Unit Type')); form.append(lootPanel);
       const overrides = draft.definition.lootUnitOverrides?.[row.unitTypeId] ?? {};
+      const legacyLootOnly = overrides.dropSuccesses != null && overrides.creditsDropSuccesses == null && overrides.creditsDropAmount == null && !overrides.inheritCreditsDrop;
       const dropChance = field(lootPanel, 'Drop probability', overrides.dropSuccesses ?? 'default', { entries: [{value:'default',label:`Unit Type default (${lootType?.lootDropSuccesses ?? 0}/6)`}, ...Array.from({length:7},(_,i) => ({value:String(i),label:`Override: ${i}/6`}))] });
+      const creditsChance = field(lootPanel, 'Credits drop probability', legacyLootOnly ? 'legacy' : overrides.creditsDropSuccesses ?? 'default', { entries: [{value:'default',label:`Unit Type default (${lootType?.creditsDropSuccesses ?? 0}/6)`},
+        ...(legacyLootOnly ? [{value:'legacy',label:'Legacy Loot-only (0/6 Credits)'}] : []), ...Array.from({length:7},(_,i) => ({value:String(i),label:`Override: ${i}/6`}))] });
+      const creditsAmount = field(lootPanel, 'Credits per drop (blank = Unit Type default)', overrides.creditsDropAmount ?? '', { type: 'number' });
+      creditsAmount.min = '0'; creditsAmount.max = '2147483647'; creditsAmount.step = '1';
+      creditsAmount.dataset.optional = 'true';
+      creditsAmount.placeholder = String(lootType?.creditsDropAmount ?? 0);
+      lootPanel.append(element('small', `Unit Type defaults: ${lootType?.lootDropSuccesses ?? 0}/6 Loot, ${lootType?.creditsDropSuccesses ?? 0}/6 Credits, ${lootType?.creditsDropAmount ?? 0} Credits per drop. Loot and Credits use one d6 roll; their success faces must total at most 6. A nonzero Credits chance requires a positive amount.`));
+      if (legacyLootOnly) lootPanel.append(element('small', 'This older Loot override disables Credits drops. Choose Unit Type default to inherit current Credits odds and amount, or choose an explicit probability.'));
       const capability = (label, key) => field(lootPanel,label,overrides[key] == null ? 'default' : overrides[key] ? 'Yes' : 'No', {entries:[{value:'default',label:`Unit Type default (${lootType?.[key] ? 'Yes' : 'No'})`},'No','Yes']});
       const items = capability('Can Have Items','canHaveItems'), equipment = capability('Can Have Equipment','canHaveEquipment');
       const value = input => input.value === 'default' ? null : input.value === 'Yes';
-      lootPanel.append(button('Apply Loot settings', () => commit(() => draft.configureLootType(row.unitTypeId,
-        dropChance.value === 'default' ? null : Number(dropChance.value), value(items), value(equipment)), [lootPanel.dataset.formKey])));
+      lootPanel.append(button('Apply Loot settings', () => commit(() => {
+        const legacy = creditsChance.value === 'legacy';
+        let creditsSuccesses = creditsChance.value === 'default' || legacy ? null : Number(creditsChance.value);
+        if (legacy && (creditsAmount.value !== '' || dropChance.value === 'default')) creditsSuccesses = 0;
+        const inheritCredits = creditsChance.value === 'default' && dropChance.value !== 'default' && creditsAmount.value === '';
+        draft.configureLootType(row.unitTypeId, dropChance.value === 'default' ? null : Number(dropChance.value), value(items), value(equipment),
+          creditsSuccesses, creditsAmount.value === '' ? null : Number(creditsAmount.value), inheritCredits);
+      }, [lootPanel.dataset.formKey])));
       if (buffers[lootPanel.dataset.formKey]) lootPanel.append(button('Discard unfinished Loot settings', () => {
         delete buffers[lootPanel.dataset.formKey]; persist(); render();
       }));
@@ -1216,8 +1268,17 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     const catalogObjects = draft.objectCatalog();
     for (const object of objects) {
       const row = element('div'); row.className = 'designer-loot-row';
-      row.append(element('span', draft.objectName(object)),
-        button('Remove', () => commit(() => draft.removeObject(object.id)))); panel.append(row);
+      row.append(element('span', draft.objectName(object)));
+      const equipment = draft.objectEquipment(object);
+      if (equipment || object.level > 1) {
+        const choose = globalField(row, `Initial Equipment Level · ${object.id}`, String(object.level ?? 1),
+          { entries: levelOptions(1 + (equipment?.additionalLevels?.length ?? 0)) });
+        choose.dataset.objectLevel = object.id;
+        choose.addEventListener('change', event => {
+          event.stopPropagation(); commit(() => draft.setObjectLevel(object.id, Number(choose.value)));
+        });
+      }
+      row.append(button('Remove', () => commit(() => draft.removeObject(object.id)))); panel.append(row);
     }
     const kind = field(panel, 'Item or Equipment', catalogObjects[0]?.key, { entries: catalogObjects.map(c => ({ value: c.key, label: `${c.name} (${c.category})` })) });
     // This picker prepares Add object; it does not edit the enclosing Unit/Cell.

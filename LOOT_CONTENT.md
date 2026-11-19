@@ -8,6 +8,16 @@ can reference Equipment created in the same draft or existing canonical objects.
 
 An object reward references the existing independent Item or Equipment Type. It does not copy that object's mechanics. Acquisition, duplicate Equipment fallback to the ground, Item consumption and physical Instance IDs continue through the ordinary object lifecycle. The Loot Card ID records provenance; it does not select Item or Equipment behavior. On reveal, an object reward uses the referenced object's name; the Loot Card name labels its authored catalog entry.
 
+## Authoring defeat drops
+
+Canonical and scenario-local Units use the same three integer fields. For two Loot faces, three Credits faces and a fixed pile of 5, use `Loot(2, creditsDropSuccesses: 3, creditsDropAmount: 5)` in C#. The equivalent Unit Type JSON fields are `"lootDropSuccesses": 2`, `"creditsDropSuccesses": 3` and `"creditsDropAmount": 5`. At defeat, faces 1–2 reserve unopened Loot, 3–5 place Credits and 6 gives nothing. An unavailable card makes a Loot face give nothing. Deck provisioning counts only the Loot faces. [Drop rules](CONSTRAINTS.md#drops-and-unopened-loot)
+
+In Scenario Designer, open **Groups → Loot & ownership · Unit Type** to set scenario-wide overrides for that Type. In `lootUnitOverrides[typeId]`, the Loot field retains its historical spelling, `dropSuccesses`. A legacy row containing only Loot odds still selects Loot-only rewards. To edit only Loot while inheriting live Credits settings, the Designer writes `{"dropSuccesses":2,"inheritCreditsDrop":true}`. An ownership-only row inherits all reward settings. When a row sets either Credits field, each omitted reward field inherits its Type value. An explicit zero Credits chance disables Credits. The Engine validates the combined odds and amount after inheritance. [Phase 2 report](CREDITS_PHASE_2.md)
+
+## Vended Single Use Items
+
+Meteor-O-Mat delivers a new physical instance of the published `last-resort-fireball` Item Type directly to the operator. A purchase leaves unopened Loot supply and card order intact. A vended Item can travel with a Party member or drop on defeat under the ordinary inventory rules. Firing it spends its printed Action and consumes the selected copy. Its Fireball and dice resolution use the existing local Ability. [Machine and Item rules](CONSTRAINTS.md#paid-machine-services)
+
 ## Immediate healing
 
 The supported Immediate mechanic is `healCollector`. It restores the declared amount of HP to the collecting Unit, capped at maximum HP. The draw and healing are mandatory, require no Action or choice, and do not change Posture. The card goes to discard rather than inventory. This is the existing Pocket Breakfast operation, exposed as typed data rather than a card-ID branch.

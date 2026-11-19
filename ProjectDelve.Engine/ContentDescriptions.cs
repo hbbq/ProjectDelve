@@ -83,6 +83,7 @@ public static class ContentDescriptions
     public static IReadOnlyList<CardEntryDescription> CardEntries(this UnitType type, IReadOnlyList<UnitType>? existingTypes = null)
     {
         List<CardEntryDescription> entries = [];
+        entries.AddRange(OpportunityEntries(type.MoveCountModifier, type.ActionCountModifier, type.BonusActionUseCountModifier));
         if (!type.BaseMovementCapabilities.SequenceEqual(MovementKinds.Default))
             entries.Add(new("base-movement-capabilities", "Movement capabilities", "Capability",
                 type.BaseMovementCapabilities.IsEmpty
@@ -121,6 +122,16 @@ public static class ContentDescriptions
         return entries;
     }
 
+    internal static IEnumerable<CardEntryDescription> OpportunityEntries(int moves, int actions, int bonusUses)
+    {
+        if (moves != 0)
+            yield return new("move-count-modifier", "Moves per activation", "Capability", $"Adjust ordinary Move opportunities per activation by {moves:+0;-0}.");
+        if (actions != 0)
+            yield return new("action-count-modifier", "Actions per activation", "Capability", $"Adjust Action opportunities per activation by {actions:+0;-0}.");
+        if (bonusUses != 0)
+            yield return new("bonus-action-use-count-modifier", "Bonus Action uses", "Capability", $"Adjust the uses of each Bonus Action per activation by {bonusUses:+0;-0}.");
+    }
+
     public static string? EntryId(Candidate candidate) => candidate switch
     {
         { Ability: { } ability } => ability.EntryId,
@@ -132,7 +143,7 @@ public static class ContentDescriptions
 
     public static AbilityUses? UsesFor(this UnitType type, Unit unit, string entryId)
     {
-        var ability = AbilityQueries.NativeAbilities(type, unit.Id).SingleOrDefault(a => a.EntryId == entryId);
+        var ability = AbilityQueries.NativeAbilities(type.AtLevel(unit.Level), unit.Id).SingleOrDefault(a => a.EntryId == entryId);
         if (ability?.Definition.Usage.MaxUses is not { } max) return null;
         return new(max, max - unit.AbilityUseCounts.GetValueOrDefault(ability.AccountingId));
     }

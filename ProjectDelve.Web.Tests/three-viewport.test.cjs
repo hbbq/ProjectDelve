@@ -1817,6 +1817,26 @@ test('Tabletop batches supplied choices without changing Cell picks and releases
   }finally{h.cleanup();}
 });
 
+test('Tabletop and Flat figures display each same-Type Unit at its projected Level and HP maximum', async () => {
+  const f = fixture();
+  Object.assign(f.presentation.cards.hero, { level: 2, maxHp: 9 });
+  Object.assign(f.presentation.cards.large, { level: 1, maxHp: 5 });
+  const h = await harness(f);
+  try {
+    for (const mode of ['tabletop', 'flat']) {
+      h.viewport.setPresentation(mode); h.viewport.settle(); h.flush();
+      const labels = h.host.querySelector('.three-labels').children;
+      const hero = labels.find(label => label.dataset.unitId === 'hero');
+      const other = labels.find(label => label.dataset.unitId === 'large');
+      assert.equal(hero.children[0].textContent, '3/9');
+      assert.match(hero.children[1].textContent, /L2/);
+      assert.match(hero.title, /Level 2/);
+      assert.equal(other.children[0].textContent, '3/5');
+      assert.match(other.title, /Level 1/);
+    }
+  } finally { h.cleanup(); }
+});
+
 test('Tabletop important labels retain HP, Side, posture and combat role and Flat labels restore their original text',async()=>{
   const f=fixture(),h=await harness(f);
   try{

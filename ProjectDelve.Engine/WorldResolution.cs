@@ -94,7 +94,7 @@ public static partial class GameEngine
             .Where(f => mechanic switch
             {
                 HealDamagedUnitsMechanic => state.Units.Single(u => u.Id == f.Id).CurrentHp <
-                    state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == f.Id).TypeId).Hp,
+                    state.EffectiveMaxHpOf(f.Id),
                 DamageUnitsByAdjacencyMechanic { Adjacent: true } => state.Physical.Figures.Any(other => other.Id != f.Id && SpatialRules.AreAdjacent(state, f.Id, other.Id)),
                 DamageUnitsByAdjacencyMechanic { Adjacent: false } => !state.Physical.Figures.Any(other => other.Id != f.Id && SpatialRules.AreAdjacent(state, f.Id, other.Id)),
                 _ => true
@@ -110,7 +110,7 @@ public static partial class GameEngine
                 case FullyHealUnitsMechanic:
                 case HealDamagedUnitsMechanic:
                     RestoreHp(state, id, mechanic is FullyHealUnitsMechanic
-                        ? state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == id).TypeId).Hp : ((HealDamagedUnitsMechanic)mechanic).Amount,
+                        ? state.EffectiveMaxHpOf(id) : ((HealDamagedUnitsMechanic)mechanic).Amount,
                         null, content.Name, actionId, events);
                     break;
                 case DamageUnitsByAdjacencyMechanic damage:
@@ -130,7 +130,7 @@ public static partial class GameEngine
     {
         var index = state.Units.FindIndex(u => u.Id == targetId);
         var target = state.Units[index];
-        var healing = Math.Min(amount, state.Types.Single(t => t.Id == target.TypeId).Hp - target.CurrentHp);
+        var healing = Math.Min(amount, state.EffectiveMaxHpOf(target) - target.CurrentHp);
         state.Units[index] = target with { CurrentHp = target.CurrentHp + healing };
         events.Add(new RulesEvent("HealResolved", sourceId, targetId, AbilityName: abilityName, Healing: healing)
             { SourceUnitId = sourceId, ActionId = actionId });

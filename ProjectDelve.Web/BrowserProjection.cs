@@ -28,6 +28,8 @@ public sealed record BrowserDecision(string? UnitId, string Prompt,
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public EquipmentStationInteraction? EquipmentStation { get; init; }
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public PaidMachinePreview? PaidMachine { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? ReservedConsumptionObjectId { get; init; }
     public DicePool? Roll { get; init; }
     public string? DisplayPrompt { get; init; }
@@ -47,12 +49,15 @@ public sealed record CardEntry(CardEntryDescription Content, AbilityUses? Uses)
     public string? SourceTypeId { get; init; }
     public string? AccountingId { get; init; }
     public string? SourceInstanceId { get; init; }
+    public int? SourceLevel { get; init; }
     public int CopyCount { get; init; } = 1;
     public string? ReferencedUnitTypeId { get; init; }
 }
 public sealed record ObjectDisplay(string Id, LootCardKind Kind, string? EquipmentTypeId, LootCardContent Content)
 {
+    public int? Level { get; init; }
     public string? ItemTypeId { get; init; }
+    public int? SellValue { get; init; }
     public IReadOnlyList<CardEntry> Entries { get; init; } = [];
 }
 public sealed record GroundObjectDisplay(ObjectDisplay Object, Cell Position);
@@ -64,8 +69,12 @@ public sealed record MachineDisplay(string Id, Cell Position, string Name, strin
     public int? MaxUsesPerSide { get; init; }
 }
 public sealed record StoredResourceDisplay(string ResourceTypeId, string Name, int Quantity, int Capacity);
+public sealed record UnitBaseStats(int Mov, int Rng, int Atk, int Def, int Hp, int SightDistance);
 public sealed record UnitCard(string DisplayName, IReadOnlyList<CardEntry> Entries)
 {
+    public int Level { get; init; } = 1;
+    public int MaxHp { get; init; }
+    public UnitBaseStats? BaseStats { get; init; }
     public IReadOnlyList<LootCardContent> Inventory { get; init; } = [];
     public IReadOnlyList<ObjectDisplay> OwnedObjects { get; init; } = [];
     public string? AttackRestriction { get; init; }
@@ -236,10 +245,12 @@ public static class BrowserProjection
 
     public static IReadOnlyDictionary<string, UnitCard> Cards(GameState state, IReadOnlyDictionary<string, string>? individualNames = null) => state.Units.ToDictionary(u => u.Id, u =>
     {
-        var type = state.Types.Single(t => t.Id == u.TypeId);
+        var type = state.UnitConfiguration(u);
         return new UnitCard(type.DisplayName ?? type.Id,
             Entries(state, u).ToArray())
         {
+            Level = u.Level, MaxHp = state.EffectiveMaxHpOf(u),
+            BaseStats = new(type.Mov, type.Rng, type.Atk, type.Def, type.Hp, type.SightDistance),
             Inventory = u.Inventory.Select(state.ObjectContent).ToArray(),
             OwnedObjects = u.Inventory.Select(item => Object(state, item)).ToArray(),
             AttackRestriction = type.HasAction(UnitAction.NormalAttack) ? null
@@ -256,19 +267,14 @@ public static class BrowserProjection
 
     public static ObjectDisplay Object(GameState state, OwnedObject item)
     {
-        var equipment = state.EquipmentTypeId(item) is { } typeId ? state.Equipment(typeId) : null;
+        var equipment = state.EquipmentTypeId(item) is not null ? state.EquipmentConfiguration(item) : null;
         var itemDefinition = equipment is null && state.ItemTypeId(item) is { } itemTypeId ? state.Item(itemTypeId) : null;
         return new(item.Id, item.Kind, equipment?.Id, state.ObjectContent(item))
         {
             ItemTypeId = state.ItemTypeId(item),
-            Entries = equipment?.LocalAbilities.Select(ability => WithLayout(new CardEntry(
-                ContentDescriptions.AbilityEntry(ability, equipment.EntryId(ability.Key), state.Types),
-                state.EquipmentAbilityUsesOf(item, ability))
-            {
-                Source = "Equipment", SourceName = equipment.Name, SourceTypeId = equipment.Id,
-                SourceInstanceId = item.Id,
-                AccountingId = new ResolvedAbility(ability, AbilitySourceKind.Equipment, equipment.Id, item.Id).AccountingId
-            }, ability)).ToArray() ?? itemDefinition?.LocalAbilities.Select(ability =>
+            Level = equipment is null ? null : item.Level,
+            SellValue = state.SellValueOf(item),
+            Entries = equipment is not null ? EquipmentEntries(state, item, equipment) : itemDefinition?.LocalAbilities.Select(ability =>
             {
                 var grant = new ResolvedAbility(ability, AbilitySourceKind.Item, itemDefinition.Id, item.Id, itemDefinition.Name);
                 return WithLayout(new CardEntry(grant.CardEntry(state.Types), null)
@@ -280,12 +286,25 @@ public static class BrowserProjection
         };
     }
 
+    private static CardEntry[] EquipmentEntries(GameState state, OwnedObject item, EquipmentDefinition type)
+    {
+        var abilities = type.LocalAbilities.ToDictionary(a => type.EntryId(a.Key));
+        return type.CardEntries(state.Types).Select(content =>
+        {
+            var entry = new CardEntry(content, null) { Source = "Equipment", SourceName = type.Name, SourceTypeId = type.Id,
+                SourceInstanceId = item.Id, SourceLevel = item.Level };
+            if (!abilities.TryGetValue(content.Id, out var ability)) return entry with { Layout = "Trait" };
+            var grant = new ResolvedAbility(ability, AbilitySourceKind.Equipment, type.Id, item.Id);
+            return WithLayout(entry with { Uses = state.EquipmentAbilityUsesOf(item, ability), AccountingId = grant.AccountingId }, ability);
+        }).ToArray();
+    }
+
     public static IReadOnlyList<GroundObjectDisplay> GroundObjects(GameState state) =>
         state.GroundObjects.Select(g => new GroundObjectDisplay(Object(state, g.Object), g.Position)).ToArray();
 
     public static IEnumerable<CardEntry> Entries(GameState state, Unit unit)
     {
-        var type = state.Types.Single(t => t.Id == unit.TypeId);
+        var type = state.UnitConfiguration(unit);
         var native = state.AbilitiesOf(unit.Id).Where(g => g.SourceKind == AbilitySourceKind.Unit).ToDictionary(g => g.EntryId);
         foreach (var entry in type.CardEntries(state.Types))
         {
@@ -305,6 +324,12 @@ public static class BrowserProjection
         {
             Source = grant.SourceKind == AbilitySourceKind.Unit ? "Native" : grant.SourceKind.ToString(),
             SourceName = grant.SourceName, SourceTypeId = grant.SourceTypeId,
+            SourceLevel = grant.SourceKind switch
+            {
+                AbilitySourceKind.Unit => unit.Level,
+                AbilitySourceKind.Equipment => unit.Inventory.Single(obj => obj.Id == grant.SourceInstanceId).Level,
+                _ => null
+            },
             SourceInstanceId = copies == 1 ? grant.SourceInstanceId : null,
             AccountingId = grant.AccountingId, CopyCount = copies,
             ReferencedUnitTypeId = grant.Definition.Mechanic is AdjacentUnitSummonMechanic summon ? summon.UnitTypeId : null
@@ -375,7 +400,7 @@ public static class BrowserProjection
         IReadOnlyDictionary<string, string>? individualNames, GameState placementState)
     {
         if (request is null) return null;
-        var type = state.Types.Single(t => t.Id == request.TypeId);
+        var type = request.UnitId is { } id ? state.UnitConfiguration(id) : state.Types.Single(t => t.Id == request.TypeId);
         var entries = type.CardEntries(state.Types).ToDictionary(e => e.Id);
         if (request.UnitId is { } owner)
             foreach (var entry in Entries(state, state.Units.Single(u => u.Id == owner)))
@@ -460,7 +485,8 @@ public static class BrowserProjection
                 + (pool.BreakTarget is null ? "" : $" at {BreakTargetLabel(pool.BreakTarget)} ({pool.SuccessCount}/6)")
                 + (pool.Door is null ? "" : $" at door {pool.Door.A.X},{pool.Door.A.Y} – {pool.Door.B.X},{pool.Door.B.Y} ({pool.SuccessCount}/6)")
             : request.Kind == DecisionKind.SelectUnit ? "Choose a Unit"
-            : request.Kind == DecisionKind.MachineInteraction ? "Redistribute Equipment and Items"
+            : request.MachineInteraction?.PaidServices is not null ? "Choose a Machine service"
+            : request.Kind == DecisionKind.MachineInteraction ? "Manage Equipment and Items"
             : continuation?.Name ?? "Choose an activation choice";
         var prompt = Prompt(id => id);
         BrowserChoice? none = !request.AllowsNone || request.Kind == DecisionKind.MachineInteraction ? null : new(null,
@@ -522,7 +548,8 @@ public static class BrowserProjection
         return new(request.UnitId, prompt, candidates, none)
         {
             Roll = request.Roll, DisplayPrompt = DisplayPrompt(), EntryStatuses = statuses,
-            EquipmentStation = station?.EquipmentStation, ReservedConsumptionObjectId = station?.ReservedConsumptionObjectId
+            EquipmentStation = station?.EquipmentStation, ReservedConsumptionObjectId = station?.ReservedConsumptionObjectId,
+            PaidMachine = station?.PaidServices is null ? null : GameEngine.PreviewPaidMachine(placementState)
         };
     }
 
@@ -544,13 +571,17 @@ public static class BrowserProjection
             : e.AbilityName is null ? name(e.UnitId) : $"{name(e.UnitId)} · {e.AbilityName}";
         if (e.Kind == "ExplosionDamageResolved" && e.WorldCard is not null)
             subject = $"{name(e.UnitId)} · {e.AbilityName} (during {subject})";
-        var sourceTypeId = state.Units.FirstOrDefault(u => u.Id == e.UnitId)?.TypeId;
-        var actionName = e.AbilityName ?? state.Types.FirstOrDefault(t => t.Id == sourceTypeId)?
+        var source = state.Units.FirstOrDefault(u => u.Id == e.UnitId);
+        var actionName = e.AbilityName ?? (source is null ? null : state.UnitConfiguration(source))?
             .CardEntries(state.Types).FirstOrDefault(entry => entry.Id == e.ActionId)?.Name ?? e.ActionId;
         var role = OutcomeRole.Notice;
         string description;
         switch (e.Kind)
         {
+            case "CreditsCollected":
+                description = $"{name(e.UnitId)} collected {e.CreditsAmount} Credits for {e.SideId} at {CellLabel(e.Cell!)}";
+                if (e.CreditsBalance is { } balance) description += $" (balance {balance})";
+                break;
             case "LootCardDrawn":
                 var loot = state.ObjectContent(e.ObjectCard!);
                 description = $"{name(e.UnitId)} drew {loot.Name} ({loot.Category}): {loot.Text}";
@@ -561,6 +592,12 @@ public static class BrowserProjection
                 break;
             case "LootDropRolled":
                 description = e.Succeeded == true ? $"Loot dropped at {CellLabel(e.Cell!)} ({e.DieRoll}/{e.SuccessCount})" : $"No Loot drop ({e.DieRoll}/{e.SuccessCount})";
+                break;
+            case "DefeatDropResolved":
+                var reward = e.CreditsAmount is { } credits ? $"{credits} Credits dropped"
+                    : e.LootMarker is not null ? "Unopened Loot dropped" : "No defeat reward";
+                description = $"{reward} at {CellLabel(e.Cell!)}";
+                if (e.DieRoll is { } dropRoll) description += $" (d6 rolled {dropRoll})";
                 break;
             case "GameCompleted":
                 description = "Game over - " + (e.Completion!.AchievedSideIds.Length == 1
@@ -659,10 +696,36 @@ public static class BrowserProjection
                 description = $"{e.ResourceType?.Name} created at {e.Cell?.X},{e.Cell?.Y}";
                 break;
             case "MachineOperated":
-                if (e.MachineId is { } operatedId && state.Physical.Board.Machines.Any(machine =>
-                    machine.Id == operatedId && machine.Type.Operation.EquipmentStation is not null))
+                if (e.MachineId is null)
                 {
-                    description = $"{name(e.UnitId)}: redistributed Equipment and Items";
+                    description = $"{name(e.UnitId)} operated a Machine";
+                    break;
+                }
+                var operated = state.Physical.Board.Machines.SingleOrDefault(machine => machine.Id == e.MachineId);
+                if (operated?.Type.Operation.PaidServices is { } paid)
+                {
+                    var service = paid.Services.FirstOrDefault(s => s.Id == e.PaidServiceId);
+                    description = service is null ? $"{name(e.UnitId)} operated {operated.Type.Name}"
+                        : $"{name(e.UnitId)} paid {e.PaidServiceCost} Credits for {service.Name} at {operated.Type.Name}";
+                    break;
+                }
+                if (state.Physical.Board.Machines.Any(machine =>
+                    machine.Id == e.MachineId && machine.Type.Operation.EquipmentStation is not null))
+                {
+                    var changes = new List<string>();
+                    if (e.RecruitedUnitId is { } recruit)
+                        changes.Add($"recruited {name(recruit)} for {e.RecruitmentCost} Credits");
+                    if (!e.EquipmentSales.IsDefaultOrEmpty)
+                        changes.Add($"sold {e.EquipmentSales.Length} {(e.EquipmentSales.Length == 1 ? "object" : "objects")} for {e.EquipmentSales.Sum(s => (long)s.SellValue)} Credits");
+                    if (!e.EquipmentTransfers.IsDefaultOrEmpty) changes.Add("redistributed Equipment and Items");
+                    if (!e.UnitUpgrades.IsDefaultOrEmpty || !e.EquipmentUpgrades.IsDefaultOrEmpty)
+                    {
+                        var targets = e.UnitUpgrades.Select(u => $"{name(u.TargetId)} to Level {u.NextLevel}")
+                            .Concat(e.EquipmentUpgrades.Select(o => $"{o.TargetId} to Level {o.NextLevel}"));
+                        changes.Add($"upgraded {string.Join(", ", targets)} for {e.UpgradeCost} Credits");
+                    }
+                    description = changes.Count == 0 ? $"{name(e.UnitId)} operated the Equipment Station"
+                        : $"{name(e.UnitId)}: {string.Join(", ", changes)}";
                     break;
                 }
                 description = e.ResourceType is null
@@ -694,7 +757,7 @@ public static class BrowserProjection
                 break;
             case "UnitRepositioned":
                 role = OutcomeRole.Movement;
-                var repositionedType = state.Types.FirstOrDefault(t => t.Id == sourceTypeId);
+                var repositionedType = source is null ? null : state.UnitConfiguration(source);
                 var ranRails = repositionedType is not null && AbilityQueries.NativeAbilities(repositionedType, e.UnitId!)
                     .Any(a => a.ActionId == e.ActionId && a.Definition.Mechanic is RunRails);
                 description = ranRails
@@ -759,10 +822,9 @@ public static class BrowserProjection
         MovementAppearance? appearance = null;
         if (e.ObservedMovement is { Count: > 0 } && state.Units.FirstOrDefault(u => u.Id == e.UnitId) is { } mover)
         {
-            var type = state.Types.Single(t => t.Id == mover.TypeId);
             var figure = state.Physical.Figures.Single(f => f.Id == mover.Id);
             appearance = new(mover.TypeId, mover.SideId, name(mover.Id), figure.Posture,
-                FootprintGeometry.OccupiedCells(state, mover.Id).Max(c => c.X) - figure.Position.X + 1, mover.CurrentHp, type.Hp);
+                FootprintGeometry.OccupiedCells(state, mover.Id).Max(c => c.X) - figure.Position.X + 1, mover.CurrentHp, state.EffectiveMaxHpOf(mover));
         }
         return new(role, description, e.UnitId, e.TargetId, e.Path, e.Door, e.Hits, e.Blocks, e.Damage)
         { MovementSegments = e.ObservedMovement, MovingFigure = appearance,

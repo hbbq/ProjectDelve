@@ -20,7 +20,7 @@ internal static class RacingRules
     internal static void AwardWaypoint(GameState state, string unitId, IRandomProvider random, Action<RulesEvent> emit)
     {
         if (!state.WaypointAdvancedThisActivation || state.ActiveToken is not { } token ||
-            state.Types.Single(t => t.Id == token.TypeId).Ability<WaypointSlotMachine>() is not { } declaration) return;
+            state.UnitConfiguration(unitId).Ability<WaypointSlotMachine>() is not { } declaration) return;
         var ability = new ResolvedAbility(declaration, AbilitySourceKind.Unit, token.TypeId, unitId);
         var roll = random.RollD6();
         var resource = ((WaypointSlotMachine)declaration.Mechanic).OutputTable.Result(roll);

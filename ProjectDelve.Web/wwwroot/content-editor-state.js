@@ -21,6 +21,29 @@ export function parameterObject(parameters) {
 
 export class ContentEditorState {
   constructor(catalog = {}) { this.catalog = catalog; this.definition = null; this.version = 0; }
+  get levelCount() { return 1 + (this.definition.additionalLevels?.length ?? 0); }
+  get levelPath() { return this.level === 1 ? [] : ['additionalLevels', this.level - 2]; }
+  get levelDefinition() { return this.get(this.levelPath); }
+  get abilityPath() { return [...this.levelPath, 'localAbilities']; }
+  get localAbilities() { return this.levelDefinition.localAbilities; }
+  addLevel() {
+    if (!['units', 'equipment'].includes(this.family)) return;
+    const previous = this.definition.additionalLevels?.at(-1) ?? this.definition;
+    const common = ['moveCountModifier', 'actionCountModifier', 'bonusActionUseCountModifier', 'localAbilities'];
+    const fields = this.family === 'units' ? [...common, 'mov', 'rng', 'atk', 'def', 'hp', 'sightDistance',
+      'movementPattern', 'baseMovementCapabilities', 'amphibious', 'terrainRestriction', 'terrainRestrictedMovement',
+      'actions', 'attackDefinitionOrder'] : [...common, 'maxHpModifier'];
+    const next = Object.fromEntries(fields.filter(key => previous[key] != null).map(key => [key, cloneContent(previous[key])]));
+    (this.definition.additionalLevels ??= []).push(next);
+    this.level = this.levelCount;
+    this.version++;
+  }
+  removeLastLevel() {
+    if (this.level === 1 || this.level !== this.levelCount) return;
+    this.definition.additionalLevels.pop();
+    if (!this.definition.additionalLevels.length) delete this.definition.additionalLevels;
+    this.level--; this.version++;
+  }
   get entries() { return this.catalog?.entries ?? []; }
   get mechanics() { return this.entries.map(entry => entry.mechanic).filter(Boolean); }
   mechanic(id) { return this.mechanics.find(mechanic => mechanic.id === id); }
@@ -50,18 +73,18 @@ export class ContentEditorState {
     });
   }
   addCost(index, id) {
-    const ability = this.definition.localAbilities[index], cost = this.availableCosts(ability).find(candidate => candidate.id === id);
+    const ability = this.localAbilities[index], cost = this.availableCosts(ability).find(candidate => candidate.id === id);
     if (!cost) return false;
     (ability.costs ??= []).push({ kind: cost.id, ...parameterObject(cost.parameters) }); this.version++; return true;
   }
   changeCost(index, costIndex, id) {
-    const ability = this.definition.localAbilities[index], cost = this.availableCosts(ability).find(candidate => candidate.id === id);
+    const ability = this.localAbilities[index], cost = this.availableCosts(ability).find(candidate => candidate.id === id);
     if (!cost) return false;
     ability.costs[costIndex] = { kind: cost.id, ...parameterObject(cost.parameters) }; this.version++; return true;
   }
-  removeCost(index, costIndex) { this.definition.localAbilities[index].costs.splice(costIndex, 1); this.version++; }
+  removeCost(index, costIndex) { this.localAbilities[index].costs.splice(costIndex, 1); this.version++; }
   moveCost(index, costIndex, direction) {
-    const costs = this.definition.localAbilities[index].costs, next = costIndex + direction;
+    const costs = this.localAbilities[index].costs, next = costIndex + direction;
     if (next < 0 || next >= costs.length) return false;
     [costs[costIndex], costs[next]] = [costs[next], costs[costIndex]]; this.version++; return true;
   }
@@ -74,6 +97,7 @@ export class ContentEditorState {
     return [...combined.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
   open({ family, definition, existingId, copy = false, newId, context = {} }) {
+    this.level = 1;
     this.family = family; this.existingId = copy ? undefined : existingId;
     this.context = cloneContent(context);
     this.definition = cloneContent(definition ?? (family === 'terrain' ? { id: '', name: '', movementPermissions: ['land'], blocksLos: false, blocksVision: false, allowsResourceMarkers: true, categories: [], presentation: { recipe: 'generic' } } : family === 'terrainAssemblies' ? { id: '', name: '', surfaceId: '', components: [] } : family === 'units' ? this.catalog.unitAuthoring?.defaults ?? { id: '', displayName: '', baseMovementCapabilities: ['land'], localAbilities: [] } : ['equipment', 'items'].includes(family) ? { id: '', name: '', localAbilities: [] } : { id: '', name: '', equipmentTypeId: '' }));
@@ -83,9 +107,11 @@ export class ContentEditorState {
       this.definition.id = newId ?? '';
       if (family === 'terrain') { delete this.definition.legacyKind; delete this.definition.legacyProductionIdentity; delete this.definition.assembly; }
     }
-    if (['equipment', 'items', 'units'].includes(family)) this.definition.localAbilities ??= [];
-    this.usedKeys = new Set(this.definition.localAbilities?.map(ability => ability.key) ?? []);
-    this.existingAbilities = new WeakSet(this.existingId ? this.definition.localAbilities ?? [] : []);
+    const levels = [this.definition, ...(this.definition.additionalLevels ?? [])];
+    if (['equipment', 'items', 'units'].includes(family)) for (const level of levels) level.localAbilities ??= [];
+    const abilities = levels.flatMap(level => level.localAbilities ?? []);
+    this.usedKeys = new Set(abilities.map(ability => ability.key));
+    this.existingAbilities = new WeakSet(this.existingId ? abilities : []);
     this.baseline = JSON.stringify(this.definition); this.version++;
   }
   get dirty() { return !!this.definition && this.baseline !== JSON.stringify(this.definition); }
@@ -94,7 +120,7 @@ export class ContentEditorState {
     let parent = this.definition;
     for (let index = 0; index < path.length - 1; index++) parent = parent[path[index]] ??= typeof path[index + 1] === 'number' ? [] : {};
     if (value === undefined) delete parent[path.at(-1)]; else parent[path.at(-1)] = value;
-    if (path[0] === 'localAbilities' && path.at(-1) === 'key') this.usedKeys.add(value);
+    if (path.includes('localAbilities') && path.at(-1) === 'key') this.usedKeys.add(value);
     this.version++;
   }
   newKey() {
@@ -102,19 +128,19 @@ export class ContentEditorState {
     const key = `ability-${index}`; this.usedKeys.add(key); return key;
   }
   canAdd(mechanic, excludingIndex = -1) {
-    return mechanic.maxPerSource == null || this.definition.localAbilities.filter((ability, index) => index !== excludingIndex && ability.mechanic?.kind === mechanic.id).length < mechanic.maxPerSource;
+    return mechanic.maxPerSource == null || this.localAbilities.filter((ability, index) => index !== excludingIndex && ability.mechanic?.kind === mechanic.id).length < mechanic.maxPerSource;
   }
   addAbility(id) {
     const mechanic = this.supportedMechanics().find(candidate => candidate.id === id);
     if (!mechanic || !this.canAdd(mechanic)) return false;
     const profile = this.profiles(mechanic)[0];
-    this.definition.localAbilities.push({ key: this.newKey(), name: mechanic.name, timing: profile.timing,
+    this.localAbilities.push({ key: this.newKey(), name: mechanic.name, timing: profile.timing,
       usage: { maxUses: profile.usage === 'LimitedOnly' ? 1 : null }, mechanic: { kind: mechanic.id, ...parameterObject(mechanic.parameters) } });
     this.version++; return true;
   }
-  removeAbility(index) { this.definition.localAbilities.splice(index, 1); this.version++; }
+  removeAbility(index) { this.localAbilities.splice(index, 1); this.version++; }
   moveAbility(index, direction) {
-    const next = index + direction, abilities = this.definition.localAbilities;
+    const next = index + direction, abilities = this.localAbilities;
     if (next < 0 || next >= abilities.length) return false;
     [abilities[index], abilities[next]] = [abilities[next], abilities[index]];
     this.version++; return true;
@@ -122,7 +148,7 @@ export class ContentEditorState {
   changeMechanic(index, id) {
     const mechanic = this.supportedMechanics().find(candidate => candidate.id === id);
     if (!mechanic || !this.canAdd(mechanic, index)) return false;
-    const ability = this.definition.localAbilities[index];
+    const ability = this.localAbilities[index];
     const profiles = this.costCompatibleProfiles(mechanic, ability);
     const profile = profiles.find(candidate => candidate.timing === ability.timing) ?? profiles[0];
     if (!profile) return false;
@@ -131,7 +157,7 @@ export class ContentEditorState {
     this.version++; return true;
   }
   changeTiming(index, timing) {
-    const ability = this.definition.localAbilities[index];
+    const ability = this.localAbilities[index];
     const profile = this.costCompatibleProfiles(this.mechanic(ability.mechanic.kind), ability).find(candidate => candidate.timing === timing);
     if (!profile) return false;
     ability.timing = timing; this.applyUsage(ability, profile); this.version++; return true;

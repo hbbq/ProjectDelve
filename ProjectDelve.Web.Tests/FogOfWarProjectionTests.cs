@@ -28,6 +28,79 @@ public sealed class FogOfWarProjectionTests
     { public string Choose(DecisionRequest request, IGameplayQueries queries) => key; }
 
     [Fact]
+    public async Task CreditsSnapshotsEventsReplayAndControllersRespectSideVisibility()
+    {
+        var scenario = Scenario.Define(Scenario.Map(15, 1),
+            [Scenario.Group(UnitTypeIds.Wizard, "explorers", ControllerKind.Human, Scenario.At(0, 0, unitId: "wizard")),
+             Scenario.Group(UnitTypeIds.Grunt, "dungeon", ControllerKind.Human,
+                 Scenario.At(2, 0, unitId: "seen"), Scenario.At(12, 0, unitId: "hidden"))]) with
+        {
+            FogOfWarSides = ["explorers"], SideCredits = new() { ["dungeon"] = 100 },
+            CreditsPiles = [new(new(0, 0), 3), new(new(2, 0), 5), new(new(12, 0), 7)]
+        };
+        using var game = new PlaytestGame(new Random(), GameEngine.CreateGame(scenario));
+        using var live = game.Subscribe(null);
+        var opening = game.BrowserUpdate(await live.Reader.ReadAsync());
+        Assert.Equal(2, opening.Snapshot.Result.State.CreditsPiles.Count);
+        Assert.False(opening.Snapshot.Result.State.SideCredits.ContainsKey("dungeon"));
+        var round = game.StartRound(0);
+        var browser = game.BrowserResponse(round);
+        var events = browser.Result.Events.Where(e => e.Kind == "CreditsCollected").ToArray();
+        Assert.Equal(["wizard", "seen"], events.Select(e => e.UnitId));
+        Assert.Equal(3, events[0].CreditsBalance);
+        Assert.Equal(5, events[1].CreditsAmount);
+        Assert.Null(events[1].CreditsBalance);
+        Assert.Empty(browser.Result.State.CreditsPiles);
+        Assert.All(browser.Result.ResolutionSteps, step => Assert.False(step.StateAfter.SideCredits.ContainsKey("dungeon")));
+        Assert.DoesNotContain(browser.Presentation.Events, e => e.Text.Contains("105") || e.Text.Contains("112"));
+
+        // The opposite controller has no fog but still sees only its own total.
+        var monster = GambitProjection.Observation(round.Result.State, "dungeon", new Dictionary<ActivationToken, string>());
+        Assert.Equal(112, monster.CreditsBalance);
+        var heroPickup = round.Result.Events.First(e => e.Kind == "CreditsCollected");
+        Assert.Null(GambitProjection.Event(FogOfWar.ObserveEvent(round.Result.State, "dungeon", heroPickup)!).CreditsBalance);
+
+        var updates = new List<GameUpdate>();
+        while (live.Reader.TryRead(out var update)) updates.Add(game.BrowserUpdate(update));
+        Assert.Contains(updates, u => u.Snapshot.Result.Events.Any(e => e.Kind == "CreditsCollected"));
+        Assert.DoesNotContain(updates.SelectMany(u => u.Snapshot.Result.Events), e => e.UnitId == "hidden");
+        using var replay = game.Subscribe($"{opening.SessionId}:{opening.Sequence}");
+        var replayed = new List<GameUpdate>();
+        while (replay.Reader.TryRead(out var update)) replayed.Add(game.BrowserUpdate(update));
+        Assert.Equal(JsonSerializer.Serialize(updates), JsonSerializer.Serialize(replayed));
+    }
+
+    [Fact]
+    public void DefeatDropsFromOneWorldEffectAreFilteredAtTheCellForPlaybackAndControllers()
+    {
+        var scenario = Scenario.Define(Scenario.Map(16, 1),
+            [Scenario.Group(UnitTypeIds.Wizard, "explorers", ControllerKind.Human, Scenario.At(0, 0, unitId: "wizard")),
+             Scenario.Group(UnitTypeIds.Grunt, "dungeon", ControllerKind.Human,
+                 Scenario.At(2, 0, unitId: "seen-guard"), Scenario.At(13, 0, unitId: "hidden-guard"))]) with
+        {
+            FogOfWarSides = ["explorers"],
+            Objectives = [new("explorers", ScenarioObjective.NoObjective), new("dungeon", ScenarioObjective.NoObjective)],
+            LootUnitOverrides = new() { [UnitTypeIds.Grunt] = new(DropSuccesses: 0, CreditsDropSuccesses: 6, CreditsDropAmount: 4) },
+            WorldEffects = new(1, 1) { Composition = [new("loneliness", 1)] }
+        };
+        var initial = GameEngine.CreateGame(scenario);
+        var round = GameEngine.StartRound(initial, new Random(), false);
+        Assert.Equal(2, round.Events.Count(e => e.Kind == "DefeatDropResolved"));
+        var browser = BrowserProjection.Observe(round, "explorers");
+        var drop = Assert.Single(browser.Events, e => e.Kind == "DefeatDropResolved");
+        Assert.Equal("seen-guard", drop.UnitId);
+        Assert.Null(drop.CreditsBalance);
+        Assert.Equal(4, GambitProjection.Event(drop).CreditsAmount);
+        Assert.DoesNotContain("hidden-guard", JsonSerializer.Serialize(browser));
+        var pile = Assert.Single(browser.State.CreditsPiles);
+        Assert.Equal(new CreditsPile(new(2, 0), 4), pile);
+        var presentations = BrowserProjection.Create(round).Events;
+        Assert.Contains(presentations, e => e.Text.Contains("4 Credits dropped at 2,0"));
+        var replay = GameEngine.StartRound(Copy(initial), new Random(), false);
+        Assert.Equal(JsonSerializer.Serialize(browser), JsonSerializer.Serialize(BrowserProjection.Observe(replay, "explorers")));
+    }
+
+    [Fact]
     public void TreesRevealUnitsWithoutGrantingAttacksAndHistoryUsesEventTimeExploration()
     {
         var definition = Scenario.Define(Scenario.Map(12, 1, cells:

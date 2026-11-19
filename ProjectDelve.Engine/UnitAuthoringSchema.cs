@@ -40,6 +40,8 @@ public static class UnitAuthoringSchema
                 Optional(EnumField("defaultController", Enum.GetNames<ControllerKind>())),
                 new("canHaveItems", MechanicParameterKind.Boolean), new("canHaveEquipment", MechanicParameterKind.Boolean),
                 Integer("lootDropSuccesses", MinimumDropSuccesses, MaximumDropSuccesses),
+                Integer("creditsDropSuccesses", MinimumDropSuccesses, MaximumDropSuccesses) with { Required = false },
+                Integer("creditsDropAmount", 0) with { Required = false },
                 Optional(Integer("wakeDistance", 0)),
                 Optional(EnumField("movementPattern", Enum.GetNames<MovementPattern>())),
                 Optional(Object("terrainRestrictedMovement", EnumField("terrain", terrains))),

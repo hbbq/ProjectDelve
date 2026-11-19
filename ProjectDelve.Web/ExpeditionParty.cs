@@ -7,11 +7,12 @@ namespace ProjectDelve.Web;
 
 internal sealed record ExpeditionHero(string InstanceId, string TypeId);
 
-// A handoff declares a new ordinary Scenario. Only the original roster and its
+// A handoff declares a new ordinary Scenario. Only the explicit Party and its
 // actually owned physical objects cross the boundary; no resolution state does.
 internal static class ExpeditionParty
 {
     internal const string SideId = HeroesVsMonsters.Heroes;
+    internal const int InitialCapacity = 6;
     private const string GroupId = "expedition-originals";
     internal static IReadOnlyList<ExpeditionHero> Originals { get; } = ImmutableArray.Create(
         new ExpeditionHero("expedition-barbarian", UnitTypeIds.Barbarian),
@@ -19,6 +20,19 @@ internal static class ExpeditionParty
         new ExpeditionHero("expedition-wizard", UnitTypeIds.Wizard),
         new ExpeditionHero("expedition-cleric", UnitTypeIds.Cleric),
         new ExpeditionHero("expedition-beastmaster", UnitTypeIds.Beastmaster));
+
+    internal static ExpeditionPartyRoster Founders => new(SideId, InitialCapacity, [.. Originals.Select(hero => hero.InstanceId)]);
+
+    internal static IReadOnlyList<ExpeditionHero> Members(GameState? state)
+    {
+        if (state?.Party is not { } party) return Originals;
+        return party.MemberIds.Select(id =>
+        {
+            var unit = state.Units.SingleOrDefault(u => u.Id == id)
+                ?? throw new ArgumentException($"Party member '{id}' is absent from the previous region.");
+            return new ExpeditionHero(unit.Id, unit.TypeId);
+        }).ToArray();
+    }
 
     internal static ContentBundle ResolveContent(ContentBundle latest, GameState? previous, IReadOnlyList<ExpeditionHero> heroes)
     {
@@ -91,7 +105,7 @@ internal static class ExpeditionParty
         if (!validation.Valid)
             throw new ArgumentException("Expedition PlayReady setup is invalid: " + string.Join("; ", validation.Diagnostics.Select(d => d.Path + ": " + d.Message)));
         if (setup.Deployment.Capacity < heroes.Count || setup.Deployment.PlacementOrder.Count < heroes.Count)
-            throw new ArgumentException("Expedition deployment does not have capacity for all five originals.");
+            throw new ArgumentException("Expedition deployment does not have capacity for every Party member.");
         if (terrain.Units.Any(u => u.SideId == SideId) || terrain.Agency.Any(a => a.SideId == SideId) ||
             (terrain.NeutralSides ?? []).Contains(SideId))
             throw new ArgumentException("Generated region already uses the reserved Expedition Side.");
@@ -99,7 +113,7 @@ internal static class ExpeditionParty
             .Concat(terrain.Units.Select(u => u.GroupId).OfType<string>())
             .Concat(terrain.Agency.Select(a => a.GroupId).OfType<string>()).ToHashSet(StringComparer.Ordinal);
         if (reserved.Contains(GroupId) || heroes.Any(h => reserved.Contains(h.InstanceId)))
-            throw new ArgumentException("Generated region conflicts with reserved original Hero or party Group identities.");
+            throw new ArgumentException("Generated region conflicts with reserved Party instance or Group identities.");
         var inventory = previous is null ? new Dictionary<string, List<OwnedObject>>() : Inventories(previous, heroes).ToDictionary(e => e.Hero.InstanceId, e => e.Inventory);
         var json = ContentPackageJson.CreateOptions();
         foreach (var hero in heroes)
@@ -111,32 +125,50 @@ internal static class ExpeditionParty
             if (local is not null && JsonSerializer.Serialize(local, json) != JsonSerializer.Serialize(current, json))
                 throw new ArgumentException($"Generated region conflicts with refreshed Hero definition '{hero.TypeId}'.");
             var gear = inventory.GetValueOrDefault(hero.InstanceId) ?? [];
+            // Refresh definitions at the boundary, retaining physical Levels. An
+            // incompatible refresh fails before the successor can be published.
+            current.AtLevel(previous?.Units.Single(u => u.Id == hero.InstanceId).Level ?? 1);
+            foreach (var obj in gear.Where(o => o.EquipmentTypeId is not null))
+                content.Equipment.Single(t => t.Id == obj.EquipmentTypeId).AtLevel(obj.Level);
             if (gear.Any(o => o.EquipmentTypeId is not null && !current.CanHaveEquipment || o.ItemTypeId is not null && !current.CanHaveItems))
                 throw new ArgumentException($"Expedition cannot refresh Hero '{hero.TypeId}': current ownership capabilities reject retained gear.");
         }
         var party = heroes.Select((hero, index) => new UnitPlacement(hero.TypeId, SideId, setup.Deployment.PlacementOrder[index],
-            UnitId: hero.InstanceId, GroupId: GroupId) { Inventory = inventory.GetValueOrDefault(hero.InstanceId) ?? [] }).ToList();
-        var sides = existing.Objectives.Select(o => o.SideId).Append(SideId).Distinct(StringComparer.Ordinal);
+            UnitId: hero.InstanceId, GroupId: GroupId)
+        {
+            Level = previous?.Units.Single(u => u.Id == hero.InstanceId).Level ?? 1,
+            Inventory = inventory.GetValueOrDefault(hero.InstanceId) ?? []
+        }).ToList();
+        var regionalSides = existing.Objectives.Select(o => o.SideId).Append(SideId).ToHashSet(StringComparer.Ordinal);
+        // Only the bank crosses the seam. A Side can retain Credits even in a
+        // region with no deployment or controller for that Side.
+        var balances = previous is null ? terrain.SideCredits : previous.SideCredits;
+        var absentSides = (balances?.Keys.AsEnumerable() ?? []).Except(regionalSides, StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+        var sides = regionalSides.Concat(absentSides);
         var prepared = terrain with
         {
+            Party = new(SideId, previous?.Party?.Capacity ?? InitialCapacity, [.. heroes.Select(h => h.InstanceId)]),
+            SideCredits = balances is { Count: > 0 } ? new(balances, StringComparer.Ordinal) : null,
+            AdditionalSideIds = absentSides.Count == 0 ? terrain.AdditionalSideIds : [.. terrain.AdditionalSideIds ?? [], .. absentSides],
             // Ownership can be assigned only once the Expedition Side exists. The
             // generation pipeline validates its detached terrain before adding Heroes.
             Machines = terrain.Machines?.Select(machine => machine.Id == ExpeditionRegionGeometry.ArrivalStationId
                 ? machine with { OwnerSide = SideId } : machine).ToList(),
             UnitTypeIds = terrain.UnitTypeIds.Concat(heroes.Select(h => h.TypeId)).Distinct(StringComparer.Ordinal).ToList(),
             Units = [.. terrain.Units, .. party],
-            Agency = [.. terrain.Agency, .. heroes.Select(h => new AgencyAssignment(h.TypeId, SideId, ControllerKind.Human, GroupId))],
+            Agency = [.. terrain.Agency, .. heroes.Select(h => h.TypeId).Distinct(StringComparer.Ordinal)
+                .Select(type => new AgencyAssignment(type, SideId, ControllerKind.Human, GroupId))],
             FogOfWarSides = (terrain.FogOfWarSides ?? []).Append(SideId).Distinct(StringComparer.Ordinal).ToList(),
             Objectives = sides.Select(side => side == SideId
-                ? new SideObjective(side, ScenarioObjective.ReachArea) { Count = 2, Area = exitArea, Selectors = [.. heroes.Select(h => UnitSelector.ForUnit(h.InstanceId))] }
+                ? new SideObjective(side, ScenarioObjective.ReachArea) { Count = 2, Area = exitArea, Selectors = [UnitSelector.Party(side)] }
                 : new SideObjective(side, ScenarioObjective.NoObjective)).ToList()
         };
         if (prepared.Machines?.Any(m => m.Id == ExpeditionRegionGeometry.ArrivalStationId) != true) return prepared;
         var state = GameEngine.CreateGame(prepared, content);
         if (heroes.Any(hero => GameEngine.CanOperateMachineWithAction(state, hero.InstanceId,
                 ExpeditionRegionGeometry.ArrivalStationId))) return prepared;
-        // Refreshed definitions may move the usable Operate source to another original.
-        // Try only complete Engine-validated placements, keeping all five physical IDs.
+        // Refreshed definitions may move the usable Operate source to another member.
+        // Try only complete Engine-validated placements, keeping every physical ID.
         var first = party[0];
         foreach (var hero in party.Skip(1))
         {
@@ -149,20 +181,22 @@ internal static class ExpeditionParty
             if (GameEngine.CanOperateMachineWithAction(candidateState, hero.UnitId!, ExpeditionRegionGeometry.ArrivalStationId))
                 return candidate;
         }
-        throw new ArgumentException("Expedition refreshed originals cannot immediately Operate the arrival Equipment Station from a legal deployment placement.");
+        throw new ArgumentException("Expedition refreshed Party cannot immediately Operate the arrival Equipment Station from a legal deployment placement.");
     }
 
     private static void ValidateRoster(IReadOnlyList<ExpeditionHero> heroes, GameState? previous)
     {
-        if (heroes.Count != 5 || heroes.Any(h => string.IsNullOrWhiteSpace(h.InstanceId) || string.IsNullOrWhiteSpace(h.TypeId)) ||
-            heroes.Select(h => h.InstanceId).Distinct(StringComparer.Ordinal).Count() != heroes.Count ||
-            heroes.Select(h => h.TypeId).Distinct(StringComparer.Ordinal).Count() != heroes.Count)
-            throw new ArgumentException("Expedition requires five distinct original Hero instance and Type identities.");
+        if (heroes.Count == 0 || heroes.Count > (previous?.Party?.Capacity ?? InitialCapacity) ||
+            heroes.Any(h => string.IsNullOrWhiteSpace(h.InstanceId) || string.IsNullOrWhiteSpace(h.TypeId)) ||
+            heroes.Select(h => h.InstanceId).Distinct(StringComparer.Ordinal).Count() != heroes.Count)
+            throw new ArgumentException("Expedition requires distinct Party instance identities within its configured capacity.");
         if (previous is null) return;
+        if (previous.Party is { } party && !party.MemberIds.SequenceEqual(heroes.Select(h => h.InstanceId)))
+            throw new ArgumentException("The handoff roster must preserve every Party member in its recorded order.");
         foreach (var hero in heroes)
             if (previous.Units.SingleOrDefault(u => u.Id == hero.InstanceId) is not { } unit ||
-                unit.TypeId != hero.TypeId || unit.SideId != SideId || unit.SummonerUnitId is not null)
-                throw new ArgumentException($"Previous region does not contain original Hero '{hero.InstanceId}' with its recorded Type and Side.");
+                unit.TypeId != hero.TypeId || unit.SideId != SideId)
+                throw new ArgumentException($"Previous region does not contain Party member '{hero.InstanceId}' with its recorded Type and Side.");
     }
 
     private static IEnumerable<(ExpeditionHero Hero, List<OwnedObject> Inventory)> Inventories(GameState previous, IReadOnlyList<ExpeditionHero> heroes)

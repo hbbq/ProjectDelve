@@ -4,7 +4,7 @@
     {
       "id": "equipment-station-workshop",
       "name": "Equipment Station Workshop",
-      "revision": 1,
+      "revision": 3,
       "coverArt": null,
       "definition": {
         "board": {
@@ -25,6 +25,7 @@
             "type": { "id": "equipment-station", "name": "Equipment Station", "storage": null,
               "operation": { "costs": [], "equipmentStation": {} } } }
         ],
+        "sideCredits": { "heroes": 34 },
         "unitTypeIds": ["barbarian-type", "cleric-type", "rogue-type", "grunt-type"],
         "unitTypes": [
           { "id": "grunt-type", "displayName": "Grunt", "mov": 3, "rng": 1, "atk": 3, "def": 3,

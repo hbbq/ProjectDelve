@@ -35,6 +35,5 @@ internal static class MovementCapabilities
         return [.. kinds.Order(StringComparer.Ordinal)];
     }
     internal static ImmutableArray<string> For(GameState state, Unit unit) => For(
-        state.Types.Single(t => t.Id == unit.TypeId),
-        unit.Inventory.Select(state.EquipmentTypeId).OfType<string>().Select(state.Equipment));
+        state.UnitConfiguration(unit), state.Equipped(unit));
 }

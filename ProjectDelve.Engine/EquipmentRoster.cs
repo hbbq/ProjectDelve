@@ -8,11 +8,24 @@ public static class EquipmentRoster
         new("bedsheet", "One-Size-Fits-Most Bedsheet")
         { LocalAbilities = [new("phase", "Phase", AbilityTiming.Passive, new Phase())] },
         new("lucky-boots", "Lucky Boots")
-        { LocalAbilities = [new("movement", "Lucky Boots", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 1)]))] },
+        {
+            SellValue = 4,
+            LocalAbilities = [new("movement", "Lucky Boots", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 1)]))],
+            AdditionalLevels = [new()
+            {
+                UpgradeCost = 12,
+                MaxHpModifier = 1,
+                LocalAbilities =
+                [
+                    new("movement", "Lucky Boots", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 2)])),
+                    new("second-step", "Second Step", AbilityTiming.BonusAction, new SelfExtraMovesMechanic(1)) { Usage = new(1) }
+                ]
+            }]
+        },
         new("binoculars", "Binoculars")
         { LocalAbilities = [new("sight", "Binoculars", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.SightDistance, 3)]))] },
         new("swim-tube", "Swim Tube")
-        { LocalAbilities = [new("amphibious", "Amphibious", AbilityTiming.Passive, new Amphibious())] },
+        { SellValue = 3, LocalAbilities = [new("amphibious", "Amphibious", AbilityTiming.Passive, new Amphibious())] },
         new("official-key", "Official-Looking Key")
         { LocalAbilities = [new("open-door", "Open Door", AbilityTiming.FreeAction, new OpenDoor())] },
         new("goat-bell", "Emergency Goat Bell")

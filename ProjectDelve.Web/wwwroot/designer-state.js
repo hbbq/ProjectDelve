@@ -90,7 +90,18 @@ export class DesignerDraft {
     return [...this.providerObjects('itemTypes'), ...(this.definition.itemTypes ?? [])];
   }
   equipmentCatalog() {
-    return [...this.providerObjects('equipmentTypes'), ...(this.definition.equipmentTypes ?? [])];
+    return [...new Map([...this.providerObjects('equipmentTypes'), ...(this.definition.equipmentTypes ?? [])]
+      .map(type => [type.id, type])).values()];
+  }
+  unitLevelCount(id) {
+    const type = this.definition.unitTypes?.find(type => type.id === id) ?? this.metadata(id)?.definition;
+    return type ? 1 + (type.additionalLevels?.length ?? 0) : this.metadata(id)?.maxLevel ?? 1;
+  }
+  objectEquipment(object) {
+    const card = object.lootCardId != null ? this.lootDefinitionCatalog().find(card => card.id === object.lootCardId)
+      : this.catalog.lootCards?.find(card => card.kind === object.kind);
+    const id = object.equipmentTypeId ?? (object.itemTypeId == null ? card?.equipmentTypeId : null);
+    return id ? this.equipmentCatalog().find(type => type.id === id) : null;
   }
   unitTypeCatalog() {
     const types = new Map((this.catalog.unitTypes ?? []).map(type => [type.unitTypeId, type]));
@@ -160,9 +171,16 @@ export class DesignerDraft {
     return object.equipmentTypeId != null ? this.equipmentCatalog().find(c => c.id === object.equipmentTypeId)?.name ?? object.equipmentTypeId
       : this.catalog.lootCards?.find(c => c.kind === object.kind)?.name ?? object.kind;
   }
-  configureLootType(id, dropSuccesses, canHaveItems, canHaveEquipment) {
+  configureLootType(id, dropSuccesses, canHaveItems, canHaveEquipment, creditsDropSuccesses, creditsDropAmount, inheritCreditsDrop) {
     if (dropSuccesses != null && (!Number.isInteger(dropSuccesses) || dropSuccesses < 0 || dropSuccesses > 6)) throw new Error("Use 0-6 drop successes or the Unit Type default.");
-    const values = Object.fromEntries(Object.entries({dropSuccesses, canHaveItems, canHaveEquipment}).filter(([,v]) => v != null));
+    const previous = this.definition.lootUnitOverrides?.[id];
+    if (creditsDropSuccesses === undefined) creditsDropSuccesses = previous?.creditsDropSuccesses;
+    if (creditsDropAmount === undefined) creditsDropAmount = previous?.creditsDropAmount;
+    if (inheritCreditsDrop === undefined) inheritCreditsDrop = previous?.inheritCreditsDrop;
+    if (creditsDropSuccesses != null && (!Number.isInteger(creditsDropSuccesses) || creditsDropSuccesses < 0 || creditsDropSuccesses > 6)) throw new Error("Use 0-6 Credits drop successes or the Unit Type default.");
+    if (creditsDropAmount != null && (!Number.isInteger(creditsDropAmount) || creditsDropAmount < 0 || creditsDropAmount > 2147483647)) throw new Error("Use a whole Credits drop amount from 0 to 2147483647 or the Unit Type default.");
+    const values = Object.fromEntries(Object.entries({dropSuccesses, canHaveItems, canHaveEquipment, creditsDropSuccesses, creditsDropAmount,
+      inheritCreditsDrop: inheritCreditsDrop ? true : null}).filter(([,v]) => v != null));
     const overrides = this.definition.lootUnitOverrides ??= {};
     if (Object.keys(values).length) overrides[id] = values; else delete overrides[id];
     if (!Object.keys(overrides).length) delete this.definition.lootUnitOverrides;
@@ -182,6 +200,21 @@ export class DesignerDraft {
     for (let i = existing.length; i < count; i++) markers.push({ id: this.objectIdentity('authored-loot'), position: { ...position } });
     this.changed();
   }
+  setCreditsPile(position, amount) {
+    if (!Number.isSafeInteger(amount) || amount < 0) throw new Error('Use a nonnegative whole Credits amount.');
+    if (amount === 0 && !this.definition.creditsPiles?.some(pile => sameCell(pile.position, position))) return;
+    const piles = (this.definition.creditsPiles ?? []).filter(pile => !sameCell(pile.position, position));
+    if (amount > 0) piles.push({ position: { ...position }, amount });
+    if (piles.length) this.definition.creditsPiles = piles;
+    else delete this.definition.creditsPiles;
+    this.changed();
+  }
+  setSideCredits(sideId, amount) {
+    if (!Number.isSafeInteger(amount) || amount < 0) throw new Error('Use a nonnegative whole Credits balance.');
+    if (amount === 0 && !Object.hasOwn(this.definition.sideCredits ?? {}, sideId)) return;
+    this.definition.sideCredits = { ...this.definition.sideCredits, [sideId]: amount };
+    this.changed();
+  }
   addObject(kind, { unitKey, position }) {
     const reference = typeof kind === 'string' ? {kind} : structuredClone(kind);
     const object = { id: this.objectIdentity('authored-object'), ...reference };
@@ -192,6 +225,14 @@ export class DesignerDraft {
   removeObject(id) {
     for (const unit of this.definition.units) if (unit.inventory) unit.inventory = unit.inventory.filter(o => o.id !== id);
     if (this.definition.groundObjects) this.definition.groundObjects = this.definition.groundObjects.filter(g => g.object.id !== id);
+    this.changed();
+  }
+  setObjectLevel(id, level) {
+    const object = this.definition.units.flatMap(unit => unit.inventory ?? []).find(value => value.id === id)
+      ?? this.definition.groundObjects?.find(value => value.object.id === id)?.object;
+    if (!object) throw new Error(`Unknown physical object ${id}.`);
+    if (level === 1) delete object.level;
+    else object.level = level;
     this.changed();
   }
   changed() { this.revision++; this.playReady = null; }
@@ -232,6 +273,7 @@ export class DesignerDraft {
       this.definition.units.some(unit => this.occupied(unit).some(hidden)) ||
       (this.definition.cellMarkers ?? []).some(marker => hidden(marker.position)) ||
       (this.definition.lootMarkers ?? []).some(marker => hidden(marker.position)) ||
+      (this.definition.creditsPiles ?? []).some(pile => hidden(pile.position)) ||
       (this.definition.groundObjects ?? []).some(object => hidden(object.position)) ||
       (this.definition.resources ?? []).some(resource => hidden(resource.position)) ||
       (this.definition.waypoints ?? []).some(w => hidden({ x: w.area.x + w.area.w - 1, y: w.area.y + w.area.h - 1 })) ||
@@ -453,6 +495,7 @@ export class DesignerDraft {
     const index = this.unitIndex(key);
     if (index < 0) return;
     const unit = { ...this.definition.units[index], ...changes };
+    if (unit.level === 1) delete unit.level;
     // A setup default already supplies this named group's controller. Editing a
     // placement must not turn that inherited value into an explicit override.
     if (!this.definition.agency.some(row => row.unitTypeId === unit.unitTypeId && row.sideId === unit.sideId &&
@@ -624,7 +667,10 @@ export function readDraftDocument(text, maxBoardSize = 120) {
   // Shape and rendering limits only. Incomplete/illegal game content is the engine's concern.
   if (!board || ![board.width, board.height].every(n => Number.isInteger(n) && n >= 1 && n <= maxBoardSize) ||
       ![board.cells, board.edges, d.units, d.unitTypeIds, d.agency].every(Array.isArray) ||
-      ["orders", "routes", "waypoints", "machines", "resources", "cellMarkers", "lootMarkers", "groundObjects", "objectives", "neutralSides", "fogOfWarSides", "unitTypes", "terrainTypes", "terrainAssemblies", "fixedComponentTypes", "equipmentTypes", "itemTypes", "lootCardDefinitions", "storedResources"].some(key => d[key] != null && !Array.isArray(d[key])) ||
+      ["orders", "routes", "waypoints", "machines", "resources", "cellMarkers", "lootMarkers", "creditsPiles", "groundObjects", "objectives", "neutralSides", "fogOfWarSides", "unitTypes", "terrainTypes", "terrainAssemblies", "fixedComponentTypes", "equipmentTypes", "itemTypes", "lootCardDefinitions", "storedResources"].some(key => d[key] != null && !Array.isArray(d[key])) ||
+      d.sideCredits != null && (typeof d.sideCredits !== 'object' || Array.isArray(d.sideCredits) || Object.values(d.sideCredits).some(value => !Number.isFinite(value))) ||
+      d.additionalSideIds != null && (!Array.isArray(d.additionalSideIds) || d.additionalSideIds.some(side => typeof side !== 'string')) ||
+      (d.creditsPiles ?? []).some(pile => !pile?.position || !Number.isFinite(pile.position.x) || !Number.isFinite(pile.position.y) || !Number.isFinite(pile.amount)) ||
       d.loot != null && (typeof d.loot !== 'object' || d.loot.cards != null && (!Array.isArray(d.loot.cards) || d.loot.cards.some(k => typeof k !== 'string')) || d.loot.composition != null && !Array.isArray(d.loot.composition) || d.loot.preset != null && typeof d.loot.preset !== 'string') ||
       (d.lootMarkers ?? []).some(m => !m || typeof m.id !== 'string' || !m.position) ||
       (d.groundObjects ?? []).some(g => !g?.position || !g.object || typeof g.object.id !== 'string' || (typeof g.object.kind !== 'string' && typeof g.object.equipmentTypeId !== 'string' && typeof g.object.itemTypeId !== 'string' && typeof g.object.lootCardId !== 'string')) ||

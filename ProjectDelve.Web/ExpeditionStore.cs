@@ -35,6 +35,8 @@ internal sealed record ExpeditionCheckpoint(int Version, string ExpeditionId, ul
     public bool AutoChooseSingleRelevantChoice { get; init; } = true;
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public EquipmentAllocation? EquipmentDraft { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? RecruitmentTypeId { get; init; }
 }
 
 internal enum ExpeditionWritePoint { CheckpointBeforeReplace, HeadBeforeReplace, HeadAfterReplace }
@@ -43,7 +45,8 @@ internal sealed class ExpeditionStore
 {
     internal const int LegacyHeadVersion = 1;
     internal const int HeadVersion = 2;
-    internal const int CheckpointVersion = 1;
+    internal const int LegacyCheckpointVersion = 1;
+    internal const int CheckpointVersion = 2;
     private const int HeadLimit = 2 * 1024 * 1024;
     private const int CheckpointLimit = 32 * 1024 * 1024;
     private static readonly Regex ValidId = new(@"\A[a-z0-9][a-z0-9-]{0,79}\z", RegexOptions.CultureInvariant);
@@ -86,7 +89,7 @@ internal sealed class ExpeditionStore
         var bytes = ReadBounded(CheckpointPath(reference), CheckpointLimit);
         if (Digest(bytes) != reference.Digest) throw new InvalidDataException($"Expedition checkpoint {reference.Digest} failed its integrity check.");
         var checkpoint = Decode<ExpeditionCheckpoint>(bytes);
-        if (checkpoint.Version != CheckpointVersion || checkpoint.ExpeditionId != Id || checkpoint.Plan is null || checkpoint.Plan.Region != reference.Region ||
+        if (checkpoint.Version is not (LegacyCheckpointVersion or CheckpointVersion) || checkpoint.ExpeditionId != Id || checkpoint.Plan is null || checkpoint.Plan.Region != reference.Region ||
             checkpoint.Scenario is null || checkpoint.Content is null || checkpoint.State is null)
             throw new InvalidDataException("The Expedition checkpoint does not match its reference or supported schema.");
         ValidateEquipmentDraft(checkpoint);
@@ -125,9 +128,16 @@ internal sealed class ExpeditionStore
     private static void ValidateEquipmentDraft(ExpeditionCheckpoint checkpoint)
     {
         if (checkpoint.EquipmentDraft is { } draft &&
-            (draft.Assignments.IsDefault || checkpoint.State.MachineInteraction is null ||
+            (draft.Assignments.IsDefault || draft.SoldObjectIds.IsDefault || draft.UpgradedUnitIds.IsDefault ||
+             draft.UpgradedEquipmentIds.IsDefault || checkpoint.State.MachineInteraction?.EquipmentStation is null ||
              checkpoint.State.Pending?.Kind != DecisionKind.MachineInteraction))
             throw new InvalidDataException("An Equipment draft requires a matching pending Machine interaction.");
+        if (checkpoint.RecruitmentTypeId is { } recruit &&
+            (string.IsNullOrWhiteSpace(recruit) || checkpoint.EquipmentDraft is not null ||
+             checkpoint.State.MachineInteraction is not { EquipmentStation: not null } interaction ||
+             checkpoint.State.Pending?.Kind != DecisionKind.MachineInteraction ||
+             checkpoint.State.Party?.SideId != interaction.SideId))
+            throw new InvalidDataException("A recruitment draft requires its Party's pending Station and cannot include Equipment changes.");
     }
 
     internal void ReplaceHead(ExpeditionHead? expected, ExpeditionHead next)

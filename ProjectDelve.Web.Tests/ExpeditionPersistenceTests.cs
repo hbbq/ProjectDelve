@@ -16,6 +16,89 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
     private readonly string root = Path.Combine(Path.GetTempPath(), "project-delve-expedition-" + Guid.NewGuid().ToString("N"));
 
     [Fact]
+    public void MaterializedRegionWithUnpricedLevelsResumesItsSavedDefinitionsAndRefreshesAtTheNextHandoff()
+    {
+        const string id = "unpriced-levels";
+        var current = ContentBundle.Canonical();
+        var legacy = current with
+        {
+            Units = [.. current.Units.Select(t => t.Id == UnitTypeIds.Barbarian
+                ? t with { AdditionalLevels = [.. t.AdditionalLevels.Select(l => l with { UpgradeCost = null })] } : t)],
+            Equipment = [.. current.Equipment.Select(t => t.Id == "lucky-boots"
+                ? t with { AdditionalLevels = [.. t.AdditionalLevels.Select(l => l with { UpgradeCost = null })] } : t)]
+        };
+        var store = new ExpeditionStore(root, id);
+        var old = ExpeditionRunner.Create(store, WorldSeed, () => legacy, OpenBoard);
+        var reference = old.Save().ActiveCheckpoint;
+        var bytes = File.ReadAllBytes(CheckpointPath(reference, id));
+        var resumed = ExpeditionRunner.Open(store, () => current, OpenBoard);
+        var saved = resumed.Snapshot();
+        var barbarian = saved.Units.Single(u => u.TypeId == UnitTypeIds.Barbarian);
+        var boots = new OwnedObject("test-boots", "lucky-boots");
+        Assert.Null(saved.UnitUpgradeCostOf(barbarian));
+        Assert.Null(saved.EquipmentUpgradeCostOf(boots));
+        Assert.Equal(6, saved.Types.Single(t => t.Id == barbarian.TypeId).AtLevel(2).Hp);
+        Assert.Equal(bytes, File.ReadAllBytes(CheckpointPath(reference, id)));
+        FinishOpenBoard(resumed, resumed.StartRound());
+        var receipt = resumed.Continue(resumed.Region.TransitionId);
+        var next = store.ReadCheckpoint(receipt.Successor).State;
+        Assert.Equal(24, next.UnitUpgradeCostOf(next.Units.Single(u => u.Id == barbarian.Id)));
+        Assert.Equal(12, next.EquipmentUpgradeCostOf(boots));
+        Assert.Null(store.ReadCheckpoint(receipt.Source).State.UnitUpgradeCostOf(barbarian));
+    }
+
+    [Fact]
+    public void PhysicalLevelsSurviveCheckpointAndIdempotentHandoffWithRestoredLevelSpecificMaxima()
+    {
+        const string id = "physical-levels";
+        const string boots = "expedition-test-boots";
+        var store = new ExpeditionStore(root, id);
+        var catalog = ContentBundle.Canonical();
+        var runner = ExpeditionRunner.Create(store, WorldSeed, () => catalog, OpenBoard);
+        var before = store.ReadCheckpoint(runner.Head.ActiveCheckpoint);
+        var hero = runner.Head.OriginalHeroIds[0];
+        runner.ResolveBoundary((state, _) =>
+        {
+            var next = GameEngine.UpgradeUnit(state, hero);
+            int index = next.Units.FindIndex(u => u.Id == hero);
+            next.Units[index] = next.Units[index] with { Inventory = [new(boots, "lucky-boots")] };
+            next = GameEngine.UpgradeEquipment(next, boots);
+            var unit = next.Units[index];
+            var rage = next.AbilitiesOf(hero).Single(g => g.Definition.Key == "rage");
+            next.Units[index] = unit with
+            {
+                CurrentHp = 2, AbilityUseCounts = unit.AbilityUseCounts.Add(rage.AccountingId, 2),
+                Inventory = [unit.Inventory[0] with { AbilityUseCounts = unit.Inventory[0].AbilityUseCounts.Add("second-step", 1) }]
+            };
+            return new(next, [], next.Pending);
+        }, false);
+        var saved = runner.Save();
+        Assert.Equal(before.GameplayRandomState, store.ReadCheckpoint(saved.ActiveCheckpoint).GameplayRandomState);
+        var resumed = ExpeditionRunner.Open(store, () => catalog, OpenBoard);
+        Assert.Equal(JsonSerializer.Serialize(runner.StartRound()), JsonSerializer.Serialize(resumed.StartRound()));
+        FinishOpenBoard(resumed, new(resumed.Snapshot(), [], resumed.Snapshot().Pending));
+        var transition = resumed.Region.TransitionId;
+        var archive = File.ReadAllBytes(CheckpointPath(resumed.Head.ActiveCheckpoint, id));
+        var current = catalog;
+        catalog = catalog with { Equipment = [.. catalog.Equipment.Select(e => e.Id == "lucky-boots" ? e with { AdditionalLevels = default } : e)] };
+        Assert.Contains("Level 2", Assert.Throws<ExpeditionOperationException>(() => resumed.Continue(transition)).ToString());
+        catalog = current;
+        var receipt = resumed.Continue(transition);
+        Assert.Equal(receipt, resumed.Continue(transition));
+        Assert.Equal(archive, File.ReadAllBytes(CheckpointPath(receipt.Source, id)));
+        var next = ExpeditionRunner.Open(store, () => catalog, OpenBoard).Snapshot();
+        var restored = next.Units.Single(u => u.Id == hero);
+        Assert.Equal(2, restored.Level);
+        Assert.Equal(7, restored.CurrentHp);
+        Assert.Equal(next.EffectiveMaxHpOf(hero), restored.CurrentHp);
+        Assert.Empty(restored.AbilityUseCounts);
+        var retained = Assert.Single(restored.Inventory);
+        Assert.Equal(boots, retained.Id);
+        Assert.Equal(2, retained.Level);
+        Assert.Empty(retained.AbilityUseCounts);
+    }
+
+    [Fact]
     public void PendingDecisionAndLaterTokenDrawsResumeWithoutConsumingRandomness()
     {
         var store = new ExpeditionStore(root, "pending");
@@ -42,6 +125,173 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
         Assert.True(result.State.Round > 1);
         var final = resumed.Save();
         Assert.NotEqual(checkpoint.GameplayRandomState, store.ReadCheckpoint(final.ActiveCheckpoint).GameplayRandomState);
+    }
+
+    [Fact]
+    public void CreditsSurviveResumeAndRepeatedHandoffWhilePilesStayInTheirRegion()
+    {
+        const string id = "credits";
+        var store = new ExpeditionStore(root, id);
+        var untouched = new CreditsPile(new(30, 30), 17);
+        ScenarioDefinition Generate(ulong seed, ExpeditionRegionPlan plan, ContentBundle content)
+        {
+            var terrain = OpenBoard(seed, plan, content);
+            if (plan.Region != default) return terrain;
+            return terrain with
+            {
+                AdditionalSideIds = ["Monsters"], SideCredits = new() { ["Monsters"] = 9 },
+                CreditsPiles = [new(terrain.Setup!.Deployment.PlacementOrder[0], 7), untouched]
+            };
+        }
+
+        var runner = ExpeditionRunner.Create(store, WorldSeed, ContentBundle.Canonical, Generate);
+        var opening = runner.Head.ActiveCheckpoint;
+        var reopened = ExpeditionRunner.Open(store, ContentBundle.Canonical, Generate);
+        var firstRound = runner.StartRound();
+        Assert.Equal(JsonSerializer.Serialize(firstRound), JsonSerializer.Serialize(reopened.StartRound()));
+        var saved = runner.Save();
+        var expected = store.ReadCheckpoint(saved.ActiveCheckpoint);
+        Assert.Single(firstRound.Events, e => e.Kind == "CreditsCollected");
+        Assert.Equal(7, expected.State.SideCredits[ExpeditionParty.SideId]);
+        Assert.Single(expected.State.CreditsPiles);
+        Assert.Equal(2, store.ReadCheckpoint(opening).State.CreditsPiles.Count);
+        reopened = ExpeditionRunner.Open(store, ContentBundle.Canonical, Generate);
+        var decision = Pass(firstRound.NextInput!);
+        var replay = reopened.Decide(decision);
+        Assert.Equal(JsonSerializer.Serialize(runner.Decide(decision)), JsonSerializer.Serialize(replay));
+        FinishOpenBoard(reopened, replay);
+        var completed = reopened.Head.ActiveCheckpoint;
+        var before = File.ReadAllBytes(CheckpointPath(completed, id));
+        var transitionId = reopened.Region.TransitionId;
+        var receipt = reopened.Continue(transitionId);
+        Assert.Equal(receipt, reopened.Continue(transitionId));
+        var next = ExpeditionRunner.Open(store, ContentBundle.Canonical, Generate).Snapshot();
+        Assert.Equal(7, next.SideCredits[ExpeditionParty.SideId]);
+        Assert.Equal(9, next.SideCredits["Monsters"]);
+        Assert.DoesNotContain(next.Units, u => u.SideId == "Monsters");
+        Assert.Empty(next.CreditsPiles);
+        Assert.Equal(before, File.ReadAllBytes(CheckpointPath(receipt.Source, id)));
+        var archive = store.ReadCheckpoint(receipt.Source).State;
+        Assert.Equal(untouched, Assert.Single(archive.CreditsPiles));
+        Assert.Equal(7, archive.SideCredits[ExpeditionParty.SideId]);
+        Assert.Equal(9, archive.SideCredits["Monsters"]);
+    }
+
+    [Fact]
+    public void CanonicalZombieDefeatResumesAtTheSameRollAndArchivesItsUnclaimedCredits()
+    {
+        const string id = "defeat-credits";
+        var store = new ExpeditionStore(root, id);
+        var formerCell = new Cell(30, 30);
+        ScenarioDefinition Generate(ulong seed, ExpeditionRegionPlan plan, ContentBundle content)
+        {
+            var terrain = OpenBoard(seed, plan, content);
+            if (plan.Region != default) return terrain;
+            return terrain with
+            {
+                UnitTypeIds = [UnitTypeIds.Zombie],
+                Units = [new(UnitTypeIds.Zombie, "Monsters", formerCell, UnitId: "guard")],
+                Agency = [new(UnitTypeIds.Zombie, "Monsters", ControllerKind.Human)],
+                WorldEffects = new(1, 1) { Composition = [new("loneliness", 1)] }
+            };
+        }
+
+        var direct = ExpeditionRunner.Create(store, WorldSeed, ContentBundle.Canonical, Generate);
+        var resumed = ExpeditionRunner.Open(store, ContentBundle.Canonical, Generate);
+        var expected = direct.StartRound();
+        var replay = resumed.StartRound();
+        Assert.Equal(JsonSerializer.Serialize(expected), JsonSerializer.Serialize(replay));
+        var drop = Assert.Single(replay.Events, e => e.Kind == "DefeatDropResolved");
+        Assert.Equal(3, drop.DieRoll);
+        Assert.Equal(3, drop.CreditsAmount);
+        var pile = new CreditsPile(formerCell, 3);
+        Assert.Equal(pile, Assert.Single(replay.State.CreditsPiles));
+        Assert.Empty(replay.State.LootMarkers);
+        resumed.Save();
+        var afterDrop = ExpeditionRunner.Open(store, ContentBundle.Canonical, Generate);
+        var choice = Pass(expected.NextInput!);
+        var next = afterDrop.Decide(choice);
+        Assert.Equal(JsonSerializer.Serialize(direct.Decide(choice)), JsonSerializer.Serialize(next));
+        FinishOpenBoard(afterDrop, next);
+        var receipt = afterDrop.Continue(afterDrop.Region.TransitionId);
+        Assert.Equal(pile, Assert.Single(store.ReadCheckpoint(receipt.Source).State.CreditsPiles));
+        Assert.Empty(afterDrop.Snapshot().CreditsPiles);
+    }
+
+    [Fact]
+    public void CheckpointWithoutCreditsFieldsResumesWithoutRewritingTheBoard()
+    {
+        const string id = "pre-credits";
+        var store = new ExpeditionStore(root, id);
+        var runner = ExpeditionRunner.Create(store, WorldSeed, ContentBundle.Canonical, OpenBoard);
+        runner.StartRound();
+        var saved = runner.Save().ActiveCheckpoint;
+        var legacy = JsonNode.Parse(File.ReadAllBytes(CheckpointPath(saved, id)))!;
+        var state = legacy["state"]!.AsObject();
+        Assert.True(state.Remove("creditsPiles"));
+        Assert.True(state.Remove("sideCredits"));
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(legacy);
+        var oldRef = saved with { Digest = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes)) };
+        File.WriteAllBytes(CheckpointPath(oldRef, id), bytes);
+        var headPath = Path.Combine(root, "expedition-" + id, "head.json");
+        var head = JsonNode.Parse(File.ReadAllBytes(headPath))!;
+        head["activeCheckpoint"]!["digest"] = oldRef.Digest;
+        File.WriteAllText(headPath, head.ToJsonString());
+
+        var oldRunner = ExpeditionRunner.Open(store, ContentBundle.Canonical, OpenBoard);
+        Assert.Empty(oldRunner.Snapshot().CreditsPiles);
+        Assert.Equal(0, oldRunner.Snapshot().SideCredits.GetValueOrDefault(ExpeditionParty.SideId));
+        var choice = Pass(runner.Snapshot().Pending!);
+        Assert.Equal(JsonSerializer.Serialize(runner.Decide(choice)), JsonSerializer.Serialize(oldRunner.Decide(choice)));
+        Assert.Equal(bytes, File.ReadAllBytes(CheckpointPath(oldRef, id)));
+    }
+
+    [Fact]
+    public void PreSaleCheckpointKeepsUnpricedEquipmentAndItemsWhenCurrentCatalogHasPrices()
+    {
+        const string id = "pre-station-sales";
+        var store = new ExpeditionStore(root, id);
+        var old = ContentBundle.Canonical();
+        old = old with
+        {
+            Equipment = [.. old.Equipment.Select(type => type with { SellValue = null })],
+            Items = [.. old.Items.Select(type => type with { SellValue = null })]
+        };
+        var runner = ExpeditionRunner.Create(store, WorldSeed, () => old, OpenBoard);
+        runner.StartRound();
+        var checkpoint = runner.Save().ActiveCheckpoint;
+        var bytes = File.ReadAllBytes(CheckpointPath(checkpoint, id));
+        Assert.DoesNotContain("\"sellValue\"", System.Text.Encoding.UTF8.GetString(bytes));
+
+        var resumed = ExpeditionRunner.Open(store, ContentBundle.Canonical, OpenBoard);
+        var state = resumed.Snapshot();
+        Assert.Null(state.Equipment("lucky-boots").SellValue);
+        Assert.Null(state.Item("second-wind").SellValue);
+        Assert.Equal(JsonSerializer.Serialize(runner.Snapshot()), JsonSerializer.Serialize(state));
+        Assert.Equal(bytes, File.ReadAllBytes(CheckpointPath(checkpoint, id)));
+    }
+
+    [Fact]
+    public void CheckpointWithNoLevelFieldsReopensAgainstItsPinnedLegacyDefinitions()
+    {
+        const string id = "pre-levels";
+        var store = new ExpeditionStore(root, id);
+        var current = ContentBundle.Canonical();
+        var old = current with { Units = [.. current.Units.Select(t => t with { AdditionalLevels = default })],
+            Equipment = [.. current.Equipment.Select(e => e with { AdditionalLevels = default })] };
+        var runner = ExpeditionRunner.Create(store, WorldSeed, () => old, OpenBoard);
+        var checkpoint = runner.Head.ActiveCheckpoint;
+        var path = CheckpointPath(checkpoint, id);
+        var bytes = File.ReadAllBytes(path);
+        Assert.DoesNotContain("\"additionalLevels\"", Encoding.UTF8.GetString(bytes));
+        Assert.DoesNotContain("\"level\"", Encoding.UTF8.GetString(bytes));
+        var reopened = ExpeditionRunner.Open(store, () => current, OpenBoard);
+        var snapshot = reopened.Snapshot();
+        Assert.All(snapshot.Units, u => Assert.Equal(1, u.Level));
+        Assert.Throws<ArgumentException>(() => snapshot.Equipment("lucky-boots").AtLevel(2));
+        Assert.Throws<ArgumentException>(() => GameEngine.UpgradeUnit(snapshot, runner.Head.OriginalHeroIds[0]));
+        Assert.Equal(JsonSerializer.Serialize(runner.StartRound()), JsonSerializer.Serialize(reopened.StartRound()));
+        Assert.Equal(bytes, File.ReadAllBytes(path));
     }
 
     [Fact]
@@ -336,7 +586,7 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
         Assert.Equal(ExpeditionStore.HeadVersion, retry.Head.Version);
         Assert.Equal(settings.ToString(), retry.Head.GenerationRecipe);
         Assert.Equal(ExpeditionWorldProfile.CreateV1(settings.NaturalTerrain) with
-            { StationVersion = ExpeditionWorldProfile.CurrentStationVersion }, retry.Head.WorldProfile);
+            { StationVersion = ExpeditionWorldProfile.CurrentStationVersion, EconomyVersion = ExpeditionWorldProfile.CurrentEconomyVersion }, retry.Head.WorldProfile);
         Assert.Equal(retry.Head.WorldProfile, ExpeditionRunner.Open(root, id).Head.WorldProfile);
         Assert.Equal(sourceBytes, File.ReadAllBytes(CheckpointPath(source, id)));
         Assert.Equal(receipt, retry.Continue(original.Region.TransitionId));
@@ -348,6 +598,7 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
     [InlineData(2)]
     [InlineData(3)]
     [InlineData(4)]
+    [InlineData(5)]
     public void StationsUpgradeOnlyAtSuccessfulFrontierAndKeepArchivedGeometryAndOtherPolicies(int policy)
     {
         const ulong seed = 889;
@@ -360,7 +611,8 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
             1 => ExpeditionWorldProfile.CreateCivilizationV1(settings.NaturalTerrain),
             2 => ExpeditionWorldProfile.CreateConstructionV1(settings.NaturalTerrain),
             3 => ExpeditionWorldProfile.CreateConstructionV2(settings.NaturalTerrain),
-            _ => ExpeditionWorldProfile.Create(settings.NaturalTerrain) with { StationVersion = null }
+            4 => ExpeditionWorldProfile.Create(settings.NaturalTerrain) with { StationVersion = null },
+            _ => ExpeditionWorldProfile.Create(settings.NaturalTerrain) with { EconomyVersion = null }
         };
         var store = new ExpeditionStore(root, id);
         var runner = ExpeditionRunner.Create(store, seed, ContentBundle.Canonical, OpenBoard, settings.ToString(), profile);
@@ -394,7 +646,7 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
         Assert.Equal(profile, reopened.Head.WorldProfile);
         Assert.Equal(ScenarioDefinitionJson.ToJson(runner.Scenario), ScenarioDefinitionJson.ToJson(reopened.Scenario));
         reopened.Continue(runner.Region.TransitionId);
-        Assert.Equal(profile with { StationVersion = ExpeditionWorldProfile.CurrentStationVersion }, reopened.Head.WorldProfile);
+        Assert.Equal(profile with { StationVersion = ExpeditionWorldProfile.CurrentStationVersion, EconomyVersion = ExpeditionWorldProfile.CurrentEconomyVersion }, reopened.Head.WorldProfile);
         Assert.Equal(sourceBytes, File.ReadAllBytes(CheckpointPath(source, id)));
         var station = Assert.Single(reopened.Snapshot().Physical.Board.Machines,
             m => m.Id == ExpeditionStationGenerator.ArrivalId);
@@ -512,7 +764,7 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
             location.Groups.Any(group => group.Id == "public-space" &&
                 group.Positions.Contains(built.Position with { X = built.Position.X + 1 })));
         Assert.DoesNotContain(built.Position, square.Groups.SelectMany(g => g.Positions));
-        Assert.Equal(profile with { StationVersion = ExpeditionWorldProfile.CurrentStationVersion },
+        Assert.Equal(profile with { StationVersion = ExpeditionWorldProfile.CurrentStationVersion, EconomyVersion = ExpeditionWorldProfile.CurrentEconomyVersion },
             ExpeditionRunner.Open(root, id, Latest).Head.WorldProfile);
     }
 
@@ -568,7 +820,7 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
         Assert.Equal(useOutposts, successor.Scenario.Setup.RequiredLocations.Any(location =>
             location.Groups.Any(group => group.Id == "courtyard")));
         Assert.Contains(successor.Plan.ExitSeam.Y * board.Width + successor.Plan.ExitSeam.X, reached);
-        Assert.Equal(profile with { StationVersion = ExpeditionWorldProfile.CurrentStationVersion },
+        Assert.Equal(profile with { StationVersion = ExpeditionWorldProfile.CurrentStationVersion, EconomyVersion = ExpeditionWorldProfile.CurrentEconomyVersion },
             ExpeditionRunner.Open(root, id, Latest).Head.WorldProfile);
     }
 
@@ -799,9 +1051,9 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
     private static string Pass(DecisionRequest request) => request.Candidates.FirstOrDefault(candidate =>
         candidate.Kind is ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn)?.Key ?? request.Candidates[0].Key;
 
-    private static void FinishOpenBoard(ExpeditionRunner runner)
+    private static void FinishOpenBoard(ExpeditionRunner runner, EngineResult? started = null)
     {
-        var last = runner.StartRound();
+        var last = started ?? runner.StartRound();
         var area = runner.Region.ExitArea;
         var originals = runner.Head.OriginalHeroIds.Take(2).ToArray();
         var targets = new[] { new Cell(area.X, area.Y), new Cell(area.X + 1, area.Y) };

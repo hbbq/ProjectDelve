@@ -146,7 +146,8 @@ public sealed class ContentBrowserApiTests
         };
         var scenario = Fixture(unit) with
         {
-            LootUnitOverrides = new() { [unit.Id] = new(DropSuccesses: 5, CanHaveItems: true, CanHaveEquipment: true) },
+            LootUnitOverrides = new() { [unit.Id] = new(DropSuccesses: 5, CanHaveItems: true, CanHaveEquipment: true,
+                CreditsDropSuccesses: 1, CreditsDropAmount: 7) },
             EquipmentTypes = [new("context-kit", "Context kit") { LocalAbilities = [new("restore", "Equipment remedy", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 3))] }],
             ItemTypes = [new("context-dose", "Context dose") { LocalAbilities = [new("restore", "Item remedy", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 1))] }]
         };
@@ -158,6 +159,8 @@ public sealed class ContentBrowserApiTests
         Assert.Equal("Context healer", projected.Name);
         Assert.Equal(5, projected.Definition.GetProperty("mov").GetInt32());
         Assert.Equal(5, projected.Definition.GetProperty("lootDropSuccesses").GetInt32());
+        Assert.Equal(1, projected.Definition.GetProperty("creditsDropSuccesses").GetInt32());
+        Assert.Equal(7, projected.Definition.GetProperty("creditsDropAmount").GetInt32());
         Assert.True(projected.Definition.GetProperty("canHaveItems").GetBoolean());
         Assert.Equal(5, projected.AuthoredDefinition!.Value.GetProperty("lootOverride").GetProperty("dropSuccesses").GetInt32());
         var abilities = new[] { projected, Entry(catalog, "equipment", "context-kit"), Entry(catalog, "items", "context-dose") }

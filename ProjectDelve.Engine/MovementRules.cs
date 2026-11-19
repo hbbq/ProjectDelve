@@ -20,14 +20,14 @@ internal readonly record struct MovementTraversal(bool IgnoreTerrainAndEdges = f
         Restriction: type.TerrainRestriction, Capabilities: MovementCapabilities.For(type));
 
     internal static MovementTraversal For(GameState state, string unitId, bool closedDoorsTraversable = false,
-        ImmutableArray<string> capabilities = default) =>
-        new(state.HasPhase(unitId),
-            closedDoorsTraversable,
-            state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == unitId).TypeId).TerrainRestrictedMovement?.Terrain,
-            FogOfWar.IsEnabled(state, state.Units.Single(u => u.Id == unitId).SideId)
-                ? state.ExploredCells.GetValueOrDefault(state.Units.Single(u => u.Id == unitId).SideId) ?? [] : null,
-            state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == unitId).TypeId).TerrainRestriction,
-            Capabilities: capabilities.IsDefault ? state.EffectiveMovementCapabilitiesOf(unitId) : capabilities);
+        ImmutableArray<string> capabilities = default)
+    {
+        var unit = state.Units.Single(u => u.Id == unitId);
+        var type = state.UnitConfiguration(unit);
+        return new(state.HasPhase(unitId), closedDoorsTraversable, type.TerrainRestrictedMovement?.Terrain,
+            FogOfWar.IsEnabled(state, unit.SideId) ? state.ExploredCells.GetValueOrDefault(unit.SideId) ?? [] : null,
+            type.TerrainRestriction, Capabilities: capabilities.IsDefault ? MovementCapabilities.For(state, unit) : capabilities);
+    }
 
     internal bool CanTraverse(TerrainDefinition terrain) =>
         (!RequiredTerrain.HasValue || TerrainCatalog.AcceptsLegacy(RequiredTerrain.Value, terrain)) &&
@@ -57,7 +57,7 @@ internal static class MovementRules
         HypotheticalPosition.Validate(state, moverId, from, new(Capabilities: traversal.Capabilities));
         if (maxSteps < 0) throw new ArgumentOutOfRangeException(nameof(maxSteps));
         var unit = state.Units.Single(u => u.Id == moverId);
-        var pattern = ignoreMovementPattern ? null : state.Types.Single(t => t.Id == unit.TypeId).MovementPattern;
+        var pattern = ignoreMovementPattern ? null : state.UnitConfiguration(unit).MovementPattern;
         return FindPatternPaths(state, moverId, from, maxSteps, ignoreCellMarkers, pattern, traversal);
     }
 

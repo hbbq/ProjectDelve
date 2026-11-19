@@ -1,15 +1,48 @@
 using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 
 namespace ProjectDelve.Engine;
 
 public sealed record EquipmentTransfer(string ObjectId, string FromUnitId, string ToUnitId);
 public sealed record EquipmentAssignment(string ObjectId, string UnitId);
-public sealed record EquipmentAllocation(ImmutableArray<EquipmentAssignment> Assignments);
-public sealed record EquipmentStationInteraction(ImmutableArray<string> EligibleUnitIds,
-    EquipmentAllocation OriginalAllocation);
-public sealed record PendingMachineInteraction(string MachineId, string OperatorId, string SideId,
-    Candidate Operation, EquipmentStationInteraction EquipmentStation)
+public sealed record EquipmentSale(string ObjectId, string FromUnitId, int SellValue);
+public sealed record StationUpgrade(string TargetId, int CurrentLevel, int NextLevel, int Cost, bool Selected);
+public sealed record EquipmentAllocation(ImmutableArray<EquipmentAssignment> Assignments)
 {
+    [JsonIgnore] public ImmutableArray<string> SoldObjectIds { get; init; } = [];
+    [JsonPropertyName("soldObjectIds"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ImmutableArray<string>? SerializedSoldObjectIds
+    {
+        get => SoldObjectIds.IsDefaultOrEmpty ? null : SoldObjectIds;
+        init => SoldObjectIds = value ?? [];
+    }
+    [JsonIgnore] public ImmutableArray<string> UpgradedUnitIds { get; init; } = [];
+    [JsonPropertyName("upgradedUnitIds"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ImmutableArray<string>? SerializedUpgradedUnitIds
+    {
+        get => UpgradedUnitIds.IsDefaultOrEmpty ? null : UpgradedUnitIds;
+        init => UpgradedUnitIds = value ?? [];
+    }
+    [JsonIgnore] public ImmutableArray<string> UpgradedEquipmentIds { get; init; } = [];
+    [JsonPropertyName("upgradedEquipmentIds"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ImmutableArray<string>? SerializedUpgradedEquipmentIds
+    {
+        get => UpgradedEquipmentIds.IsDefaultOrEmpty ? null : UpgradedEquipmentIds;
+        init => UpgradedEquipmentIds = value ?? [];
+    }
+}
+public sealed record EquipmentStationInteraction(ImmutableArray<string> EligibleUnitIds,
+    EquipmentAllocation OriginalAllocation)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool CanRecruit { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ImmutableArray<string>? EligibleUpgradeUnitIds { get; init; }
+}
+public sealed record PendingMachineInteraction(string MachineId, string OperatorId, string SideId,
+    Candidate Operation, EquipmentStationInteraction? EquipmentStation = null)
+{
+    public PaidMachineInteraction? PaidServices { get; init; }
     public string? ReservedConsumptionObjectId => Operation.Ability?.SourceKind == AbilitySourceKind.Item
         ? Operation.Ability.SourceInstanceId : null;
 }
@@ -21,11 +54,23 @@ public sealed class EquipmentAllocationException(ImmutableArray<EquipmentAllocat
 }
 public sealed record EquipmentStationAbilityPreview(ResolvedAbility Ability, int? RemainingUses, bool Applicable,
     CardEntryDescription Content);
-public sealed record EquipmentStationStats(int Mov, int Rng, int Atk, int Def, int Hp, int SightDistance);
+public sealed record EquipmentStationStats(int Mov, int Rng, int Atk, int Def, int Hp, int SightDistance)
+{
+    public int Moves { get; init; }
+    public int Actions { get; init; }
+    public int BonusActionUses { get; init; }
+}
 public sealed record EquipmentStationUnitPreview(string UnitId, ImmutableArray<OwnedObject> Allocation,
     int Mov, int Rng, int Atk, int Def, int Hp, int SightDistance,
     ImmutableArray<string> MovementCapabilities, bool HasPhase, ImmutableArray<ResolvedAbility> Abilities)
 {
+    public int CurrentHp { get; init; }
+    public int ResultingHp { get; init; }
+    public int CurrentLevel { get; init; }
+    public int ResultingLevel { get; init; }
+    public int Moves { get; init; }
+    public int Actions { get; init; }
+    public int BonusActionUses { get; init; }
     public bool ProposedAllocationAvailable { get; init; } = true;
     public bool BaselineHasPhase { get; init; }
     public ImmutableArray<string> GainedMovementCapabilities { get; init; } = [];
@@ -35,13 +80,26 @@ public sealed record EquipmentStationUnitPreview(string UnitId, ImmutableArray<O
     public EquipmentStationStats Baseline { get; init; } = new(0, 0, 0, 0, 0, 0);
     public EquipmentStationStats Difference { get; init; } = new(0, 0, 0, 0, 0, 0);
     public ImmutableArray<EquipmentStationAbilityPreview> AbilityPreviews { get; init; } = [];
+    public ImmutableArray<EquipmentStationAbilityPreview> OpeningAbilityPreviews { get; init; } = [];
     public ImmutableArray<EquipmentStationAbilityPreview> LostAbilityPreviews { get; init; } = [];
 }
 public sealed record EquipmentStationPreview(bool CanConfirm, ImmutableArray<EquipmentAllocationDiagnostic> Diagnostics,
-    ImmutableArray<EquipmentStationUnitPreview> Units);
+    ImmutableArray<EquipmentStationUnitPreview> Units)
+{
+    public ImmutableArray<EquipmentSale> Sales { get; init; } = [];
+    public long TotalProceeds { get; init; }
+    public long TotalUpgradeCost { get; init; }
+    public ImmutableArray<StationUpgrade> UnitUpgrades { get; init; } = [];
+    public ImmutableArray<StationUpgrade> EquipmentUpgrades { get; init; } = [];
+    public int CurrentCredits { get; init; }
+    public long ResultingCredits { get; init; }
+}
 
 public static partial class GameEngine
 {
+    private static ImmutableArray<Unit> EquipmentStationUpgradeUnits(GameState state, string side) =>
+        [.. state.Units.Where(u => u.SideId == side && u.CurrentHp > 0 && state.Physical.Figures.Any(f => f.Id == u.Id))];
+
     private static ImmutableArray<Unit> EquipmentStationUnits(GameState state, string side) =>
         [.. state.Units.Where(u => u.SideId == side && u.CurrentHp > 0 &&
             state.Physical.Figures.Any(f => f.Id == u.Id) && (state.Types.Single(t => t.Id == u.TypeId).CanHaveEquipment || state.Types.Single(t => t.Id == u.TypeId).CanHaveItems))];
@@ -60,7 +118,9 @@ public static partial class GameEngine
         var allocation = new EquipmentAllocation([.. units.SelectMany(u => u.Inventory
             .Where(o => Transferable(state, o) && o.Id != reserved).Select(o => new EquipmentAssignment(o.Id, u.Id)))]);
         state.MachineInteraction = new(candidate.MachineId, actor.Id, actor.SideId,
-            candidate, new([.. units.Select(u => u.Id)], allocation));
+            candidate, new([.. units.Select(u => u.Id)], allocation)
+            { EligibleUpgradeUnitIds = [.. EquipmentStationUpgradeUnits(state, actor.SideId).Select(u => u.Id)],
+              CanRecruit = state.Party?.SideId == actor.SideId });
         return true;
     }
 
@@ -94,11 +154,16 @@ public static partial class GameEngine
             .Select(o => new EquipmentAssignment(o.Id, u.Id))).OrderBy(a => a.ObjectId, StringComparer.Ordinal).ToArray();
         if (payload.EligibleUnitIds.IsDefault || !payload.EligibleUnitIds.SequenceEqual(units.Select(u => u.Id)) ||
             payload.OriginalAllocation is null || payload.OriginalAllocation.Assignments.IsDefault ||
+            !payload.OriginalAllocation.SoldObjectIds.IsDefaultOrEmpty ||
+            !payload.OriginalAllocation.UpgradedUnitIds.IsDefaultOrEmpty || !payload.OriginalAllocation.UpgradedEquipmentIds.IsDefaultOrEmpty ||
             payload.OriginalAllocation.Assignments.Any(a => a is null) ||
             !payload.OriginalAllocation.Assignments.OrderBy(a => a.ObjectId, StringComparer.Ordinal).SequenceEqual(original) ||
             state.Pending.MachineInteraction is not { } pending || pending.MachineId != interaction.MachineId ||
             pending.OperatorId != interaction.OperatorId || pending.SideId != interaction.SideId)
             throw new InvalidOperationException("The pending Equipment Station roster is stale or invalid.");
+        if (payload.EligibleUpgradeUnitIds is { } upgradeIds &&
+            (upgradeIds.IsDefault || !upgradeIds.SequenceEqual(EquipmentStationUpgradeUnits(state, interaction.SideId).Select(u => u.Id))))
+            throw new InvalidOperationException("The pending Equipment Station upgrade roster is stale or invalid.");
         interaction = interaction with { Operation = canonical };
         return interaction;
     }
@@ -111,19 +176,29 @@ public static partial class GameEngine
                 throw new ArgumentException("A Machine interaction decision requires its authoritative continuation.");
             return;
         }
-        try { RequireEquipmentStation(state); }
+        try { if (state.MachineInteraction.PaidServices is not null) RequirePaidMachine(state); else RequireEquipmentStation(state); }
         catch (InvalidOperationException error) { throw new ArgumentException("Invalid Machine interaction continuation.", error); }
     }
 
     private static bool Transferable(GameState state, OwnedObject obj) => state.EquipmentTypeId(obj) is not null || state.ItemTypeId(obj) is not null;
 
+    public static int? SellValueOf(this GameState state, OwnedObject obj) => state.EquipmentTypeId(obj) is { } equipment
+        ? state.Equipment(equipment).SellValue : state.ItemTypeId(obj) is { } item ? state.Item(item).SellValue : null;
+
     public static EquipmentStationPreview PreviewEquipmentStation(GameState state, EquipmentAllocation? allocation) =>
         ValidateEquipmentAllocation(state, allocation, includePreview: true);
 
     private static EquipmentStationPreview ValidateEquipmentAllocation(GameState state, EquipmentAllocation? allocation, bool includePreview)
+        => ValidateEquipmentAllocation(state, allocation, includePreview, out _, out _);
+
+    private static EquipmentStationPreview ValidateEquipmentAllocation(GameState state, EquipmentAllocation? allocation, bool includePreview,
+        out GameState? proposed, out ImmutableArray<RulesEvent> accounted)
     {
+        proposed = null;
+        accounted = [];
         var interaction = RequireEquipmentStation(state);
         var units = EquipmentStationUnits(state, interaction.SideId);
+        var upgradeUnits = EquipmentStationUpgradeUnits(state, interaction.SideId);
         var objects = units.SelectMany(u => u.Inventory.Where(o => Transferable(state, o) && o.Id != interaction.ReservedConsumptionObjectId)).ToArray();
         var original = units.SelectMany(u => u.Inventory.Where(o => Transferable(state, o) && o.Id != interaction.ReservedConsumptionObjectId)
             .Select(o => new EquipmentAssignment(o.Id, u.Id))).ToArray();
@@ -131,10 +206,28 @@ public static partial class GameEngine
         var unitIds = units.Select(u => u.Id).ToHashSet(StringComparer.Ordinal);
         var originalOwners = original.ToDictionary(a => a.ObjectId, a => a.UnitId, StringComparer.Ordinal);
         var requested = allocation?.Assignments ?? [.. original];
+        var sold = allocation?.SoldObjectIds ?? [];
+        var upgradedUnits = allocation?.UpgradedUnitIds ?? [];
+        var upgradedEquipment = allocation?.UpgradedEquipmentIds ?? [];
+        var selectedUnits = upgradedUnits.IsDefault ? [] : upgradedUnits.ToHashSet(StringComparer.Ordinal);
+        var selectedEquipment = upgradedEquipment.IsDefault ? [] : upgradedEquipment.ToHashSet(StringComparer.Ordinal);
+        var unitOffers = upgradeUnits.Select(unit => (Unit: unit, Cost: state.UnitUpgradeCostOf(unit)))
+            .Where(entry => entry.Cost is >= 0)
+            .Select(entry => new StationUpgrade(entry.Unit.Id, entry.Unit.Level, entry.Unit.Level + 1, entry.Cost!.Value, selectedUnits.Contains(entry.Unit.Id)))
+            .OrderBy(entry => entry.TargetId, StringComparer.Ordinal).ToImmutableArray();
+        var equipmentOffers = objects.Select(obj => (Object: obj, Cost: state.EquipmentUpgradeCostOf(obj)))
+            .Where(entry => entry.Cost is >= 0)
+            .Select(entry => new StationUpgrade(entry.Object.Id, entry.Object.Level, entry.Object.Level + 1, entry.Cost!.Value, selectedEquipment.Contains(entry.Object.Id)))
+            .OrderBy(entry => entry.TargetId, StringComparer.Ordinal).ToImmutableArray();
+        var previewUnits = upgradeUnits.Where(unit => unitIds.Contains(unit.Id) || unitOffers.Any(offer => offer.TargetId == unit.Id)).ToImmutableArray();
+        var sales = ImmutableArray.CreateBuilder<EquipmentSale>();
+        var currentCredits = state.SideCredits.GetValueOrDefault(interaction.SideId);
+        long proceeds = 0, upgradeCost = 0;
         var diagnostics = ImmutableArray.CreateBuilder<EquipmentAllocationDiagnostic>();
         void Reject(string code, string message, string? objectId = null, string? unitId = null) =>
             diagnostics.Add(new(code, message, objectId, unitId));
-        if (requested.IsDefault) Reject("invalid-allocation", "A complete Equipment and Item allocation is required.");
+        if (requested.IsDefault || sold.IsDefault || upgradedUnits.IsDefault || upgradedEquipment.IsDefault)
+            Reject("invalid-allocation", "A complete Station proposal is required.");
         else
         {
             var assignedIds = new HashSet<string>(StringComparer.Ordinal);
@@ -150,17 +243,55 @@ public static partial class GameEngine
                 else if (!assignedIds.Add(objectId!))
                     Reject("duplicate-assignment", "Assign each object to exactly one recipient.", objectId, unitId);
             }
+            foreach (var objectId in sold)
+            {
+                if (objectId is null || !objectIndex.TryGetValue(objectId, out var obj))
+                    Reject("invalid-sale", "The sale contains an unavailable object.");
+                else if (!assignedIds.Add(objectId))
+                    Reject("duplicate-assignment", "Each object must have exactly one final owner or sale.", objectId);
+                else if (state.SellValueOf(obj) is not { } value || value < 0)
+                    Reject("unsellable-object", "This object has no sell value.", objectId);
+                else
+                {
+                    sales.Add(new(objectId, originalOwners[objectId], value));
+                    proceeds += value;
+                }
+            }
             foreach (var entry in original)
                 if (!assignedIds.Contains(entry.ObjectId))
-                    Reject("missing-assignment", "Assign this object to a recipient.", entry.ObjectId, entry.UnitId);
+                    Reject("missing-assignment", "Assign this object to a recipient or sale.", entry.ObjectId, entry.UnitId);
+            ValidateUpgrades(upgradedUnits, unitOffers, equipment: false);
+            ValidateUpgrades(upgradedEquipment, equipmentOffers, equipment: true);
         }
+        void ValidateUpgrades(ImmutableArray<string> targets, ImmutableArray<StationUpgrade> offers, bool equipment)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var id in targets)
+            {
+                var offer = offers.FirstOrDefault(o => o.TargetId == id);
+                if (id is null || offer is null)
+                    Reject("unavailable-upgrade", "The target has no purchasable next Level.");
+                else if (!seen.Add(id))
+                    Reject("duplicate-upgrade", "Each instance can advance only one Level per Confirm.",
+                        objectId: equipment ? id : null, unitId: equipment ? null : id);
+                else if (equipment && sold.Contains(id))
+                    Reject("sold-and-upgraded", "An object selected for sale cannot also be upgraded.", objectId: id);
+                else upgradeCost = checked(upgradeCost + offer.Cost);
+            }
+        }
+        EquipmentStationPreview Settlement(EquipmentStationPreview preview) => preview with
+        {
+            Sales = [.. sales.OrderBy(s => s.ObjectId, StringComparer.Ordinal)], TotalProceeds = proceeds,
+            TotalUpgradeCost = upgradeCost, UnitUpgrades = unitOffers, EquipmentUpgrades = equipmentOffers,
+            CurrentCredits = currentCredits, ResultingCredits = (long)currentCredits + proceeds - upgradeCost
+        };
         if (diagnostics.Count > 0)
         {
             var rows = includePreview ? ValidateEquipmentAllocation(state, null, includePreview: true).Units
                 .Select(u => u with { ProposedAllocationAvailable = false }).ToImmutableArray() : [];
-            return new(false, diagnostics.ToImmutable(), rows);
+            return Settlement(new(false, diagnostics.ToImmutable(), rows));
         }
-        var draft = state.Copy();
+        var draft = BuildStationFinalState(state, interaction, requested, selectedUnits, selectedEquipment, out accounted);
         var assignedByUnit = requested.ToLookup(a => a.UnitId, StringComparer.Ordinal);
         foreach (var unit in units)
         {
@@ -170,32 +301,42 @@ public static partial class GameEngine
             var equipmentTypes = equipped.Select(state.EquipmentTypeId).OfType<string>().ToArray();
             if (equipmentTypes.Distinct(StringComparer.Ordinal).Count() != equipmentTypes.Length)
                 Reject("duplicate-equipment-type", "A Unit may own only one object of each Equipment Type.", unitId: unit.Id);
-            var index = draft.Units.FindIndex(u => u.Id == unit.Id);
-            draft.Units[index] = unit with { Inventory = AllocateStationInventory(state, unit, assignedByUnit[unit.Id], objectIndex) };
         }
-        foreach (var unit in units)
+        foreach (var unit in previewUnits)
         {
             var position = draft.Physical.Figures.Single(f => f.Id == unit.Id).Position;
             if (!SpatialRules.CanPlaceUnit(draft, unit.Id, position))
                 Reject("illegal-occupancy", "The proposed Equipment does not permit a Unit's current placement.", unitId: unit.Id);
         }
-        if (!requested.Any(a => originalOwners[a.ObjectId] != a.UnitId))
-            Reject("no-transfer", "Confirm requires at least one object transfer.");
-        if (!includePreview) return new(diagnostics.Count == 0, diagnostics.ToImmutable(), []);
-        var results = units.Select(unit =>
+        if (!requested.Any(a => originalOwners[a.ObjectId] != a.UnitId) && sales.Count == 0 && selectedUnits.Count == 0 && selectedEquipment.Count == 0)
+            Reject("no-transfer", "Confirm requires an object transfer, sale or upgrade.");
+        var balance = (long)currentCredits + proceeds - upgradeCost;
+        if (balance < 0) Reject("insufficient-credits", "The Side has insufficient Credits for this complete proposal.");
+        if (balance + state.CreditsPiles.Sum(p => (long)p.Amount) > int.MaxValue)
+            Reject("credits-overflow", "The resulting Credits balance exceeds the supported range.");
+        if (diagnostics.Count == 0)
         {
-            var type = draft.Types.Single(t => t.Id == unit.TypeId);
-            var bearer = draft.Units.Single(u => u.Id == unit.Id) with { CurrentHp = type.Hp };
+            if (sales.Count > 0 || upgradeCost > 0) draft.SideCredits[interaction.SideId] = checked((int)balance);
+            proposed = draft;
+        }
+        if (!includePreview) return Settlement(new(diagnostics.Count == 0, diagnostics.ToImmutable(), []));
+        var results = previewUnits.Select(unit =>
+        {
+            var bearer = draft.Units.Single(u => u.Id == unit.Id) with { CurrentHp = draft.EffectiveMaxHpOf(unit.Id) };
             var normalized = new GameState
             {
-                Units = [bearer], Types = draft.Types,
+                Units = [bearer], Types = draft.Types, CurrentUnitId = unit.Id,
                 Physical = new(new Board(4, 4, []), [new Figure(unit.Id, new Cell(1, 1), Posture.Upright)]),
                 EquipmentTypes = draft.EquipmentTypes, ItemTypes = draft.ItemTypes, LootCardDefinitions = draft.LootCardDefinitions
             };
             var baselineState = normalized.Copy();
-            baselineState.Units = [unit with { CurrentHp = type.Hp }];
+            baselineState.Units = [unit with { CurrentHp = state.EffectiveMaxHpOf(unit) }];
             EquipmentStationStats Stats(GameState value) => new(value.EffectiveMovOf(unit.Id), value.EffectiveRngOf(unit.Id),
-                value.EffectiveAtkOf(unit.Id), value.EffectiveDefOf(unit.Id), type.Hp, value.EffectiveSightDistanceOf(unit.Id));
+                value.EffectiveAtkOf(unit.Id), value.EffectiveDefOf(unit.Id), value.EffectiveMaxHpOf(unit.Id), value.EffectiveSightDistanceOf(unit.Id))
+            {
+                Moves = value.EffectiveMovesPerActivation, Actions = value.EffectiveActionsPerActivation,
+                BonusActionUses = value.EffectiveBonusActionUsesPerActivation
+            };
             var baseline = Stats(baselineState);
             var current = Stats(normalized);
             var capabilities = normalized.EffectiveMovementCapabilitiesOf(unit.Id);
@@ -211,19 +352,83 @@ public static partial class GameEngine
                 current.Mov, current.Rng, current.Atk, current.Def, current.Hp, current.SightDistance,
                 capabilities, normalized.HasPhase(unit.Id), abilities)
             {
+                CurrentHp = unit.CurrentHp, ResultingHp = draft.Units.Single(u => u.Id == unit.Id).CurrentHp,
+                CurrentLevel = unit.Level, ResultingLevel = bearer.Level,
                 Baseline = baseline,
+                Moves = current.Moves, Actions = current.Actions, BonusActionUses = current.BonusActionUses,
                 BaselineHasPhase = baselineState.HasPhase(unit.Id),
                 GainedMovementCapabilities = [.. capabilities.Except(baselineCapabilities, StringComparer.Ordinal)],
                 LostMovementCapabilities = [.. baselineCapabilities.Except(capabilities, StringComparer.Ordinal)],
                 GainedAbilities = [.. abilityRefs.Except(openingAbilities.Select(a => a.SourceReference))],
                 LostAbilities = [.. lost.Select(a => a.SourceReference)],
                 Difference = new(current.Mov - baseline.Mov, current.Rng - baseline.Rng, current.Atk - baseline.Atk,
-                    current.Def - baseline.Def, current.Hp - baseline.Hp, current.SightDistance - baseline.SightDistance),
+                    current.Def - baseline.Def, current.Hp - baseline.Hp, current.SightDistance - baseline.SightDistance)
+                {
+                    Moves = current.Moves - baseline.Moves, Actions = current.Actions - baseline.Actions,
+                    BonusActionUses = current.BonusActionUses - baseline.BonusActionUses
+                },
                 AbilityPreviews = [.. abilities.Select(a => Describe(normalized, a))],
+                OpeningAbilityPreviews = [.. openingAbilities.Select(a => Describe(baselineState, a))],
                 LostAbilityPreviews = [.. lost.Select(a => Describe(baselineState, a))]
             };
         }).ToImmutableArray();
-        return new(diagnostics.Count == 0, diagnostics.ToImmutable(), results);
+        return Settlement(new(diagnostics.Count == 0, diagnostics.ToImmutable(), results));
+    }
+
+    private static GameState BuildStationFinalState(GameState state, PendingMachineInteraction interaction,
+        ImmutableArray<EquipmentAssignment> assignments, HashSet<string> upgradedUnits, HashSet<string> upgradedEquipment,
+        out ImmutableArray<RulesEvent> accounted)
+    {
+        var result = state.Copy();
+        result.Pending = null;
+        result.MachineInteraction = null;
+        // Invocation is bound to the opening configuration. Resource/Posture
+        // costs and Item consumption happen once before replacing any source.
+        var events = new ResolutionEvents(result, StationAccountingRandom.Instance, null, captureState: false);
+        var ability = interaction.Operation.Ability!;
+        CommitAbilityInvocation(result, interaction.OperatorId, ability, events);
+        EmitActionUsed(new(DecisionKind.Activation, result.Units.Single(u => u.Id == interaction.OperatorId).TypeId,
+            interaction.OperatorId, [interaction.Operation], false), interaction.Operation.Key, events);
+        accounted = [.. events.Events];
+        var objects = EquipmentStationUnits(result, interaction.SideId).SelectMany(u => u.Inventory.Where(o => Transferable(result, o)))
+            .ToDictionary(o => o.Id, StringComparer.Ordinal);
+        foreach (var id in upgradedEquipment)
+            objects[id] = AdvanceEquipmentLevel(result, objects[id]);
+        var owners = assignments.ToLookup(a => a.UnitId, StringComparer.Ordinal);
+        foreach (var original in EquipmentStationUpgradeUnits(result, interaction.SideId))
+        {
+            var unit = upgradedUnits.Contains(original.Id) ? AdvanceUnitLevel(result, original) : original;
+            var retained = AllocateStationInventory(result, unit, owners[unit.Id], objects);
+            unit = unit with { Inventory = [.. retained.Select(obj => objects.GetValueOrDefault(obj.Id, obj))] };
+            if (ability.SourceKind == AbilitySourceKind.Unit && unit.Id == interaction.OperatorId && upgradedUnits.Contains(unit.Id))
+            {
+                var continuing = result.Types.Single(t => t.Id == unit.TypeId).AtLevel(unit.Level).LocalAbilities
+                    .SingleOrDefault(a => a.Key == ability.Key && a.Mechanic is Operate && a.Usage.MaxUses is not null);
+                if (ability.Definition.Usage.MaxUses is not null && continuing is not null)
+                    unit = ChangeAbilityUseCount(unit, ability, _ => 1);
+            }
+            if (ability.SourceKind == AbilitySourceKind.Equipment && upgradedEquipment.Contains(ability.SourceInstanceId))
+            {
+                var source = unit.Inventory.SingleOrDefault(obj => obj.Id == ability.SourceInstanceId);
+                if (source is not null && ability.Definition.Usage.MaxUses is not null &&
+                    result.EquipmentConfiguration(source).LocalAbilities.Any(a => a.Key == ability.Key && a.Mechanic is Operate && a.Usage.MaxUses is not null))
+                    unit = ChangeAbilityUseCount(unit, ability, _ => 1);
+            }
+            var maximum = result.EffectiveMaxHpOf(unit);
+            unit = unit with { CurrentHp = upgradedUnits.Contains(unit.Id) ? maximum : Math.Min(unit.CurrentHp, maximum) };
+            result.Units[result.Units.FindIndex(u => u.Id == unit.Id)] = unit;
+        }
+        return result;
+    }
+
+    // Preview and settlement must stay independent of gameplay randomness.
+    private sealed class StationAccountingRandom : IRandomProvider
+    {
+        public static StationAccountingRandom Instance { get; } = new();
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => throw new InvalidOperationException("Station settlement cannot draw tokens.");
+        public AttackFace RollAttackDie() => throw new InvalidOperationException("Station settlement cannot roll dice.");
+        public DefenceFace RollDefenceDie() => throw new InvalidOperationException("Station settlement cannot roll dice.");
+        public int RollD6() => throw new InvalidOperationException("Station settlement cannot roll dice.");
     }
 
     private static ImmutableArray<OwnedObject> AllocateStationInventory(GameState state, Unit unit,
@@ -246,38 +451,30 @@ public static partial class GameEngine
     {
         ArgumentNullException.ThrowIfNull(allocation);
         var interaction = RequireEquipmentStation(previous);
-        var preview = ValidateEquipmentAllocation(previous, allocation, includePreview: false);
+        var preview = ValidateEquipmentAllocation(previous, allocation, includePreview: false, out var proposed, out var accounting);
         if (!preview.CanConfirm) throw new EquipmentAllocationException(preview.Diagnostics);
-        var state = previous.Copy();
-        var accounting = new ResolutionEvents(state, random, null);
-        var originalOwners = interaction.EquipmentStation.OriginalAllocation.Assignments
+        var state = proposed!;
+        var originalOwners = interaction.EquipmentStation!.OriginalAllocation.Assignments
             .ToDictionary(a => a.ObjectId, a => a.UnitId, StringComparer.Ordinal);
         var candidate = interaction.Operation;
         var ability = candidate.Ability!;
-        state.Pending = null;
-        state.MachineInteraction = null;
-        CommitAbilityInvocation(state, interaction.OperatorId, ability, accounting);
-        EmitActionUsed(new(DecisionKind.Activation, state.Units.Single(u => u.Id == interaction.OperatorId).TypeId,
-            interaction.OperatorId, [candidate], false), candidate.Key, accounting);
-        // Accounting may update the physical source's counters. Transfer those updated objects.
-        var eligible = EquipmentStationUnits(state, interaction.SideId);
-        var objects = eligible.SelectMany(u => u.Inventory.Where(o => Transferable(state, o)))
-            .ToDictionary(o => o.Id, StringComparer.Ordinal);
-        var assignedByUnit = allocation.Assignments.ToLookup(a => a.UnitId, StringComparer.Ordinal);
-        foreach (var unit in eligible)
-        {
-            var index = state.Units.FindIndex(u => u.Id == unit.Id);
-            state.Units[index] = unit with { Inventory = AllocateStationInventory(state, unit, assignedByUnit[unit.Id], objects) };
-        }
         var machines = state.Physical.Board.Machines;
         var machineIndex = machines.FindIndex(m => m.Id == interaction.MachineId);
         var machine = machines[machineIndex];
         machines[machineIndex] = machine with { UseCounts = machine.UseCounts.SetItem(interaction.SideId,
             checked(machine.UseCounts.GetValueOrDefault(interaction.SideId) + 1)) };
         var events = new ResolutionEvents(state, random, observe);
-        foreach (var accounted in accounting.Events) events.Add(accounted);
+        foreach (var accounted in accounting) events.Add(accounted);
         events.Add(new RulesEvent("MachineOperated", interaction.OperatorId) { MachineId = interaction.MachineId,
             SourceUnitId = interaction.OperatorId, SideId = interaction.SideId, ActionId = ability.ActionId, Cell = machine.Position,
+            EquipmentSales = preview.Sales,
+            UnitUpgrades = [.. preview.UnitUpgrades.Where(u => u.Selected)],
+            EquipmentUpgrades = [.. preview.EquipmentUpgrades.Where(u => u.Selected)],
+            UpgradeCost = preview.UnitUpgrades.Any(u => u.Selected) || preview.EquipmentUpgrades.Any(u => u.Selected) ? preview.TotalUpgradeCost : null,
+            CreditsAmount = preview.Sales.IsEmpty && allocation.UpgradedUnitIds.IsEmpty && allocation.UpgradedEquipmentIds.IsEmpty
+                ? null : checked((int)(preview.TotalProceeds - preview.TotalUpgradeCost)),
+            CreditsBalance = preview.Sales.IsEmpty && allocation.UpgradedUnitIds.IsEmpty && allocation.UpgradedEquipmentIds.IsEmpty
+                ? null : checked((int)preview.ResultingCredits),
             EquipmentTransfers = [.. allocation.Assignments.Where(a => originalOwners[a.ObjectId] != a.UnitId).OrderBy(a => a.ObjectId, StringComparer.Ordinal)
                 .Select(a => new EquipmentTransfer(a.ObjectId, originalOwners[a.ObjectId], a.UnitId))] });
         RunUntilDecision(state, random, events, autoChooseSingleRelevantChoice);
@@ -287,7 +484,7 @@ public static partial class GameEngine
     public static EngineResult CancelMachineInteraction(GameState previous, IRandomProvider random,
         bool autoChooseSingleRelevantChoice = true, Action<RulesEvent, ResolutionStep>? observe = null)
     {
-        RequireEquipmentStation(previous);
+        if (previous.MachineInteraction?.PaidServices is not null) RequirePaidMachine(previous); else RequireEquipmentStation(previous);
         var state = previous.Copy();
         state.Pending = null;
         state.MachineInteraction = null;

@@ -43,8 +43,14 @@ public sealed partial class PlaytestGame
             throw Error(400, "Expeditions use their saved controller assignments.");
         if (request.Operation is "expedition/save" or "expedition/leave" or "expedition/continue" && expedition is null)
             throw Error(409, "Open an Expedition first.");
-        if (request.Operation == "expedition/save" && request.EquipmentAllocation is not null)
+        if (request.Operation == "expedition/save" && (request.EquipmentAllocation is not null || request.RecruitTypeId is not null))
+        {
             RequireMachineDecision(request.DecisionId);
+            if (stable.Result.State.MachineInteraction!.EquipmentStation is null)
+                throw Error(409, "An Equipment draft or recruit selection requires an Equipment Station.");
+            if (request.RecruitTypeId is not null && stable.Result.State.Party?.SideId != stable.Result.State.MachineInteraction!.SideId)
+                throw Error(403, "Only the Expedition Party's Side can save a recruitment selection.");
+        }
         if (request.Operation == "expedition/continue")
         {
             if (string.IsNullOrWhiteSpace(request.TransitionId)) throw Error(400, "Supply the completed region's transition ID.");
@@ -58,12 +64,14 @@ public sealed partial class PlaytestGame
         var request = item.Request;
         if (request.Operation == "expedition/save")
         {
-            expedition!.Save(request.EquipmentAllocation);
+            expedition!.Save(request.EquipmentAllocation, request.RecruitTypeId);
             var savedDraft = expedition.EquipmentDraft;
+            var savedRecruit = expedition.RecruitmentDraft;
             RefreshExpeditionMetadata();
             lock (gate)
             {
                 equipmentDraft = savedDraft;
+                recruitmentDraft = savedRecruit;
                 busy = expeditionOperationQueued = false;
                 stable = Detach(Response(state, status == "waiting-human" ? state.Pending : null));
                 Publish("boundary", stable, request.CommandId, owned: true);
@@ -115,12 +123,13 @@ public sealed partial class PlaytestGame
 
         var restoredAutoChoose = replacement?.AutoChoose ?? true;
         var restoredDraft = replacement?.EquipmentDraft;
+        var restoredRecruit = replacement?.RecruitmentDraft;
         var replacementView = CreateExpeditionView(replacement);
         lock (gate)
         {
             var waiting = externalWait; externalWait = null;
             if (waiting is not null) _ = waiting.CancelAsync().ContinueWith(_ => waiting.Dispose(), TaskScheduler.Default);
-            expedition = replacement; expeditionView = replacementView; equipmentDraft = restoredDraft;
+            expedition = replacement; expeditionView = replacementView; equipmentDraft = restoredDraft; recruitmentDraft = restoredRecruit;
             controllerBindings = []; autoChoose = restoredAutoChoose;
             // Saved Engine controller assignments are restored exactly. Browser
             // controller adapters are session state and cannot rewrite those rules.
@@ -183,6 +192,7 @@ public sealed partial class PlaytestGame
         // and RNG. Never roll that result back and repeat a consumed dice decision.
         if (expedition is not null) state = expedition.Snapshot();
         var savedDraft = expedition?.EquipmentDraft;
+        var savedRecruit = expedition?.RecruitmentDraft;
         RefreshExpeditionMetadata();
         var message = error switch
         {
@@ -192,11 +202,12 @@ public sealed partial class PlaytestGame
         };
         lock (gate)
         {
-            var rulesCommand = item.Request.Operation is "round" or "decision" or "preferences" or "machine/confirm" or "machine/cancel" || item.RestoredAutomation;
+            var rulesCommand = item.Request.Operation is "round" or "decision" or "preferences" or "machine/confirm" or "machine/recruit" or "machine/service" or "machine/cancel" || item.RestoredAutomation;
             var replacementStillQueued = resetQueued && rulesCommand;
             busy = resetQueued = replacementStillQueued;
             expeditionOperationQueued = false;
             equipmentDraft = savedDraft;
+            recruitmentDraft = savedRecruit;
             if (rulesCommand)
             {
                 revision++;
@@ -246,7 +257,7 @@ public sealed partial class PlaytestGame
         if (waiting is not null) _ = waiting.CancelAsync().ContinueWith(_ => waiting.Dispose(), TaskScheduler.Default);
         externalWait = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         var cancellation = externalWait.Token;
-        var context = new ExternalDecisionContext(sessionId, decisionId!, revision, Detach(state.Pending), Detach(state));
+        var context = ExternalContext(state.Pending);
         _ = Task.Run(() => SelectExternal(context, cancellation, commandId));
     }
 }

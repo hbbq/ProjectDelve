@@ -6,19 +6,29 @@ namespace ProjectDelve.Engine;
 public sealed record MachineResource(ResourceType Type, int Quantity);
 public sealed record MachineReveal(int Distance);
 public sealed record EquipmentStationOperation;
+public sealed record PaidMachineService(string Id, string Name, int Cost, int? HealAmount = null,
+    bool FullHeal = false, string? ItemTypeId = null)
+{
+    [JsonIgnore] public string Description => FullHeal ? "Restore the operator to Effective Max HP."
+        : HealAmount is { } amount ? $"Restore up to {amount} HP to the operator, without exceeding Effective Max HP."
+        : $"Give the operator one {ItemTypeId} Item.";
+}
+public sealed record PaidServiceOperation(ImmutableArray<PaidMachineService> Services);
 public sealed record MachineOperation(ImmutableArray<MachineResource> Costs, ResourceType? OutputType = null, int OutputQuantity = 1)
 {
     public ResourceOutputTable? OutputTable { get; init; }
     public MachineReveal? Reveal { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public EquipmentStationOperation? EquipmentStation { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PaidServiceOperation? PaidServices { get; init; }
     public int? MaxUsesTotal { get; init; }
     public int? MaxUsesPerSide { get; init; }
-    [JsonIgnore] public bool RequiresOutputCell => Reveal is null && EquipmentStation is null;
-    public string OutputDescription => EquipmentStation is not null ? "Redistribute Equipment and Items among eligible Units on the operator's Side" : Reveal is { } reveal ? $"Reveal Distance {reveal.Distance} for the operator's Side" : OutputTable is null ? OutputType!.Name :
+    [JsonIgnore] public bool RequiresOutputCell => Reveal is null && EquipmentStation is null && PaidServices is null;
+    public string OutputDescription => PaidServices is { } paid ? string.Join("; ", paid.Services.Select(s => $"{s.Name}: {s.Cost} Credits. {s.Description}")) : EquipmentStation is not null ? "Redistribute or sell Equipment and Items owned by eligible Units on the operator's Side" : Reveal is { } reveal ? $"Reveal Distance {reveal.Distance} for the operator's Side" : OutputTable is null ? OutputType!.Name :
         "d6: " + string.Join(", ", OutputTable.Faces.Select((type, i) => $"{i + 1} {type.Name}"));
     [JsonIgnore] public string Description => (Costs.IsEmpty ? "" : "Spend " + string.Join(", ", Costs.Select(c => $"{c.Quantity} {c.Type.Name}")) + " -> ") +
-        (EquipmentStation is not null ? OutputDescription : Reveal is null ? $"Output {OutputQuantity} {OutputDescription} on the operator's Cell" : OutputDescription);
+        (EquipmentStation is not null || PaidServices is not null ? OutputDescription : Reveal is null ? $"Output {OutputQuantity} {OutputDescription} on the operator's Cell" : OutputDescription);
 }
 public sealed record MachineType(string Id, string Name,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] ResourceStorage? Storage, MachineOperation Operation)
@@ -47,7 +57,12 @@ public static class MachineTypes
         new([]) { Reveal = new(15), MaxUsesPerSide = 1 }) { RequiredTerrainTypeId = "stone-floor" };
     public static MachineType EquipmentStation { get; } = new("equipment-station", "Equipment Station", null,
         new([]) { EquipmentStation = new() });
-    public static ImmutableArray<MachineType> All { get; } = [DiamondPress, SlotMachine, Beacon, EquipmentStation];
+    public static MachineType DelveCare { get; } = new("delvecare", "DelveCare", null,
+        new([]) { PaidServices = new([new("minor-treatment", "Minor Treatment", 10, HealAmount: 2),
+            new("full-treatment", "Full Treatment", 50, FullHeal: true)]) });
+    public static MachineType MeteorOMat { get; } = new("meteor-o-mat", "Meteor-O-Mat", null,
+        new([]) { PaidServices = new([new("fireball", "Last Resort Fireball", 15, ItemTypeId: "last-resort-fireball")]) });
+    public static ImmutableArray<MachineType> All { get; } = [DiamondPress, SlotMachine, Beacon, EquipmentStation, DelveCare, MeteorOMat];
 }
 
 /// <summary>Geographic authoring query only; does not grant an actor permission to Operate.</summary>
@@ -125,9 +140,17 @@ internal static class MachineRules
         if (type.RequiredTerrainTypeId is { } required && string.IsNullOrWhiteSpace(required)) throw new ArgumentException("Invalid Machine terrain requirement.");
         if (type.Storage is not null) ResourceRules.ValidateCapacity(type.Storage);
         var operation = type.Operation;
+        if (operation?.PaidServices is { } paid && (paid.Services.IsDefaultOrEmpty ||
+            paid.Services.Any(s => s is null || string.IsNullOrWhiteSpace(s.Id) || string.IsNullOrWhiteSpace(s.Name) || s.Cost < 0 ||
+                new[] { s.HealAmount is not null, s.FullHeal, s.ItemTypeId is not null }.Count(v => v) != 1 ||
+                s.HealAmount <= 0 || s.ItemTypeId is { } item && string.IsNullOrWhiteSpace(item)) ||
+            paid.Services.Select(s => s.Id).Distinct(StringComparer.Ordinal).Count() != paid.Services.Length))
+            throw new ArgumentException("Invalid paid Machine services.");
         if (operation is null || operation.Costs.IsDefault || operation.MaxUsesTotal < 0 || operation.MaxUsesPerSide < 0 ||
             operation.OutputQuantity != 1 ||
-            (operation.EquipmentStation is not null ? type.Storage is not null || !operation.Costs.IsEmpty ||
+            (operation.PaidServices is not null ? type.Storage is not null || !operation.Costs.IsEmpty ||
+                operation.Reveal is not null || operation.EquipmentStation is not null || operation.OutputType is not null || operation.OutputTable is not null :
+             operation.EquipmentStation is not null ? type.Storage is not null || !operation.Costs.IsEmpty ||
                 operation.Reveal is not null || operation.OutputType is not null || operation.OutputTable is not null ||
                 operation.MaxUsesTotal is not null || operation.MaxUsesPerSide is not null :
              operation.Reveal is { } reveal ? reveal.Distance < 0 || operation.OutputType is not null || operation.OutputTable is not null :
@@ -184,11 +207,11 @@ internal static class MachineRules
                     Action: UnitAction.GiveResource) { MachineId = machine.Id, Ability = ability };
             }
             if (ability.Definition.Mechanic is Operate &&
-                (machine.Type.Operation.EquipmentStation is null || ability.Definition.Timing == AbilityTiming.Action) && CanOperateFrom(state, actor, machine, cell))
+                ((machine.Type.Operation.EquipmentStation is null && machine.Type.Operation.PaidServices is null) || ability.Definition.Timing == AbilityTiming.Action) && CanOperateFrom(state, actor, machine, cell))
             {
                 yield return new($"{ability.CandidatePrefix}:{machine.Id}{suffix}", Destination: source,
                     Action: UnitAction.Operate) { MachineId = machine.Id, Ability = ability,
-                        RequiresMachineInteraction = machine.Type.Operation.EquipmentStation is not null };
+                        RequiresMachineInteraction = machine.Type.Operation.EquipmentStation is not null || machine.Type.Operation.PaidServices is not null };
             }
         }
     }

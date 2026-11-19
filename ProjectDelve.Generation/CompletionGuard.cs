@@ -163,10 +163,11 @@ internal sealed class CompletionGuard
     }
 
     internal bool TryPublish(BoardPatch patch, string candidateId, string producerId, out CompletionDiagnostic diagnostic,
-        IEnumerable<RequiredLocation>? additions = null, IEnumerable<SiteInfo>? newSites = null)
+        IEnumerable<RequiredLocation>? additions = null, IEnumerable<SiteInfo>? newSites = null,
+        ScenarioDefinition? interactiveSnapshot = null)
     {
         CompletionEvaluation evaluation;
-        try { evaluation = Check(source.Preview(patch), candidateId, producerId, additions, newSites); }
+        try { evaluation = Check(source.Preview(patch), candidateId, producerId, additions, newSites, interactiveSnapshot); }
         catch (ArgumentException exception)
         {
             diagnostic = new(candidateId, producerId, CompletionStatus.Error, exception.Message, [], [], [], 0, false);

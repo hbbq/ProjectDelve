@@ -86,10 +86,15 @@ public static class UnitAuthoring
     public static Entry WaypointSlotMachine() => Ability("Waypoint Slot Machine", Unlimited(), new WaypointSlotMachine(RacingSlotTable.Table), "waypoint-slot-machine");
     public static Entry RunRails(int steps) => Ability($"Run Rails ({steps})", Unlimited(), new RunRails(steps), "run-rails");
     public static Entry AdvanceOnKill() => Ability("Advance On Kill", Unlimited(), new AdvanceOnKill(), "advance-on-kill");
-    public static Entry Loot(int dropSuccesses, bool items = false, bool equipment = false) => new UpdateEntry(t =>
-        dropSuccesses is >= 0 and <= 6
-            ? t with { LootDropSuccesses = dropSuccesses, CanHaveItems = items, CanHaveEquipment = equipment }
-            : throw new ArgumentOutOfRangeException(nameof(dropSuccesses)));
+    public static Entry Loot(int dropSuccesses, bool items = false, bool equipment = false,
+        int creditsDropSuccesses = 0, int creditsDropAmount = 0) => new UpdateEntry(t =>
+    {
+        if (dropSuccesses is < 0 or > 6) throw new ArgumentOutOfRangeException(nameof(dropSuccesses));
+        var configured = t with { LootDropSuccesses = dropSuccesses, CanHaveItems = items, CanHaveEquipment = equipment,
+            CreditsDropSuccesses = creditsDropSuccesses, CreditsDropAmount = creditsDropAmount };
+        LootRules.ValidateDrop(configured);
+        return configured;
+    });
     public static Entry ResourceStorage(ResourceType type, int capacity) => ResourceStorage(new ResourceStorageCapacity(type, capacity));
     public static Entry ResourceStorage(params ResourceStorageCapacity[] capacities) => new UpdateEntry(t => t with { ResourceStorage = new([.. capacities]) });
     public static Entry TerrainRestrictedMovement(TerrainKind terrain) => new UpdateEntry(t => t with { TerrainRestrictedMovement = new(terrain) });

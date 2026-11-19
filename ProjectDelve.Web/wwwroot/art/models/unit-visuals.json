@@ -356,6 +356,12 @@
   ],
   "units": [
     {
+      "typeId": "tycoon-type",
+      "targetHeight": 0.80,
+      "maximumRadius": 0.30,
+      "baseRadius": 0.27
+    },
+    {
       "typeId": "beastmaster-type",
       "targetHeight": 0.80,
       "maximumRadius": 0.30,

@@ -22,6 +22,7 @@ public static class ObjectivePresentation
         {
             UnitSelectorKind.Unit => $"Unit {s.UnitId}",
             UnitSelectorKind.SideAtStart => $"Side {s.SideId} at start (fixed initial Units)",
+            UnitSelectorKind.Party => $"Party of Side {s.SideId}",
             UnitSelectorKind.Group => $"{s.UnitTypeId} / {s.SideId}{(s.GroupId is null ? "" : " / " + s.GroupId)} (dynamic group)",
             _ => "Unknown selector"
         }));

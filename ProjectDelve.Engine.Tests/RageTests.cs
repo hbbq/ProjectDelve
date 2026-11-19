@@ -181,7 +181,7 @@ public sealed class RageTests
     public void EndingFirstBarbariansActivationDoesNotTransferModifierOrSpendSecondUnitsUses()
     {
         var state = State();
-        state.Types[0] = state.Types[0] with { Hp = 1, Unique = false };
+        state.Types[0] = state.Types[0] with { Hp = 1, Unique = false, AdditionalLevels = default };
         state.Units[0] = state.Units[0] with { CurrentHp = 1 };
         state.Units.Add(state.Types[0].CreateUnit("ally", "blue"));
         state.Physical.Figures.Add(new("ally", new(0, 1)));

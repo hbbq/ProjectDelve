@@ -4,7 +4,7 @@ public static partial class GameEngine
 {
     private static void ResolveRunRails(GameState state, string unitId, RunRails rails, ResolutionEvents events)
     {
-        var type = state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == unitId).TypeId);
+        var type = state.UnitConfiguration(unitId);
         var actionId = new ResolvedAbility(type.Ability<RunRails>()!, AbilitySourceKind.Unit, type.Id, unitId).ActionId;
         for (var step = 0; step < rails.Steps; step++)
         {

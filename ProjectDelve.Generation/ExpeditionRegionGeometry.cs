@@ -25,6 +25,7 @@ public static class ExpeditionRegionGeometry
         var expedition = new ExpeditionGeometryPlan(recipe.Window, recipe.HeroCapacity, entrySeam, exitSeam, exitArea, localSeed)
         {
             StationsEnabled = profile?.StationVersion == ExpeditionWorldProfile.CurrentStationVersion,
+            EconomyEnabled = profile?.EconomyVersion == ExpeditionWorldProfile.CurrentEconomyVersion,
             Introduction = ExpeditionPopulationIntroduction.For(profile, recipe.Window)
         };
         if (profile is not null)
@@ -69,6 +70,7 @@ internal sealed class ExpeditionGeometryPlan
 {
     internal ExpeditionPopulationIntroduction? Introduction { get; init; }
     internal bool StationsEnabled { get; init; }
+    internal bool EconomyEnabled { get; init; }
     internal ulong LocalSeed { get; }
     internal IReadOnlySet<int> DeploymentDomain { get; }
     internal ImmutableArray<int> EndpointIndices { get; }
@@ -144,6 +146,9 @@ internal sealed class ExpeditionGeometryPlan
         return EndpointIndices.All(reached.Contains) && deployment.PlacementOrder.All(reached.Contains) &&
             reached.Contains(deployment.DepartureIndex) && (extraLocations?.All(reached.Contains) ?? true) &&
             (!StationsEnabled || state.Physical.Board.Machines.Where(m => m.Type.Operation.EquipmentStation is not null)
+                .All(m => MachineGeometry.PotentialOperatingPositions(state.Physical.Board, m)
+                    .Any(cell => reached.Contains(cell.Y * width + cell.X)))) &&
+            (!EconomyEnabled || state.Physical.Board.Machines.Where(m => m.Type.Operation.PaidServices is not null)
                 .All(m => MachineGeometry.PotentialOperatingPositions(state.Physical.Board, m)
                     .Any(cell => reached.Contains(cell.Y * width + cell.X))));
     }

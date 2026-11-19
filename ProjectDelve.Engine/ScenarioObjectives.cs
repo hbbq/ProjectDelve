@@ -42,6 +42,7 @@ public static partial class GameEngine
             {
                 UnitSelectorKind.Unit => [selector.UnitId!],
                 UnitSelectorKind.SideAtStart => state.ObjectiveStartUnitIds[selector.SideId!],
+                UnitSelectorKind.Party => state.Party is { } party && party.SideId == selector.SideId ? party.MemberIds : [],
                 UnitSelectorKind.Group => state.Units.Where(u => u.TypeId == selector.UnitTypeId && u.SideId == selector.SideId && u.GroupId == selector.GroupId &&
                     (objective.Objective == ScenarioObjective.DefeatUnits ||
                      u.CurrentHp > 0 && !state.DefeatedUnitIds.Contains(u.Id) && state.Physical.Figures.Any(f => f.Id == u.Id))).Select(u => u.Id),

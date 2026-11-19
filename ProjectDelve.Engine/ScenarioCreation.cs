@@ -120,12 +120,17 @@ internal static class ScenarioCreation
         }
 
         var resolvedAgency = ScenarioGroups.Controllers(definition, catalog.Units);
+        if (definition.AdditionalSideIds is { } additional &&
+            (additional.Any(string.IsNullOrWhiteSpace) || additional.Distinct(StringComparer.Ordinal).Count() != additional.Count))
+            throw ScenarioValidationContext.At(new ArgumentException("Additional Sides require unique nonblank IDs."), "additionalSideIds");
         var sides = definition.Units.Select(u => u.SideId).Concat(resolvedAgency.Select(a => a.SideId))
+            .Concat(definition.AdditionalSideIds ?? [])
             .Distinct(StringComparer.Ordinal).ToHashSet(StringComparer.Ordinal);
         if (definition.NeutralSides is { } neutral &&
             (neutral.Any(s => s is null || !sides.Contains(s)) || neutral.Distinct().Count() != neutral.Count))
             throw new ArgumentException("Neutral Sides must be unique, known Sides.", nameof(definition));
         var objectives = definition.Objectives ?? [];
+        var credits = CreditsRules.Create(definition, sides);
         if (definition.FogOfWarSides is { } fog &&
             (fog.Any(s => s is null || !sides.Contains(s)) || fog.Distinct().Count() != fog.Count))
             throw ScenarioValidationContext.At(new ArgumentException("Fog of War Sides must be unique, known Sides.", nameof(definition)), "fogOfWarSides");
@@ -147,11 +152,25 @@ internal static class ScenarioCreation
         foreach (var (id, settings) in definition.LootUnitOverrides ?? [])
         {
             var index = types.FindIndex(t => t.Id == id);
-            if (index < 0 || settings is null || settings.DropSuccesses is < 0 or > 6)
-                throw new ArgumentException("Loot overrides require declared Unit Types and drop successes from 0 to 6.");
+            if (index < 0 || settings is null)
+                throw ScenarioValidationContext.At(new ArgumentException("Loot overrides require a declared Unit Type and settings."),
+                    $"lootUnitOverrides[{id}]");
             var type = types[index];
+            // The legacy override shape explicitly selected Loot alone. Preserve
+            // it even when the centrally maintained Type later opts into Credits.
+            var legacyLootOnly = settings is
+                { DropSuccesses: not null, CreditsDropSuccesses: null, CreditsDropAmount: null, InheritCreditsDrop: false };
             types[index] = type with { LootDropSuccesses = settings.DropSuccesses ?? type.LootDropSuccesses,
+                CreditsDropSuccesses = legacyLootOnly ? 0 : settings.CreditsDropSuccesses ?? type.CreditsDropSuccesses,
+                CreditsDropAmount = settings.CreditsDropAmount ?? type.CreditsDropAmount,
                 CanHaveItems = settings.CanHaveItems ?? type.CanHaveItems, CanHaveEquipment = settings.CanHaveEquipment ?? type.CanHaveEquipment };
+            try { ContentDefinitions.ValidateStructure(types[index]); }
+            catch (ArgumentException error)
+            {
+                var member = ScenarioValidationContext.PathOf(error);
+                if (member == "lootDropSuccesses") member = "dropSuccesses";
+                throw ScenarioValidationContext.At(error, $"lootUnitOverrides[{id}]" + (string.IsNullOrEmpty(member) ? "" : $".{member}"));
+            }
         }
         var overrides = board.Cells.ToDictionary(c => c.Position);
         List<TerrainTile> terrain = [];
@@ -178,8 +197,11 @@ internal static class ScenarioCreation
         // Summoning granted by Equipment can introduce Units absent from the setup roster.
         var roots = catalog.Equipment.Select(x => new ContentIdentity(ContentFamily.Equipment, x.Id))
             .Concat(catalog.Items.Select(x => new ContentIdentity(ContentFamily.Item, x.Id)))
+            .Concat(definition.Party is null ? [] : catalog.Units.Where(t => t.RecruitmentCost is not null)
+                .Select(t => new ContentIdentity(ContentFamily.Unit, t.Id)))
             .Concat(definition.UnitTypeIds.Select(id => new ContentIdentity(ContentFamily.Unit, id)));
-        var requiredUnits = content.Dependencies.Closure(roots).Where(x => x.Family == ContentFamily.Unit).Select(x => x.TypeId).ToHashSet(StringComparer.Ordinal);
+        var requiredUnits = roots.Concat(content.Dependencies.Closure(roots)).Where(x => x.Family == ContentFamily.Unit)
+            .Select(x => x.TypeId).ToHashSet(StringComparer.Ordinal);
         types.AddRange(catalog.Units.Where(t => requiredUnits.Contains(t.Id) && !types.Any(existing => existing.Id == t.Id)));
         var state = new GameState
         {
@@ -190,6 +212,7 @@ internal static class ScenarioCreation
             WorldCardDefinitions = [.. catalog.WorldCards],
             ResourceDefinitions = [.. catalog.Resources], ActivationTypeOrder = [.. definition.UnitTypeIds],
             LootMarkers = [.. definition.LootMarkers ?? []], GroundObjects = [.. definition.GroundObjects ?? []],
+            SideCredits = credits.Balances, CreditsPiles = credits.Piles,
             Physical = new(new Board(board.Width, board.Height, board.Edges.Select(e => new Edge(e.Position,
                 e.Direction == EdgeDirection.Right ? new(e.Position.X + 1, e.Position.Y) : new(e.Position.X, e.Position.Y + 1),
                 e.Kind)).ToList(), terrainTypes) { Terrain = terrain, Machines = [.. definition.Machines ?? []] }, []),
@@ -234,14 +257,11 @@ internal static class ScenarioCreation
         {
             var placement = definition.Units[index];
             var type = types.Single(t => t.Id == placement.UnitTypeId);
-            if (placement.InitialHp is { } hp && (hp < 1 || hp > type.Hp))
-                throw ScenarioValidationContext.At(new ArgumentException($"InitialHp for placement {index} must be between 1 and {type.Hp}.", nameof(definition)), $"units[{index}]");
             // Preserve existing deterministic IDs when free, while reserving every authored identity first.
             var id = initialUnitIds[index];
             try { state.PlaceUnit(type.Id, id, placement.SideId, placement.Anchor, placement.Posture, placement.GroupId,
-                placement.Dormant, placement.WakeDistance, inventory: placement.Inventory); }
+                placement.Dormant, placement.WakeDistance, inventory: placement.Inventory, level: placement.Level, initialHp: placement.InitialHp); }
             catch (ArgumentException error) { throw ScenarioValidationContext.At(error, $"units[{index}]"); }
-            if (placement.InitialHp is { } initialHp) state.Units[^1] = state.Units[^1] with { CurrentHp = initialHp };
         }
         for (var index = 0; index < (definition.CellMarkers?.Count ?? 0); index++)
         {
@@ -264,6 +284,8 @@ internal static class ScenarioCreation
                     "Invalid Order kind, target, destination, or target relationship.", nameof(definition)), $"orders[{orders.IndexOf(order)}]");
             state.AssignOrder(token, runtimeOrder.Kind, runtimeOrder.Destination, runtimeOrder.Target, runtimeOrder.Route, runtimeOrder.Area);
         }
+        state.Party = definition.Party;
+        PartyRules.Validate(state);
         ValidateObjectiveSelections(state, definition);
         GameEngine.CaptureObjectiveStartUnits(state);
         EquipmentCompatibility.MigrateLegacyDuplicateOwnership(state);
@@ -291,6 +313,8 @@ internal static class ScenarioCreation
                                              state.Units.Any(u => u.Id == selector.UnitId),
                     UnitSelectorKind.SideAtStart => selector.UnitId is null && selector.UnitTypeId is null && selector.GroupId is null &&
                                                     state.Controllers.Any(c => c.Token.SideId == selector.SideId),
+                    UnitSelectorKind.Party => selector.UnitId is null && selector.UnitTypeId is null && selector.GroupId is null &&
+                                             state.Party is { } party && party.SideId == selector.SideId,
                     UnitSelectorKind.Group => selector.UnitId is null &&
                                              state.Controllers.Any(c => c.Token.SideId == selector.SideId && c.Token.TypeId == selector.UnitTypeId && c.Token.GroupId == selector.GroupId),
                     _ => false

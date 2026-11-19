@@ -24,3 +24,5 @@
 #unit-card .card-ability[data-source="Equipment"] .ability-source { color:#2a5046; }
 #unit-card .card-ability[data-source="Item"] .ability-source { color:#674721; }
 #unit-card .inventory-note { display:block; color:#60543f; font-size:.7rem; margin-top:5px; }
+.cell .credits-ground { position:absolute; left:1%; top:1%; z-index:5; max-width:96%; box-sizing:border-box; padding:1px 2px; border:1px solid #efd278; border-radius:5px; background:#624a1b; color:#fff2bf; font-size:clamp(9px, calc(var(--cell-size, 60px) * .15), 11px); line-height:1.1; pointer-events:none; }
+.cell:has(.credits-ground) .cell-marker { width:42%; height:42%; left:29%; top:42%; }

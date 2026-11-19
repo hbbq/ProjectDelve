@@ -47,7 +47,14 @@ public static class ContentDefinitions
         switch (value)
         {
             case EquipmentDefinition x:
-                EquipmentCatalog.Validate([x]); AbilityContent.Validate(x.LocalAbilities, AbilitySourceKind.Equipment); break;
+                EquipmentCatalog.Validate([x]); AbilityContent.Validate(x.LocalAbilities, AbilitySourceKind.Equipment);
+                if (!x.AdditionalLevels.IsDefaultOrEmpty)
+                    for (int i = 0; i < x.AdditionalLevels.Length; i++)
+                    {
+                        AbilityContent.Validate(x.AtLevel(i + 2).LocalAbilities, AbilitySourceKind.Equipment, $"additionalLevels[{i}].localAbilities");
+                        ValidateUpgradeCost(x.AdditionalLevels[i].UpgradeCost, $"additionalLevels[{i}].upgradeCost");
+                    }
+                break;
             case ItemDefinition x:
                 ItemCatalog.Validate([x]); AbilityContent.Validate(x.LocalAbilities, AbilitySourceKind.Item); break;
             case LootCardDefinition x: LootCardCatalog.Validate([x]); break;
@@ -61,6 +68,19 @@ public static class ContentDefinitions
             case UnitType x:
                 AbilityContent.Validate(x.LocalAbilities, AbilitySourceKind.Unit);
                 ValidateUnitStructure(x);
+                if (!x.AdditionalLevels.IsDefaultOrEmpty)
+                    for (int i = 0; i < x.AdditionalLevels.Length; i++)
+                    {
+                        var path = $"additionalLevels[{i}]";
+                        var configuration = x.AtLevel(i + 2);
+                        ValidateUpgradeCost(x.AdditionalLevels[i].UpgradeCost, path + ".upgradeCost");
+                        AbilityContent.Validate(configuration.LocalAbilities, AbilitySourceKind.Unit, path + ".localAbilities");
+                        try { ValidateUnitStructure(configuration); }
+                        catch (ArgumentException error)
+                        {
+                            throw ScenarioValidationContext.At(error, path + "." + ScenarioValidationContext.PathOf(error));
+                        }
+                    }
                 if (x.ResourceStorage is {} storage)
                     try { ResourceRules.ValidateCapacity(storage); }
                     catch (ArgumentException error) { throw ScenarioValidationContext.At(error, "resourceStorage"); }
@@ -97,6 +117,12 @@ public static class ContentDefinitions
         (t.MovementPattern is {} pattern && !Enum.IsDefined(pattern)) ||
         (t.TerrainRestrictedMovement is {} restriction && (!Enum.IsDefined(restriction.Terrain) || !restriction.Terrain.Passable())) ||
         !MovementKinds.Valid(t.BaseMovementCapabilities) || t.TerrainRestriction is { IsValid: false } || t.TerrainRestriction is not null && t.TerrainRestrictedMovement is not null;
+    private static void ValidateUpgradeCost(int? cost, string path)
+    {
+        if (cost < 0)
+            throw ScenarioValidationContext.At(new ArgumentException("Upgrade Cost must be a nonnegative integer or omitted."), path);
+    }
+
     private static void ValidateUnitStructure(UnitType type)
     {
         void Require(bool valid, string path, string message)
@@ -105,6 +131,7 @@ public static class ContentDefinitions
         Require(type.DisplayName is null || !string.IsNullOrWhiteSpace(type.DisplayName), "displayName", "A supplied display name cannot be blank.");
         Require(type.WakeDistance is null or >= 0, "wakeDistance", "WakeDistance must be a nonnegative integer or omitted.");
         Require(type.DefaultController is not { } controller || Enum.IsDefined(controller), "defaultController", "Choose Human, Automated, or the existing scenario-only default.");
+        Require(type.RecruitmentCost is null or >= 0, "recruitmentCost", "Recruitment Cost must be a nonnegative integer or omitted.");
         foreach (var (path, value) in new[] { ("mov", type.Mov), ("rng", type.Rng), ("atk", type.Atk), ("def", type.Def), ("sightDistance", type.SightDistance) })
             Require(value >= UnitAuthoringSchema.MinimumStat, path, "Base stats must be nonnegative integers.");
         Require(type.Hp >= UnitAuthoringSchema.MinimumHp, "hp", "HP must be at least 1.");
@@ -114,8 +141,7 @@ public static class ContentDefinitions
         Require((type.Behaviors & ~UnitAuthoringSchema.SupportedBehaviors) == 0, "behaviors", "Choose supported automated Behavior preferences.");
         Require(!type.AttackDefinitionOrder.IsDefault && type.AttackDefinitionOrder.All(UnitAuthoringSchema.AttackActions.Contains),
             "attackDefinitionOrder", "Attack definition order must contain supported Attack choices.");
-        Require(type.LootDropSuccesses is >= UnitAuthoringSchema.MinimumDropSuccesses and <= UnitAuthoringSchema.MaximumDropSuccesses,
-            "lootDropSuccesses", "Loot drops require 0 through 6 success faces.");
+        LootRules.ValidateDrop(type);
         Require(type.MovementPattern is not {} pattern || Enum.IsDefined(pattern), "movementPattern", "Choose a supported movement pattern.");
         Require(type.TerrainRestrictedMovement is not {} restriction || Enum.IsDefined(restriction.Terrain) && restriction.Terrain.Passable(),
             "terrainRestrictedMovement.terrain", "A legacy Terrain restriction requires supported passable Terrain.");
@@ -131,35 +157,56 @@ public static class ContentDefinitions
         void Add(ContentFamily family, string id, string path, ContentDependencyKind kind = ContentDependencyKind.Explicit, object? embedded = null) =>
             result.Add(new(new(family, id), path, kind, embedded));
         void Resource(ResourceType type, string path) => Add(ContentFamily.Resource, type.Id, path, ContentDependencyKind.Embedded, type);
+        void MovementTerrain(TerrainRestrictedMovement? restriction, string path)
+        {
+            if (restriction is not null && Enum.IsDefined(restriction.Terrain))
+                Add(ContentFamily.Terrain, TerrainCompatibility.ResolveTypeId(restriction.Terrain, null), path + ".terrain");
+        }
         void Storage(ResourceStorage? storage, string path)
         {
             if (storage is null || storage.Capacities.IsDefault) return;
             for (int i = 0; i < storage.Capacities.Length; i++)
                 if (storage.Capacities[i]?.Type is {} type) Resource(type, $"{path}.capacities[{i}].type");
         }
-        var abilities = value switch { UnitType x => x.LocalAbilities, EquipmentDefinition x => x.LocalAbilities, ItemDefinition x => x.LocalAbilities, _ => [] };
-        if (!abilities.IsDefault)
-        for (int i = 0; i < abilities.Length; i++)
+        void Abilities(ImmutableArray<LocalAbilityDefinition> abilities, string prefix)
         {
-            if (abilities[i] is {} ability && !ability.Costs.IsDefault)
-                for (int j = 0; j < ability.Costs.Length; j++)
-                    if (ability.Costs[j] is SpendResource cost)
-                        Add(ContentFamily.Resource, cost.ResourceTypeId, $"localAbilities[{i}].costs[{j}].resourceTypeId");
-            var path = $"localAbilities[{i}].mechanic";
-            switch (abilities[i]?.Mechanic)
+            if (abilities.IsDefault) return;
+            for (int i = 0; i < abilities.Length; i++)
             {
-                case AdjacentUnitSummonMechanic x: Add(ContentFamily.Unit, x.UnitTypeId, path + ".unitTypeId"); break;
-                case WaypointSlotMachine x when !x.OutputTable.Faces.IsDefault:
-                    for (int j = 0; j < x.OutputTable.Faces.Length; j++) Resource(x.OutputTable.Faces[j], path + $".outputTable.faces[{j}]"); break;
+                if (abilities[i] is {} ability && !ability.Costs.IsDefault)
+                    for (int j = 0; j < ability.Costs.Length; j++)
+                        if (ability.Costs[j] is SpendResource cost)
+                            Add(ContentFamily.Resource, cost.ResourceTypeId, $"{prefix}[{i}].costs[{j}].resourceTypeId");
+                var path = $"{prefix}[{i}].mechanic";
+                switch (abilities[i]?.Mechanic)
+                {
+                    case AdjacentUnitSummonMechanic x: Add(ContentFamily.Unit, x.UnitTypeId, path + ".unitTypeId"); break;
+                    case WaypointSlotMachine x when !x.OutputTable.Faces.IsDefault:
+                        for (int j = 0; j < x.OutputTable.Faces.Length; j++) Resource(x.OutputTable.Faces[j], path + $".outputTable.faces[{j}]"); break;
+                }
             }
         }
         switch (value)
         {
             case UnitType x:
+                Abilities(x.LocalAbilities, "localAbilities");
+                if (!x.AdditionalLevels.IsDefaultOrEmpty)
+                    for (int i = 0; i < x.AdditionalLevels.Length; i++)
+                    {
+                        var configuration = x.AtLevel(i + 2);
+                        Abilities(configuration.LocalAbilities, $"additionalLevels[{i}].localAbilities");
+                        MovementTerrain(configuration.TerrainRestrictedMovement, $"additionalLevels[{i}].terrainRestrictedMovement");
+                    }
                 Storage(x.ResourceStorage, "resourceStorage");
-                if (x.TerrainRestrictedMovement is {} restriction && Enum.IsDefined(restriction.Terrain))
-                    Add(ContentFamily.Terrain, TerrainCompatibility.ResolveTypeId(restriction.Terrain, null), "terrainRestrictedMovement.terrain");
+                MovementTerrain(x.TerrainRestrictedMovement, "terrainRestrictedMovement");
                 break;
+            case EquipmentDefinition x:
+                Abilities(x.LocalAbilities, "localAbilities");
+                if (!x.AdditionalLevels.IsDefaultOrEmpty)
+                    for (int i = 0; i < x.AdditionalLevels.Length; i++)
+                        Abilities(x.AtLevel(i + 2).LocalAbilities, $"additionalLevels[{i}].localAbilities");
+                break;
+            case ItemDefinition x: Abilities(x.LocalAbilities, "localAbilities"); break;
             case LootCardDefinition x:
                 if (x.EquipmentTypeId is {} equipment) Add(ContentFamily.Equipment, equipment, "equipmentTypeId");
                 if (x.ItemTypeId is {} item) Add(ContentFamily.Item, item, "itemTypeId"); break;
@@ -192,6 +239,9 @@ public static class ContentDefinitions
                 if (x.Operation is {} operation)
                 {
                     if (!operation.Costs.IsDefault) for (int i = 0; i < operation.Costs.Length; i++) if (operation.Costs[i]?.Type is {} type) Resource(type, $"operation.costs[{i}].type");
+                    if (operation.PaidServices is { } paid && !paid.Services.IsDefault)
+                        for (int i = 0; i < paid.Services.Length; i++) if (paid.Services[i]?.ItemTypeId is { } serviceItem)
+                            Add(ContentFamily.Item, serviceItem, $"operation.paidServices.services[{i}].itemTypeId");
                     if (operation.OutputType is {} output) Resource(output, "operation.outputType");
                     if (operation.OutputTable is {} table && !table.Faces.IsDefault) for (int i = 0; i < table.Faces.Length; i++) Resource(table.Faces[i], $"operation.outputTable.faces[{i}]");
                 } break;

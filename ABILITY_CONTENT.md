@@ -196,3 +196,17 @@ Inheritance, runtime content mutation, arbitrary triggers, scripting and full ca
 `AdjacentUnitSummon(typeId, posture, sameTypeSideLimit: null, sameTypeSummonerLimit: 1)` uses the shared typed summon mechanic in canonical and scenario-local content. Both optional limits must be positive; when both are specified, both must pass. Side limits retain their current-Side population meaning. Summoner limits count positive-HP, placed Units of the target Type created by this acting Unit, across every current Side, Group, Controller, Posture and Ability source. Initially placed Units have no creator and do not consume that quota. Descriptions and Content Designer parameter forms come from the same mechanic catalog.
 
 The shared execution path records `Unit.SummonerUnitId` before creation events and arrival effects. Granted Abilities record their bearer, and nested summons record the immediate creator. This permanent relationship survives save/continue and creator defeat; it does not transfer control, inherit Orders, create a Group, or change activation timing. Old saves omit it as null; unresolved references remain preserved and reserve the referenced identity against reuse.
+
+## Instance Levels and Ability sources
+
+The Tycoon is a canonical Unique Hero with MOV 4, RNG 1, ATK 2, DEF 2 and HP 5. It has one Level, a normal Attack, Open Door, Operate, human agency by default, and the usual Equipment and Item permissions. Its Type declares a recruitment cost of 75 Credits. Budget Barbarian remains available through the existing Equipment summon. [Party and recruitment](ECONOMY_PHASE_6.md)
+
+The top-level Unit or Equipment definition describes Level 1. Each entry in `additionalLevels` describes the complete next Level. Declare the selected Level's whole `localAbilities` list, including timing, Costs and usage. An empty list grants no local Abilities. Reusing a local key across Levels does not migrate its usage. During a Unit upgrade the Engine clears native counters. During an Equipment upgrade it clears only that physical Equipment's counters. Action and Bonus Action spending for the current activation survives either change.
+
+The Level 2 Barbarian's Friendly Swap uses a Bonus Action and its Rage has three uses. Authors may place the Barbarian at Level 2, or players can advance one at a Station for 24 Credits. An upgraded Unit heals to its final Effective Max HP, including any Equipment received or upgraded on the same Confirm.
+
+The opening Operate source pays its use and ordinary Costs once. If the source advances a Level in that Confirm, a retained limited Operate with the same local key shows the one use spent on this operation. For example, a limited `crank` retained with two Uses ends at 1/2. Replacing it with `console` with two Uses starts `console` at 2/2. Other Ability counters on that upgraded source start full. [Station rules](CONSTRAINTS.md#equipment-station)
+
+## Operate at a paid Machine
+
+Declare the ordinary Action-timed Operate Ability on its Unit, Equipment or Single Use Item source. The Machine supplies the printed service and Credits price. Opening reserves the invoking source. Confirm pays that source's normal use and Costs once, including consumption of a Single Use Item, and spends one Action. Cancel returns to the activation with the source intact. The Item bought from a vendor becomes available for a subsequent ordinary Ability invocation. [Paid Machine rules](CONSTRAINTS.md#paid-machine-services)

@@ -1,5 +1,6 @@
 import { bindTooltip, initializeTooltips } from "./tooltips.js";
-import { groundLoot, lootCardDialog } from "./loot-ui.js";
+import { groundLoot, lootCardDialog, physicalObjectLabel } from "./loot-ui.js";
+import { creditsPiles, creditsBalanceLabel } from "./credits-ui.js";
 import { styleSide, applySideHues } from "./side-colors.js";
 import { applyBoardVisual, terrainDisplay } from "./board-visuals.js";
 import { createBoardCamera } from "./board-camera.js";
@@ -11,6 +12,7 @@ import { cursorSize, setCursorSize, loadCursorAssets, onCursorPresentationChange
 import { advanceChoices, bindAdvanceControls } from "./primary-advance.js";
 import { mountExpeditions } from "./expedition.js";
 import { mountEquipmentStation } from "./equipment-station.js";
+import { mountPaidMachine } from "./paid-machine.js";
 const unitFacing = createUnitFacing();
 
 const ui = Object.fromEntries(["game-setup", "scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context", "world-effects", "objectives", "orders", "game-result", "commentary-toggle", "commentary-panel", "commentary-context", "commentary-text", "decision-commentary", "side-controllers", "controller-status", "controller-retry", "controller-cancel"]
@@ -257,7 +259,7 @@ let pendingReplacement;
 let pendingExpedition;
 let expeditionCommandError = "";
 let expeditionUI;
-let equipmentStationUI;
+let equipmentStationUI, paidMachineUI;
 const snapshotDecisionIds = new WeakMap();
 let streamConnected = false;
 let commandNumber = 0;
@@ -469,7 +471,7 @@ function inspectCell(key) {
     panel.append(text('h3', `Ground at ${key}`));
     if (pile.unopened) panel.append(text('p', `${pile.unopened} unopened Loot`));
     for (const object of pile.objects) {
-      panel.append(text('strong', object.content?.name ?? object.kind), text('p', object.content?.text ?? ''));
+      panel.append(text('strong', physicalObjectLabel(object)), text('p', object.content?.text ?? ''));
       for (const entry of object.entries ?? []) if (entry.uses) {
         const uses = text('p', `${entry.content.name}: `); uses.append(useMarkers(entry.uses)); panel.append(uses);
       }
@@ -584,6 +586,12 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     }
     node.title += ` · ${pile.label}`;
   }
+  for (const pile of creditsPiles(state)) {
+    const node = cells.get(cellKey(pile.position)); if (!node) continue;
+    const marker = text('span', `Credits ${pile.amount}`); marker.className = 'credits-ground';
+    marker.title = marker.textContent; marker.setAttribute('aria-label', marker.textContent);
+    node.append(marker); node.title += ` · ${marker.textContent}`;
+  }
   for (const cellMarker of state.cellMarkers ?? []) {
     const node = cells.get(cellKey(cellMarker.position));
     if (!node) continue;
@@ -628,12 +636,13 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     retainedFigures.add(figure.id);
     const peers = state.units.filter(peer => peer.typeId === unit?.typeId);
     const name = displayedCards[figure.id]?.displayName ?? figure.id;
-    const label = text("span", abbreviatedName(name) + (peers.length > 1 ? peers.findIndex(peer => peer.id === figure.id) + 1 : ""));
+    const levelLabel = displayedCards[figure.id]?.level > 1 ? ` · L${displayedCards[figure.id].level}` : "";
+    const label = text("span", abbreviatedName(name) + (peers.length > 1 ? peers.findIndex(peer => peer.id === figure.id) + 1 : "") + levelLabel);
     label.className = "figure-name";
     node.replaceChildren(label);
     const tokenName = displayedCards[figure.id]?.individualName?.trim()
       || displayedCards[figure.id]?.displayName?.trim() || type?.displayName?.trim() || unit?.typeId || "Unit";
-    const nameplate = text("span", tokenName + (unit?.inventory?.length ? ` · ◆${unit.inventory.length}` : '')); nameplate.className = "token-nameplate";
+    const nameplate = text("span", tokenName + levelLabel + (unit?.inventory?.length ? ` · ◆${unit.inventory.length}` : '')); nameplate.className = "token-nameplate";
     nameplate.title = tokenName; node.append(nameplate);
     // Snapshot positions settle any skipped movement without animating a state correction.
     node.style.transition = "none";
@@ -668,13 +677,15 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     node.dataset.unitId = figure.id;
     if (unit?.dormant) { node.classList.add("dormant"); const marker = text("span", "Zz"); marker.className = "dormant-marker"; node.append(marker); }
     node.title = `${displayedCards[figure.id]?.playerName ?? tokenName} · ${figure.posture} · Side ${unit?.sideId ?? ""}`;
+    if (displayedCards[figure.id]?.level != null) node.title += ` · Level ${displayedCards[figure.id].level}`;
     node.title += `${groupSuffix(unit?.groupId)}${unit?.dormant ? " - Dormant" : ""}${unit?.wakeDistance != null ? ` - Wake Distance ${unit.wakeDistance}` : ""}`;
     node.dataset.postureLabel = node.title;
-    if (type?.hp > 1) {
-      const hp = text("span", `${unit.currentHp}/${type.hp}`);
+    const maxHp = displayedCards[figure.id]?.maxHp ?? type?.hp;
+    if (maxHp > 1) {
+      const hp = text("span", `${unit.currentHp}/${maxHp}`);
       hp.className = "figure-hp";
-      hp.style.setProperty("--hp-fill", `${Math.max(0, Math.min(1, unit.currentHp / type.hp)) * 100}%`);
-      node.dataset.hpLabel = `HP ${unit.currentHp}/${type.hp}`;
+      hp.style.setProperty("--hp-fill", `${Math.max(0, Math.min(1, unit.currentHp / maxHp)) * 100}%`);
+      node.dataset.hpLabel = `HP ${unit.currentHp}/${maxHp}`;
       node.title += ` · ${node.dataset.hpLabel}`;
       hp.setAttribute("aria-hidden", "true");
       node.append(hp);
@@ -799,18 +810,19 @@ function renderUnitCard() {
   if (!hoveredUnitId && state.currentUnitId !== unit.id)
     identity.append(text("small", "Most recently active"));
   identity.append(text("h3", name));
+  if (content.level != null) identity.append(text("small", `Level ${content.level}`));
   identity.append(text("small", `Side ${unit.sideId ?? "—"}`));
   if (unit.groupId != null) identity.append(text("small", `Group ${unit.groupId}`));
   if (unit.dormant) identity.append(text("strong", "Dormant"));
   if (unit.wakeDistance != null) identity.append(text("small", `Wake Distance ${unit.wakeDistance}`));
-  const hp = text("p", `HP ${unit.currentHp} / ${type.hp}`); hp.className = "card-health"; identity.append(hp);
+  const hp = text("p", `HP ${unit.currentHp} / ${content.maxHp ?? type.hp}`); hp.className = "card-health"; identity.append(hp);
   const posture = state.physical.figures.find(figure => figure.id === unit.id)?.posture;
   if (posture && posture !== "Upright") identity.append(text("small", posture));
   if (content.footprintLabel) identity.append(text("small", content.footprintLabel));
   header.append(identity);
   const stats = text("div", ""); stats.className = "card-stats";
   for (const stat of ["Mov", "Rng", "Atk", "Def"]) {
-    const base = type[stat.toLowerCase()], effective = state[`effective${stat}`]?.[unit.id] ?? base;
+    const base = (content.baseStats ?? type)[stat.toLowerCase()], effective = state[`effective${stat}`]?.[unit.id] ?? base;
     const value = text("p", `${stat.toUpperCase()} ${base === effective ? base : `${base} → ${effective}`}`);
     if (base !== effective) {
       value.className = "modified-stat"; value.dataset.change = effective > base ? "positive" : "negative";
@@ -872,7 +884,7 @@ function renderUnitCard() {
     for (const object of objects) {
       const item = text("details", ""); item.className = "inventory-object";
       item.dataset.disclosureId = `object:${object.id}`; item.open = open.has(item.dataset.disclosureId);
-      const label = text("summary", object.content.name); label.dataset.cardControl = item.dataset.disclosureId;
+      const label = text("summary", physicalObjectLabel(object)); label.dataset.cardControl = item.dataset.disclosureId;
       item.append(label);
       if (!object.entries?.length) item.append(text("p", object.content.text ?? ""));
       for (const grant of object.entries ?? []) {
@@ -949,6 +961,7 @@ function abilityReference(entry, status, key, open, index) {
     } else if (section === "source") {
       panel.append(text("strong", entry.source === "Item" ? "Single Use Item" : entry.source),
         text("p", entry.sourceName ?? entry.sourceTypeId ?? entry.source));
+      if (entry.sourceLevel != null) panel.append(text("p", `Level ${entry.sourceLevel}`));
       if (entry.sourceInstanceId) panel.append(text("p", `Object: ${entry.sourceInstanceId}`));
       if (entry.source === "Item") panel.append(text("p", `${entry.copyCount ?? 1} carried. Each use consumes one Item. Normal timing and use limits still apply.`));
     } else {
@@ -1492,6 +1505,7 @@ function updateControls() {
   }
   expeditionUI?.update();
   equipmentStationUI?.update();
+  paidMachineUI?.update();
   const continueExpedition = document.getElementById("result-continue-expedition");
   if (continueExpedition) {
     continueExpedition.disabled = busy;
@@ -1645,7 +1659,10 @@ async function drainUpdates() {
         playbackOperationActive = false;
         ui.error.textContent = update.error ?? "";
         renderSnapshot();
-        if (update.equipmentDiagnostics) equipmentStationUI?.diagnostics(update.equipmentDiagnostics);
+        if (update.equipmentDiagnostics) {
+          if (snapshot.presentation.decision?.paidMachine) paidMachineUI?.diagnostics(update.equipmentDiagnostics);
+          else equipmentStationUI?.diagnostics(update.equipmentDiagnostics);
+        }
       }
     }
     if (generation === playbackGeneration && latestUpdate && displayedSequence === receivedSequence) {
@@ -2087,7 +2104,7 @@ function renderTurn(state) {
     const sides = completion.achievedSideIds;
     if (snapshot?.expedition?.transitionId) {
       result.append(text("h2", "Region complete"));
-      result.append(text("p", "The original Heroes reached the exit. Continue when you are ready to travel to the next region."));
+      result.append(text("p", "Two Party members reached the exit. Continue when you are ready to travel to the next region."));
     } else {
       result.append(text("span", "THE ADVENTURE CONCLUDES"));
       result.append(text("h2", sides.length === 1 ? `Victory: ${sides[0]}` : "Simultaneous victory"));
@@ -2123,6 +2140,13 @@ function renderTurn(state) {
     ui.objectives.append(row);
   }
   const completedStatus = snapshot?.expedition?.transitionId ? "Region complete" : "Game over";
+  const credits = document.getElementById('side-credits');
+  if (credits) credits.textContent = creditsBalanceLabel(state, snapshot?.presentation.viewingSideId, snapshot?.presentation.objectives ?? []);
+  const partySize = document.getElementById('expedition-party-size');
+  if (partySize) {
+    partySize.hidden = !state.party;
+    partySize.textContent = state.party ? `Party ${state.party.memberIds.length}/${state.party.capacity}` : '';
+  }
   ui.status.textContent = `Round ${state.round} \u00b7 ${state.completion ? completedStatus : state.round === 0 ? "Ready" : state.roundComplete ? "Complete" : "In play"}`;
   ui["bag-count"].textContent = `Activation Bag · ${(state.bag ?? []).length} remaining`;
   ui.bag.replaceChildren(text("small", `Activation Bag \u00b7 ${(state.bag ?? []).length} remaining. Membership only; future draw order is unknown.`));
@@ -2456,12 +2480,14 @@ onCursorPresentationChange(refreshActiveCursor);
 void loadCursorAssets();
 void loadPresentationProfiles().then(refreshActiveCursor);
 expeditionUI = mountExpeditions({ command: sendCommand, getSnapshot: () => snapshot, ready: () => !busy && streaming && streamConnected && !!latestUpdate, errorMessage: () => expeditionCommandError || ui.error.textContent });
-equipmentStationUI = mountEquipmentStation({
+const machineControls = {
   getView: () => snapshot ? { ...snapshot, decisionId: snapshotDecisionIds.get(snapshot) } : null,
   request, command: sendCommand,
   ready: () => !busy && streaming && streamConnected && !!latestUpdate,
   visible: () => !document.getElementById("playtest-main").hidden,
   commandError: () => expeditionCommandError || ui.error.textContent
-});
-globalThis.delveSetPlayMode = () => equipmentStationUI?.update();
+};
+equipmentStationUI = mountEquipmentStation(machineControls);
+paidMachineUI = mountPaidMachine(machineControls);
+globalThis.delveSetPlayMode = () => { equipmentStationUI?.update(); paidMachineUI?.update(); };
 await refresh();

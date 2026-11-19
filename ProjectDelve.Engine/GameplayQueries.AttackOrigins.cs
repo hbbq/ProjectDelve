@@ -32,8 +32,8 @@ internal sealed partial class GameplayQueries
             ability.Mechanic is AdjacentUnitsStatModifiersMechanic adjacent &&
             adjacent.Modifiers.Any(modifier => modifier.Stat == Stat.Rng);
         var exhaustive = abilities.Any(ability => ability.Definition.Mechanic is FireballMechanic) ||
-            world.Types.Any(type => type.LocalAbilities.Any(ChangesAdjacentRange)) ||
-            world.EquipmentTypes.Any(type => type.LocalAbilities.Any(ChangesAdjacentRange));
+            world.Units.Any(unit => world.UnitConfiguration(unit).LocalAbilities.Any(ChangesAdjacentRange) ||
+                world.Equipped(unit).Any(gear => gear.LocalAbilities.Any(ChangesAdjacentRange)));
         return new(targets, range, exhaustive);
     });
 
