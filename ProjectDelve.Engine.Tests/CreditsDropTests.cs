@@ -83,6 +83,30 @@ public sealed class CreditsDropTests
         Assert.Equal(1, dice.Rolls);
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    public void CalibratedGruntPreservesLootFacesAndNextRollWhenLootIsAvailable(int face)
+    {
+        var current = UnitRoster.Grunt("victim");
+        var old = current with { CreditsDropSuccesses = 0, CreditsDropAmount = 0 };
+        var oldDice = new Dice(face, 5);
+        var newDice = new Dice(face, 5);
+        var before = Defeat(Ready(Definition(old)), oldDice);
+        var transported = ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(Definition(current)));
+        var after = Defeat(Ready(transported), newDice);
+        Assert.Equal(face == 1 ? 1 : 0, before.State.LootMarkers.Count);
+        Assert.Equal(before.State.LootMarkers, after.State.LootMarkers);
+        Assert.Equal(face is >= 2 and <= 4 ? 3 : 0, after.State.CreditsPiles.Sum(p => p.Amount));
+        Assert.Equal((1, 0), (oldDice.Rolls, oldDice.Draws));
+        Assert.Equal((oldDice.Rolls, oldDice.Draws), (newDice.Rolls, newDice.Draws));
+        Assert.Equal(oldDice.RollD6(), newDice.RollD6());
+    }
+
     [Fact]
     public void GuaranteedCreditsNeedsNoDieMergesPilesAndDoesNotCollect()
     {

@@ -10,6 +10,10 @@ namespace ProjectDelve.Web.Tests;
 /// <summary>Opt-in diagnostic; generated content is measured, never used as a behavioral fixture.</summary>
 public sealed class ExpeditionEconomyAssessment(ITestOutputHelper output)
 {
+    // Overrides broaden diagnostics without changing the exact Phase 7 default reproduction.
+    private static ulong[] Seeds() => Environment.GetEnvironmentVariable("PROJECTDELVE_ECONOMY_SEEDS") is { Length: > 0 } seeds
+        ? seeds.Split(',').Select(ulong.Parse).ToArray() : [17, 42, 889, 2026, 77341];
+
     [Fact]
     public void ExportServiceFrequencySample()
     {
@@ -18,7 +22,7 @@ public sealed class ExpeditionEconomyAssessment(ITestOutputHelper output)
         var published = PublishedContent();
         var content = published.Bundle;
         var rows = new List<object>();
-        foreach (var seed in new ulong[] { 17, 42, 889, 2026, 77341 })
+        foreach (var seed in Seeds())
         {
             var recipe = ExpeditionWorld.Configure(seed);
             var profile = ExpeditionWorldProfile.Create(recipe.NaturalTerrain);
@@ -27,10 +31,15 @@ public sealed class ExpeditionEconomyAssessment(ITestOutputHelper output)
             {
                 var context = ExpeditionRegionGeometry.Execute(ExpeditionWorld.RecipeFor(plan, recipe),
                     plan.EntrySeam, plan.ExitSeam, plan.ExitArea, plan.LocalSeed, content, profile: profile).Context;
-                rows.Add(new { Seed = seed, RegionIndex = region,
+                var scenario = context.Materialize();
+                var population = scenario.Units.GroupBy(u => u.UnitTypeId).OrderBy(g => g.Key, StringComparer.Ordinal)
+                    .Select(g => { var type = content.Units.Single(t => t.Id == g.Key); return new {
+                        TypeId = g.Key, Count = g.Count(), type.LootDropSuccesses, type.CreditsDropSuccesses, type.CreditsDropAmount,
+                        HypotheticalExpectedCredits = g.Count() * type.CreditsDropSuccesses * type.CreditsDropAmount / 6.0 }; }).ToArray();
+                rows.Add(new { Seed = seed, RegionIndex = region, Population = population,
                     RequestedCare = ExpeditionEconomyGenerator.Requests(plan.LocalSeed, "delvecare"),
                     RequestedMeteor = ExpeditionEconomyGenerator.Requests(plan.LocalSeed, "meteor-o-mat"),
-                    Placed = context.Materialize().Machines!.Where(m => m.Type.Operation.PaidServices is not null).Select(m => m.Type.Id).ToArray(),
+                    Placed = scenario.Machines!.Where(m => m.Type.Operation.PaidServices is not null).Select(m => m.Type.Id).ToArray(),
                     Omissions = context.Completion!.Diagnostics.Where(d => d.ProducerId == "expedition-economy" && d.Status == CompletionStatus.Omitted)
                         .Select(d => new { d.CandidateId, d.Detail }).ToArray() });
             }
@@ -47,9 +56,10 @@ public sealed class ExpeditionEconomyAssessment(ITestOutputHelper output)
     {
         var path = Environment.GetEnvironmentVariable("PROJECTDELVE_ECONOMY_ASSESSMENT_OUTPUT");
         if (string.IsNullOrWhiteSpace(path)) return;
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         var published = PublishedContent();
         var content = published.Bundle;
-        ulong[] seeds = [17, 42, 889, 2026, 77341];
+        var seeds = Seeds();
         var rows = new List<object>();
         foreach (var seed in seeds)
         {
@@ -68,8 +78,16 @@ public sealed class ExpeditionEconomyAssessment(ITestOutputHelper output)
                 var initialLoot = state.LootMarkers.Count;
                 var expectedDropCredits = state.Units.Where(u => u.SideId != ExpeditionParty.SideId)
                     .Sum(u => { var t = state.Types.Single(t => t.Id == u.TypeId); return t.CreditsDropSuccesses * t.CreditsDropAmount / 6.0; });
+                var population = state.Units.Where(u => u.SideId != ExpeditionParty.SideId).GroupBy(u => u.TypeId)
+                    .OrderBy(g => g.Key, StringComparer.Ordinal).Select(g => new { TypeId = g.Key, Count = g.Count() }).ToArray();
+                var milestones = new Dictionary<int, int?> { [10] = null, [12] = null, [15] = null, [24] = null, [50] = null, [75] = null };
+                foreach (var threshold in milestones.Keys.ToArray()) if (opening >= threshold) milestones[threshold] = 0;
                 var generated = 0; var collected = 0; var otherCollected = 0; var sales = 0L; var defeats = 0;
                 var decisions = 0; var peak = opening; var lootDraws = 0;
+                object? firstFundedInventory = null;
+                object? firstFundedBoots = null;
+                var fundedStates = 0;
+                var bootsQuotes = new List<object>();
                 void Apply(EngineResult result)
                 {
                     state = result.State;
@@ -80,6 +98,19 @@ public sealed class ExpeditionEconomyAssessment(ITestOutputHelper output)
                     defeats += result.Events.Count(e => e.Kind == "DefeatDropResolved");
                     lootDraws += result.Events.Count(e => e.Kind == "LootCardDrawn");
                     peak = Math.Max(peak, state.SideCredits.GetValueOrDefault(ExpeditionParty.SideId));
+                    foreach (var threshold in milestones.Keys.ToArray())
+                        if (milestones[threshold] is null && state.SideCredits.GetValueOrDefault(ExpeditionParty.SideId) >= threshold)
+                            milestones[threshold] = state.Round;
+                    if (state.SideCredits.GetValueOrDefault(ExpeditionParty.SideId) >= 12)
+                    {
+                        fundedStates++;
+                        var living = state.Units.Where(u => u.SideId == ExpeditionParty.SideId && u.CurrentHp > 0).ToArray();
+                        firstFundedInventory ??= new { state.Round, Bank = state.SideCredits[ExpeditionParty.SideId],
+                            Units = living.Select(u => new { u.Id, Objects = u.Inventory.Select(o => new { o.Id, o.EquipmentTypeId, o.ItemTypeId, o.Level }).ToArray() }).ToArray() };
+                        var boots = living.SelectMany(u => u.Inventory.Where(o => o.EquipmentTypeId == "lucky-boots")
+                            .Select(o => new { UnitId = u.Id, ObjectId = o.Id, o.Level })).ToArray();
+                        if (boots.Length > 0) firstFundedBoots ??= new { state.Round, Bank = state.SideCredits[ExpeditionParty.SideId], Boots = boots };
+                    }
                 }
                 Apply(GameEngine.StartRound(state, random, false));
                 while (!state.IsCompleted && state.Units.Any(u => u.SideId == ExpeditionParty.SideId && u.CurrentHp > 0) &&
@@ -94,6 +125,15 @@ public sealed class ExpeditionEconomyAssessment(ITestOutputHelper output)
                     if (state.MachineInteraction is not null)
                     {
                         var pool = state.MachineInteraction.EquipmentStation!.OriginalAllocation;
+                        foreach (var assignment in pool.Assignments)
+                        {
+                            var obj = state.Units.SelectMany(u => u.Inventory).Single(o => o.Id == assignment.ObjectId);
+                            if (obj.EquipmentTypeId != "lucky-boots" || state.SideCredits.GetValueOrDefault(ExpeditionParty.SideId) < 12) continue;
+                            // Read-only quote at a naturally reached ready Station; do not submit this proposal.
+                            var quote = GameEngine.PreviewEquipmentStation(state, pool with { UpgradedEquipmentIds = [obj.Id] });
+                            bootsQuotes.Add(new { state.Round, ObjectId = obj.Id, obj.Level,
+                                Bank = state.SideCredits[ExpeditionParty.SideId], quote.CanConfirm });
+                        }
                         var sold = pool.Assignments.Where(a => Value(state, a.ObjectId) is not null).Select(a => a.ObjectId).ToImmutableArray();
                         var allocation = new EquipmentAllocation([.. pool.Assignments.Where(a => !sold.Contains(a.ObjectId))]) { SoldObjectIds = sold };
                         Apply(GameEngine.PreviewEquipmentStation(state, allocation).CanConfirm
@@ -114,7 +154,10 @@ public sealed class ExpeditionEconomyAssessment(ITestOutputHelper output)
                 var retained = state.Units.Where(u => u.SideId == ExpeditionParty.SideId)
                     .SelectMany(u => u.Inventory).Sum(o => (long)(Value(state, o.Id) ?? 0));
                 rows.Add(new { Seed = seed, RegionIndex = region, plan.Region, Opening = opening,
-                    InitialMonsters = terrain.Units.Count, InitialLoot = initialLoot, HypotheticalExpectedInitialDropCredits = expectedDropCredits,
+                    InitialMonsters = terrain.Units.Count, InitialPopulation = population, InitialLoot = initialLoot,
+                    HypotheticalExpectedInitialDropCredits = expectedDropCredits, FirstAffordableRound = milestones,
+                    FundedStatesObserved = fundedStates, FirstFundedLivingInventory = firstFundedInventory,
+                    FirstFundedLivingBoots = firstFundedBoots, NaturallyReachedFundedBootsStationQuotes = bootsQuotes,
                     DelveCare = terrain.Machines?.Count(m => m.Type.Id == "delvecare") ?? 0,
                     MeteorOMat = terrain.Machines?.Count(m => m.Type.Id == "meteor-o-mat") ?? 0,
                     CreditsEligibleDefeatResolutions = defeats, GeneratedCredits = generated, CollectedCredits = collected, OtherSideCollectedCredits = otherCollected,
@@ -144,7 +187,7 @@ public sealed class ExpeditionEconomyAssessment(ITestOutputHelper output)
             obj.ItemTypeId is { } item ? state.ItemTypes.Single(t => t.Id == item).SellValue : null;
     }
 
-    private static CanonicalContent PublishedContent() => new(Path.GetFullPath(
+    private static CanonicalContent PublishedContent() => new(Environment.GetEnvironmentVariable("PROJECTDELVE_ECONOMY_CONTENT_DIRECTORY") ?? Path.GetFullPath(
         Path.Combine(AppContext.BaseDirectory, "../../../../ProjectDelve.Web/Content/Canonical")));
 
     private static Candidate Choose(GameState state, DecisionRequest request, ObjectiveArea exit, Dictionary<Cell, Cell[]> graph)

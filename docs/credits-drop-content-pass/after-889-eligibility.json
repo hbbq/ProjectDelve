@@ -1,0 +1,174 @@
+{
+  "ContentRevision": "ab53b9fc558ccda452279457e95f980079dd59c0a5497bbbd92d7991aacda66f",
+  "Policy": "Scavenge and engage discovered enemies until round 8; liquidate at arrival Station until round 12; then exit. Attack/heal first; prioritize board Credits; standard enemy automation. Stop on completion, Party defeat, or 40-round/3200-decision cap.",
+  "Rows": [
+    {
+      "Seed": 889,
+      "RegionIndex": 0,
+      "Region": {
+        "X": 0,
+        "Y": 0
+      },
+      "Opening": 0,
+      "InitialMonsters": 54,
+      "InitialPopulation": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 15
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 4
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 16
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 1
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 18
+        }
+      ],
+      "InitialLoot": 34,
+      "HypotheticalExpectedInitialDropCredits": 46.166666666666686,
+      "FirstAffordableRound": {
+        "10": null,
+        "12": null,
+        "15": null,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "FundedStatesObserved": 0,
+      "FirstFundedLivingInventory": null,
+      "FirstFundedLivingBoots": null,
+      "NaturallyReachedFundedBootsStationQuotes": [],
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 5,
+      "GeneratedCredits": 8,
+      "CollectedCredits": 8,
+      "OtherSideCollectedCredits": 0,
+      "SaleCredits": 0,
+      "Closing": 8,
+      "PeakBank": 8,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 8,
+      "UncollectedCredits": 0,
+      "LootDraws": 3,
+      "Decisions": 397,
+      "Round": 30,
+      "Completed": true,
+      "Outcome": "completed",
+      "PartyAlive": 4
+    },
+    {
+      "Seed": 889,
+      "RegionIndex": 1,
+      "Region": {
+        "X": 1,
+        "Y": 0
+      },
+      "Opening": 8,
+      "InitialMonsters": 88,
+      "InitialPopulation": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 1
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 4
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 6
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 43
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 10
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 6
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 18
+        }
+      ],
+      "InitialLoot": 16,
+      "HypotheticalExpectedInitialDropCredits": 66.33333333333333,
+      "FirstAffordableRound": {
+        "10": 1,
+        "12": 1,
+        "15": 17,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "FundedStatesObserved": 664,
+      "FirstFundedLivingInventory": {
+        "Round": 1,
+        "Bank": 14,
+        "Units": [
+          {
+            "Id": "expedition-barbarian",
+            "Objects": [
+              {
+                "Id": "loot-card-66",
+                "EquipmentTypeId": "stonebreaker",
+                "ItemTypeId": null,
+                "Level": 1
+              }
+            ]
+          },
+          {
+            "Id": "expedition-rogue",
+            "Objects": []
+          },
+          {
+            "Id": "expedition-wizard",
+            "Objects": []
+          },
+          {
+            "Id": "expedition-cleric",
+            "Objects": []
+          },
+          {
+            "Id": "expedition-beastmaster",
+            "Objects": []
+          }
+        ]
+      },
+      "FirstFundedLivingBoots": null,
+      "NaturallyReachedFundedBootsStationQuotes": [],
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 5,
+      "GeneratedCredits": 12,
+      "CollectedCredits": 12,
+      "OtherSideCollectedCredits": 0,
+      "SaleCredits": 0,
+      "Closing": 20,
+      "PeakBank": 20,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 20,
+      "UncollectedCredits": 0,
+      "LootDraws": 5,
+      "Decisions": 690,
+      "Round": 41,
+      "Completed": false,
+      "Outcome": "capped",
+      "PartyAlive": 1
+    }
+  ]
+}

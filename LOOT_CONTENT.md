@@ -14,6 +14,8 @@ Canonical and scenario-local Units use the same three integer fields. For two Lo
 
 In Scenario Designer, open **Groups → Loot & ownership · Unit Type** to set scenario-wide overrides for that Type. In `lootUnitOverrides[typeId]`, the Loot field retains its historical spelling, `dropSuccesses`. A legacy row containing only Loot odds still selects Loot-only rewards. To edit only Loot while inheriting live Credits settings, the Designer writes `{"dropSuccesses":2,"inheritCreditsDrop":true}`. An ownership-only row inherits all reward settings. When a row sets either Credits field, each omitted reward field inherits its Type value. An explicit zero Credits chance disables Credits. The Engine validates the combined odds and amount after inheritance. [Phase 2 report](CREDITS_PHASE_2.md)
 
+The current Expedition catalog gives Credits faces to Grunts, Zombies, both Imps, Skeleton Archers, Ghosts, Displacer Demons and Red Dragons. For example, a Grunt drops Loot on 1, a pile of 3 Credits on 2–4 and nothing on 5–6. Goblins and Trolls retain Loot-only odds, including when summoned. Existing materialized regions keep their captured definitions. [Complete reward table, summon sources and fixed-seed measurements](CREDITS_DROP_CONTENT_PASS.md)
+
 ## Vended Single Use Items
 
 Meteor-O-Mat delivers a new physical instance of the published `last-resort-fireball` Item Type directly to the operator. A purchase leaves unopened Loot supply and card order intact. A vended Item can travel with a Party member or drop on defeat under the ordinary inventory rules. Firing it spends its printed Action and consumes the selected copy. Its Fireball and dice resolution use the existing local Ability. [Machine and Item rules](CONSTRAINTS.md#paid-machine-services)

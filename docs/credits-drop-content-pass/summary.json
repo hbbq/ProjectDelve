@@ -1,0 +1,573 @@
+{
+  "before": {
+    "ContentRevision": "1ba7ee5772045e64ac6b2670acfb1b7c7fd68e630e40e955f1a6d985921b4ef2",
+    "Seeds": [
+      17,
+      42,
+      889,
+      2026,
+      77341,
+      1,
+      7,
+      123,
+      456,
+      1024,
+      8192,
+      65535
+    ],
+    "PlayedRegions": 23,
+    "GeneratedRegions": 72,
+    "Outcomes": {
+      "completed": 12,
+      "Party defeated": 9,
+      "capped": 2
+    },
+    "Totals": {
+      "GeneratedCredits": 41,
+      "CollectedCredits": 35,
+      "OtherSideCollectedCredits": 6,
+      "SaleCredits": 6,
+      "UncollectedCredits": 0
+    },
+    "IncomePerPlayedRegion": {
+      "Minimum": 0,
+      "Median": 0,
+      "Maximum": 9,
+      "Mean": 1.7826086956521738
+    },
+    "TerminalBankBySeed": {
+      "17": 0,
+      "42": 3,
+      "889": 3,
+      "2026": 0,
+      "77341": 0,
+      "1": 9,
+      "7": 12,
+      "123": 0,
+      "456": 3,
+      "1024": 0,
+      "8192": 11,
+      "65535": 0
+    },
+    "FirstAffordableRegionAndRound": {
+      "10": [
+        {
+          "Seed": 7,
+          "RegionIndex": 2,
+          "Round": 16
+        },
+        {
+          "Seed": 8192,
+          "RegionIndex": 2,
+          "Round": 5
+        }
+      ],
+      "12": [
+        {
+          "Seed": 7,
+          "RegionIndex": 2,
+          "Round": 16
+        }
+      ],
+      "15": [],
+      "24": [],
+      "50": [],
+      "75": []
+    },
+    "Population": {
+      "bomb-imp-type": {
+        "Count": 595,
+        "RegionsPresent": 64,
+        "ExpectedCredits": 0,
+        "LootDropSuccesses": 1,
+        "CreditsDropSuccesses": 0,
+        "CreditsDropAmount": 0
+      },
+      "demolition-imp": {
+        "Count": 294,
+        "RegionsPresent": 52,
+        "ExpectedCredits": 0,
+        "LootDropSuccesses": 1,
+        "CreditsDropSuccesses": 0,
+        "CreditsDropAmount": 0
+      },
+      "displacer-demon-type": {
+        "Count": 151,
+        "RegionsPresent": 34,
+        "ExpectedCredits": 0,
+        "LootDropSuccesses": 2,
+        "CreditsDropSuccesses": 0,
+        "CreditsDropAmount": 0
+      },
+      "ghost-type": {
+        "Count": 630,
+        "RegionsPresent": 60,
+        "ExpectedCredits": 0,
+        "LootDropSuccesses": 1,
+        "CreditsDropSuccesses": 0,
+        "CreditsDropAmount": 0
+      },
+      "goblin-type": {
+        "Count": 1132,
+        "RegionsPresent": 69,
+        "ExpectedCredits": 0,
+        "LootDropSuccesses": 1,
+        "CreditsDropSuccesses": 0,
+        "CreditsDropAmount": 0
+      },
+      "grunt-type": {
+        "Count": 692,
+        "RegionsPresent": 67,
+        "ExpectedCredits": 0,
+        "LootDropSuccesses": 1,
+        "CreditsDropSuccesses": 0,
+        "CreditsDropAmount": 0
+      },
+      "skeleton-archer-type": {
+        "Count": 527,
+        "RegionsPresent": 60,
+        "ExpectedCredits": 439.1666666666667,
+        "LootDropSuccesses": 1,
+        "CreditsDropSuccesses": 1,
+        "CreditsDropAmount": 5
+      },
+      "troll-type": {
+        "Count": 326,
+        "RegionsPresent": 49,
+        "ExpectedCredits": 0,
+        "LootDropSuccesses": 2,
+        "CreditsDropSuccesses": 0,
+        "CreditsDropAmount": 0
+      },
+      "zombie-type": {
+        "Count": 1522,
+        "RegionsPresent": 72,
+        "ExpectedCredits": 1522,
+        "LootDropSuccesses": 1,
+        "CreditsDropSuccesses": 2,
+        "CreditsDropAmount": 3
+      }
+    },
+    "GenerationExpectedCreditsByIndex": {
+      "0": {
+        "Minimum": 3,
+        "Median": 18.25,
+        "Maximum": 33,
+        "Mean": 17.63888888888889
+      },
+      "1": {
+        "Minimum": 6.5,
+        "Median": 25.083333333333336,
+        "Maximum": 51.833333333333336,
+        "Mean": 27.84722222222222
+      },
+      "2": {
+        "Minimum": 10,
+        "Median": 29.75,
+        "Maximum": 66.33333333333333,
+        "Mean": 33.763888888888886
+      },
+      "3": {
+        "Minimum": 5,
+        "Median": 30.5,
+        "Maximum": 61.166666666666664,
+        "Mean": 31.069444444444443
+      },
+      "4": {
+        "Minimum": 11.666666666666666,
+        "Median": 26.833333333333336,
+        "Maximum": 57.166666666666664,
+        "Mean": 30.47222222222222
+      },
+      "5": {
+        "Minimum": 12,
+        "Median": 22.25,
+        "Maximum": 36.833333333333336,
+        "Mean": 22.63888888888889
+      }
+    },
+    "GeneratedMonsters": 5869,
+    "GeneratedCreditBearingMonsters": 2049,
+    "PlayedRegionExpectedInitialDropCredits": 564.1666666666667,
+    "CreditsConservationDifferences": []
+  },
+  "after": {
+    "ContentRevision": "ab53b9fc558ccda452279457e95f980079dd59c0a5497bbbd92d7991aacda66f",
+    "Seeds": [
+      17,
+      42,
+      889,
+      2026,
+      77341,
+      1,
+      7,
+      123,
+      456,
+      1024,
+      8192,
+      65535
+    ],
+    "PlayedRegions": 22,
+    "GeneratedRegions": 72,
+    "Outcomes": {
+      "completed": 11,
+      "Party defeated": 7,
+      "capped": 4
+    },
+    "Totals": {
+      "GeneratedCredits": 133,
+      "CollectedCredits": 120,
+      "OtherSideCollectedCredits": 9,
+      "SaleCredits": 9,
+      "UncollectedCredits": 4
+    },
+    "IncomePerPlayedRegion": {
+      "Minimum": 0,
+      "Median": 3.5,
+      "Maximum": 22,
+      "Mean": 5.863636363636363
+    },
+    "TerminalBankBySeed": {
+      "17": 0,
+      "42": 3,
+      "889": 20,
+      "2026": 0,
+      "77341": 0,
+      "1": 16,
+      "7": 15,
+      "123": 22,
+      "456": 19,
+      "1024": 0,
+      "8192": 34,
+      "65535": 0
+    },
+    "FirstAffordableRegionAndRound": {
+      "10": [
+        {
+          "Seed": 889,
+          "RegionIndex": 1,
+          "Round": 1
+        },
+        {
+          "Seed": 1,
+          "RegionIndex": 1,
+          "Round": 28
+        },
+        {
+          "Seed": 7,
+          "RegionIndex": 2,
+          "Round": 3
+        },
+        {
+          "Seed": 123,
+          "RegionIndex": 0,
+          "Round": 26
+        },
+        {
+          "Seed": 456,
+          "RegionIndex": 1,
+          "Round": 9
+        },
+        {
+          "Seed": 8192,
+          "RegionIndex": 0,
+          "Round": 10
+        }
+      ],
+      "12": [
+        {
+          "Seed": 889,
+          "RegionIndex": 1,
+          "Round": 1
+        },
+        {
+          "Seed": 1,
+          "RegionIndex": 1,
+          "Round": 28
+        },
+        {
+          "Seed": 7,
+          "RegionIndex": 2,
+          "Round": 3
+        },
+        {
+          "Seed": 123,
+          "RegionIndex": 0,
+          "Round": 27
+        },
+        {
+          "Seed": 456,
+          "RegionIndex": 1,
+          "Round": 9
+        },
+        {
+          "Seed": 8192,
+          "RegionIndex": 1,
+          "Round": 1
+        }
+      ],
+      "15": [
+        {
+          "Seed": 889,
+          "RegionIndex": 1,
+          "Round": 17
+        },
+        {
+          "Seed": 1,
+          "RegionIndex": 1,
+          "Round": 36
+        },
+        {
+          "Seed": 7,
+          "RegionIndex": 2,
+          "Round": 5
+        },
+        {
+          "Seed": 123,
+          "RegionIndex": 0,
+          "Round": 27
+        },
+        {
+          "Seed": 456,
+          "RegionIndex": 1,
+          "Round": 10
+        },
+        {
+          "Seed": 8192,
+          "RegionIndex": 1,
+          "Round": 1
+        }
+      ],
+      "24": [
+        {
+          "Seed": 8192,
+          "RegionIndex": 2,
+          "Round": 8
+        }
+      ],
+      "50": [],
+      "75": []
+    },
+    "Population": {
+      "bomb-imp-type": {
+        "Count": 595,
+        "RegionsPresent": 64,
+        "ExpectedCredits": 793.3333333333335,
+        "LootDropSuccesses": 1,
+        "CreditsDropSuccesses": 2,
+        "CreditsDropAmount": 4
+      },
+      "demolition-imp": {
+        "Count": 294,
+        "RegionsPresent": 52,
+        "ExpectedCredits": 490.0,
+        "LootDropSuccesses": 1,
+        "CreditsDropSuccesses": 2,
+        "CreditsDropAmount": 5
+      },
+      "displacer-demon-type": {
+        "Count": 151,
+        "RegionsPresent": 34,
+        "ExpectedCredits": 453,
+        "LootDropSuccesses": 2,
+        "CreditsDropSuccesses": 3,
+        "CreditsDropAmount": 6
+      },
+      "ghost-type": {
+        "Count": 630,
+        "RegionsPresent": 60,
+        "ExpectedCredits": 1050.0000000000002,
+        "LootDropSuccesses": 1,
+        "CreditsDropSuccesses": 2,
+        "CreditsDropAmount": 5
+      },
+      "goblin-type": {
+        "Count": 1132,
+        "RegionsPresent": 69,
+        "ExpectedCredits": 0,
+        "LootDropSuccesses": 1,
+        "CreditsDropSuccesses": 0,
+        "CreditsDropAmount": 0
+      },
+      "grunt-type": {
+        "Count": 692,
+        "RegionsPresent": 67,
+        "ExpectedCredits": 1038.0,
+        "LootDropSuccesses": 1,
+        "CreditsDropSuccesses": 3,
+        "CreditsDropAmount": 3
+      },
+      "skeleton-archer-type": {
+        "Count": 527,
+        "RegionsPresent": 60,
+        "ExpectedCredits": 878.3333333333334,
+        "LootDropSuccesses": 1,
+        "CreditsDropSuccesses": 2,
+        "CreditsDropAmount": 5
+      },
+      "troll-type": {
+        "Count": 326,
+        "RegionsPresent": 49,
+        "ExpectedCredits": 0,
+        "LootDropSuccesses": 2,
+        "CreditsDropSuccesses": 0,
+        "CreditsDropAmount": 0
+      },
+      "zombie-type": {
+        "Count": 1522,
+        "RegionsPresent": 72,
+        "ExpectedCredits": 1522,
+        "LootDropSuccesses": 1,
+        "CreditsDropSuccesses": 2,
+        "CreditsDropAmount": 3
+      }
+    },
+    "GenerationExpectedCreditsByIndex": {
+      "0": {
+        "Minimum": 12.5,
+        "Median": 37.83333333333333,
+        "Maximum": 48.333333333333336,
+        "Mean": 36.09722222222222
+      },
+      "1": {
+        "Minimum": 31.666666666666668,
+        "Median": 69.25,
+        "Maximum": 113.83333333333333,
+        "Mean": 71.70833333333333
+      },
+      "2": {
+        "Minimum": 41.833333333333336,
+        "Median": 100.0,
+        "Maximum": 161.5,
+        "Mean": 93.875
+      },
+      "3": {
+        "Minimum": 36.833333333333336,
+        "Median": 105.08333333333334,
+        "Maximum": 216.66666666666666,
+        "Mean": 111.84722222222223
+      },
+      "4": {
+        "Minimum": 35.666666666666664,
+        "Median": 102.83333333333334,
+        "Maximum": 199.66666666666669,
+        "Mean": 105.58333333333333
+      },
+      "5": {
+        "Minimum": 45.166666666666664,
+        "Median": 84.41666666666667,
+        "Maximum": 207.33333333333334,
+        "Mean": 99.61111111111111
+      }
+    },
+    "GeneratedMonsters": 5869,
+    "GeneratedCreditBearingMonsters": 4411,
+    "PlayedRegionExpectedInitialDropCredits": 1208.8333333333335,
+    "CreditsConservationDifferences": []
+  },
+  "LegacyReproduction": {
+    "RowsCompared": 9,
+    "DifferingFields": []
+  },
+  "PairedPlayedRegionKeys": [
+    [
+      1,
+      0
+    ],
+    [
+      1,
+      1
+    ],
+    [
+      7,
+      0
+    ],
+    [
+      7,
+      1
+    ],
+    [
+      7,
+      2
+    ],
+    [
+      17,
+      0
+    ],
+    [
+      17,
+      1
+    ],
+    [
+      42,
+      0
+    ],
+    [
+      123,
+      0
+    ],
+    [
+      456,
+      0
+    ],
+    [
+      456,
+      1
+    ],
+    [
+      889,
+      0
+    ],
+    [
+      889,
+      1
+    ],
+    [
+      1024,
+      0
+    ],
+    [
+      2026,
+      0
+    ],
+    [
+      2026,
+      1
+    ],
+    [
+      8192,
+      0
+    ],
+    [
+      8192,
+      1
+    ],
+    [
+      8192,
+      2
+    ],
+    [
+      65535,
+      0
+    ],
+    [
+      77341,
+      0
+    ],
+    [
+      77341,
+      1
+    ]
+  ],
+  "GenerationPopulationPairs": {
+    "Compared": 72,
+    "Different": []
+  },
+  "EligibilityProbe": {
+    "RowsCompared": 2,
+    "DifferentSharedFields": [],
+    "FundedStatesObserved": 664,
+    "ObservedFundedLivingBoots": false,
+    "ObservedFundedBootsStationQuotes": 0
+  }
+}

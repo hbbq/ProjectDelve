@@ -9,8 +9,9 @@ internal static class LootPlaytestScenario
         Board = new() { Width = 8, Height = 6, Edges = [new(new(3, 1), EdgeDirection.Right, EdgeKind.ClosedDoor)] },
         UnitTypeIds = [UnitTypeIds.Barbarian, UnitTypeIds.Grunt, UnitTypeIds.BombImp],
         UnitTypes = [UnitType.Barbarian() with { CanHaveItems = true, CanHaveEquipment = true },
-            UnitType.Grunt() with { CanHaveItems = true, CanHaveEquipment = true, LootDropSuccesses = 6 },
-            UnitType.BombImp() with { LootDropSuccesses = 6 }],
+            UnitType.Grunt() with { CanHaveItems = true, CanHaveEquipment = true,
+                LootDropSuccesses = 6, CreditsDropSuccesses = 0, CreditsDropAmount = 0 },
+            UnitType.BombImp() with { LootDropSuccesses = 6, CreditsDropSuccesses = 0, CreditsDropAmount = 0 }],
         Units = [new(UnitTypeIds.Barbarian, "Blue", new(1, 1), InitialHp: 3)
             { Inventory = [new("starting-bell", LootCardKind.GoatBell), new("starting-wind", LootCardKind.SecondWind)] },
             new(UnitTypeIds.Grunt, "Blue", new(1, 2), Posture.Lying),

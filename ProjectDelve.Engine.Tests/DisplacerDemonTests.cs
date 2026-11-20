@@ -396,7 +396,8 @@ public sealed class DisplacerDemonTests
     [Fact]
     public void DemonAuraIsSnapshottedAcrossOneAttackAndRemovedForLaterAttacks()
     {
-        var world = World();
+        var world = World(actor: UnitRoster.DisplacerDemon() with { CreditsDropSuccesses = 0 },
+            target: UnitRoster.Grunt() with { CreditsDropSuccesses = 0 });
         Add(world, "friend", UnitRoster.Grunt("durable-friend") with { Hp = 5, Unique = true }, new(2, 3), "red");
         // Start a Wizard's multi-target Attack with the Demon resolved before its friend.
         Add(world, "wizard", UnitRoster.Wizard(), new(1, 2), "blue");

@@ -32,6 +32,7 @@ public sealed class BombImpTests
         string side = "red", Posture posture = Posture.Upright)
     {
         type ??= UnitType.BombImp();
+        type = type with { CreditsDropSuccesses = 0 }; // These fixtures isolate explosion ordering and combat dice.
         if (!state.Types.Any(t => t.Id == type.Id)) state.Types.Add(type);
         state.Units.Add(type.CreateUnit(id, side));
         state.Physical.Figures.Add(new(id, cell, posture));

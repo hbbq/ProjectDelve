@@ -1,0 +1,1450 @@
+{
+  "ContentRevision": "ab53b9fc558ccda452279457e95f980079dd59c0a5497bbbd92d7991aacda66f",
+  "Policy": "Scavenge and engage discovered enemies until round 8; liquidate at arrival Station until round 12; then exit. Attack/heal first; prioritize board Credits; standard enemy automation. Stop on completion, Party defeat, or 40-round/3200-decision cap.",
+  "Rows": [
+    {
+      "Seed": 17,
+      "RegionIndex": 0,
+      "Region": {
+        "X": 0,
+        "Y": 0
+      },
+      "Opening": 0,
+      "InitialMonsters": 37,
+      "InitialPopulation": [
+        {
+          "TypeId": "demolition-imp",
+          "Count": 3
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 3
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 9
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 2
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 1
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 19
+        }
+      ],
+      "InitialLoot": 17,
+      "HypotheticalExpectedInitialDropCredits": 32.00000000000001,
+      "FirstAffordableRound": {
+        "10": null,
+        "12": null,
+        "15": null,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 1,
+      "CreditsEligibleDefeatResolutions": 0,
+      "GeneratedCredits": 0,
+      "CollectedCredits": 0,
+      "OtherSideCollectedCredits": 0,
+      "SaleCredits": 0,
+      "Closing": 0,
+      "PeakBank": 0,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 0,
+      "UncollectedCredits": 0,
+      "LootDraws": 0,
+      "Decisions": 496,
+      "Round": 35,
+      "Completed": true,
+      "Outcome": "completed",
+      "PartyAlive": 5
+    },
+    {
+      "Seed": 17,
+      "RegionIndex": 1,
+      "Region": {
+        "X": 0,
+        "Y": 1
+      },
+      "Opening": 0,
+      "InitialMonsters": 72,
+      "InitialPopulation": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 9
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 2
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 5
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 9
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 9
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 3
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 14
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 21
+        }
+      ],
+      "InitialLoot": 20,
+      "HypotheticalExpectedInitialDropCredits": 63.16666666666668,
+      "FirstAffordableRound": {
+        "10": null,
+        "12": null,
+        "15": null,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 1,
+      "GeneratedCredits": 0,
+      "CollectedCredits": 0,
+      "OtherSideCollectedCredits": 0,
+      "SaleCredits": 0,
+      "Closing": 0,
+      "PeakBank": 0,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 0,
+      "UncollectedCredits": 0,
+      "LootDraws": 2,
+      "Decisions": 532,
+      "Round": 26,
+      "Completed": false,
+      "Outcome": "Party defeated",
+      "PartyAlive": 0
+    },
+    {
+      "Seed": 42,
+      "RegionIndex": 0,
+      "Region": {
+        "X": 0,
+        "Y": 0
+      },
+      "Opening": 0,
+      "InitialMonsters": 46,
+      "InitialPopulation": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 8
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 2
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 12
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 2
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 1
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 21
+        }
+      ],
+      "InitialLoot": 8,
+      "HypotheticalExpectedInitialDropCredits": 39.666666666666664,
+      "FirstAffordableRound": {
+        "10": null,
+        "12": null,
+        "15": null,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 4,
+      "GeneratedCredits": 7,
+      "CollectedCredits": 3,
+      "OtherSideCollectedCredits": 0,
+      "SaleCredits": 0,
+      "Closing": 3,
+      "PeakBank": 3,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 3,
+      "UncollectedCredits": 4,
+      "LootDraws": 1,
+      "Decisions": 726,
+      "Round": 37,
+      "Completed": false,
+      "Outcome": "Party defeated",
+      "PartyAlive": 0
+    },
+    {
+      "Seed": 889,
+      "RegionIndex": 0,
+      "Region": {
+        "X": 0,
+        "Y": 0
+      },
+      "Opening": 0,
+      "InitialMonsters": 54,
+      "InitialPopulation": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 15
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 4
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 16
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 1
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 18
+        }
+      ],
+      "InitialLoot": 34,
+      "HypotheticalExpectedInitialDropCredits": 46.166666666666686,
+      "FirstAffordableRound": {
+        "10": null,
+        "12": null,
+        "15": null,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 5,
+      "GeneratedCredits": 8,
+      "CollectedCredits": 8,
+      "OtherSideCollectedCredits": 0,
+      "SaleCredits": 0,
+      "Closing": 8,
+      "PeakBank": 8,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 8,
+      "UncollectedCredits": 0,
+      "LootDraws": 3,
+      "Decisions": 397,
+      "Round": 30,
+      "Completed": true,
+      "Outcome": "completed",
+      "PartyAlive": 4
+    },
+    {
+      "Seed": 889,
+      "RegionIndex": 1,
+      "Region": {
+        "X": 1,
+        "Y": 0
+      },
+      "Opening": 8,
+      "InitialMonsters": 88,
+      "InitialPopulation": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 1
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 4
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 6
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 43
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 10
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 6
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 18
+        }
+      ],
+      "InitialLoot": 16,
+      "HypotheticalExpectedInitialDropCredits": 66.33333333333333,
+      "FirstAffordableRound": {
+        "10": 1,
+        "12": 1,
+        "15": 17,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 5,
+      "GeneratedCredits": 12,
+      "CollectedCredits": 12,
+      "OtherSideCollectedCredits": 0,
+      "SaleCredits": 0,
+      "Closing": 20,
+      "PeakBank": 20,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 20,
+      "UncollectedCredits": 0,
+      "LootDraws": 5,
+      "Decisions": 690,
+      "Round": 41,
+      "Completed": false,
+      "Outcome": "capped",
+      "PartyAlive": 1
+    },
+    {
+      "Seed": 2026,
+      "RegionIndex": 0,
+      "Region": {
+        "X": 0,
+        "Y": 0
+      },
+      "Opening": 0,
+      "InitialMonsters": 49,
+      "InitialPopulation": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 6
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 2
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 28
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 4
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 9
+        }
+      ],
+      "InitialLoot": 22,
+      "HypotheticalExpectedInitialDropCredits": 26.33333333333333,
+      "FirstAffordableRound": {
+        "10": null,
+        "12": null,
+        "15": null,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 0,
+      "GeneratedCredits": 0,
+      "CollectedCredits": 0,
+      "OtherSideCollectedCredits": 0,
+      "SaleCredits": 0,
+      "Closing": 0,
+      "PeakBank": 0,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 0,
+      "UncollectedCredits": 0,
+      "LootDraws": 5,
+      "Decisions": 580,
+      "Round": 32,
+      "Completed": true,
+      "Outcome": "completed",
+      "PartyAlive": 3
+    },
+    {
+      "Seed": 2026,
+      "RegionIndex": 1,
+      "Region": {
+        "X": 1,
+        "Y": 0
+      },
+      "Opening": 0,
+      "InitialMonsters": 90,
+      "InitialPopulation": [
+        {
+          "TypeId": "demolition-imp",
+          "Count": 4
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 1
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 3
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 34
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 15
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 9
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 4
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 20
+        }
+      ],
+      "InitialLoot": 40,
+      "HypotheticalExpectedInitialDropCredits": 72.16666666666664,
+      "FirstAffordableRound": {
+        "10": null,
+        "12": null,
+        "15": null,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 4,
+      "GeneratedCredits": 0,
+      "CollectedCredits": 0,
+      "OtherSideCollectedCredits": 0,
+      "SaleCredits": 0,
+      "Closing": 0,
+      "PeakBank": 0,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 0,
+      "UncollectedCredits": 0,
+      "LootDraws": 1,
+      "Decisions": 436,
+      "Round": 26,
+      "Completed": false,
+      "Outcome": "Party defeated",
+      "PartyAlive": 0
+    },
+    {
+      "Seed": 77341,
+      "RegionIndex": 0,
+      "Region": {
+        "X": 0,
+        "Y": 0
+      },
+      "Opening": 0,
+      "InitialMonsters": 44,
+      "InitialPopulation": [
+        {
+          "TypeId": "ghost-type",
+          "Count": 3
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 7
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 8
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 8
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 18
+        }
+      ],
+      "InitialLoot": 12,
+      "HypotheticalExpectedInitialDropCredits": 48.333333333333336,
+      "FirstAffordableRound": {
+        "10": null,
+        "12": null,
+        "15": null,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 1,
+      "GeneratedCredits": 0,
+      "CollectedCredits": 0,
+      "OtherSideCollectedCredits": 0,
+      "SaleCredits": 0,
+      "Closing": 0,
+      "PeakBank": 0,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 0,
+      "UncollectedCredits": 0,
+      "LootDraws": 1,
+      "Decisions": 414,
+      "Round": 22,
+      "Completed": true,
+      "Outcome": "completed",
+      "PartyAlive": 3
+    },
+    {
+      "Seed": 77341,
+      "RegionIndex": 1,
+      "Region": {
+        "X": -1,
+        "Y": 0
+      },
+      "Opening": 0,
+      "InitialMonsters": 93,
+      "InitialPopulation": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 7
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 3
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 6
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 2
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 21
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 29
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 4
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 21
+        }
+      ],
+      "InitialLoot": 22,
+      "HypotheticalExpectedInitialDropCredits": 100.16666666666666,
+      "FirstAffordableRound": {
+        "10": null,
+        "12": null,
+        "15": null,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 6,
+      "GeneratedCredits": 3,
+      "CollectedCredits": 0,
+      "OtherSideCollectedCredits": 3,
+      "SaleCredits": 0,
+      "Closing": 0,
+      "PeakBank": 0,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 0,
+      "UncollectedCredits": 0,
+      "LootDraws": 2,
+      "Decisions": 513,
+      "Round": 19,
+      "Completed": false,
+      "Outcome": "Party defeated",
+      "PartyAlive": 0
+    },
+    {
+      "Seed": 1,
+      "RegionIndex": 0,
+      "Region": {
+        "X": 0,
+        "Y": 0
+      },
+      "Opening": 0,
+      "InitialMonsters": 46,
+      "InitialPopulation": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 6
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 22
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 1
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 17
+        }
+      ],
+      "InitialLoot": 9,
+      "HypotheticalExpectedInitialDropCredits": 26.499999999999996,
+      "FirstAffordableRound": {
+        "10": null,
+        "12": null,
+        "15": null,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 1,
+      "GeneratedCredits": 0,
+      "CollectedCredits": 0,
+      "OtherSideCollectedCredits": 0,
+      "SaleCredits": 0,
+      "Closing": 0,
+      "PeakBank": 0,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 0,
+      "UncollectedCredits": 0,
+      "LootDraws": 0,
+      "Decisions": 387,
+      "Round": 34,
+      "Completed": true,
+      "Outcome": "completed",
+      "PartyAlive": 5
+    },
+    {
+      "Seed": 1,
+      "RegionIndex": 1,
+      "Region": {
+        "X": 0,
+        "Y": -1
+      },
+      "Opening": 0,
+      "InitialMonsters": 87,
+      "InitialPopulation": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 12
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 1
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 2
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 5
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 8
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 7
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 6
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 46
+        }
+      ],
+      "InitialLoot": 16,
+      "HypotheticalExpectedInitialDropCredits": 90.6666666666667,
+      "FirstAffordableRound": {
+        "10": 28,
+        "12": 28,
+        "15": 36,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 14,
+      "GeneratedCredits": 16,
+      "CollectedCredits": 13,
+      "OtherSideCollectedCredits": 3,
+      "SaleCredits": 3,
+      "Closing": 16,
+      "PeakBank": 16,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 16,
+      "UncollectedCredits": 0,
+      "LootDraws": 2,
+      "Decisions": 740,
+      "Round": 37,
+      "Completed": false,
+      "Outcome": "Party defeated",
+      "PartyAlive": 0
+    },
+    {
+      "Seed": 7,
+      "RegionIndex": 0,
+      "Region": {
+        "X": 0,
+        "Y": 0
+      },
+      "Opening": 0,
+      "InitialMonsters": 48,
+      "InitialPopulation": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 3
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 4
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 18
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 3
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 1
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 19
+        }
+      ],
+      "InitialLoot": 14,
+      "HypotheticalExpectedInitialDropCredits": 40.00000000000001,
+      "FirstAffordableRound": {
+        "10": null,
+        "12": null,
+        "15": null,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 3,
+      "GeneratedCredits": 4,
+      "CollectedCredits": 4,
+      "OtherSideCollectedCredits": 0,
+      "SaleCredits": 0,
+      "Closing": 4,
+      "PeakBank": 4,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 4,
+      "UncollectedCredits": 0,
+      "LootDraws": 2,
+      "Decisions": 504,
+      "Round": 26,
+      "Completed": true,
+      "Outcome": "completed",
+      "PartyAlive": 4
+    },
+    {
+      "Seed": 7,
+      "RegionIndex": 1,
+      "Region": {
+        "X": 0,
+        "Y": 1
+      },
+      "Opening": 4,
+      "InitialMonsters": 97,
+      "InitialPopulation": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 1
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 2
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 9
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 32
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 5
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 2
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 46
+        }
+      ],
+      "InitialLoot": 35,
+      "HypotheticalExpectedInitialDropCredits": 76.5,
+      "FirstAffordableRound": {
+        "10": null,
+        "12": null,
+        "15": null,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 6,
+      "GeneratedCredits": 5,
+      "CollectedCredits": 5,
+      "OtherSideCollectedCredits": 0,
+      "SaleCredits": 0,
+      "Closing": 9,
+      "PeakBank": 9,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 9,
+      "UncollectedCredits": 0,
+      "LootDraws": 3,
+      "Decisions": 406,
+      "Round": 17,
+      "Completed": true,
+      "Outcome": "completed",
+      "PartyAlive": 6
+    },
+    {
+      "Seed": 7,
+      "RegionIndex": 2,
+      "Region": {
+        "X": -1,
+        "Y": 1
+      },
+      "Opening": 9,
+      "InitialMonsters": 105,
+      "InitialPopulation": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 13
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 2
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 1
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 10
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 8
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 10
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 3
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 58
+        }
+      ],
+      "InitialLoot": 30,
+      "HypotheticalExpectedInitialDropCredits": 110.33333333333334,
+      "FirstAffordableRound": {
+        "10": 3,
+        "12": 3,
+        "15": 5,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 3,
+      "GeneratedCredits": 9,
+      "CollectedCredits": 6,
+      "OtherSideCollectedCredits": 3,
+      "SaleCredits": 0,
+      "Closing": 15,
+      "PeakBank": 15,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 15,
+      "UncollectedCredits": 0,
+      "LootDraws": 1,
+      "Decisions": 483,
+      "Round": 17,
+      "Completed": false,
+      "Outcome": "Party defeated",
+      "PartyAlive": 0
+    },
+    {
+      "Seed": 123,
+      "RegionIndex": 0,
+      "Region": {
+        "X": 0,
+        "Y": 0
+      },
+      "Opening": 0,
+      "InitialMonsters": 49,
+      "InitialPopulation": [
+        {
+          "TypeId": "demolition-imp",
+          "Count": 7
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 2
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 16
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 10
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 5
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 9
+        }
+      ],
+      "InitialLoot": 24,
+      "HypotheticalExpectedInitialDropCredits": 47.333333333333336,
+      "FirstAffordableRound": {
+        "10": 26,
+        "12": 27,
+        "15": 27,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 13,
+      "GeneratedCredits": 22,
+      "CollectedCredits": 22,
+      "OtherSideCollectedCredits": 0,
+      "SaleCredits": 0,
+      "Closing": 22,
+      "PeakBank": 22,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 22,
+      "UncollectedCredits": 0,
+      "LootDraws": 5,
+      "Decisions": 721,
+      "Round": 41,
+      "Completed": false,
+      "Outcome": "capped",
+      "PartyAlive": 2
+    },
+    {
+      "Seed": 456,
+      "RegionIndex": 0,
+      "Region": {
+        "X": 0,
+        "Y": 0
+      },
+      "Opening": 0,
+      "InitialMonsters": 48,
+      "InitialPopulation": [
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 1
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 14
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 33
+        }
+      ],
+      "InitialLoot": 44,
+      "HypotheticalExpectedInitialDropCredits": 36,
+      "FirstAffordableRound": {
+        "10": null,
+        "12": null,
+        "15": null,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 1,
+      "GeneratedCredits": 3,
+      "CollectedCredits": 3,
+      "OtherSideCollectedCredits": 0,
+      "SaleCredits": 0,
+      "Closing": 3,
+      "PeakBank": 3,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 3,
+      "UncollectedCredits": 0,
+      "LootDraws": 5,
+      "Decisions": 427,
+      "Round": 33,
+      "Completed": true,
+      "Outcome": "completed",
+      "PartyAlive": 5
+    },
+    {
+      "Seed": 456,
+      "RegionIndex": 1,
+      "Region": {
+        "X": 0,
+        "Y": -1
+      },
+      "Opening": 3,
+      "InitialMonsters": 100,
+      "InitialPopulation": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 1
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 5
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 3
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 17
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 15
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 7
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 11
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 3
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 38
+        }
+      ],
+      "InitialLoot": 56,
+      "HypotheticalExpectedInitialDropCredits": 113.83333333333341,
+      "FirstAffordableRound": {
+        "10": 9,
+        "12": 9,
+        "15": 10,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 8,
+      "GeneratedCredits": 16,
+      "CollectedCredits": 16,
+      "OtherSideCollectedCredits": 0,
+      "SaleCredits": 0,
+      "Closing": 19,
+      "PeakBank": 19,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 19,
+      "UncollectedCredits": 0,
+      "LootDraws": 8,
+      "Decisions": 378,
+      "Round": 13,
+      "Completed": false,
+      "Outcome": "Party defeated",
+      "PartyAlive": 0
+    },
+    {
+      "Seed": 1024,
+      "RegionIndex": 0,
+      "Region": {
+        "X": 0,
+        "Y": 0
+      },
+      "Opening": 0,
+      "InitialMonsters": 46,
+      "InitialPopulation": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 1
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 2
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 19
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 4
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 3
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 1
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 16
+        }
+      ],
+      "InitialLoot": 11,
+      "HypotheticalExpectedInitialDropCredits": 34.333333333333336,
+      "FirstAffordableRound": {
+        "10": null,
+        "12": null,
+        "15": null,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 0,
+      "GeneratedCredits": 0,
+      "CollectedCredits": 0,
+      "OtherSideCollectedCredits": 0,
+      "SaleCredits": 0,
+      "Closing": 0,
+      "PeakBank": 0,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 0,
+      "UncollectedCredits": 0,
+      "LootDraws": 2,
+      "Decisions": 1167,
+      "Round": 41,
+      "Completed": false,
+      "Outcome": "capped",
+      "PartyAlive": 5
+    },
+    {
+      "Seed": 8192,
+      "RegionIndex": 0,
+      "Region": {
+        "X": 0,
+        "Y": 0
+      },
+      "Opening": 0,
+      "InitialMonsters": 48,
+      "InitialPopulation": [
+        {
+          "TypeId": "demolition-imp",
+          "Count": 4
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 2
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 15
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 14
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 13
+        }
+      ],
+      "InitialLoot": 10,
+      "HypotheticalExpectedInitialDropCredits": 44,
+      "FirstAffordableRound": {
+        "10": 10,
+        "12": null,
+        "15": null,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 5,
+      "GeneratedCredits": 8,
+      "CollectedCredits": 8,
+      "OtherSideCollectedCredits": 0,
+      "SaleCredits": 3,
+      "Closing": 11,
+      "PeakBank": 11,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 11,
+      "UncollectedCredits": 0,
+      "LootDraws": 3,
+      "Decisions": 456,
+      "Round": 30,
+      "Completed": true,
+      "Outcome": "completed",
+      "PartyAlive": 5
+    },
+    {
+      "Seed": 8192,
+      "RegionIndex": 1,
+      "Region": {
+        "X": 1,
+        "Y": 0
+      },
+      "Opening": 11,
+      "InitialMonsters": 44,
+      "InitialPopulation": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 1
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 2
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 8
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 15
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 6
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 4
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 1
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 7
+        }
+      ],
+      "InitialLoot": 6,
+      "HypotheticalExpectedInitialDropCredits": 40.66666666666667,
+      "FirstAffordableRound": {
+        "10": 0,
+        "12": 1,
+        "15": 1,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 4,
+      "GeneratedCredits": 10,
+      "CollectedCredits": 10,
+      "OtherSideCollectedCredits": 0,
+      "SaleCredits": 0,
+      "Closing": 21,
+      "PeakBank": 21,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 21,
+      "UncollectedCredits": 0,
+      "LootDraws": 2,
+      "Decisions": 633,
+      "Round": 35,
+      "Completed": true,
+      "Outcome": "completed",
+      "PartyAlive": 4
+    },
+    {
+      "Seed": 8192,
+      "RegionIndex": 2,
+      "Region": {
+        "X": 2,
+        "Y": 0
+      },
+      "Opening": 21,
+      "InitialMonsters": 39,
+      "InitialPopulation": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 1
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 5
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 7
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 9
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 7
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 10
+        }
+      ],
+      "InitialLoot": 7,
+      "HypotheticalExpectedInitialDropCredits": 41.83333333333333,
+      "FirstAffordableRound": {
+        "10": 0,
+        "12": 0,
+        "15": 0,
+        "24": 8,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 7,
+      "GeneratedCredits": 10,
+      "CollectedCredits": 10,
+      "OtherSideCollectedCredits": 0,
+      "SaleCredits": 3,
+      "Closing": 34,
+      "PeakBank": 34,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 34,
+      "UncollectedCredits": 0,
+      "LootDraws": 2,
+      "Decisions": 303,
+      "Round": 23,
+      "Completed": true,
+      "Outcome": "completed",
+      "PartyAlive": 5
+    },
+    {
+      "Seed": 65535,
+      "RegionIndex": 0,
+      "Region": {
+        "X": 0,
+        "Y": 0
+      },
+      "Opening": 0,
+      "InitialMonsters": 52,
+      "InitialPopulation": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 1
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 4
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 42
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 1
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 1
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 3
+        }
+      ],
+      "InitialLoot": 16,
+      "HypotheticalExpectedInitialDropCredits": 12.499999999999998,
+      "FirstAffordableRound": {
+        "10": null,
+        "12": null,
+        "15": null,
+        "24": null,
+        "50": null,
+        "75": null
+      },
+      "DelveCare": 0,
+      "MeteorOMat": 0,
+      "CreditsEligibleDefeatResolutions": 0,
+      "GeneratedCredits": 0,
+      "CollectedCredits": 0,
+      "OtherSideCollectedCredits": 0,
+      "SaleCredits": 0,
+      "Closing": 0,
+      "PeakBank": 0,
+      "RetainedSellPotential": 0,
+      "HypotheticalBankAfterLiquidation": 0,
+      "UncollectedCredits": 0,
+      "LootDraws": 4,
+      "Decisions": 868,
+      "Round": 41,
+      "Completed": false,
+      "Outcome": "capped",
+      "PartyAlive": 4
+    }
+  ]
+}

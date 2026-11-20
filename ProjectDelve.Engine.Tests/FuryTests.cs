@@ -26,7 +26,7 @@ public sealed class FuryTests
     private static GameState State(int enemies = 2)
     {
         var barbarian = UnitType.Barbarian();
-        var enemy = UnitType.Grunt();
+        var enemy = UnitType.Grunt() with { CreditsDropSuccesses = 0 }; // Isolate Fury combat dice from defeat rewards.
         Cell[] positions = [new(3, 2), new(2, 3), new(1, 1), new(1, 2)];
         return new()
         {

@@ -1,0 +1,4984 @@
+{
+  "ContentRevision": "1ba7ee5772045e64ac6b2670acfb1b7c7fd68e630e40e955f1a6d985921b4ef2",
+  "LocalSeedRequestsOutOf1200": {
+    "delvecare": 87,
+    "meteor-o-mat": 93
+  },
+  "Rows": [
+    {
+      "Seed": 17,
+      "RegionIndex": 0,
+      "Population": [
+        {
+          "TypeId": "demolition-imp",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 9,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 1,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 19,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 19
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": true,
+      "Placed": [
+        "meteor-o-mat"
+      ],
+      "Omissions": []
+    },
+    {
+      "Seed": 17,
+      "RegionIndex": 1,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 9,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 9,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 9,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 2.5
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 14,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 21,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 21
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 17,
+      "RegionIndex": 2,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 12,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 29,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 26,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 15,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 12.5
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 36,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 36
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 17,
+      "RegionIndex": 3,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 31,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 12,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 31,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 17,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 24,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 20
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 6,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 16,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 16
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 17,
+      "RegionIndex": 4,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 21,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 23,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 9,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 37,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 4,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 22,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 18.333333333333332
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 5,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 2
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 17,
+      "RegionIndex": 5,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 19,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 12,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 5,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 28,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 23,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 16,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 13.333333333333334
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 10,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 10
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 42,
+      "RegionIndex": 0,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 12,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 0.8333333333333334
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 21,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 21
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 42,
+      "RegionIndex": 1,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 39,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 1.6666666666666667
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 1,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 25,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 25
+        }
+      ],
+      "RequestedCare": true,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": [
+        {
+          "CandidateId": "expedition/delvecare",
+          "Detail": "Optional placement omitted: No legal occupied-access-safe open pad in 96 bounded attempts."
+        }
+      ]
+    },
+    {
+      "Seed": 42,
+      "RegionIndex": 2,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 6,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 11,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 12,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 15,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 4.166666666666667
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 6,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 25,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 25
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 42,
+      "RegionIndex": 3,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 19,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 21,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 8.333333333333334
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 5,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 41,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 41
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 42,
+      "RegionIndex": 4,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 1.6666666666666667
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 10
+        }
+      ],
+      "RequestedCare": true,
+      "RequestedMeteor": false,
+      "Placed": [
+        "delvecare"
+      ],
+      "Omissions": []
+    },
+    {
+      "Seed": 42,
+      "RegionIndex": 5,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 6,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 34,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 17,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 4.166666666666667
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 17,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 17
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 889,
+      "RegionIndex": 0,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 15,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 4,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 16,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 18,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 18
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 889,
+      "RegionIndex": 1,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 4,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 6,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 43,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 6,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 5
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 18,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 18
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 889,
+      "RegionIndex": 2,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 20,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 3,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 29,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 31,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 17,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 14.166666666666666
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 1,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 31,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 31
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 889,
+      "RegionIndex": 3,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 12,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 6,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 23,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 34,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 1.6666666666666667
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 4,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 38,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 38
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 889,
+      "RegionIndex": 4,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 19,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 1,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 17,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 5.833333333333333
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 14,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 27,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 27
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 889,
+      "RegionIndex": 5,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 9,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 2.5
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 4,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 12,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 12
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 2026,
+      "RegionIndex": 0,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 6,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 28,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 4,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 9,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 9
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 2026,
+      "RegionIndex": 1,
+      "Population": [
+        {
+          "TypeId": "demolition-imp",
+          "Count": 4,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 1,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 34,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 15,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 9,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 7.5
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 4,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 20,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 20
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 2026,
+      "RegionIndex": 2,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 6,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 3,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 21,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 14,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 8.333333333333334
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 1,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 22,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 22
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 2026,
+      "RegionIndex": 3,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 6,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 1,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 11,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 27,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 13,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 14,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 11.666666666666666
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 4,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 19,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 19
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 2026,
+      "RegionIndex": 4,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 17,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 16,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 13.333333333333334
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 15,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 15
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 2026,
+      "RegionIndex": 5,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 9,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 1,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 42,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 17,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 0.8333333333333334
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 19,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 19
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 77341,
+      "RegionIndex": 0,
+      "Population": [
+        {
+          "TypeId": "ghost-type",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 6.666666666666667
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 18,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 18
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 77341,
+      "RegionIndex": 1,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 6,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 21,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 29,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 4,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 21,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 21
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 77341,
+      "RegionIndex": 2,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 4,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 23,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 14,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 11,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 0.8333333333333334
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 22,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 22
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 77341,
+      "RegionIndex": 3,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 15,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 3,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 21,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 16,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 33,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 17,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 14.166666666666666
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 6,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 47,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 47
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": true,
+      "Placed": [
+        "meteor-o-mat"
+      ],
+      "Omissions": []
+    },
+    {
+      "Seed": 77341,
+      "RegionIndex": 4,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 9,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 1,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 13,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 25,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 32,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 17,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 14.166666666666666
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 2,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 43,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 43
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 77341,
+      "RegionIndex": 5,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 24,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 4,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 22,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 5.833333333333333
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 6,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 9,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 9
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": true,
+      "Placed": [
+        "meteor-o-mat"
+      ],
+      "Omissions": []
+    },
+    {
+      "Seed": 1,
+      "RegionIndex": 0,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 6,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 22,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 17,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 17
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 1,
+      "RegionIndex": 1,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 12,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 5.833333333333333
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 6,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 46,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 46
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 1,
+      "RegionIndex": 2,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 15,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 14,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 3,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 6,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 9,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 4.166666666666667
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 11,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 20,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 20
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 1,
+      "RegionIndex": 3,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 12,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 16,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 16,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 13.333333333333334
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 5,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 17,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 17
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 1,
+      "RegionIndex": 4,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 14,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 4,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 9,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 4,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 16,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 16,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 13.333333333333334
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 20,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 8
+        }
+      ],
+      "RequestedCare": true,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": [
+        {
+          "CandidateId": "expedition/delvecare",
+          "Detail": "Optional placement omitted: No legal occupied-access-safe open pad in 96 bounded attempts."
+        }
+      ]
+    },
+    {
+      "Seed": 1,
+      "RegionIndex": 5,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 18,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 11,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 20,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 4,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 13,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 10.833333333333334
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 46,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 26,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 26
+        }
+      ],
+      "RequestedCare": true,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": [
+        {
+          "CandidateId": "expedition/delvecare",
+          "Detail": "Optional placement omitted: No legal occupied-access-safe open pad in 96 bounded attempts."
+        }
+      ]
+    },
+    {
+      "Seed": 7,
+      "RegionIndex": 0,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 4,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 18,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 2.5
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 1,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 19,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 19
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 7,
+      "RegionIndex": 1,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 9,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 32,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 1.6666666666666667
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 46,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 46
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 7,
+      "RegionIndex": 2,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 13,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 1,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 8.333333333333334
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 3,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 58,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 58
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 7,
+      "RegionIndex": 3,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 19,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 6,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 13,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 12,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 10
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 11,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 32,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 32
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 7,
+      "RegionIndex": 4,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 15,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 20,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 6.666666666666667
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 5,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 46,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 46
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": true,
+      "Placed": [
+        "meteor-o-mat"
+      ],
+      "Omissions": []
+    },
+    {
+      "Seed": 7,
+      "RegionIndex": 5,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 4,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 4,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 5.833333333333333
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 3,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 8
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 123,
+      "RegionIndex": 0,
+      "Population": [
+        {
+          "TypeId": "demolition-imp",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 16,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 4.166666666666667
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 9,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 9
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 123,
+      "RegionIndex": 1,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 4,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 40,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 13,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 12,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 10
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 24,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 24
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 123,
+      "RegionIndex": 2,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 9,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 20,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 4,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 13,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 10.833333333333334
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 34,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 34
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 123,
+      "RegionIndex": 3,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 14,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 3,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 29,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 9,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 18,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 15
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 6,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 12,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 12
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 123,
+      "RegionIndex": 4,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 16,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 6,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 15,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 14,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 5.833333333333333
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 7,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 19,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 19
+        }
+      ],
+      "RequestedCare": true,
+      "RequestedMeteor": false,
+      "Placed": [
+        "delvecare"
+      ],
+      "Omissions": []
+    },
+    {
+      "Seed": 123,
+      "RegionIndex": 5,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 19,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 22,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 25,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 20,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 19,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 15.833333333333334
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 32,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 20,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 20
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 456,
+      "RegionIndex": 0,
+      "Population": [
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 1,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 14,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 33,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 33
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 456,
+      "RegionIndex": 1,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 3,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 17,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 15,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 11,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 9.166666666666666
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 3,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 38,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 38
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 456,
+      "RegionIndex": 2,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 16,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 4.166666666666667
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 3,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 40,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 40
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 456,
+      "RegionIndex": 3,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 9,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 4,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 6,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 32,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 19,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 13,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 10.833333333333334
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 10,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 19,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 19
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 456,
+      "RegionIndex": 4,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 2,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 33,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 15,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 12.5
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 4,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 28,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 28
+        }
+      ],
+      "RequestedCare": true,
+      "RequestedMeteor": false,
+      "Placed": [
+        "delvecare"
+      ],
+      "Omissions": []
+    },
+    {
+      "Seed": 456,
+      "RegionIndex": 5,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 14,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 13,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 12,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 11,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 9.166666666666666
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 7,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 16,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 16
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": true,
+      "Placed": [
+        "meteor-o-mat"
+      ],
+      "Omissions": []
+    },
+    {
+      "Seed": 1024,
+      "RegionIndex": 0,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 2,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 19,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 4,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 2.5
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 1,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 16,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 16
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 1024,
+      "RegionIndex": 1,
+      "Population": [
+        {
+          "TypeId": "demolition-imp",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 6,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 11,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 15,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 15
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 1024,
+      "RegionIndex": 2,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 12,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 2.5
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 5,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 20,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 20
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": true,
+      "Placed": [
+        "meteor-o-mat"
+      ],
+      "Omissions": []
+    },
+    {
+      "Seed": 1024,
+      "RegionIndex": 3,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 4,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 0.8333333333333334
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 1,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 15,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 15
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 1024,
+      "RegionIndex": 4,
+      "Population": [
+        {
+          "TypeId": "goblin-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 2.5
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 30,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 30
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 1024,
+      "RegionIndex": 5,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 14,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 6,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 29,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 4,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 11,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 9.166666666666666
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 20,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 20
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 8192,
+      "RegionIndex": 0,
+      "Population": [
+        {
+          "TypeId": "demolition-imp",
+          "Count": 4,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 15,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 14,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 13,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 13
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 8192,
+      "RegionIndex": 1,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 15,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 6,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 4,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 3.3333333333333335
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 1,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 7
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 8192,
+      "RegionIndex": 2,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 9,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 10
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 8192,
+      "RegionIndex": 3,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 12,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 2,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 12,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 17,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 6,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 6
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 8192,
+      "RegionIndex": 4,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 13,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 11,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 4,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 11,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 13,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 4.166666666666667
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 9,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 14,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 14
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": true,
+      "Placed": [
+        "meteor-o-mat"
+      ],
+      "Omissions": []
+    },
+    {
+      "Seed": 8192,
+      "RegionIndex": 5,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 6,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 6,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 6,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 5
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 4,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 7
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 65535,
+      "RegionIndex": 0,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 4,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 42,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 1,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 3
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 65535,
+      "RegionIndex": 1,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 4,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 4,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 11,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 6,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 2.5
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 5,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 4,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 4
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 65535,
+      "RegionIndex": 2,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 3,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 7,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 9,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 4.166666666666667
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 3,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 13,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 13
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    },
+    {
+      "Seed": 65535,
+      "RegionIndex": 3,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 2,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 2,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "ghost-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 4,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 4,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 5
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": true,
+      "Placed": [
+        "meteor-o-mat"
+      ],
+      "Omissions": []
+    },
+    {
+      "Seed": 65535,
+      "RegionIndex": 4,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 8,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "demolition-imp",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "goblin-type",
+          "Count": 6,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 10,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 8.333333333333334
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 6,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 17,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 17
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": true,
+      "Placed": [
+        "meteor-o-mat"
+      ],
+      "Omissions": []
+    },
+    {
+      "Seed": 65535,
+      "RegionIndex": 5,
+      "Population": [
+        {
+          "TypeId": "bomb-imp-type",
+          "Count": 1,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "displacer-demon-type",
+          "Count": 2,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "grunt-type",
+          "Count": 6,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "skeleton-archer-type",
+          "Count": 5,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 1,
+          "CreditsDropAmount": 5,
+          "HypotheticalExpectedCredits": 4.166666666666667
+        },
+        {
+          "TypeId": "troll-type",
+          "Count": 5,
+          "LootDropSuccesses": 2,
+          "CreditsDropSuccesses": 0,
+          "CreditsDropAmount": 0,
+          "HypotheticalExpectedCredits": 0
+        },
+        {
+          "TypeId": "zombie-type",
+          "Count": 21,
+          "LootDropSuccesses": 1,
+          "CreditsDropSuccesses": 2,
+          "CreditsDropAmount": 3,
+          "HypotheticalExpectedCredits": 21
+        }
+      ],
+      "RequestedCare": false,
+      "RequestedMeteor": false,
+      "Placed": [],
+      "Omissions": []
+    }
+  ]
+}

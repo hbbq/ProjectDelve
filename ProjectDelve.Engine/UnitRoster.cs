@@ -129,7 +129,7 @@ public static class UnitRoster
 
     public static UnitType DisplacerDemon(string id = UnitTypeIds.DisplacerDemon) => UnitType.Define(id,
         "Displacer Demon",
-        Stats(3, 1, 4, 4, 1), Loot(2),
+        Stats(3, 1, 4, 4, 1), Loot(2, creditsDropSuccesses: 3, creditsDropAmount: 6),
         Ability("Swap", Unlimited(), Swap(), id: "swap"),
         Ability("Displace", Unlimited(), Displace(maxMove: 1), id: "displace"),
         Ability("Aura", Unlimited(), AdjacentFriendliesDefenceBonus(amount: +1), id: "aura")
@@ -145,7 +145,7 @@ public static class UnitRoster
 
     public static UnitType RedDragon(string id = UnitTypeIds.RedDragon) => UnitType.Define(id,
         "Red Dragon",
-        Stats(2, 4, 4, 4, 8), Loot(3),
+        Stats(2, 4, 4, 4, 8), Loot(3, creditsDropSuccesses: 2, creditsDropAmount: 12),
         Unique(),
         Footprint2x2(),
         Ability("Fire Breath", Unlimited(), FireBreath(), id: "fire-breath"),
@@ -154,13 +154,13 @@ public static class UnitRoster
 
     public static UnitType Ghost(string id = UnitTypeIds.Ghost) => UnitType.Define(id,
         "Ghost",
-        Stats(2, 1, 3, 3, 1), Loot(1),
+        Stats(2, 1, 3, 3, 1), Loot(1, creditsDropSuccesses: 2, creditsDropAmount: 5),
         Phase()
     );
 
     public static UnitType Grunt(string id = UnitTypeIds.Grunt) => UnitType.Define(id,
         "Grunt",
-        Stats(3, 1, 3, 3, 1), Loot(1)
+        Stats(3, 1, 3, 3, 1), Loot(1, creditsDropSuccesses: 3, creditsDropAmount: 3)
     );
 
     public static UnitType Zombie(string id = UnitTypeIds.Zombie) => UnitType.Define(id,
@@ -172,7 +172,7 @@ public static class UnitRoster
 
     public static UnitType SkeletonArcher(string id = UnitTypeIds.SkeletonArcher) => UnitType.Define(id,
         "Skeleton Archer",
-        Stats(3, 4, 3, 3, 1), Loot(1, creditsDropSuccesses: 1, creditsDropAmount: 5)
+        Stats(3, 4, 3, 3, 1), Loot(1, creditsDropSuccesses: 2, creditsDropAmount: 5)
     ).WithBehaviors(UnitBehavior.MaximizeAttackDistance);
 
     public static UnitType Goblin(string id = UnitTypeIds.Goblin) => UnitType.Define(id,
@@ -183,7 +183,7 @@ public static class UnitRoster
 
     public static UnitType BombImp(string id = UnitTypeIds.BombImp) => UnitType.Define(id,
         "Bomb Imp",
-        Stats(3, 1, 2, 2, 1), Loot(1),
+        Stats(3, 1, 2, 2, 1), Loot(1, creditsDropSuccesses: 2, creditsDropAmount: 4),
         Ability("Explosion", Unlimited(), Explosion(damage: 1), id: "explosion")
     ).WithBehaviors(UnitBehavior.PreferHostileAdjacency, UnitBehavior.ProtectWithoutAdjacency);
 

@@ -177,8 +177,11 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
         Assert.Equal(9, archive.SideCredits["Monsters"]);
     }
 
-    [Fact]
-    public void CanonicalZombieDefeatResumesAtTheSameRollAndArchivesItsUnclaimedCredits()
+    [Theory]
+    [InlineData(UnitTypeIds.Zombie, 3)]
+    [InlineData(UnitTypeIds.Grunt, 3)]
+    [InlineData(UnitTypeIds.Ghost, 5)]
+    public void CanonicalMonsterDefeatResumesAtTheSameRollAndArchivesItsUnclaimedCredits(string typeId, int amount)
     {
         const string id = "defeat-credits";
         var store = new ExpeditionStore(root, id);
@@ -189,9 +192,9 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
             if (plan.Region != default) return terrain;
             return terrain with
             {
-                UnitTypeIds = [UnitTypeIds.Zombie],
-                Units = [new(UnitTypeIds.Zombie, "Monsters", formerCell, UnitId: "guard")],
-                Agency = [new(UnitTypeIds.Zombie, "Monsters", ControllerKind.Human)],
+                UnitTypeIds = [typeId],
+                Units = [new(typeId, "Monsters", formerCell, UnitId: "guard")],
+                Agency = [new(typeId, "Monsters", ControllerKind.Human)],
                 WorldEffects = new(1, 1) { Composition = [new("loneliness", 1)] }
             };
         }
@@ -203,8 +206,8 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
         Assert.Equal(JsonSerializer.Serialize(expected), JsonSerializer.Serialize(replay));
         var drop = Assert.Single(replay.Events, e => e.Kind == "DefeatDropResolved");
         Assert.Equal(3, drop.DieRoll);
-        Assert.Equal(3, drop.CreditsAmount);
-        var pile = new CreditsPile(formerCell, 3);
+        Assert.Equal(amount, drop.CreditsAmount);
+        var pile = new CreditsPile(formerCell, amount);
         Assert.Equal(pile, Assert.Single(replay.State.CreditsPiles));
         Assert.Empty(replay.State.LootMarkers);
         resumed.Save();

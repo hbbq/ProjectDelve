@@ -273,6 +273,7 @@ public sealed class LavaTests
         var definition = new ScenarioDefinition
         {
             Loot = LootSettings.Empty, // Isolate World/Lava dice and event ordering.
+            LootUnitOverrides = new() { [UnitTypeIds.BombImp] = new(CreditsDropSuccesses: 0) },
             Board = new() { Width = 8, Height = 7, Cells = [new(new(2, 2), TerrainKind.Lava)] },
             WorldEffects = new(1, 1),
             UnitTypeIds = [UnitTypeIds.BombImp, UnitTypeIds.Worker, UnitTypeIds.Troll, UnitTypeIds.Grunt],

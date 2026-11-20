@@ -4,6 +4,8 @@ An actual defeat can leave one unopened Loot marker, one fixed Credits amount, o
 
 ## Initial playtest values
 
+The table records the Phase 2 baseline. The later content pass retains the same d6 rule and expands the set of Monster rewards. [Current Monster drop table](CREDITS_DROP_CONTENT_PASS.md#eligible-for-ordinary-expedition-population)
+
 | Unit Type | Loot faces | Credits faces | Credits per pile | Nothing |
 | --- | --- | --- | ---: | --- |
 | Zombie | 1 | 2–3 | 3 | 4–6 |

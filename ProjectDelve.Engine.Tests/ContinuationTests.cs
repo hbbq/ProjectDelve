@@ -133,7 +133,7 @@ public sealed class ContinuationTests
     {
         var caster = (UnitType.Wizard() with { Atk = 2 }).WithLocal(new("cleave", "Cleave", AbilityTiming.AfterAttack, new Cleave()) { Usage = new(2) });
         var troll = UnitType.Troll();
-        var ordinary = UnitType.Grunt() with { Def = 1 };
+        var ordinary = UnitType.Grunt() with { Def = 1, CreditsDropSuccesses = 0 }; // Isolate attack continuation from defeat rewards.
         var state = new GameState
         {
             ResourceDefinitions = [.. ResourceTypes.All], WorldCardDefinitions = [.. WorldCardCatalog.All],

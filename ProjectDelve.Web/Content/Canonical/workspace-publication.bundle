@@ -78,6 +78,8 @@
           "canHaveItems": false,
           "canHaveEquipment": false,
           "lootDropSuccesses": 1,
+          "creditsDropSuccesses": 2,
+          "creditsDropAmount": 5,
           "attackDefinitionOrder": [],
           "unique": false,
           "footprint": "OneByOne",

@@ -23,7 +23,8 @@ public sealed class HealTests
     {
         Physical = new(new Board(5, 5, [new(new(1, 1), new(1, 2), EdgeKind.ClosedDoor)]),
             [new("cleric", new(1, 1)), new("friend", new(2, 1)), new("enemy", new(0, 1))]),
-        Types = [UnitType.Cleric(), UnitType.Hero("friend-type", 0, 1, 1, 2, 4) with { Unique = true }, UnitType.Grunt()],
+        Types = [UnitType.Cleric(), UnitType.Hero("friend-type", 0, 1, 1, 2, 4) with { Unique = true },
+            UnitType.Grunt() with { CreditsDropSuccesses = 0 }], // Isolate action/healing dice from defeat rewards.
         Units = [UnitType.Cleric().CreateUnit("cleric", "blue"), new("friend", "friend-type", "blue", hp),
             UnitType.Grunt().CreateUnit("enemy", "red")]
     };
