@@ -4,7 +4,7 @@
 
 Each Side has a shared integer balance. A missing entry means zero. A ground pile holds a Cell and a positive amount. Scenario setup validates Side references and uses the same pile-merging rules as `GameState.PlaceCredits`. Both check bounds, positive amounts and whether any Side could collect every outstanding pile without exceeding 2,147,483,647 Credits. Placing a pile beneath a stationary Unit leaves it there until an arrival resolves. [Engine model and validation](ProjectDelve.Engine/Credits.cs)
 
-The Scenario Designer exposes opening balances under **Sides & Objectives** and pile amounts in Cell properties. The optional JSON fields are `sideCredits` and `creditsPiles`. Both travel through DELVE1 and Designer export, import and draft recovery. Phase 1 supplies authored Credits. Generated regions currently start with their carried balances and have no generated piles. [Designer instructions](README.md#scenario-designer--phase-1)
+The Scenario Designer exposes opening balances under **Sides & Objectives** and pile amounts in Cell properties. The optional JSON fields are `sideCredits` and `creditsPiles`. Both travel through DELVE1 and Designer export, import and draft recovery. Phase 1 introduced authored piles. Expedition now uses the same representation for procedurally placed piles. [Designer instructions](README.md#scenario-designer--phase-1) · [World Credits placement and visuals](WORLD_CREDITS_PLACEMENT_AND_VISUALS.md)
 
 ## Collection and visibility
 

@@ -37,6 +37,11 @@ public sealed class ExpeditionEconomyAssessment(ITestOutputHelper output)
                         TypeId = g.Key, Count = g.Count(), type.LootDropSuccesses, type.CreditsDropSuccesses, type.CreditsDropAmount,
                         HypotheticalExpectedCredits = g.Count() * type.CreditsDropSuccesses * type.CreditsDropAmount / 6.0 }; }).ToArray();
                 rows.Add(new { Seed = seed, RegionIndex = region, Population = population,
+                    WorldPiles = scenario.CreditsPiles?.Count ?? 0,
+                    GeneratedWorldCredits = scenario.CreditsPiles?.Sum(p => p.Amount) ?? 0,
+                    WorldPileDistribution = context.ExpeditionCreditsPlacements.GroupBy(p => (p.Kind, p.Amount))
+                        .OrderBy(g => g.Key.Kind, StringComparer.Ordinal).ThenBy(g => g.Key.Amount)
+                        .Select(g => new { g.Key.Kind, g.Key.Amount, Count = g.Count() }).ToArray(),
                     RequestedCare = ExpeditionEconomyGenerator.Requests(plan.LocalSeed, "delvecare"),
                     RequestedMeteor = ExpeditionEconomyGenerator.Requests(plan.LocalSeed, "meteor-o-mat"),
                     Placed = scenario.Machines!.Where(m => m.Type.Operation.PaidServices is not null).Select(m => m.Type.Id).ToArray(),
@@ -82,7 +87,8 @@ public sealed class ExpeditionEconomyAssessment(ITestOutputHelper output)
                     .OrderBy(g => g.Key, StringComparer.Ordinal).Select(g => new { TypeId = g.Key, Count = g.Count() }).ToArray();
                 var milestones = new Dictionary<int, int?> { [10] = null, [12] = null, [15] = null, [24] = null, [50] = null, [75] = null };
                 foreach (var threshold in milestones.Keys.ToArray()) if (opening >= threshold) milestones[threshold] = 0;
-                var generated = 0; var collected = 0; var otherCollected = 0; var sales = 0L; var defeats = 0;
+                var credits = new GroundCreditsLedger(state.CreditsPiles);
+                var sales = 0L; var defeats = 0;
                 var decisions = 0; var peak = opening; var lootDraws = 0;
                 object? firstFundedInventory = null;
                 object? firstFundedBoots = null;
@@ -91,9 +97,7 @@ public sealed class ExpeditionEconomyAssessment(ITestOutputHelper output)
                 void Apply(EngineResult result)
                 {
                     state = result.State;
-                    generated += result.Events.Where(e => e.Kind == "DefeatDropResolved").Sum(e => e.CreditsAmount ?? 0);
-                    collected += result.Events.Where(e => e.Kind == "CreditsCollected" && e.SideId == ExpeditionParty.SideId).Sum(e => e.CreditsAmount ?? 0);
-                    otherCollected += result.Events.Where(e => e.Kind == "CreditsCollected" && e.SideId != ExpeditionParty.SideId).Sum(e => e.CreditsAmount ?? 0);
+                    foreach (var entry in result.Events) credits.Observe(entry);
                     sales += result.Events.SelectMany(e => e.EquipmentSales).Sum(s => (long)s.SellValue);
                     defeats += result.Events.Count(e => e.Kind == "DefeatDropResolved");
                     lootDraws += result.Events.Count(e => e.Kind == "LootCardDrawn");
@@ -153,6 +157,12 @@ public sealed class ExpeditionEconomyAssessment(ITestOutputHelper output)
                 var closing = state.SideCredits.GetValueOrDefault(ExpeditionParty.SideId);
                 var retained = state.Units.Where(u => u.SideId == ExpeditionParty.SideId)
                     .SelectMany(u => u.Inventory).Sum(o => (long)(Value(state, o.Id) ?? 0));
+                var uncollected = state.CreditsPiles.Sum(p => p.Amount);
+                var collected = credits.PartyWorld + credits.PartyDrops;
+                var otherCollected = credits.OtherWorld + credits.OtherDrops;
+                Assert.Equal(credits.GeneratedWorld + credits.GeneratedDrops, collected + otherCollected + uncollected);
+                Assert.Equal(credits.GeneratedWorld, credits.PartyWorld + credits.OtherWorld + credits.RemainingWorld);
+                Assert.Equal(opening + collected + sales, closing);
                 rows.Add(new { Seed = seed, RegionIndex = region, plan.Region, Opening = opening,
                     InitialMonsters = terrain.Units.Count, InitialPopulation = population, InitialLoot = initialLoot,
                     HypotheticalExpectedInitialDropCredits = expectedDropCredits, FirstAffordableRound = milestones,
@@ -160,16 +170,21 @@ public sealed class ExpeditionEconomyAssessment(ITestOutputHelper output)
                     FirstFundedLivingBoots = firstFundedBoots, NaturallyReachedFundedBootsStationQuotes = bootsQuotes,
                     DelveCare = terrain.Machines?.Count(m => m.Type.Id == "delvecare") ?? 0,
                     MeteorOMat = terrain.Machines?.Count(m => m.Type.Id == "meteor-o-mat") ?? 0,
-                    CreditsEligibleDefeatResolutions = defeats, GeneratedCredits = generated, CollectedCredits = collected, OtherSideCollectedCredits = otherCollected,
+                    // GeneratedCredits is the historical Phase 7 field for actual defeat drops.
+                    CreditsEligibleDefeatResolutions = defeats, GeneratedCredits = credits.GeneratedDrops, GeneratedDropCredits = credits.GeneratedDrops,
+                    GeneratedWorldCredits = credits.GeneratedWorld, PartyCollectedWorldCredits = credits.PartyWorld,
+                    PartyCollectedDropCredits = credits.PartyDrops, OtherSideCollectedWorldCredits = credits.OtherWorld,
+                    OtherSideCollectedDropCredits = credits.OtherDrops, OtherSideCollectedCredits = otherCollected, CollectedCredits = collected,
                     SaleCredits = sales, Closing = closing, PeakBank = peak, RetainedSellPotential = retained,
                     HypotheticalBankAfterLiquidation = closing + retained,
-                    UncollectedCredits = state.CreditsPiles.Sum(p => p.Amount), LootDraws = lootDraws,
+                    UncollectedWorldCredits = credits.RemainingWorld, UncollectedDropCredits = uncollected - credits.RemainingWorld,
+                    UncollectedCredits = uncollected, LootDraws = lootDraws,
                     Decisions = decisions, state.Round, Completed = state.IsCompleted,
                     Outcome = state.IsCompleted ? "completed" : !state.Units.Any(u => u.SideId == ExpeditionParty.SideId && u.CurrentHp > 0)
                         ? "Party defeated" : "capped",
                     PartyAlive = state.Units.Count(u => u.SideId == ExpeditionParty.SideId && u.CurrentHp > 0) });
                 File.WriteAllText(path, JsonSerializer.Serialize(new { Rows = rows }, new JsonSerializerOptions { WriteIndented = true }));
-                output.WriteLine($"{seed}/{region}: drops {generated}, collected {collected}, sold {sales}, bank {closing}, retained {retained}, completed {state.IsCompleted}, round {state.Round}");
+                output.WriteLine($"{seed}/{region}: world {credits.GeneratedWorld}, drops {credits.GeneratedDrops}, collected {collected}, sold {sales}, bank {closing}, retained {retained}, completed {state.IsCompleted}, round {state.Round}");
                 if (!state.IsCompleted || !state.Completion!.AchievedSideIds.Contains(ExpeditionParty.SideId)) break;
                 previous = state;
                 plan = ExpeditionWorld.Next(seed, plan);
@@ -178,6 +193,52 @@ public sealed class ExpeditionEconomyAssessment(ITestOutputHelper output)
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         File.WriteAllText(path, JsonSerializer.Serialize(new { ContentRevision = published.Snapshot.Revision,
             Policy = "Scavenge and engage discovered enemies until round 8; liquidate at arrival Station until round 12; then exit. Attack/heal first; prioritize board Credits; standard enemy automation. Stop on completion, Party defeat, or 40-round/3200-decision cap.", Rows = rows }, new JsonSerializerOptions { WriteIndented = true }));
+    }
+
+    // Collection always empties the Cell. Its first pickup contains every opening
+    // Credit at that position, even if drops have since merged with the pile.
+    private sealed class GroundCreditsLedger(IReadOnlyList<CreditsPile> opening)
+    {
+        private readonly Dictionary<Cell, int> world = opening.ToDictionary(p => p.Position, p => p.Amount);
+        internal int GeneratedWorld { get; } = opening.Sum(p => p.Amount);
+        internal int RemainingWorld => world.Values.Sum();
+        internal int GeneratedDrops { get; private set; }
+        internal int PartyWorld { get; private set; }
+        internal int PartyDrops { get; private set; }
+        internal int OtherWorld { get; private set; }
+        internal int OtherDrops { get; private set; }
+
+        internal void Observe(RulesEvent entry)
+        {
+            if (entry.Kind == "DefeatDropResolved") GeneratedDrops += entry.CreditsAmount ?? 0;
+            if (entry.Kind != "CreditsCollected") return;
+            world.Remove(entry.Cell!, out var openingAmount);
+            var amount = entry.CreditsAmount!.Value;
+            Assert.InRange(openingAmount, 0, amount);
+            if (entry.SideId == ExpeditionParty.SideId)
+            {
+                PartyWorld += openingAmount;
+                PartyDrops += amount - openingAmount;
+            }
+            else
+            {
+                OtherWorld += openingAmount;
+                OtherDrops += amount - openingAmount;
+            }
+        }
+    }
+
+    [Fact]
+    public void AssessmentAttributesAMergedPileAndSubsequentDropsOnTheSameCell()
+    {
+        var cell = new Cell(2, 3);
+        var ledger = new GroundCreditsLedger([new(cell, 7), new(new(0, 0), 2)]);
+        ledger.Observe(new("DefeatDropResolved") { Cell = cell, CreditsAmount = 5 });
+        ledger.Observe(new("CreditsCollected") { SideId = ExpeditionParty.SideId, Cell = cell, CreditsAmount = 12 });
+        ledger.Observe(new("DefeatDropResolved") { Cell = cell, CreditsAmount = 3 });
+        ledger.Observe(new("CreditsCollected") { SideId = "Monsters", Cell = cell, CreditsAmount = 3 });
+        Assert.Equal((9, 8, 7, 5, 0, 3, 2), (ledger.GeneratedWorld, ledger.GeneratedDrops,
+            ledger.PartyWorld, ledger.PartyDrops, ledger.OtherWorld, ledger.OtherDrops, ledger.RemainingWorld));
     }
 
     private static int? Value(GameState state, string id)

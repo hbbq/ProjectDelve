@@ -39,6 +39,7 @@ public sealed record ExpeditionWorldProfile(string NatureVersion, string FieldVe
     public const string CurrentConstructionVersion = ConstructionV3;
     public const string CurrentStationVersion = "ExpeditionStations1";
     public const string CurrentEconomyVersion = "ExpeditionEconomy1";
+    public const string CurrentCreditsVersion = "ExpeditionCredits1";
     internal const string PopulationV1 = "ExpeditionPopulation1";
     public const string CurrentPopulationVersion = PopulationV1;
 
@@ -52,6 +53,12 @@ public sealed record ExpeditionWorldProfile(string NatureVersion, string FieldVe
     public string? EconomyVersion { get; init; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? CreditsVersion { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ExpeditionCreditsSettings? CreditsSettings { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? CivilizationVersion { get; init; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -61,7 +68,8 @@ public sealed record ExpeditionWorldProfile(string NatureVersion, string FieldVe
         CreateCivilizationV1(nature, spatial) with
         {
             ConstructionVersion = CurrentConstructionVersion, StationVersion = CurrentStationVersion,
-            PopulationVersion = CurrentPopulationVersion, EconomyVersion = CurrentEconomyVersion
+            PopulationVersion = CurrentPopulationVersion, EconomyVersion = CurrentEconomyVersion,
+            CreditsVersion = CurrentCreditsVersion, CreditsSettings = new()
         };
 
     public static ExpeditionWorldProfile CreateConstructionV1(NaturalTerrainSettings nature, ExpeditionSpatialSettings? spatial = null) =>
@@ -80,6 +88,10 @@ public sealed record ExpeditionWorldProfile(string NatureVersion, string FieldVe
 
     public ExpeditionWorldProfile Validate()
     {
+        if (CreditsVersion is not (null or CurrentCreditsVersion) ||
+            CreditsVersion is not null && CreditsSettings is null || CreditsVersion is null && CreditsSettings is not null)
+            throw new ArgumentException("Expedition Credits requires a supported version and recorded settings together.");
+        CreditsSettings?.Validate();
         if (EconomyVersion is not (null or CurrentEconomyVersion))
             throw new ArgumentException($"Unsupported Expedition economy version '{EconomyVersion}'.");
         if (PopulationVersion is not (null or PopulationV1))

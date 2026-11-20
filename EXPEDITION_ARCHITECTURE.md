@@ -512,6 +512,10 @@ The [seeded comparison and reproduction instructions](EXPEDITION_INTRO_RESULTS.m
 
 New Expeditions record the policy in their world profile. A legacy Expedition adopts it when a new region is successfully published. Archived regions and the currently materialized map keep their saved Machines. The guaranteed arrival Equipment Station and the independent chance of a second Equipment Station retain their existing rules. [Placement code](ProjectDelve.Generation/ExpeditionEconomyGenerator.cs) · [Economy measurements](ECONOMY_PHASE_7_ASSESSMENT.md)
 
+## Ground Credits in generated regions
+
+The final `expedition-credits` generation stage samples the published treasure areas, rooms, camp supplies, courtyards and other Sites. It writes ordinary `creditsPiles` into the materialized Scenario. The head stores the `ExpeditionCredits1` policy and tuning alongside the other Expedition world profile settings. Legacy heads adopt it on successful frontier publication. Each successor generates its own piles while Side balances carry forward. [Placement odds, seed isolation and observed income](WORLD_CREDITS_PLACEMENT_AND_VISUALS.md)
+
 ## Levels at region handoff
 
 The active state carries an ordered `Party` of stable member IDs, its Side and capacity. A fresh Expedition starts with the original five and capacity six. The head retains its founder IDs as provenance. The region's Reach Area reads current Party membership and requires two living members. The checkpoint stores an optional selected recruit separately from a Manage draft. Resume of a legacy five-Hero region verifies the saved digest, then derives the Party from its founders in memory. Archived bytes remain historical.

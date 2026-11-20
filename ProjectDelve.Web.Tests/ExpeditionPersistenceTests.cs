@@ -177,6 +177,36 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
         Assert.Equal(9, archive.SideCredits["Monsters"]);
     }
 
+    [Fact]
+    public void GeneratedSuccessorPilesSurviveResumeReplayAndRepeatedContinue()
+    {
+        const string id = "world-credits-handoff";
+        var store = new ExpeditionStore(root, id);
+        var recipe = ExpeditionWorld.Configure(WorldSeed, new(new(), new(0, 0, 0),
+            Civilization: new(Enabled: false), Routes: new(Enabled: false), Population: new(PopulationDensity.Off)));
+        var profile = ExpeditionWorldProfile.Create(recipe.NaturalTerrain) with
+        {
+            CreditsSettings = new(OpenGroundChance: 100, SmallAmount: 4)
+        };
+        ScenarioDefinition Opening(ulong seed, ExpeditionRegionPlan plan, ContentBundle content) =>
+            OpenBoard(seed, plan, content) with { CreditsPiles = [new(new(30, 30), 77)] };
+        var first = ExpeditionRunner.Create(store, WorldSeed, ContentBundle.Canonical, Opening, recipe.ToString(), profile);
+        FinishOpenBoard(first);
+        var runner = ExpeditionRunner.Open(root, id);
+        var transition = runner.Region.TransitionId;
+        var receipt = runner.Continue(transition);
+        Assert.Equal(receipt, runner.Continue(transition));
+        Assert.Equal(77, Assert.Single(store.ReadCheckpoint(receipt.Source).State.CreditsPiles).Amount);
+        var successor = store.ReadCheckpoint(receipt.Successor);
+        var pile = Assert.Single(successor.State.CreditsPiles);
+        Assert.Equal(4, pile.Amount);
+        Assert.Equal(pile, Assert.Single(successor.Scenario.CreditsPiles!));
+        var reopened = ExpeditionRunner.Open(root, id);
+        Assert.Equal(profile, reopened.Head.WorldProfile);
+        Assert.Equal(pile, Assert.Single(reopened.Snapshot().CreditsPiles));
+        Assert.Equal(JsonSerializer.Serialize(runner.StartRound()), JsonSerializer.Serialize(reopened.StartRound()));
+    }
+
     [Theory]
     [InlineData(UnitTypeIds.Zombie, 3)]
     [InlineData(UnitTypeIds.Grunt, 3)]
@@ -589,7 +619,8 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
         Assert.Equal(ExpeditionStore.HeadVersion, retry.Head.Version);
         Assert.Equal(settings.ToString(), retry.Head.GenerationRecipe);
         Assert.Equal(ExpeditionWorldProfile.CreateV1(settings.NaturalTerrain) with
-            { StationVersion = ExpeditionWorldProfile.CurrentStationVersion, EconomyVersion = ExpeditionWorldProfile.CurrentEconomyVersion }, retry.Head.WorldProfile);
+            { StationVersion = ExpeditionWorldProfile.CurrentStationVersion, EconomyVersion = ExpeditionWorldProfile.CurrentEconomyVersion,
+                CreditsVersion = ExpeditionWorldProfile.CurrentCreditsVersion, CreditsSettings = new() }, retry.Head.WorldProfile);
         Assert.Equal(retry.Head.WorldProfile, ExpeditionRunner.Open(root, id).Head.WorldProfile);
         Assert.Equal(sourceBytes, File.ReadAllBytes(CheckpointPath(source, id)));
         Assert.Equal(receipt, retry.Continue(original.Region.TransitionId));
@@ -649,7 +680,8 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
         Assert.Equal(profile, reopened.Head.WorldProfile);
         Assert.Equal(ScenarioDefinitionJson.ToJson(runner.Scenario), ScenarioDefinitionJson.ToJson(reopened.Scenario));
         reopened.Continue(runner.Region.TransitionId);
-        Assert.Equal(profile with { StationVersion = ExpeditionWorldProfile.CurrentStationVersion, EconomyVersion = ExpeditionWorldProfile.CurrentEconomyVersion }, reopened.Head.WorldProfile);
+        Assert.Equal(profile with { StationVersion = ExpeditionWorldProfile.CurrentStationVersion, EconomyVersion = ExpeditionWorldProfile.CurrentEconomyVersion,
+                CreditsVersion = ExpeditionWorldProfile.CurrentCreditsVersion, CreditsSettings = new() }, reopened.Head.WorldProfile);
         Assert.Equal(sourceBytes, File.ReadAllBytes(CheckpointPath(source, id)));
         var station = Assert.Single(reopened.Snapshot().Physical.Board.Machines,
             m => m.Id == ExpeditionStationGenerator.ArrivalId);
@@ -767,7 +799,8 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
             location.Groups.Any(group => group.Id == "public-space" &&
                 group.Positions.Contains(built.Position with { X = built.Position.X + 1 })));
         Assert.DoesNotContain(built.Position, square.Groups.SelectMany(g => g.Positions));
-        Assert.Equal(profile with { StationVersion = ExpeditionWorldProfile.CurrentStationVersion, EconomyVersion = ExpeditionWorldProfile.CurrentEconomyVersion },
+        Assert.Equal(profile with { StationVersion = ExpeditionWorldProfile.CurrentStationVersion, EconomyVersion = ExpeditionWorldProfile.CurrentEconomyVersion,
+                CreditsVersion = ExpeditionWorldProfile.CurrentCreditsVersion, CreditsSettings = new() },
             ExpeditionRunner.Open(root, id, Latest).Head.WorldProfile);
     }
 
@@ -823,7 +856,8 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
         Assert.Equal(useOutposts, successor.Scenario.Setup.RequiredLocations.Any(location =>
             location.Groups.Any(group => group.Id == "courtyard")));
         Assert.Contains(successor.Plan.ExitSeam.Y * board.Width + successor.Plan.ExitSeam.X, reached);
-        Assert.Equal(profile with { StationVersion = ExpeditionWorldProfile.CurrentStationVersion, EconomyVersion = ExpeditionWorldProfile.CurrentEconomyVersion },
+        Assert.Equal(profile with { StationVersion = ExpeditionWorldProfile.CurrentStationVersion, EconomyVersion = ExpeditionWorldProfile.CurrentEconomyVersion,
+                CreditsVersion = ExpeditionWorldProfile.CurrentCreditsVersion, CreditsSettings = new() },
             ExpeditionRunner.Open(root, id, Latest).Head.WorldProfile);
     }
 

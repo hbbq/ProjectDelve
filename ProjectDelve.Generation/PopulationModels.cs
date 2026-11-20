@@ -66,6 +66,8 @@ public sealed partial class WorldGenerationContext
     public List<LootMarker> SiteLootMarkers { get; } = [];
     internal ScenarioDefinition AddPopulation(ScenarioDefinition definition)
     {
+        if (ExpeditionCreditsPlacements.Count > 0) definition = definition with
+        { CreditsPiles = [.. definition.CreditsPiles ?? [], .. ExpeditionCreditsPlacements.Select(p => new CreditsPile(p.Position, p.Amount))] };
         if (SiteLootMarkers.Count > 0) definition = definition with { LootMarkers = [.. definition.LootMarkers ?? [], .. SiteLootMarkers] };
         if (Population is null) return definition;
         return PopulationGenerator.Combine(definition, Population.Encounters) with

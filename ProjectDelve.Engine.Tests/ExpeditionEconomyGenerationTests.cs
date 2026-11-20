@@ -32,7 +32,9 @@ public sealed class ExpeditionEconomyGenerationTests
     public void PlacementPreservesExistingGeographyPopulationAndLootAndHasOccupiedAccess(string typeId)
     {
         var seed = Enumerable.Range(0, 1200).Select(i => (ulong)i).First(i => ExpeditionEconomyGenerator.Requests(i, typeId));
-        var profile = ExpeditionWorldProfile.Create(Recipe.NaturalTerrain);
+        // Compare the service stage on its original inputs. Later exploration
+        // piles intentionally select from the Cells left free by these Machines.
+        var profile = ExpeditionWorldProfile.Create(Recipe.NaturalTerrain) with { CreditsVersion = null, CreditsSettings = null };
         var current = Execute(seed, profile);
         var legacy = Execute(seed, profile with { EconomyVersion = null });
         var definition = current.Context.Materialize();

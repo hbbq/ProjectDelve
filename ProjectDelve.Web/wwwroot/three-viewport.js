@@ -172,6 +172,27 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     // A positive catalog/CSS quarter turn is clockwise with north at screen top.
     mesh.rotation.z=-rotation*Math.PI/180;return mesh;
   }
+  function creditsVisual(pile){
+    const group=physical.credits(pile);
+    if(presentation==='flat')group.position.y=heights.items;
+    // A rectangular bitmap keeps every digit at its natural aspect ratio. This
+    // label is a depth-tested billboard, so walls and figures still occlude it.
+    const value=String(pile.amount),bitmap=document.createElement('canvas');
+    bitmap.width=Math.max(80,value.length*27+16);bitmap.height=56;
+    const ctx=bitmap.getContext('2d');ctx.clearRect(0,0,bitmap.width,bitmap.height);
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 40px system-ui';
+    ctx.fillStyle='#fff1af';ctx.strokeStyle='#30220b';ctx.lineWidth=8;
+    ctx.strokeText(value,bitmap.width/2,28);ctx.fillText(value,bitmap.width/2,28);
+    const texture=new THREE.CanvasTexture(bitmap);texture.colorSpace=THREE.SRGBColorSpace;
+    const m=new THREE.MeshBasicMaterial({map:texture,transparent:true,depthTest:true,depthWrite:false,toneMapped:false});
+    const label=new THREE.Mesh(geometries.plane,m);label.name='credits-amount';
+    label.position.y=group.userData.amountLabelHeight;
+    if(presentation==='flat')label.position.z=-.10;
+    label.userData={amount:pile.amount,aspect:bitmap.width/bitmap.height};group.add(label);
+    group.userData.creditsLabel=label;
+    group.userData.disposeCreditsLabel=()=>{texture.dispose();m.dispose();};
+    return group;
+  }
   function retain(key,signature,group,make){
     retained.add(key);let record=nodes.get(key);
     if(record?.signature===signature)return record.object;
@@ -366,8 +387,8 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       retain(`loot:${boardCellKey(pile.position)}`,JSON.stringify(pile),'items',()=>physical.loot(pile));
     }
     for(const pile of creditsPiles(frame.state)){
-      retain(`credits:${boardCellKey(pile.position)}`,JSON.stringify(pile),'items',()=>
-        plane(glyph(`C ${pile.amount}`,true),pile.position.x+.74,pile.position.y+.91,.50,.25,heights.items+.015));
+      if(data.kindAt(pile.position.x,pile.position.y)==='Unknown')continue;
+      retain(`credits:${boardCellKey(pile.position)}`,JSON.stringify(pile),'items',()=>creditsVisual(pile));
     }
     const labelIds=new Set();
     for(const figure of frame.state.physical.figures){const a=appearance(figure);
@@ -393,7 +414,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     cameraControl.setFrame(frame.state,frame.presentation,frame.metadata);if(frame.state.currentUnitId)focusedCell={...frame.state.physical.figures.find(f=>f.id===frame.state.currentUnitId)?.position??focusedCell};
     showInteraction(view);reconcileTimes.push(performance.now()-begin);if(reconcileTimes.length>120)reconcileTimes.shift();invalidate();
   }
-  function removeRecord(record){record.object.userData.disposeMarks?.();record.object.removeFromParent();record.object.traverse(object=>{for(const fallback of object.userData.fallbacks??[])fallback.material.userData.fallbacks.delete(fallback.node);if(object.userData.overlayMaterial)object.material.dispose();if(object.userData.owned){object.geometry.dispose();object.material.dispose();}delete object.userData.beaconRotor;});if(record.object.isInstancedMesh)record.object.dispose();}
+  function removeRecord(record){record.object.userData.disposeMarks?.();record.object.userData.disposeCreditsLabel?.();record.object.userData.disposeCreditsCoins?.();record.object.removeFromParent();record.object.traverse(object=>{for(const fallback of object.userData.fallbacks??[])fallback.material.userData.fallbacks.delete(fallback.node);if(object.userData.overlayMaterial)object.material.dispose();if(object.userData.owned){object.geometry.dispose();object.material.dispose();}delete object.userData.beaconRotor;});if(record.object.isInstancedMesh)record.object.dispose();}
   function setPresentation(value){
     if(!['flat','tabletop'].includes(value))throw Error('Unknown Three presentation');
     if(presentation===value)return;
@@ -589,7 +610,22 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       label.style.setProperty('--leader-length',`${Math.min(110,Math.hypot(dx,dy))}px`);label.style.setProperty('--leader-angle',`${Math.atan2(dy,dx)}rad`);
     }
   }
+  const creditsLabelCenter=new THREE.Vector3();
   function updateLabels(){const pose=cameraControl.current(),size=cameraControl.size;if(!pose)return;const placed=[];
+    for(const item of groups.items.children){
+      const label=item.userData.creditsLabel;if(!label)continue;
+      label.quaternion.copy(camera.quaternion);
+      const center=label.getWorldPosition(creditsLabelCenter),p=cameraControl.screen({x:center.x,y:center.z,height:center.y});
+      label.visible=p.x>=0&&p.y>=0&&p.x<=size.width&&p.y<=size.height;
+      if(!label.visible)continue;
+      const depth=-center.applyMatrix4(camera.matrixWorldInverse).z;
+      const perPixel=2*(camera.isPerspectiveCamera?depth:1)/(size.height*camera.projectionMatrix.elements[5]);
+      // Keep the exact amount at overview too; distant labels fit the Cell
+      // rather than replacing the value with a tier, icon or abbreviation.
+      const pixels=pose.scale<28?Math.min(14,pose.scale*.9/label.userData.aspect):Math.max(14,Math.min(22,pose.scale*.27));
+      const height=pixels*perPixel;
+      label.scale.set(height*label.userData.aspect,height,1);
+    }
     const priority=id=>id===view.focusedUnitId?3:id===frame.state.currentUnitId?2:view.relationship?.targets?.some(t=>t.targetId===id)?1:0;
     const entries=[...labelNodes].sort(([a],[b])=>priority(b)-priority(a));
     if(presentation==='tabletop')updateTabletopLabels();
@@ -670,7 +706,9 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     const description=choices.map(c=>c.boardVisual?.preview??c.displayLabel??c.label).join(' / ');
     const machine=hit&&frame.presentation.machines?.find(m=>boardCellKey(m.position)===boardCellKey(hit.cell));
     const resource=hit&&frame.state.resources?.find(r=>boardCellKey(r.position)===boardCellKey(hit.cell));
+    const credits=hit&&nodes.get(`credits:${boardCellKey(hit.cell)}`)?.object.userData.creditsLabel?.userData.amount;
     host.title=description||(hit?.unitId?labelNodes.get(hit.unitId)?.title:machine?`${machine.name} · Owner ${machine.ownerSide??'Public'} · ${(machine.resourceStorage??[]).map(r=>`${r.name}: ${r.quantity}/${r.capacity}`).join(', ')}`:resource?.type.name??(hit?data.displayAt(hit.cell.x,hit.cell.y).name:''))||'';
+    if(credits!=null)host.title+=` · Credits ${credits}`;
   }
   function select(hit){if(!hit||view.busy)return;onPick(hit);}
   function updateFocus(){if(!frame)return;const p=cameraControl.screen({x:focusedCell.x+.5,y:focusedCell.y+.5}),s=cameraControl.current()?.scale??1;
@@ -679,6 +717,8 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     const figure=frame.state.physical.figures.find(f=>(frame.presentation.figures?.[f.id]?.occupiedCells??[f.position]).some(c=>boardCellKey(c)===boardCellKey(focusedCell))),hit={cell:focusedCell,unitId:figure?.id};
     const choices=candidates(hit),machine=frame.presentation.machines?.find(m=>boardCellKey(m.position)===boardCellKey(focusedCell));
     focus.setAttribute('aria-label',[`Cell ${focusedCell.x},${focusedCell.y}`,figure?labelNodes.get(figure.id)?.title:null,machine?`${machine.name} · ${machine.ownerSide??'Public'} · ${(machine.resourceStorage??[]).map(r=>`${r.name} ${r.quantity}/${r.capacity}`).join(', ')}`:null,...choices.map(c=>c.boardVisual?.preview??c.displayLabel??c.label)].filter(Boolean).join(' · '));
+    const credits=nodes.get(`credits:${boardCellKey(focusedCell)}`)?.object.userData.creditsLabel?.userData.amount;
+    if(credits!=null)focus.setAttribute('aria-label',`${focus.getAttribute('aria-label')} · Credits ${credits}`);
   }
   function bind(node,type,handler,options={}){node.addEventListener(type,handler,{...options,signal:abort.signal});}
   bind(resetSample,'click',()=>{samples.length=renderTimes.length=unitRenderTimes.length=unitIntervals.length=cameraRenderTimes.length=cameraIntervals.length=reconcileTimes.length=0;lastRender=lastUnitFrame=lastCameraFrame=0;invalidate();});

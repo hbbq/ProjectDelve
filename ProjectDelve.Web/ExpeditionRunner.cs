@@ -41,10 +41,12 @@ public sealed class ExpeditionRunner
 
     /// <summary>Creates a run with full WLD1 defaults and optional WLD1 settings. The Expedition supplies the window, seed and Hero capacity.</summary>
     public static ExpeditionRunner Create(string storageRoot, string id, ulong worldSeed, Func<ContentBundle>? latest = null,
-        WorldGenerationRecipe? generationSettings = null, ExpeditionSpatialSettings? spatialSettings = null, string? displayName = null)
+        WorldGenerationRecipe? generationSettings = null, ExpeditionSpatialSettings? spatialSettings = null, string? displayName = null,
+        ExpeditionCreditsSettings? creditsSettings = null)
     {
         var recipe = ExpeditionWorld.Configure(worldSeed, generationSettings);
         var profile = ExpeditionWorldProfile.Create(recipe.NaturalTerrain, spatialSettings);
+        if (creditsSettings is not null) profile = profile with { CreditsSettings = creditsSettings.Validate() };
         return Create(new ExpeditionStore(storageRoot, id), worldSeed, latest ?? ContentBundle.Canonical,
             (_, plan, content) => ExpeditionWorld.Generate(plan, content, recipe, profile), recipe.ToString(), profile, displayName);
     }
@@ -57,7 +59,8 @@ public sealed class ExpeditionRunner
         var recordedProfile = saved.WorldProfile ?? ExpeditionWorldProfile.CreateV1(recipe.NaturalTerrain);
         recordedProfile.Validate();
         var profile = recordedProfile with { StationVersion = ExpeditionWorldProfile.CurrentStationVersion,
-            EconomyVersion = ExpeditionWorldProfile.CurrentEconomyVersion };
+            EconomyVersion = ExpeditionWorldProfile.CurrentEconomyVersion,
+            CreditsVersion = ExpeditionWorldProfile.CurrentCreditsVersion, CreditsSettings = recordedProfile.CreditsSettings ?? new() };
         return new(store, latest ?? ContentBundle.Canonical, (_, plan, content) => ExpeditionWorld.Generate(plan, content, recipe, profile),
             saved, Load(store, saved), saved.Version == ExpeditionStore.LegacyHeadVersion || profile != recordedProfile
                 ? (recipe.ToString(), profile) : null);

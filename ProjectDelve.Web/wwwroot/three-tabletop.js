@@ -3,6 +3,7 @@ import { boardVisuals, fixedComponentVisuals, terrainVariantIndex } from './boar
 import { sideHue } from './side-colors.js';
 import { miniatureBaseLayout } from './unit-visuals.js';
 import { lootStarStyle } from './three-local-lighting.js';
+import { creditsPileVisual } from './credits-ui.js';
 
 export const tabletopDimensions=Object.freeze({border:.36,boardThickness:.26,tokenThickness:.06,tokenRadius:.46,wallHeight:.52,doorHeight:.6});
 // Only observed neighbours may form an excavated boundary. Unknown neighbours
@@ -22,6 +23,8 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
     tokenCap:new THREE.CircleGeometry(1,24),
     miniatureCap:new THREE.CircleGeometry(1,32),
     tokenRim:new THREE.RingGeometry(.975,1,24),
+    coin:new THREE.CylinderGeometry(1,1,1,16),
+    coinRim:new THREE.RingGeometry(.79,.94,16),
     gem:new THREE.OctahedronGeometry(1),
     lump:new THREE.IcosahedronGeometry(1,0),
     dome:new THREE.SphereGeometry(1,12,6),
@@ -35,7 +38,7 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
     for(let i=0;i<normal.count;i++){const shade=.68+.25*Math.max(0,normal.getY(i))+.07*Math.max(0,normal.getX(i));colors.push(shade,shade,shade);}
     geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
   }
-  for(const key of ['box','cylinder','gem','lump','dome','branch','foliage','banana'])bakeFaceTones(geometries[key]);
+  for(const key of ['box','cylinder','coin','gem','lump','dome','branch','foliage','banana'])bakeFaceTones(geometries[key]);
   function mesh(group,geometry,color,x,y,z,w,h,d,rotation=0){
     const object=new THREE.Mesh(geometry,physicalMaterial(color));object.position.set(x,y,z);object.scale.set(w,h,d);object.rotation.y=rotation;group.add(object);return object;
   }
@@ -394,6 +397,25 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
     }
     return group;
   }
+  function credits(pile){
+    const group=new THREE.Group(),style=creditsPileVisual(pile.amount),thickness=.025;
+    group.name='credits-coins';group.position.set(pile.position.x+style.x,0,pile.position.y+style.z);
+    group.userData.credits={amount:pile.amount,tier:style.tier,coins:style.coins};
+    group.userData.amountLabelHeight=.018+style.coins*thickness+.10;
+    const coins=new THREE.InstancedMesh(geometries.coin,physicalMaterial('#d7a62b'),style.coins);
+    const rims=new THREE.InstancedMesh(geometries.coinRim,material('#fff0a0'),style.coins),transform=new THREE.Object3D();
+    coins.name='gold-coins';rims.name='gold-coin-rims';group.add(coins,rims);
+    for(let i=0;i<style.coins;i++){
+      // A stepped silhouette and inset rim distinguish gold currency from Coal,
+      // Loot stars and resource tokens even with tabletop lighting switched off.
+      const x=i%2*.013,z=i%3*.008,y=.018+(i+.5)*thickness;
+      transform.position.set(x,y,z);transform.rotation.set(0,0,0);transform.scale.set(style.radius,thickness*.86,style.radius);transform.updateMatrix();coins.setMatrixAt(i,transform.matrix);
+      transform.position.y=y+thickness*.44+.001;transform.rotation.x=-Math.PI/2;transform.scale.set(style.radius,style.radius,1);transform.updateMatrix();rims.setMatrixAt(i,transform.matrix);
+    }
+    coins.instanceMatrix.needsUpdate=rims.instanceMatrix.needsUpdate=true;coins.computeBoundingSphere();rims.computeBoundingSphere();
+    group.userData.disposeCreditsCoins=()=>{coins.dispose();rims.dispose();};
+    return group;
+  }
   function miniatureBase(a,layout=miniatureBaseLayout({baseRadius:a.baseRadius,width:a.footprintWidth??a.cellSpan??1,depth:a.footprintDepth??a.cellSpan??1})){
     const group=new THREE.Group(),r=layout.radius;group.name='miniature-base';group.userData.base=layout;
     // A shallow lower chamfer and a sloped Side rim give every miniature the
@@ -417,7 +439,7 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
     group.add(plane(material(`hsl(${sideHue(a.sideId)},70%,65%)`),0,0,r,r,.06,0,geometries[rimKey]));
     return group;
   }
-  return {unit,posture,board,terrain,component,edge,machine,item,loot,miniatureBase};
+  return {unit,posture,board,terrain,component,edge,machine,item,loot,credits,miniatureBase};
 }
 
 // One transient mover: small envelopes need nine Cell columns, larger ones

@@ -64,6 +64,8 @@ explicit `-U0` / `-U1` recipe field preserves that choice on copy and reload.
 
 ## World and window
 
+Expedition runs a separate Credits placement stage after ordinary world generation and service Machine placement. It consumes Site metadata and the region's ordinary accessible domain. Its opportunities, amount distribution and tuning are described in the [world Credits report](../WORLD_CREDITS_PLACEMENT_AND_VISUALS.md).
+
 `WorldDefinition` contains the completed root seed and Natural Terrain settings;
 its algorithm version is WLD1. `WorldWindow` contains signed OffsetX/OffsetY and
 positive Width/Height. Bounds are half-open. Every cell samples

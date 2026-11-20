@@ -12,7 +12,8 @@ test('Credits render authoritative piles and update the active Side balance afte
   initial.result.state.creditsPiles = [{position:{x:1,y:0},amount:5}];
   initial.presentation.viewingSideId = 'blue';
   const h = harness(initial);
-  assert.match(h.run('cells.get("1,0").textContent'), /Credits 5/);
+  assert.equal(h.run('cells.get("1,0").querySelectorAll(".credits-ground")[0].textContent'), '5');
+  assert.equal(h.run('cells.get("1,0").querySelectorAll(".credits-ground")[0].title'), 'Credits 5');
   assert.equal(h.run('document.getElementById("side-credits").textContent'), 'Side blue · Credits 2');
   h.run(`snapshot.result.state.creditsPiles = []; snapshot.result.state.sideCredits.blue = 7; renderState(snapshot.result.state)`);
   assert.doesNotMatch(h.run('cells.get("1,0").textContent'), /Credits/);

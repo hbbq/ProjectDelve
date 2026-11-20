@@ -454,6 +454,12 @@ public static class WorldGenerationPipeline
             finalStage = "expedition-economy";
             beforeStage?.Invoke(finalStage);
             ExpeditionEconomyGenerator.Place(context);
+            if (context.Expedition?.CreditsSettings is not null)
+            {
+                finalStage = "expedition-credits";
+                beforeStage?.Invoke(finalStage);
+                ExpeditionCreditsGenerator.Place(context);
+            }
             frames[^1] = frames[^1] with { SiteLootMarkers = context.SiteLootMarkers.ToArray(),
                 SiteLootStatistics = context.SiteLootStatistics, Population = context.Population,
                 UnitAccessibility = context.UnitAccessibility,

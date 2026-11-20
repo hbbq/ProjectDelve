@@ -1,0 +1,26 @@
+{
+  "board": { "width": 7, "height": 5, "defaultTerrain": "StoneFloor" },
+  "unitTypeIds": ["barbarian-type", "grunt-type"],
+  "units": [
+    { "unitId": "hero", "unitTypeId": "barbarian-type", "sideId": "Heroes", "anchor": { "x": 2, "y": 1 } },
+    { "unitId": "guard", "unitTypeId": "grunt-type", "sideId": "Monsters", "anchor": { "x": 4, "y": 1 } }
+  ],
+  "agency": [
+    { "unitTypeId": "barbarian-type", "sideId": "Heroes", "controller": "Human" },
+    { "unitTypeId": "grunt-type", "sideId": "Monsters", "controller": "Human" }
+  ],
+  "objectives": [
+    { "sideId": "Heroes", "objective": "NoObjective" },
+    { "sideId": "Monsters", "objective": "NoObjective" }
+  ],
+  "creditsPiles": [
+    { "position": { "x": 1, "y": 3 }, "amount": 3 },
+    { "position": { "x": 3, "y": 3 }, "amount": 12 },
+    { "position": { "x": 5, "y": 3 }, "amount": 75 },
+    { "position": { "x": 2, "y": 1 }, "amount": 5 }
+  ],
+  "loot": { "preset": "Classic" },
+  "lootMarkers": [{ "id": "cache", "position": { "x": 3, "y": 3 } }],
+  "resources": [{ "type": { "id": "coal", "name": "Coal" }, "position": { "x": 3, "y": 3 } }],
+  "cellMarkers": [{ "type": { "id": "banana-peel", "name": "Banana Peel" }, "position": { "x": 3, "y": 3 } }]
+}

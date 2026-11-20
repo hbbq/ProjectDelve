@@ -26,6 +26,7 @@ public static class ExpeditionRegionGeometry
         {
             StationsEnabled = profile?.StationVersion == ExpeditionWorldProfile.CurrentStationVersion,
             EconomyEnabled = profile?.EconomyVersion == ExpeditionWorldProfile.CurrentEconomyVersion,
+            CreditsSettings = profile?.CreditsVersion == ExpeditionWorldProfile.CurrentCreditsVersion ? profile.CreditsSettings : null,
             Introduction = ExpeditionPopulationIntroduction.For(profile, recipe.Window)
         };
         if (profile is not null)
@@ -71,6 +72,7 @@ internal sealed class ExpeditionGeometryPlan
     internal ExpeditionPopulationIntroduction? Introduction { get; init; }
     internal bool StationsEnabled { get; init; }
     internal bool EconomyEnabled { get; init; }
+    internal ExpeditionCreditsSettings? CreditsSettings { get; init; }
     internal ulong LocalSeed { get; }
     internal IReadOnlySet<int> DeploymentDomain { get; }
     internal ImmutableArray<int> EndpointIndices { get; }

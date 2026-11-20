@@ -5,6 +5,76 @@ const path=require('node:path');
 const {pathToFileURL}=require('node:url');
 const moduleAt=name=>import(pathToFileURL(path.resolve(__dirname,'../ProjectDelve.Web/wwwroot',name)).href);
 
+test('Credits gold stacks have bounded tiers and exact depth-tested camera-facing amounts beside other pieces',async()=>{
+  for(const width of [900,390]){
+    const f=fixture();
+    f.state.creditsPiles=[1,5,6,20,21,2147483647].map((amount,x)=>({position:{x,y:2},amount}));
+    f.state.resources=[{position:{x:2,y:2},type:{id:'coal',name:'Coal'}}];
+    f.state.cellMarkers=[{position:{x:2,y:2},type:{id:'banana-peel',name:'Banana Peel'}}];
+    f.state.lootMarkers=[{id:'test-loot',position:{x:2,y:2}}];
+    const h=await harness(f);try{
+      h.host.clientWidth=width;h.host.clientHeight=600;
+      h.viewport.setPresentation('tabletop');h.viewport.camera.setMode('full');h.viewport.settle();h.flush();
+      const scene=h.rendered.at(-1).scene,stacks=[];
+      scene.traverse(n=>{if(n.name==='credits-coins')stacks.push(n);});
+      assert.equal(stacks.length,6);
+      assert.deepEqual(stacks.map(n=>n.userData.credits.tier),[1,1,2,2,3,3]);
+      assert.deepEqual(stacks.map(n=>n.getObjectByName('gold-coins').count),[2,2,4,4,7,7]);
+      for(const stack of stacks){
+        const label=stack.getObjectByName('credits-amount');
+        assert.equal(label.userData.amount,stack.userData.credits.amount);
+        assert.equal(label.material.depthTest,true);assert.equal(label.material.depthWrite,false);
+        assert.equal(label.material.toneMapped,false);
+        assert.ok(label.quaternion.angleTo(h.rendered.at(-1).camera.quaternion)<1e-6);
+        assert.ok(Number.isFinite(label.scale.x)&&label.scale.x>0);
+        assert.equal(stack.children.length,3,'two instanced batches and one label bound mobile draw calls per pile');
+        const coins=stack.getObjectByName('gold-coins').clone();
+        const bounds=new h.THREE.Box3().setFromObject(coins);
+        assert.ok(bounds.max.x<.14&&bounds.min.x>-.14&&bounds.max.z<.14&&bounds.min.z>-.14);
+        assert.ok(bounds.max.y<.21,'very large amounts never create very tall piles');
+      }
+      assert.ok(scene.getObjectByName('resource:coal'));assert.ok(scene.getObjectByName('cellMarker:banana-peel'));
+      assert.ok(scene.getObjectByName('unopened-loot-star'));assert.ok(scene.getObjectByName('unit:hero'));
+      assert.ok(stacks.at(-1).getObjectByName('credits-amount').userData.aspect>4,'large amounts retain natural text proportions');
+      for(const projection of ['orthographic','perspective'])for(const scale of [12,55,110]){
+        h.viewport.camera.setProjection(projection,false);h.viewport.camera.setOrientation({tilt:35,yaw:90},false);
+        h.viewport.camera.manual({x:2.8,y:2.7,scale});h.viewport.settle();h.flush();
+        const label=stacks[2].getObjectByName('credits-amount');
+        assert.equal(label.visible,true,'exact amounts remain present at overview zoom');
+        assert.ok(label.quaternion.angleTo(h.rendered.at(-1).camera.quaternion)<1e-6);
+        assert.ok(Number.isFinite(label.scale.x)&&label.scale.x>0);
+      }
+      assert.deepEqual(h.failures,[]);
+    }finally{h.cleanup();}
+  }
+});
+
+test('Credits use only explored observed piles and release label textures on collection and amount changes',async()=>{
+  const f=fixture(8,'blue');f.state.creditsPiles=[{position:{x:2,y:2},amount:7},{position:{x:0,y:0},amount:999}];
+  const h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();
+    const scene=h.rendered.at(-1).scene,first=scene.getObjectByName('credits-amount');
+    assert.match(h.host.querySelector('.three-focus').attributes['aria-label'],/Credits 7/);
+    const point=h.viewport.project({x:2.8,y:2.7}),canvas=h.host.children.find(n=>n.tagName==='canvas');
+    canvas.emit('pointermove',{pointerId:7,clientX:point.x,clientY:point.y});
+    assert.match(h.host.title,/Credits 7/);
+    let count=0;scene.traverse(n=>{if(n.name==='credits-amount')count++;});assert.equal(count,1);
+    let textures=0,materials=0;first.material.map.addEventListener('dispose',()=>textures++);first.material.addEventListener('dispose',()=>materials++);
+    const changed=structuredClone(f);changed.state.creditsPiles[0].amount=21;
+    h.viewport.renderFrame(changed);h.viewport.settle();h.flush();assert.equal(textures,1);assert.equal(materials,1);
+    const second=scene.getObjectByName('credits-amount');assert.equal(second.userData.amount,21);
+    const collected=structuredClone(changed);collected.state.creditsPiles=[];
+    second.material.map.addEventListener('dispose',()=>textures++);
+    h.viewport.renderFrame(collected);h.viewport.settle();h.flush();assert.equal(textures,2);assert.equal(scene.getObjectByName('credits-amount'),undefined);
+    for(const mode of ['flat','tabletop']){
+      h.viewport.setPresentation(mode);h.viewport.renderFrame(f);h.viewport.settle();h.flush();
+      assert.equal(scene.getObjectByName('credits-amount').userData.amount,7);
+      assert.equal(scene.getObjectByName('gold-coins').count,4);
+    }
+    assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
 test('mixed-water surfaces share fixed artwork in flat and tabletop without raised objects',async()=>{
   const f=fixture(),board=f.state.physical.board;
   const entries=[['wet-grass','WetGrass'],['rocky-water','RockyWater'],['stepping-stones','SteppingStones']];
@@ -368,6 +438,7 @@ class Element {
   replaceChildren(...nodes){for(const child of this.children)child.parentElement=null;this.children=[];this.append(...nodes);}
   set innerHTML(value){this.replaceChildren(...[...value.matchAll(/<span class="([^"]+)">/g)].map(m=>{const n=new Element('span');n.className=m[1];return n;}));}
   setAttribute(k,v){this.attributes[k]=v;}
+  getAttribute(k){return this.attributes[k]??null;}
   querySelector(selector){return this.children.flatMap(n=>[n,n.querySelector(selector)]).find(n=>n&&(selector[0]==='.'?n.className.split(' ').includes(selector.slice(1)):n.id===selector.slice(1)));}
   getBoundingClientRect(){return{left:0,top:0,width:this.clientWidth,height:this.clientHeight};}
   addEventListener(type,fn,options={}){(this.listeners[type]??=[]).push(fn);options.signal?.addEventListener('abort',()=>{this.listeners[type]=this.listeners[type].filter(f=>f!==fn);},{once:true});}

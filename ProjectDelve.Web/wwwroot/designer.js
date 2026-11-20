@@ -645,7 +645,11 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     }
     const unopened = (draft.definition.lootMarkers ?? []).filter(m => sameCell(m.position, cell)).length;
     const credits = (draft.definition.creditsPiles ?? []).filter(pile => sameCell(pile.position, cell)).reduce((sum, pile) => sum + pile.amount, 0);
-    if (credits) { const marker = element('span', `Credits ${credits}`); marker.className = 'credits-ground'; node.append(marker); node.title += ` · Credits ${credits}`; }
+    if (credits) {
+      const marker = element('span', String(credits)); marker.className = 'credits-ground';
+      marker.title = `Credits ${credits}`; marker.setAttribute('aria-label', marker.title);
+      node.append(marker); node.title += ` · ${marker.title}`; node.setAttribute('aria-label', node.title);
+    }
     const known = (draft.definition.groundObjects ?? []).filter(g => sameCell(g.position, cell)).length;
     if (unopened || known) { const loot = element('span', `▣ ${unopened} · ◆ ${known}`); loot.className = 'loot-ground'; node.append(loot); }
     const cellMarker = (draft.definition.cellMarkers ?? []).find(marker => sameCell(marker.position, cell));

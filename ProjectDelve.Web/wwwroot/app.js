@@ -588,9 +588,9 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
   }
   for (const pile of creditsPiles(state)) {
     const node = cells.get(cellKey(pile.position)); if (!node) continue;
-    const marker = text('span', `Credits ${pile.amount}`); marker.className = 'credits-ground';
-    marker.title = marker.textContent; marker.setAttribute('aria-label', marker.textContent);
-    node.append(marker); node.title += ` · ${marker.textContent}`;
+    const marker = text('span', String(pile.amount)); marker.className = 'credits-ground';
+    marker.title = `Credits ${pile.amount}`; marker.setAttribute('aria-label', marker.title);
+    node.append(marker); node.title += ` · ${marker.title}`;
   }
   for (const cellMarker of state.cellMarkers ?? []) {
     const node = cells.get(cellKey(cellMarker.position));
