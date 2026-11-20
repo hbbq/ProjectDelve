@@ -17,6 +17,9 @@
           "hp": 2,
           "actions": "NormalAttack",
           "behaviors": "None",
+          "baseMovementCapabilities": [
+            "land"
+          ],
           "sightDistance": 5,
           "canHaveItems": true,
           "canHaveEquipment": true,
@@ -74,6 +77,9 @@
           "hp": 1,
           "actions": "NormalAttack",
           "behaviors": "PreferHostileAdjacency, ProtectWithoutAdjacency",
+          "baseMovementCapabilities": [
+            "land"
+          ],
           "sightDistance": 5,
           "canHaveItems": false,
           "canHaveEquipment": false,
@@ -106,17 +112,173 @@
               "usage": {}
             }
           ]
-        }
-      ],
-      "equipmentTypes": [
+        },
         {
-          "id": "bracers-of-strength",
-          "name": "Bracers of Strength",
+          "additionalLevels": [
+            {
+              "mov": 4,
+              "rng": 5,
+              "atk": 3,
+              "def": 2,
+              "hp": 5,
+              "upgradeCost": 21,
+              "sightDistance": 5,
+              "actions": "NormalAttack",
+              "attackDefinitionOrder": [
+                "NormalAttack",
+                "Fireball"
+              ],
+              "baseMovementCapabilities": [
+                "land"
+              ],
+              "amphibious": false,
+              "moveCountModifier": 0,
+              "actionCountModifier": 0,
+              "bonusActionUseCountModifier": 0,
+              "localAbilities": [
+                {
+                  "key": "open-door",
+                  "name": "Open Door",
+                  "timing": "FreeAction",
+                  "mechanic": {
+                    "kind": "openDoor"
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "operate",
+                  "name": "Operate",
+                  "timing": "Action",
+                  "mechanic": {
+                    "kind": "operate"
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "friendly-swap",
+                  "name": "Friendly Swap",
+                  "timing": "Action",
+                  "mechanic": {
+                    "kind": "swap",
+                    "selector": "Friendlies"
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "fireball",
+                  "name": "Fireball",
+                  "timing": "Action",
+                  "mechanic": {
+                    "kind": "fireball"
+                  },
+                  "usage": {
+                    "maxUses": 3
+                  }
+                },
+                {
+                  "key": "telekinesis",
+                  "name": "Telekinesis",
+                  "timing": "Action",
+                  "mechanic": {
+                    "kind": "telekinesis"
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "focus",
+                  "name": "Focus",
+                  "timing": "BonusAction",
+                  "mechanic": {
+                    "kind": "selfModifiers",
+                    "modifiers": [
+                      {
+                        "stat": "Atk",
+                        "amount": 1
+                      }
+                    ]
+                  },
+                  "usage": {
+                    "maxUses": 3
+                  }
+                }
+              ]
+            }
+          ],
+          "id": "wizard-type",
+          "mov": 3,
+          "rng": 4,
+          "atk": 3,
+          "def": 2,
+          "hp": 4,
+          "actions": "NormalAttack",
+          "behaviors": "None",
+          "baseMovementCapabilities": [
+            "land"
+          ],
+          "sightDistance": 5,
+          "canHaveItems": true,
+          "canHaveEquipment": true,
+          "lootDropSuccesses": 1,
+          "attackDefinitionOrder": [
+            "NormalAttack",
+            "Fireball"
+          ],
+          "unique": true,
+          "footprint": "OneByOne",
+          "displayName": "Wizard",
           "localAbilities": [
             {
-              "key": "ability-1",
-              "name": "Strength",
-              "timing": "Passive",
+              "key": "open-door",
+              "name": "Open Door",
+              "timing": "FreeAction",
+              "mechanic": {
+                "kind": "openDoor"
+              },
+              "usage": {}
+            },
+            {
+              "key": "operate",
+              "name": "Operate",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "operate"
+              },
+              "usage": {}
+            },
+            {
+              "key": "friendly-swap",
+              "name": "Friendly Swap",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "swap",
+                "selector": "Friendlies"
+              },
+              "usage": {}
+            },
+            {
+              "key": "fireball",
+              "name": "Fireball",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "fireball"
+              },
+              "usage": {
+                "maxUses": 2
+              }
+            },
+            {
+              "key": "telekinesis",
+              "name": "Telekinesis",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "telekinesis"
+              },
+              "usage": {}
+            },
+            {
+              "key": "focus",
+              "name": "Focus",
+              "timing": "BonusAction",
               "mechanic": {
                 "kind": "selfModifiers",
                 "modifiers": [
@@ -126,20 +288,196 @@
                   }
                 ]
               },
-              "usage": {}
+              "usage": {
+                "maxUses": 2
+              }
             }
           ]
         },
         {
-          "id": "iron-shield",
-          "name": "Iron Shield",
+          "additionalLevels": [
+            {
+              "mov": 4,
+              "rng": 1,
+              "atk": 3,
+              "def": 4,
+              "hp": 5,
+              "upgradeCost": 24,
+              "sightDistance": 5,
+              "actions": "NormalAttack",
+              "attackDefinitionOrder": [],
+              "baseMovementCapabilities": [
+                "land"
+              ],
+              "amphibious": false,
+              "moveCountModifier": 0,
+              "actionCountModifier": 0,
+              "bonusActionUseCountModifier": 0,
+              "localAbilities": [
+                {
+                  "key": "open-door",
+                  "name": "Open Door",
+                  "timing": "FreeAction",
+                  "mechanic": {
+                    "kind": "openDoor"
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "operate",
+                  "name": "Operate",
+                  "timing": "Action",
+                  "mechanic": {
+                    "kind": "operate"
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "friendly-swap",
+                  "name": "Friendly Swap",
+                  "timing": "Action",
+                  "mechanic": {
+                    "kind": "swap",
+                    "selector": "Friendlies"
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "heal",
+                  "name": "Heal",
+                  "timing": "Action",
+                  "mechanic": {
+                    "kind": "adjacentUnitHeal",
+                    "selector": "Friendlies",
+                    "amount": 2
+                  },
+                  "usage": {
+                    "maxUses": 3
+                  }
+                },
+                {
+                  "key": "holy-wave",
+                  "name": "Holy Wave",
+                  "timing": "Action",
+                  "mechanic": {
+                    "kind": "adjacentUnitsPostureChange",
+                    "selector": "Enemies",
+                    "newPosture": "Lying"
+                  },
+                  "usage": {
+                    "maxUses": 3
+                  },
+                  "costs": [
+                    {
+                      "kind": "layDownSelf"
+                    }
+                  ]
+                },
+                {
+                  "key": "aura",
+                  "name": "Aura",
+                  "timing": "Passive",
+                  "mechanic": {
+                    "kind": "adjacentUnitsStatModifiers",
+                    "selector": "Friendlies",
+                    "modifiers": [
+                      {
+                        "stat": "Def",
+                        "amount": 1
+                      }
+                    ]
+                  },
+                  "usage": {}
+                }
+              ]
+            }
+          ],
+          "id": "cleric-type",
+          "mov": 3,
+          "rng": 1,
+          "atk": 3,
+          "def": 3,
+          "hp": 4,
+          "actions": "NormalAttack",
+          "behaviors": "None",
+          "baseMovementCapabilities": [
+            "land"
+          ],
+          "sightDistance": 5,
+          "canHaveItems": true,
+          "canHaveEquipment": true,
+          "lootDropSuccesses": 1,
+          "attackDefinitionOrder": [],
+          "unique": true,
+          "footprint": "OneByOne",
+          "displayName": "Cleric",
           "localAbilities": [
             {
-              "key": "ability-1",
-              "name": "Shield",
+              "key": "open-door",
+              "name": "Open Door",
+              "timing": "FreeAction",
+              "mechanic": {
+                "kind": "openDoor"
+              },
+              "usage": {}
+            },
+            {
+              "key": "operate",
+              "name": "Operate",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "operate"
+              },
+              "usage": {}
+            },
+            {
+              "key": "friendly-swap",
+              "name": "Friendly Swap",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "swap",
+                "selector": "Friendlies"
+              },
+              "usage": {}
+            },
+            {
+              "key": "heal",
+              "name": "Heal",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "adjacentUnitHeal",
+                "selector": "Friendlies",
+                "amount": 2
+              },
+              "usage": {
+                "maxUses": 2
+              }
+            },
+            {
+              "key": "holy-wave",
+              "name": "Holy Wave",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "adjacentUnitsPostureChange",
+                "selector": "Enemies",
+                "newPosture": "Lying"
+              },
+              "usage": {
+                "maxUses": 2
+              },
+              "costs": [
+                {
+                  "kind": "layDownSelf"
+                }
+              ]
+            },
+            {
+              "key": "aura",
+              "name": "Aura",
               "timing": "Passive",
               "mechanic": {
-                "kind": "selfModifiers",
+                "kind": "adjacentUnitsStatModifiers",
+                "selector": "Friendlies",
                 "modifiers": [
                   {
                     "stat": "Def",
@@ -151,6 +489,610 @@
             }
           ]
         },
+        {
+          "additionalLevels": [
+            {
+              "mov": 5,
+              "rng": 1,
+              "atk": 3,
+              "def": 3,
+              "hp": 5,
+              "upgradeCost": 24,
+              "sightDistance": 5,
+              "actions": "NormalAttack",
+              "attackDefinitionOrder": [],
+              "baseMovementCapabilities": [
+                "land"
+              ],
+              "amphibious": false,
+              "moveCountModifier": 0,
+              "actionCountModifier": 0,
+              "bonusActionUseCountModifier": 0,
+              "localAbilities": [
+                {
+                  "key": "open-door",
+                  "name": "Open Door",
+                  "timing": "FreeAction",
+                  "mechanic": {
+                    "kind": "openDoor"
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "operate",
+                  "name": "Operate",
+                  "timing": "Action",
+                  "mechanic": {
+                    "kind": "operate"
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "friendly-swap",
+                  "name": "Friendly Swap",
+                  "timing": "Action",
+                  "mechanic": {
+                    "kind": "swap",
+                    "selector": "Friendlies"
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "backstab",
+                  "name": "Backstab",
+                  "timing": "Passive",
+                  "mechanic": {
+                    "kind": "backstab",
+                    "atkBonus": 1
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "dash",
+                  "name": "Dash",
+                  "timing": "BonusAction",
+                  "mechanic": {
+                    "kind": "selfModifiers",
+                    "modifiers": [
+                      {
+                        "stat": "Mov",
+                        "amount": 2
+                      }
+                    ]
+                  },
+                  "usage": {
+                    "maxUses": 3
+                  }
+                },
+                {
+                  "key": "throwing-knife",
+                  "name": "Throwing Knife",
+                  "timing": "BonusAction",
+                  "mechanic": {
+                    "kind": "selfModifiers",
+                    "modifiers": [
+                      {
+                        "stat": "Rng",
+                        "amount": 2
+                      },
+                      {
+                        "stat": "Atk",
+                        "amount": -1
+                      }
+                    ]
+                  },
+                  "usage": {
+                    "maxUses": 3
+                  }
+                }
+              ]
+            }
+          ],
+          "id": "rogue-type",
+          "mov": 4,
+          "rng": 1,
+          "atk": 3,
+          "def": 2,
+          "hp": 4,
+          "actions": "NormalAttack",
+          "behaviors": "None",
+          "baseMovementCapabilities": [
+            "land"
+          ],
+          "sightDistance": 5,
+          "canHaveItems": true,
+          "canHaveEquipment": true,
+          "lootDropSuccesses": 1,
+          "attackDefinitionOrder": [],
+          "unique": true,
+          "footprint": "OneByOne",
+          "displayName": "Rogue",
+          "localAbilities": [
+            {
+              "key": "open-door",
+              "name": "Open Door",
+              "timing": "FreeAction",
+              "mechanic": {
+                "kind": "openDoor"
+              },
+              "usage": {}
+            },
+            {
+              "key": "operate",
+              "name": "Operate",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "operate"
+              },
+              "usage": {}
+            },
+            {
+              "key": "friendly-swap",
+              "name": "Friendly Swap",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "swap",
+                "selector": "Friendlies"
+              },
+              "usage": {}
+            },
+            {
+              "key": "backstab",
+              "name": "Backstab",
+              "timing": "Passive",
+              "mechanic": {
+                "kind": "backstab",
+                "atkBonus": 1
+              },
+              "usage": {}
+            },
+            {
+              "key": "dash",
+              "name": "Dash",
+              "timing": "BonusAction",
+              "mechanic": {
+                "kind": "selfModifiers",
+                "modifiers": [
+                  {
+                    "stat": "Mov",
+                    "amount": 2
+                  }
+                ]
+              },
+              "usage": {
+                "maxUses": 2
+              }
+            },
+            {
+              "key": "throwing-knife",
+              "name": "Throwing Knife",
+              "timing": "BonusAction",
+              "mechanic": {
+                "kind": "selfModifiers",
+                "modifiers": [
+                  {
+                    "stat": "Rng",
+                    "amount": 2
+                  },
+                  {
+                    "stat": "Atk",
+                    "amount": -1
+                  }
+                ]
+              },
+              "usage": {
+                "maxUses": 2
+              }
+            }
+          ]
+        },
+        {
+          "additionalLevels": [
+            {
+              "mov": 4,
+              "rng": 1,
+              "atk": 5,
+              "def": 3,
+              "hp": 6,
+              "upgradeCost": 24,
+              "sightDistance": 5,
+              "actions": "NormalAttack",
+              "attackDefinitionOrder": [],
+              "baseMovementCapabilities": [
+                "land"
+              ],
+              "amphibious": false,
+              "moveCountModifier": 0,
+              "actionCountModifier": 0,
+              "bonusActionUseCountModifier": 0,
+              "localAbilities": [
+                {
+                  "key": "open-door",
+                  "name": "Open Door",
+                  "timing": "FreeAction",
+                  "mechanic": {
+                    "kind": "openDoor"
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "operate",
+                  "name": "Operate",
+                  "timing": "Action",
+                  "mechanic": {
+                    "kind": "operate"
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "friendly-swap",
+                  "name": "Friendly Swap",
+                  "timing": "Action",
+                  "mechanic": {
+                    "kind": "swap",
+                    "selector": "Friendlies"
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "fury",
+                  "name": "Fury",
+                  "timing": "Passive",
+                  "mechanic": {
+                    "kind": "fury",
+                    "adjacentEnemyThreshold": 2,
+                    "atkBonus": 1
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "cleave",
+                  "name": "Cleave",
+                  "timing": "AfterAttack",
+                  "mechanic": {
+                    "kind": "cleave",
+                    "triggerDamage": 2,
+                    "damage": 1
+                  },
+                  "usage": {
+                    "maxUses": 3
+                  }
+                },
+                {
+                  "key": "rage",
+                  "name": "Rage",
+                  "timing": "BonusAction",
+                  "mechanic": {
+                    "kind": "selfModifiers",
+                    "modifiers": [
+                      {
+                        "stat": "Atk",
+                        "amount": 2
+                      }
+                    ]
+                  },
+                  "usage": {
+                    "maxUses": 3
+                  }
+                }
+              ]
+            }
+          ],
+          "id": "barbarian-type",
+          "mov": 3,
+          "rng": 1,
+          "atk": 4,
+          "def": 3,
+          "hp": 5,
+          "actions": "NormalAttack",
+          "behaviors": "None",
+          "baseMovementCapabilities": [
+            "land"
+          ],
+          "sightDistance": 5,
+          "canHaveItems": true,
+          "canHaveEquipment": true,
+          "lootDropSuccesses": 1,
+          "attackDefinitionOrder": [],
+          "unique": true,
+          "footprint": "OneByOne",
+          "displayName": "Barbarian",
+          "localAbilities": [
+            {
+              "key": "open-door",
+              "name": "Open Door",
+              "timing": "FreeAction",
+              "mechanic": {
+                "kind": "openDoor"
+              },
+              "usage": {}
+            },
+            {
+              "key": "operate",
+              "name": "Operate",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "operate"
+              },
+              "usage": {}
+            },
+            {
+              "key": "friendly-swap",
+              "name": "Friendly Swap",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "swap",
+                "selector": "Friendlies"
+              },
+              "usage": {}
+            },
+            {
+              "key": "fury",
+              "name": "Fury",
+              "timing": "Passive",
+              "mechanic": {
+                "kind": "fury",
+                "adjacentEnemyThreshold": 2,
+                "atkBonus": 1
+              },
+              "usage": {}
+            },
+            {
+              "key": "cleave",
+              "name": "Cleave",
+              "timing": "AfterAttack",
+              "mechanic": {
+                "kind": "cleave",
+                "triggerDamage": 2,
+                "damage": 1
+              },
+              "usage": {
+                "maxUses": 2
+              }
+            },
+            {
+              "key": "rage",
+              "name": "Rage",
+              "timing": "BonusAction",
+              "mechanic": {
+                "kind": "selfModifiers",
+                "modifiers": [
+                  {
+                    "stat": "Atk",
+                    "amount": 2
+                  }
+                ]
+              },
+              "usage": {
+                "maxUses": 2
+              }
+            }
+          ]
+        },
+        {
+          "additionalLevels": [
+            {
+              "mov": 4,
+              "rng": 1,
+              "atk": 2,
+              "def": 4,
+              "hp": 6,
+              "upgradeCost": 24,
+              "sightDistance": 5,
+              "actions": "NormalAttack",
+              "attackDefinitionOrder": [],
+              "baseMovementCapabilities": [
+                "land"
+              ],
+              "amphibious": false,
+              "moveCountModifier": 0,
+              "actionCountModifier": 0,
+              "bonusActionUseCountModifier": 0,
+              "localAbilities": [
+                {
+                  "key": "open-door",
+                  "name": "Open Door",
+                  "timing": "FreeAction",
+                  "mechanic": {
+                    "kind": "openDoor"
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "operate",
+                  "name": "Operate",
+                  "timing": "Action",
+                  "mechanic": {
+                    "kind": "operate"
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "friendly-swap",
+                  "name": "Friendly Swap",
+                  "timing": "BonusAction",
+                  "mechanic": {
+                    "kind": "swap",
+                    "selector": "Friendlies"
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "summon-jackalope",
+                  "name": "Summon Jackalope",
+                  "timing": "Action",
+                  "mechanic": {
+                    "kind": "adjacentUnitSummon",
+                    "unitTypeId": "jackalope-type",
+                    "initialPosture": "Upright",
+                    "sameTypeSummonerLimit": 1
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "summon-giant-toad",
+                  "name": "Summon Giant Toad",
+                  "timing": "Action",
+                  "mechanic": {
+                    "kind": "adjacentUnitSummon",
+                    "unitTypeId": "giant-toad-type",
+                    "initialPosture": "Upright",
+                    "sameTypeSummonerLimit": 1
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "summon-dire-bear",
+                  "name": "Summon Dire Bear",
+                  "timing": "Action",
+                  "mechanic": {
+                    "kind": "adjacentUnitSummon",
+                    "unitTypeId": "dire-bear-type",
+                    "initialPosture": "Lying",
+                    "sameTypeSummonerLimit": 2
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "summon-raptor",
+                  "name": "Summon Raptor",
+                  "timing": "Action",
+                  "mechanic": {
+                    "kind": "adjacentUnitSummon",
+                    "unitTypeId": "raptor-type",
+                    "initialPosture": "Lying",
+                    "sameTypeSummonerLimit": 2
+                  },
+                  "usage": {}
+                },
+                {
+                  "key": "summon-light-elemental",
+                  "name": "Summon Light Elemental",
+                  "timing": "Action",
+                  "mechanic": {
+                    "kind": "adjacentUnitSummon",
+                    "unitTypeId": "light-elemental-type",
+                    "initialPosture": "Upright",
+                    "sameTypeSummonerLimit": 1
+                  },
+                  "usage": {}
+                }
+              ]
+            }
+          ],
+          "id": "beastmaster-type",
+          "mov": 3,
+          "rng": 1,
+          "atk": 2,
+          "def": 3,
+          "hp": 5,
+          "actions": "NormalAttack",
+          "behaviors": "None",
+          "defaultController": "Human",
+          "baseMovementCapabilities": [
+            "land"
+          ],
+          "sightDistance": 5,
+          "canHaveItems": true,
+          "canHaveEquipment": true,
+          "lootDropSuccesses": 1,
+          "attackDefinitionOrder": [],
+          "unique": true,
+          "footprint": "OneByOne",
+          "displayName": "Beastmaster",
+          "localAbilities": [
+            {
+              "key": "open-door",
+              "name": "Open Door",
+              "timing": "FreeAction",
+              "mechanic": {
+                "kind": "openDoor"
+              },
+              "usage": {}
+            },
+            {
+              "key": "operate",
+              "name": "Operate",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "operate"
+              },
+              "usage": {}
+            },
+            {
+              "key": "friendly-swap",
+              "name": "Friendly Swap",
+              "timing": "BonusAction",
+              "mechanic": {
+                "kind": "swap",
+                "selector": "Friendlies"
+              },
+              "usage": {}
+            },
+            {
+              "key": "summon-jackalope",
+              "name": "Summon Jackalope",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "adjacentUnitSummon",
+                "unitTypeId": "jackalope-type",
+                "initialPosture": "Upright",
+                "sameTypeSummonerLimit": 1
+              },
+              "usage": {}
+            },
+            {
+              "key": "summon-giant-toad",
+              "name": "Summon Giant Toad",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "adjacentUnitSummon",
+                "unitTypeId": "giant-toad-type",
+                "initialPosture": "Upright",
+                "sameTypeSummonerLimit": 1
+              },
+              "usage": {}
+            },
+            {
+              "key": "summon-dire-bear",
+              "name": "Summon Dire Bear",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "adjacentUnitSummon",
+                "unitTypeId": "dire-bear-type",
+                "initialPosture": "Lying",
+                "sameTypeSummonerLimit": 1
+              },
+              "usage": {}
+            },
+            {
+              "key": "summon-raptor",
+              "name": "Summon Raptor",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "adjacentUnitSummon",
+                "unitTypeId": "raptor-type",
+                "initialPosture": "Lying",
+                "sameTypeSummonerLimit": 1
+              },
+              "usage": {}
+            },
+            {
+              "key": "summon-light-elemental",
+              "name": "Summon Light Elemental",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "adjacentUnitSummon",
+                "unitTypeId": "light-elemental-type",
+                "initialPosture": "Upright",
+                "sameTypeSummonerLimit": 1
+              },
+              "usage": {}
+            }
+          ]
+        }
+      ],
+      "equipmentTypes": [
         {
           "id": "eagle-eye",
           "name": "Eagle Eye",
@@ -173,180 +1115,6 @@
           ]
         },
         {
-          "id": "banner-of-furt",
-          "name": "Banner of Fury",
-          "localAbilities": [
-            {
-              "key": "ability-1",
-              "name": "Banner",
-              "timing": "Passive",
-              "mechanic": {
-                "kind": "adjacentUnitsStatModifiers",
-                "selector": "Friendlies",
-                "modifiers": [
-                  {
-                    "stat": "Atk",
-                    "amount": 1
-                  }
-                ]
-              },
-              "usage": {}
-            }
-          ]
-        },
-        {
-          "id": "guardian-standard",
-          "name": "Guardian Standard",
-          "localAbilities": [
-            {
-              "key": "ability-1",
-              "name": "Standard",
-              "timing": "Passive",
-              "mechanic": {
-                "kind": "adjacentUnitsStatModifiers",
-                "selector": "Friendlies",
-                "modifiers": [
-                  {
-                    "stat": "Def",
-                    "amount": 1
-                  }
-                ]
-              },
-              "usage": {}
-            }
-          ]
-        },
-        {
-          "id": "berserker-ring",
-          "name": "Berserker Ring",
-          "localAbilities": [
-            {
-              "key": "ability-1",
-              "name": "Berserk",
-              "timing": "BonusAction",
-              "mechanic": {
-                "kind": "selfModifiers",
-                "modifiers": [
-                  {
-                    "stat": "Atk",
-                    "amount": 2
-                  }
-                ]
-              },
-              "usage": {
-                "maxUses": 2
-              }
-            }
-          ]
-        },
-        {
-          "id": "seven-league-boots",
-          "name": "Seven-League Boots",
-          "localAbilities": [
-            {
-              "key": "ability-1",
-              "name": "Rush",
-              "timing": "BonusAction",
-              "mechanic": {
-                "kind": "selfModifiers",
-                "modifiers": [
-                  {
-                    "stat": "Mov",
-                    "amount": 2
-                  }
-                ]
-              },
-              "usage": {
-                "maxUses": 2
-              }
-            }
-          ]
-        },
-        {
-          "id": "scope-of-precision",
-          "name": "Scope of Precision",
-          "localAbilities": [
-            {
-              "key": "ability-1",
-              "name": "Precision",
-              "timing": "BonusAction",
-              "mechanic": {
-                "kind": "selfModifiers",
-                "modifiers": [
-                  {
-                    "stat": "Rng",
-                    "amount": 2
-                  }
-                ]
-              },
-              "usage": {
-                "maxUses": 2
-              }
-            }
-          ]
-        },
-        {
-          "id": "healers-staff",
-          "name": "Healer\u0027s Staff",
-          "localAbilities": [
-            {
-              "key": "ability-1",
-              "name": "Heal",
-              "timing": "Action",
-              "mechanic": {
-                "kind": "adjacentUnitHeal",
-                "selector": "Friendlies",
-                "amount": 2
-              },
-              "usage": {
-                "maxUses": 2
-              }
-            }
-          ]
-        },
-        {
-          "id": "holy-boots",
-          "name": "Holy Boots",
-          "localAbilities": [
-            {
-              "key": "ability-1",
-              "name": "Holy Wave",
-              "timing": "Action",
-              "mechanic": {
-                "kind": "adjacentUnitsPostureChange",
-                "selector": "Enemies",
-                "newPosture": "Lying"
-              },
-              "usage": {
-                "maxUses": 2
-              },
-              "costs": [
-                {
-                  "kind": "layDownSelf"
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "id": "ring-of-command",
-          "name": "Ring of Command",
-          "localAbilities": [
-            {
-              "key": "ability-1",
-              "name": "Command",
-              "timing": "BonusAction",
-              "mechanic": {
-                "kind": "extraActions",
-                "amount": 1
-              },
-              "usage": {
-                "maxUses": 2
-              }
-            }
-          ]
-        },
-        {
           "id": "displacer-boots",
           "name": "Displacer Boots",
           "localAbilities": [
@@ -359,25 +1127,6 @@
                 "maxMove": 1
               },
               "usage": {}
-            }
-          ]
-        },
-        {
-          "id": "goblin-whistle",
-          "name": "Goblin Whistle",
-          "localAbilities": [
-            {
-              "key": "ability-1",
-              "name": "Summon Goblin",
-              "timing": "Action",
-              "mechanic": {
-                "kind": "adjacentUnitSummon",
-                "unitTypeId": "goblin-type",
-                "initialPosture": "Lying"
-              },
-              "usage": {
-                "maxUses": 2
-              }
             }
           ]
         },
@@ -515,28 +1264,6 @@
           ]
         },
         {
-          "id": "aura-of-doubt",
-          "name": "Aura of Doubt",
-          "localAbilities": [
-            {
-              "key": "ability-1",
-              "name": "Doubt",
-              "timing": "Passive",
-              "mechanic": {
-                "kind": "adjacentUnitsStatModifiers",
-                "selector": "Enemies",
-                "modifiers": [
-                  {
-                    "stat": "Def",
-                    "amount": -1
-                  }
-                ]
-              },
-              "usage": {}
-            }
-          ]
-        },
-        {
           "id": "hostile-encouragement",
           "name": "Hostile Encouragement",
           "localAbilities": [
@@ -575,6 +1302,628 @@
           ]
         },
         {
+          "id": "lucky-boots",
+          "name": "Lucky Boots",
+          "sellValue": 4,
+          "localAbilities": [
+            {
+              "key": "movement",
+              "name": "Lucky Boots",
+              "timing": "Passive",
+              "mechanic": {
+                "kind": "selfModifiers",
+                "modifiers": [
+                  {
+                    "stat": "Mov",
+                    "amount": 1
+                  }
+                ]
+              },
+              "usage": {}
+            }
+          ],
+          "additionalLevels": [
+            {
+              "upgradeCost": 12,
+              "maxHpModifier": 0,
+              "moveCountModifier": 0,
+              "actionCountModifier": 0,
+              "bonusActionUseCountModifier": 0,
+              "localAbilities": [
+                {
+                  "key": "movement",
+                  "name": "Lucky Boots",
+                  "timing": "Passive",
+                  "mechanic": {
+                    "kind": "selfModifiers",
+                    "modifiers": [
+                      {
+                        "stat": "Mov",
+                        "amount": 2
+                      }
+                    ]
+                  },
+                  "usage": {}
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "bracers-of-strength",
+          "name": "Bracers of Strength",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Strength",
+              "timing": "Passive",
+              "mechanic": {
+                "kind": "selfModifiers",
+                "modifiers": [
+                  {
+                    "stat": "Atk",
+                    "amount": 1
+                  }
+                ]
+              },
+              "usage": {}
+            }
+          ],
+          "additionalLevels": [
+            {
+              "upgradeCost": 12,
+              "maxHpModifier": 0,
+              "moveCountModifier": 0,
+              "actionCountModifier": 0,
+              "bonusActionUseCountModifier": 0,
+              "localAbilities": [
+                {
+                  "key": "ability-1",
+                  "name": "Strength",
+                  "timing": "Passive",
+                  "mechanic": {
+                    "kind": "selfModifiers",
+                    "modifiers": [
+                      {
+                        "stat": "Atk",
+                        "amount": 2
+                      }
+                    ]
+                  },
+                  "usage": {}
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "iron-shield",
+          "name": "Iron Shield",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Shield",
+              "timing": "Passive",
+              "mechanic": {
+                "kind": "selfModifiers",
+                "modifiers": [
+                  {
+                    "stat": "Def",
+                    "amount": 1
+                  }
+                ]
+              },
+              "usage": {}
+            }
+          ],
+          "additionalLevels": [
+            {
+              "upgradeCost": 12,
+              "maxHpModifier": 0,
+              "moveCountModifier": 0,
+              "actionCountModifier": 0,
+              "bonusActionUseCountModifier": 0,
+              "localAbilities": [
+                {
+                  "key": "ability-1",
+                  "name": "Shield",
+                  "timing": "Passive",
+                  "mechanic": {
+                    "kind": "selfModifiers",
+                    "modifiers": [
+                      {
+                        "stat": "Def",
+                        "amount": 2
+                      }
+                    ]
+                  },
+                  "usage": {}
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "banner-of-furt",
+          "name": "Banner of Fury",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Banner",
+              "timing": "Passive",
+              "mechanic": {
+                "kind": "adjacentUnitsStatModifiers",
+                "selector": "Friendlies",
+                "modifiers": [
+                  {
+                    "stat": "Atk",
+                    "amount": 1
+                  }
+                ]
+              },
+              "usage": {}
+            }
+          ],
+          "additionalLevels": [
+            {
+              "upgradeCost": 12,
+              "maxHpModifier": 0,
+              "moveCountModifier": 0,
+              "actionCountModifier": 0,
+              "bonusActionUseCountModifier": 0,
+              "localAbilities": [
+                {
+                  "key": "ability-1",
+                  "name": "Banner",
+                  "timing": "Passive",
+                  "mechanic": {
+                    "kind": "adjacentUnitsStatModifiers",
+                    "selector": "Friendlies",
+                    "modifiers": [
+                      {
+                        "stat": "Atk",
+                        "amount": 2
+                      }
+                    ]
+                  },
+                  "usage": {}
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "guardian-standard",
+          "name": "Guardian Standard",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Standard",
+              "timing": "Passive",
+              "mechanic": {
+                "kind": "adjacentUnitsStatModifiers",
+                "selector": "Friendlies",
+                "modifiers": [
+                  {
+                    "stat": "Def",
+                    "amount": 1
+                  }
+                ]
+              },
+              "usage": {}
+            }
+          ],
+          "additionalLevels": [
+            {
+              "upgradeCost": 12,
+              "maxHpModifier": 0,
+              "moveCountModifier": 0,
+              "actionCountModifier": 0,
+              "bonusActionUseCountModifier": 0,
+              "localAbilities": [
+                {
+                  "key": "ability-1",
+                  "name": "Standard",
+                  "timing": "Passive",
+                  "mechanic": {
+                    "kind": "adjacentUnitsStatModifiers",
+                    "selector": "Friendlies",
+                    "modifiers": [
+                      {
+                        "stat": "Def",
+                        "amount": 2
+                      }
+                    ]
+                  },
+                  "usage": {}
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "berserker-ring",
+          "name": "Berserker Ring",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Berserk",
+              "timing": "BonusAction",
+              "mechanic": {
+                "kind": "selfModifiers",
+                "modifiers": [
+                  {
+                    "stat": "Atk",
+                    "amount": 2
+                  }
+                ]
+              },
+              "usage": {
+                "maxUses": 2
+              }
+            }
+          ],
+          "additionalLevels": [
+            {
+              "upgradeCost": 12,
+              "maxHpModifier": 0,
+              "moveCountModifier": 0,
+              "actionCountModifier": 0,
+              "bonusActionUseCountModifier": 0,
+              "localAbilities": [
+                {
+                  "key": "ability-1",
+                  "name": "Berserk",
+                  "timing": "BonusAction",
+                  "mechanic": {
+                    "kind": "selfModifiers",
+                    "modifiers": [
+                      {
+                        "stat": "Atk",
+                        "amount": 2
+                      }
+                    ]
+                  },
+                  "usage": {
+                    "maxUses": 3
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "seven-league-boots",
+          "name": "Seven-League Boots",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Rush",
+              "timing": "BonusAction",
+              "mechanic": {
+                "kind": "selfModifiers",
+                "modifiers": [
+                  {
+                    "stat": "Mov",
+                    "amount": 2
+                  }
+                ]
+              },
+              "usage": {
+                "maxUses": 2
+              }
+            }
+          ],
+          "additionalLevels": [
+            {
+              "upgradeCost": 12,
+              "maxHpModifier": 0,
+              "moveCountModifier": 0,
+              "actionCountModifier": 0,
+              "bonusActionUseCountModifier": 0,
+              "localAbilities": [
+                {
+                  "key": "ability-1",
+                  "name": "Rush",
+                  "timing": "BonusAction",
+                  "mechanic": {
+                    "kind": "selfModifiers",
+                    "modifiers": [
+                      {
+                        "stat": "Mov",
+                        "amount": 2
+                      }
+                    ]
+                  },
+                  "usage": {
+                    "maxUses": 4
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "scope-of-precision",
+          "name": "Scope of Precision",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Precision",
+              "timing": "BonusAction",
+              "mechanic": {
+                "kind": "selfModifiers",
+                "modifiers": [
+                  {
+                    "stat": "Rng",
+                    "amount": 2
+                  }
+                ]
+              },
+              "usage": {
+                "maxUses": 2
+              }
+            }
+          ],
+          "additionalLevels": [
+            {
+              "upgradeCost": 12,
+              "maxHpModifier": 0,
+              "moveCountModifier": 0,
+              "actionCountModifier": 0,
+              "bonusActionUseCountModifier": 0,
+              "localAbilities": [
+                {
+                  "key": "ability-1",
+                  "name": "Precision",
+                  "timing": "BonusAction",
+                  "mechanic": {
+                    "kind": "selfModifiers",
+                    "modifiers": [
+                      {
+                        "stat": "Rng",
+                        "amount": 2
+                      }
+                    ]
+                  },
+                  "usage": {
+                    "maxUses": 4
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "healers-staff",
+          "name": "Healer\u0027s Staff",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Heal",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "adjacentUnitHeal",
+                "selector": "Friendlies",
+                "amount": 2
+              },
+              "usage": {
+                "maxUses": 2
+              }
+            }
+          ],
+          "additionalLevels": [
+            {
+              "upgradeCost": 12,
+              "maxHpModifier": 0,
+              "moveCountModifier": 0,
+              "actionCountModifier": 0,
+              "bonusActionUseCountModifier": 0,
+              "localAbilities": [
+                {
+                  "key": "ability-1",
+                  "name": "Heal",
+                  "timing": "Action",
+                  "mechanic": {
+                    "kind": "adjacentUnitHeal",
+                    "selector": "Friendlies",
+                    "amount": 2
+                  },
+                  "usage": {
+                    "maxUses": 4
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "holy-boots",
+          "name": "Holy Boots",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Holy Wave",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "adjacentUnitsPostureChange",
+                "selector": "Enemies",
+                "newPosture": "Lying"
+              },
+              "usage": {
+                "maxUses": 2
+              },
+              "costs": [
+                {
+                  "kind": "layDownSelf"
+                }
+              ]
+            }
+          ],
+          "additionalLevels": [
+            {
+              "upgradeCost": 12,
+              "maxHpModifier": 0,
+              "moveCountModifier": 0,
+              "actionCountModifier": 0,
+              "bonusActionUseCountModifier": 0,
+              "localAbilities": [
+                {
+                  "key": "ability-1",
+                  "name": "Holy Wave",
+                  "timing": "Action",
+                  "mechanic": {
+                    "kind": "adjacentUnitsPostureChange",
+                    "selector": "Enemies",
+                    "newPosture": "Lying"
+                  },
+                  "usage": {
+                    "maxUses": 4
+                  },
+                  "costs": [
+                    {
+                      "kind": "layDownSelf"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ring-of-command",
+          "name": "Ring of Command",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Command",
+              "timing": "BonusAction",
+              "mechanic": {
+                "kind": "extraActions",
+                "amount": 1
+              },
+              "usage": {
+                "maxUses": 2
+              }
+            }
+          ],
+          "additionalLevels": [
+            {
+              "upgradeCost": 12,
+              "maxHpModifier": 0,
+              "moveCountModifier": 0,
+              "actionCountModifier": 0,
+              "bonusActionUseCountModifier": 0,
+              "localAbilities": [
+                {
+                  "key": "ability-1",
+                  "name": "Command",
+                  "timing": "BonusAction",
+                  "mechanic": {
+                    "kind": "extraActions",
+                    "amount": 1
+                  },
+                  "usage": {
+                    "maxUses": 4
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "goblin-whistle",
+          "name": "Goblin Whistle",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Summon Goblin",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "adjacentUnitSummon",
+                "unitTypeId": "goblin-type",
+                "initialPosture": "Lying"
+              },
+              "usage": {
+                "maxUses": 2
+              }
+            }
+          ],
+          "additionalLevels": [
+            {
+              "upgradeCost": 12,
+              "maxHpModifier": 0,
+              "moveCountModifier": 0,
+              "actionCountModifier": 0,
+              "bonusActionUseCountModifier": 0,
+              "localAbilities": [
+                {
+                  "key": "ability-1",
+                  "name": "Summon Goblin",
+                  "timing": "Action",
+                  "mechanic": {
+                    "kind": "adjacentUnitSummon",
+                    "unitTypeId": "goblin-type",
+                    "initialPosture": "Lying"
+                  },
+                  "usage": {
+                    "maxUses": 3
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "aura-of-doubt",
+          "name": "Aura of Doubt",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Doubt",
+              "timing": "Passive",
+              "mechanic": {
+                "kind": "adjacentUnitsStatModifiers",
+                "selector": "Enemies",
+                "modifiers": [
+                  {
+                    "stat": "Def",
+                    "amount": -1
+                  }
+                ]
+              },
+              "usage": {}
+            }
+          ],
+          "additionalLevels": [
+            {
+              "upgradeCost": 12,
+              "maxHpModifier": 0,
+              "moveCountModifier": 0,
+              "actionCountModifier": 0,
+              "bonusActionUseCountModifier": 0,
+              "localAbilities": [
+                {
+                  "key": "ability-1",
+                  "name": "Doubt",
+                  "timing": "Passive",
+                  "mechanic": {
+                    "kind": "adjacentUnitsStatModifiers",
+                    "selector": "Enemies",
+                    "modifiers": [
+                      {
+                        "stat": "Def",
+                        "amount": -2
+                      }
+                    ]
+                  },
+                  "usage": {}
+                }
+              ]
+            }
+          ]
+        },
+        {
           "id": "stonebreaker",
           "name": "Stonebreaker",
           "localAbilities": [
@@ -587,6 +1936,27 @@
                 "successThreshold": 4
               },
               "usage": {}
+            }
+          ],
+          "additionalLevels": [
+            {
+              "upgradeCost": 12,
+              "maxHpModifier": 0,
+              "moveCountModifier": 0,
+              "actionCountModifier": 0,
+              "bonusActionUseCountModifier": 0,
+              "localAbilities": [
+                {
+                  "key": "ability-1",
+                  "name": "Break Object",
+                  "timing": "BonusAction",
+                  "mechanic": {
+                    "kind": "breakObject",
+                    "successThreshold": 5
+                  },
+                  "usage": {}
+                }
+              ]
             }
           ]
         }
@@ -785,5 +2155,48 @@
       "resources": []
     }
   },
-  "replacements": []
+  "replacements": [
+    {
+      "identity": {
+        "family": "Unit",
+        "typeId": "barbarian-type"
+      },
+      "ownerPackageId": "canonical-csharp"
+    },
+    {
+      "identity": {
+        "family": "Unit",
+        "typeId": "beastmaster-type"
+      },
+      "ownerPackageId": "canonical-csharp"
+    },
+    {
+      "identity": {
+        "family": "Unit",
+        "typeId": "cleric-type"
+      },
+      "ownerPackageId": "canonical-csharp"
+    },
+    {
+      "identity": {
+        "family": "Unit",
+        "typeId": "rogue-type"
+      },
+      "ownerPackageId": "canonical-csharp"
+    },
+    {
+      "identity": {
+        "family": "Unit",
+        "typeId": "wizard-type"
+      },
+      "ownerPackageId": "canonical-csharp"
+    },
+    {
+      "identity": {
+        "family": "Equipment",
+        "typeId": "lucky-boots"
+      },
+      "ownerPackageId": "canonical-csharp"
+    }
+  ]
 }
