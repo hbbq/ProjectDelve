@@ -131,7 +131,7 @@ public static partial class GameEngine
             throw new InvalidOperationException("No DelveMart interaction is pending.");
         var actor = state.Units.SingleOrDefault(u => u.Id == interaction.OperatorId);
         var operation = interaction.Operation;
-        if (state.AttackInProgress is not null || state.DoorInProgress is not null || state.BreakInProgress is not null ||
+        if (state.AttackInProgress is not null || state.DoorInProgress is not null || state.BreakInProgress is not null || state.RepossessionInProgress is not null ||
             state.CleavePending || state.ActiveToken != actor?.Token || state.Pending.Token != actor?.Token ||
             actor is null || actor.SideId != interaction.SideId || actor.CurrentHp <= 0 || !state.IsUpright(actor.Id) ||
             operation?.Ability is null || operation.Ability.Definition.Mechanic is not Operate ||

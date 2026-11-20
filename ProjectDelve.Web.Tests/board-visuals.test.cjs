@@ -154,10 +154,17 @@ test("artwork catalog resolves registered local files while other content retain
     "royal-peasant", "goblin-peasant", "castle-guard", "tower-troll",
     "royal-bishop", "goblin-bishop", "royal-knight", "hobby-knight",
     "royal-queen", "witch-queen", "royal-king", "goblin-king",
-    "beastmaster", "jackalope", "giant-toad", "dire-bear", "raptor", "light-elemental"];
+    "beastmaster", "jackalope", "giant-toad", "dire-bear", "raptor", "light-elemental", "paul", "tycoon"];
   const expected = names.map(name => `./art/units/${name}.webp`);
   const portraits = JSON.parse(run(`JSON.stringify(${JSON.stringify(names)}.map(name => boardVisuals.unit[name + "-type"].image))`));
   assert.deepEqual(portraits, expected);
+  for (const name of ["paul", "tycoon"]) {
+    const references = JSON.parse(run(`JSON.stringify(boardVisuals.unit["${name}-type"].references)`));
+    assert.deepEqual(references.map(reference => reference.image), ["full-body", "character-sheet"]
+      .map(view => `./art/units/${name}/reference/${view}.webp`));
+    for (const reference of references)
+      assert.ok(fs.existsSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", reference.image)));
+  }
   const terrain = [];
   for (const [id, folder] of [["StoneFloor", "stone-floor"], ["SolidRock", "solid-rock"], ["Gravel", "gravel"], ["Asphalt", "asphalt"], ["Grass", "grass"], ["Water", "water"], ["Lava", "lava"]]) {
     const variants = JSON.parse(run(`JSON.stringify(boardVisuals.terrain.${id}.variants.map(v => v.image))`));

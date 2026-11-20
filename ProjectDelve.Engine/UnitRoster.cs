@@ -17,6 +17,13 @@ namespace ProjectDelve.Engine;
 
 public static class UnitRoster
 {
+    public static UnitType Paul(string id = UnitTypeIds.Paul) => UnitType.Define(id,
+        "Paul, Enforcement Officer", Stats(3, 1, 0, 1, 1),
+        DefaultController(ControllerKind.Automated), CantAttack(), OpenDoor(),
+        LocalAbility(new("repossession", "Repossession", AbilityTiming.Action,
+            new TryRepossessRandomEquipment(SuccessCount: 2, DestinationStorageId: StorageRules.RepossessedEquipmentId)))
+    ).WithBehaviors(UnitBehavior.PreferEquippedEnemy, UnitBehavior.ApproachThroughClosedDoors);
+
     public static UnitType Tycoon(string id = UnitTypeIds.Tycoon) => UnitType.Define(id,
         "The Tycoon", Stats(4, 1, 2, 2, 5), Loot(1, items: true, equipment: true),
         Unique(), DefaultController(ControllerKind.Human), OpenDoor(), Operate()

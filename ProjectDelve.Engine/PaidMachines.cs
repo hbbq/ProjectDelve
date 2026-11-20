@@ -37,7 +37,7 @@ public static partial class GameEngine
         var actor = state.Units.SingleOrDefault(u => u.Id == interaction.OperatorId);
         var operation = interaction.Operation;
         var machine = state.Physical.Board.Machines.SingleOrDefault(m => m.Id == interaction.MachineId);
-        if (state.AttackInProgress is not null || state.DoorInProgress is not null || state.BreakInProgress is not null ||
+        if (state.AttackInProgress is not null || state.DoorInProgress is not null || state.BreakInProgress is not null || state.RepossessionInProgress is not null ||
             state.CleavePending || actor is null || state.ActiveToken != actor.Token || state.Pending.Token != actor.Token ||
             actor.SideId != interaction.SideId || actor.CurrentHp <= 0 || !state.IsUpright(actor.Id) ||
             operation?.Ability is null || operation.Ability.Definition?.Mechanic is not Operate || string.IsNullOrWhiteSpace(operation.Key) ||
@@ -120,10 +120,7 @@ public static partial class GameEngine
         string? itemId = null;
         if (offer.ItemTypeId is { } item)
         {
-            var ids = state.Units.SelectMany(u => u.Inventory).Select(o => o.Id)
-                .Concat(state.GroundObjects.Select(o => o.Object.Id))
-                .Concat((state.LootDeck?.DrawPile ?? []).Select(o => o.Id))
-                .Concat((state.LootDeck?.DiscardPile ?? []).Select(o => o.Id)).ToHashSet(StringComparer.Ordinal);
+            var ids = LootRules.PhysicalObjects(state).Select(o => o.Id).ToHashSet(StringComparer.Ordinal);
             // Machine use counters give each purchase a stable physical identity,
             // including after earlier purchases have been consumed or sold.
             var sourceMachine = state.Physical.Board.Machines.Single(m => m.Id == interaction.MachineId);

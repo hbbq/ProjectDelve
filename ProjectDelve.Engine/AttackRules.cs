@@ -24,13 +24,7 @@ internal static class AttackRules
                     Matches(ability.Definition.Mechanic, action) && state.CanUseAbility(attackerId, ability))
                 .Any(ability => EvaluateAbilityFrom(state, attackerId, from, targetId, ability) == UnitTargetEvaluation.Possible)
                 ? UnitTargetEvaluation.Possible : UnitTargetEvaluation.NotPossible;
-        // Position-dependent passives must see the same placement as targeting geometry.
-        var figure = state.Physical.Figures.Single(f => f.Id == attackerId);
-        if (figure.Position != from)
-        {
-            state = state.Copy();
-            state.Physical.Figures[state.Physical.Figures.FindIndex(f => f.Id == attackerId)] = figure with { Position = from };
-        }
+        state = HypotheticalPosition.WithUnitAt(state, attackerId, from);
         var attacker = state.Units.Single(u => u.Id == attackerId);
         var stats = state.UnitConfiguration(attacker);
         var attackDice = AttackDice(state, attackerId, targetId, action, mechanic);
@@ -91,7 +85,7 @@ internal static class AttackRules
             .Any(action => EvaluateApproachFrom(state, attackerId, from, targetId, action) == UnitTargetEvaluation.Possible)
             ? UnitTargetEvaluation.Possible : UnitTargetEvaluation.NotPossible;
 
-    // Shared Unit targeting geometry for ranged Attacks and Telekinesis, independent of ATK or Action content.
+    // Shared hostile Unit targeting geometry, independent of ATK or Action content.
     internal static UnitTargetEvaluation EvaluateHostileTargetFrom(
         GameState state, string sourceId, Cell from, string targetId, int? rangeOverride = null)
     {

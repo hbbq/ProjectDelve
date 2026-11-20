@@ -134,7 +134,8 @@ public enum UnitBehavior
     MaximizeFriendlyAdjacent = 1048576,
     FollowSummoner = 2097152,
     OptimizeFollowAdjacency = 4194304,
-    PreferBeacon = 8388608
+    PreferBeacon = 8388608,
+    PreferEquippedEnemy = 16777216
 }
 public enum MovementPattern { StraightOrthogonal, DiagonalCorridor, LShape, StraightOrthogonalOrDiagonalCorridor, Adjacent }
 public sealed record AdvanceOnKill : AbilityMechanic;
@@ -459,6 +460,9 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public AbilitySourceReference? AbilitySource { get; init; }
     public OwnedObject? ObjectCard { get; init; }
+    public string? StorageId { get; init; }
+    public string? RepossessedEquipmentId { get; init; }
+    public string? RepossessedEquipmentName { get; init; }
     public LootMarker? LootMarker { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? CreditsAmount { get; init; }
@@ -509,6 +513,7 @@ public sealed class GameState : IJsonOnDeserializing, IJsonOnDeserialized
     public Dictionary<string, int> SideCredits { get; set; } = new(StringComparer.Ordinal);
     public List<CreditsPile> CreditsPiles { get; set; } = [];
     public List<GroundObject> GroundObjects { get; set; } = [];
+    public List<Storage> Storages { get; set; } = StorageRules.Defaults();
     // Only detached Side observations carry these values. Removing hidden providers
     // from presentation must not recalculate the visible Units' authoritative stats.
     internal Dictionary<string, (int Mov, int Rng, int Atk, int Def, int SightDistance)>? ObservationValues { get; set; }
@@ -533,6 +538,12 @@ public sealed class GameState : IJsonOnDeserializing, IJsonOnDeserialized
             throw new ArgumentException("A Unit of this Unique Unit Type is already in play on this Side.", nameof(typeId));
         var entering = type.CreateUnit(id, sideId, level) with { GroupId = groupId, Dormant = dormant, SummonerUnitId = summonerUnitId,
             WakeDistance = wakeDistance ?? type.WakeDistance ?? DormantRules.DefaultWakeDistance, Inventory = [.. inventory ?? []] };
+        if (!entering.Inventory.IsEmpty)
+        {
+            var occupiedIds = LootRules.PhysicalObjects(this).Select(o => o.Id).ToHashSet(StringComparer.Ordinal);
+            if (entering.Inventory.Any(o => o is null || string.IsNullOrWhiteSpace(o.Id) || !occupiedIds.Add(o.Id)))
+                throw new ArgumentException("Every object entering play requires a unique physical identity.");
+        }
         var maximum = this.EffectiveMaxHpOf(entering);
         if (initialHp is { } hp && (hp < 1 || hp > maximum))
             throw new ArgumentException($"InitialHp for '{id}' must be between 1 and {maximum}.");
@@ -591,6 +602,7 @@ public sealed class GameState : IJsonOnDeserializing, IJsonOnDeserialized
         ?? throw new InvalidOperationException("Decision has no controlling group."));
     public AttackContinuation? AttackInProgress { get; set; }
     public DoorContinuation? DoorInProgress { get; set; }
+    public RepossessionContinuation? RepossessionInProgress { get; set; }
     public BreakContinuation? BreakInProgress { get; set; }
     public AttackContinuation? AttackAwaitingConsequences { get; set; }
     public List<DefeatEffect> PendingDefeatEffects { get; set; } = [];
@@ -633,6 +645,8 @@ public sealed class GameState : IJsonOnDeserializing, IJsonOnDeserialized
         set => ActionsUsedThisActivation = value ? Math.Max(1, ActionsUsedThisActivation) : 0;
     }
     public int ActionsUsedThisActivation { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool RepossessionFailedThisActivation { get; set; }
     public int ExtraActionsThisActivation { get; set; }
     public Dictionary<string, int> BonusActionUseCountsThisActivation { get; set; } = [];
     public int EffectiveActionsPerActivation => OpportunityCount((long)ExtraActionsThisActivation + this.WorldModifier(WorldModifierTarget.Actions),
@@ -803,6 +817,7 @@ public sealed class GameState : IJsonOnDeserializing, IJsonOnDeserialized
         EquipmentTypes = [.. EquipmentTypes],
         ObservationValues = ObservationValues is null ? null : new(ObservationValues, StringComparer.Ordinal),
         LootDeck = LootDeck?.Copy(), LootMarkers = [.. LootMarkers], GroundObjects = [.. GroundObjects],
+        Storages = [.. Storages],
         SideCredits = new(SideCredits, StringComparer.Ordinal), CreditsPiles = [.. CreditsPiles],
         Physical = new PhysicalState(Physical.Board with { Edges = [.. Physical.Board.Edges], Terrain = [.. Physical.Board.Terrain], Machines = [.. Physical.Board.Machines] }, [.. Physical.Figures]),
         Types = [.. Types], Units = [.. Units], CellMarkers = [.. CellMarkers], Resources = [.. Resources], StoredResources = [.. StoredResources], Round = Round, Bag = [.. Bag],
@@ -816,12 +831,13 @@ public sealed class GameState : IJsonOnDeserializing, IJsonOnDeserialized
             { Composition = WorldEffects.Composition is null ? null : WorldEffects.Composition.ToArray() },
         WorldDeck = WorldDeck?.Copy(),
         ActionsUsedThisActivation = ActionsUsedThisActivation,
+        RepossessionFailedThisActivation = RepossessionFailedThisActivation,
         ExtraActionsThisActivation = ExtraActionsThisActivation,
         BonusActionUseCountsThisActivation = new(BonusActionUseCountsThisActivation),
         ActiveToken = ActiveToken, ResolvingTokenUnitIds = new(ResolvingTokenUnitIds, StringComparer.Ordinal), Controllers = [.. Controllers], Orders = [.. Orders], Waypoints = [.. Waypoints], Routes = [.. Routes],
         MovesCompletedThisActivation = MovesCompletedThisActivation, MoveOpportunityModifierThisActivation = MoveOpportunityModifierThisActivation,
         WaypointAdvancedThisActivation = WaypointAdvancedThisActivation,
-        AttackInProgress = AttackInProgress, DoorInProgress = DoorInProgress, BreakInProgress = BreakInProgress,
+        AttackInProgress = AttackInProgress, DoorInProgress = DoorInProgress, RepossessionInProgress = RepossessionInProgress, BreakInProgress = BreakInProgress,
         AttackAwaitingConsequences = AttackAwaitingConsequences,
         PendingDefeatEffects = [.. PendingDefeatEffects], CompleteAfterDefeatEffects = CompleteAfterDefeatEffects, ActionDone = ActionDone,
         CompletedUnitIds = [.. CompletedUnitIds],

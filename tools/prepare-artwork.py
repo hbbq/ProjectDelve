@@ -30,7 +30,11 @@ ASSETS = [
                    "royal-peasant", "goblin-peasant", "castle-guard", "tower-troll",
                    "royal-bishop", "goblin-bishop", "royal-knight", "hobby-knight",
                    "royal-queen", "witch-queen", "royal-king", "goblin-king",
-                   "beastmaster", "jackalope", "giant-toad", "dire-bear", "raptor", "light-elemental")],
+                   "beastmaster", "jackalope", "giant-toad", "dire-bear", "raptor", "light-elemental",
+                   "paul", "tycoon")],
+    *[(f"units/{name}/reference/{view}.png", f"units/{name}/reference/{view}.webp", size)
+      for name in ("paul", "tycoon")
+      for view, size in (("full-body", (1024, 1536)), ("character-sheet", (1536, 1024)))],
     ("units/demolition-imp/reference/character-sheet.png", "units/demolition-imp/reference/character-sheet.webp", (1536, 1024)),
     ("units/demolition-imp/reference/full-body.png", "units/demolition-imp/reference/full-body.webp", (1024, 1536)),
     *[(f"terrain/{name}-{i:02}.png", f"terrain/{name}/{i:02}.webp", 256)

@@ -188,7 +188,8 @@ export class DesignerDraft {
   }
   objectIdentity(prefix) {
     const ids = new Set([...(this.definition.lootMarkers ?? []).map(m => m.id),
-      ...(this.definition.groundObjects ?? []).map(g => g.object.id), ...this.definition.units.flatMap(u => (u.inventory ?? []).map(o => o.id))]);
+      ...(this.definition.groundObjects ?? []).map(g => g.object.id), ...(this.definition.storages ?? []).flatMap(s => s.contents.map(o => o.id)),
+      ...this.definition.units.flatMap(u => (u.inventory ?? []).map(o => o.id))]);
     let number = 1; while (ids.has(`${prefix}-${number}`)) number++;
     return `${prefix}-${number}`;
   }

@@ -8,7 +8,7 @@ namespace ProjectDelve.Web;
 internal sealed record ExpeditionHero(string InstanceId, string TypeId);
 
 // A handoff declares a new ordinary Scenario. Only the explicit Party and its
-// actually owned physical objects cross the boundary; no resolution state does.
+// owned physical objects, Side banks and off-board Storages cross the boundary.
 internal static class ExpeditionParty
 {
     internal const string SideId = HeroesVsMonsters.Heroes;
@@ -68,7 +68,8 @@ internal static class ExpeditionParty
         }
         foreach (var hero in heroes) Require(new(ContentFamily.Unit, hero.TypeId));
         if (previous is not null)
-            foreach (var obj in Inventories(previous, heroes).SelectMany(entry => entry.Inventory))
+            foreach (var obj in Inventories(previous, heroes).SelectMany(entry => entry.Inventory)
+                .Concat(previous.Storages.SelectMany(s => s.Contents).Select(obj => TypedObject(previous, obj))))
             {
                 if (obj.EquipmentTypeId is { } equipment) Require(new(ContentFamily.Equipment, equipment));
                 if (obj.ItemTypeId is { } item) Require(new(ContentFamily.Item, item));
@@ -140,15 +141,18 @@ internal static class ExpeditionParty
             Inventory = inventory.GetValueOrDefault(hero.InstanceId) ?? []
         }).ToList();
         var regionalSides = existing.Objectives.Select(o => o.SideId).Append(SideId).ToHashSet(StringComparer.Ordinal);
-        // Only the bank crosses the seam. A Side can retain Credits even in a
-        // region with no deployment or controller for that Side.
+        // An absent Side can retain its bank and off-board physical objects.
         var balances = previous is null ? terrain.SideCredits : previous.SideCredits;
-        var absentSides = (balances?.Keys.AsEnumerable() ?? []).Except(regionalSides, StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+        var storages = previous is null ? terrain.Storages : previous.Storages.Select(s => s with
+            { Contents = [.. s.Contents.Select(obj => TypedObject(previous, obj))] }).ToList();
+        var absentSides = (balances?.Keys.AsEnumerable() ?? []).Concat((storages ?? []).Select(s => s.SideId).OfType<string>())
+            .Except(regionalSides, StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
         var sides = regionalSides.Concat(absentSides);
         var prepared = terrain with
         {
             Party = new(SideId, previous?.Party?.Capacity ?? InitialCapacity, [.. heroes.Select(h => h.InstanceId)]),
             SideCredits = balances is { Count: > 0 } ? new(balances, StringComparer.Ordinal) : null,
+            Storages = storages,
             AdditionalSideIds = absentSides.Count == 0 ? terrain.AdditionalSideIds : [.. terrain.AdditionalSideIds ?? [], .. absentSides],
             // Ownership can be assigned only once the Expedition Side exists. The
             // generation pipeline validates its detached terrain before adding Heroes.
@@ -204,13 +208,15 @@ internal static class ExpeditionParty
         foreach (var hero in heroes)
         {
             var unit = previous.Units.Single(u => u.Id == hero.InstanceId);
-            yield return (hero, unit.Inventory.Select(obj => obj with
+            yield return (hero, unit.Inventory.Select(obj => TypedObject(previous, obj) with
             {
-                EquipmentTypeId = previous.EquipmentTypeId(obj), ItemTypeId = previous.ItemTypeId(obj),
                 AbilityUseCounts = ImmutableDictionary<string, int>.Empty
             }).ToList());
         }
     }
+
+    private static OwnedObject TypedObject(GameState state, OwnedObject obj) => obj with
+        { EquipmentTypeId = state.EquipmentTypeId(obj), ItemTypeId = state.ItemTypeId(obj) };
 
     private static IEnumerable<object> Definitions(ContentBundle content) => content.Units.Cast<object>().Concat(content.Equipment)
         .Concat(content.Items).Concat(content.LootCards).Concat(content.LootPresets).Concat(content.WorldCards).Concat(content.Terrain)

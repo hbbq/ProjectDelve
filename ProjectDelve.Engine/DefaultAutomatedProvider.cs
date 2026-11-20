@@ -32,6 +32,11 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
             request.Candidates.FirstOrDefault(c => c.Ability?.Definition.Mechanic is ExtraActionsMechanic) is { } wind)
             return wind.Key;
         if (request.Candidates.FirstOrDefault(c => c.Ability?.SourceKind == AbilitySourceKind.Equipment && c.FreeAction == UnitFreeAction.OpenDoor) is { } open) return open.Key;
+        if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.PreferEquippedEnemy) &&
+            queries.KnownEquippedHostileUnitIds(request.UnitId!).Any(id => queries.DistanceToRepossessionPositionFrom(
+                request.UnitId!, queries.PositionOf(request.UnitId!), id, true).HasValue) &&
+            request.Candidates.Where(c => c.Ability?.Definition.Mechanic is OpenDoor)
+                .OrderBy(c => c.Key, StringComparer.Ordinal).FirstOrDefault() is { } pursuitDoor) return pursuitDoor.Key;
         if (request.Candidates.FirstOrDefault(c => c.Ability?.Definition.Mechanic is SelfExtraMovesMechanic) is { } boost) return boost.Key;
         if (!request.Candidates.Any(c => c.Kind is ActivationChoiceKind.Move or ActivationChoiceKind.Stay) &&
             BananaPlacementRules.Preferred(request, queries) is { } banana) return banana;
@@ -93,6 +98,8 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
     {
         var unitId = request.UnitId!;
         var behaviors = queries.BehaviorsOf(unitId);
+        if (behaviors.HasFlag(UnitBehavior.PreferEquippedEnemy))
+            return EquippedEnemyBehavior.ChooseMovement(request, queries);
         if (behaviors.HasFlag(UnitBehavior.Worker)) return WorkerBehavior.Choose(request, queries);
         if (behaviors.HasFlag(UnitBehavior.SeekDiamond) && !request.IsMoveAfterAttack &&
             queries.StoredQuantityFor(unitId, ResourceTypeIds.Diamond) == 0)
@@ -217,6 +224,15 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
         IReadOnlyCollection<string>? orderedTargetIds = null)
     {
         request = request with { Candidates = request.Candidates.Where(c => !c.RequiresMachineInteraction).ToList() };
+        if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.PreferEquippedEnemy) &&
+            queries.HasFailedRepossessionThisActivation(request.UnitId!))
+            request = request with { Candidates = request.Candidates.Where(c => c.Ability?.Definition.Mechanic is not TryRepossessRandomEquipment).ToList() };
+        if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.PreferEquippedEnemy) &&
+            request.Candidates.Where(c => c.Ability?.Definition.Mechanic is TryRepossessRandomEquipment)
+                .OrderBy(c => queries.ManhattanDistanceBetweenUnits(request.UnitId!, c.TargetId!))
+                .ThenBy(c => queries.PositionOf(c.TargetId!).Y).ThenBy(c => queries.PositionOf(c.TargetId!).X)
+                .ThenBy(c => c.TargetId, StringComparer.Ordinal).ThenBy(c => c.Key, StringComparer.Ordinal)
+                .FirstOrDefault() is { } repossess) return repossess.Key;
         var shell = request.Candidates.Where(c => c.Action == UnitAction.TargetUnitAttack)
             .OrderBy(c => queries.ManhattanDistanceBetweenUnits(request.UnitId!, c.TargetId!))
             .ThenBy(c => queries.PositionOf(c.TargetId!).Y).ThenBy(c => queries.PositionOf(c.TargetId!).X)

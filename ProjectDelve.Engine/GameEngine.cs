@@ -32,6 +32,7 @@ public static partial class GameEngine
         state.CleavePending = false;
         state.AttackInProgress = null;
         state.DoorInProgress = null;
+        state.RepossessionInProgress = null;
         state.BreakInProgress = null;
         state.AttackAwaitingConsequences = null;
         state.PendingDefeatEffects.Clear();
@@ -41,6 +42,7 @@ public static partial class GameEngine
         state.MovesCompletedThisActivation = 0;
         state.WaypointAdvancedThisActivation = false;
         state.ActionDone = false;
+        state.RepossessionFailedThisActivation = false;
         state.BonusActionUseCountsThisActivation.Clear();
         state.ModifiersThisTurn.Clear();
         state.Pending = null;
@@ -84,7 +86,7 @@ public static partial class GameEngine
         var state = previous.Copy();
         EnsureObjectives(state);
         var events = new ResolutionEvents(state, random, observe);
-        if (state.AttackInProgress is null && state.DoorInProgress is null && state.BreakInProgress is null && state.CurrentUnitId is not null &&
+        if (state.AttackInProgress is null && state.DoorInProgress is null && state.RepossessionInProgress is null && state.BreakInProgress is null && state.CurrentUnitId is not null &&
             (!state.Units.Any(u => u.Id == state.CurrentUnitId && u.CurrentHp > 0) ||
              !state.IsUpright(state.CurrentUnitId)))
         {
@@ -164,12 +166,12 @@ public static partial class GameEngine
         {
             if (!state.CanUseAbility(request.UnitId!, ability))
                 throw new InvalidOperationException("Ability invocation is unavailable.");
-            CommitAbilityInvocation(state, request.UnitId!, ability, events);
             if (IsSharedActiveMechanic(ability.Definition.Mechanic))
             {
                 ResolveAbility(state, request, request.Candidates.Single(c => c.Key == choice), events);
                 return;
             }
+            CommitAbilityInvocation(state, request.UnitId!, ability, events);
         }
         if (choice is not null && request.Candidates.Single(c => c.Key == choice).Ability is null &&
             (request.Candidates.Single(c => c.Key == choice).ObjectKind is not null || request.Candidates.Single(c => c.Key == choice).EquipmentTypeId is not null))
@@ -202,6 +204,7 @@ public static partial class GameEngine
                 state.MovesCompletedThisActivation = 0;
                 state.WaypointAdvancedThisActivation = false;
                 state.ActionDone = false;
+                state.RepossessionFailedThisActivation = false;
                 state.BonusActionUseCountsThisActivation.Clear();
                 state.ModifiersThisTurn.Clear();
                 events.Add(new RulesEvent("ActivationStarted", choice) { Token = state.ActiveToken });
@@ -303,6 +306,7 @@ public static partial class GameEngine
             }
             ResolveLootArrivals(state, events);
             if (state.DoorInProgress is not null) { state.Pending = CreateDecision(state); return; }
+            if (state.RepossessionInProgress is not null) { state.Pending = CreateDecision(state); return; }
             if (state.ActiveToken is null)
             {
                 if (state.Bag.Count == 0)
@@ -360,6 +364,7 @@ public static partial class GameEngine
         state.MovesCompletedThisActivation = 0;
         state.WaypointAdvancedThisActivation = false;
         state.ActionDone = false;
+        state.RepossessionFailedThisActivation = false;
         state.BonusActionUseCountsThisActivation.Clear();
         state.ModifiersThisTurn.Clear();
         events.Add(new RulesEvent("ActivationCompleted", unitId) { Token = state.ActiveToken });
@@ -511,6 +516,12 @@ public static partial class GameEngine
             return new(DecisionKind.MachineInteraction, state.Units.Single(u => u.Id == interaction.OperatorId).TypeId,
                 interaction.OperatorId, [new("cancel-machine-interaction")], true) { MachineInteraction = interaction };
         DicePool? pool = null;
+        if (state.RepossessionInProgress is { } repossess)
+        {
+            RepossessionRules.ValidateContinuation(state, repossess);
+            pool = new(DiceFamily.D6, 1, repossess.UnitId, repossess.UnitId, repossess.ActionId, "Repossession check",
+                TargetId: repossess.TargetId, SuccessCount: repossess.SuccessCount) { AbilitySource = repossess.AbilitySource };
+        }
         if (state.BreakInProgress is { } breaking)
             pool = BreakDicePool(breaking);
         if (state.DoorInProgress is { } door)
@@ -714,6 +725,11 @@ public static partial class GameEngine
         if (pool.Family == DiceFamily.Defence) ResolveAttackTarget(state, successes, events);
         if (pool.Family == DiceFamily.D6)
         {
+            if (state.RepossessionInProgress is not null)
+            {
+                ResolveRepossession(state, int.Parse(faces[0], System.Globalization.CultureInfo.InvariantCulture), events);
+                return;
+            }
             if (state.BreakInProgress is not null)
             {
                 ProgressBreak(state, events, int.Parse(faces[0], System.Globalization.CultureInfo.InvariantCulture));
@@ -775,16 +791,19 @@ public static partial class GameEngine
         }
         var context = new DefeatContext(unit, type, figure,
             [.. FootprintGeometry.OccupiedCells(type.Footprint, figure.Position)]);
-        // Retained records use zero HP to mark absence; removal and defeat are one outcome.
-        state.Units[index] = unit with { CurrentHp = 0 };
-        foreach (var item in unit.Inventory) state.GroundObjects.Add(new(item, figure.Position));
-        state.Units[index] = state.Units[index] with { Inventory = [] };
+        RemoveFigureAndDropInventory(state, index, unit, figure);
         state.DefeatedUnitIds.Add(unitId);
-        state.Physical.Figures.RemoveAll(f => f.Id == unitId);
         foreach (var ability in AbilityQueries.NativeAbilities(configuration, unitId).Where(a => a.Definition.Timing == AbilityTiming.WhenDefeated))
             state.PendingDefeatEffects.Add(new(context, ability));
         return new("UnitDefeated", unitId)
             { SourceUnitId = sourceUnitId, ActionId = actionId, DefeatContext = context };
+    }
+
+    private static void RemoveFigureAndDropInventory(GameState state, int index, Unit unit, Figure figure)
+    {
+        foreach (var obj in unit.Inventory) state.GroundObjects.Add(new(obj, figure.Position));
+        state.Units[index] = unit with { CurrentHp = 0, Inventory = [] };
+        state.Physical.Figures.Remove(figure);
     }
 
     // Concrete automatic consequence: finish each recipient set before draining the next defeat.
@@ -860,6 +879,7 @@ public static partial class GameEngine
     {
         ArgumentNullException.ThrowIfNull(state);
         ValidateScenario(state);
+        if (state.RepossessionInProgress is { } attempt) RepossessionRules.ValidateContinuation(state, attempt);
         ValidateMachineInteractionState(state);
     }
 

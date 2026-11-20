@@ -14,7 +14,8 @@ internal static class PopulationComposition
     private static readonly IReadOnlyList<PopulationMonster> Monsters = [
         .. HeroesVsMonsters.Pool.Where(p => p.UnitTypeId != UnitTypeIds.Shaman)
             .Select(p => new PopulationMonster(p.UnitTypeId, p.Threat)),
-        new("demolition-imp", 3, RelativeWeight: 1)
+        new("demolition-imp", 3, RelativeWeight: 1),
+        new(UnitTypeIds.Paul, 5, RelativeWeight: 1)
     ];
 
     internal static PopulationMonster[] Pool(IEnumerable<string> availableTypeIds)

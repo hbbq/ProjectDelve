@@ -170,6 +170,11 @@ public sealed class LootDeck
 
 internal static class LootRules
 {
+    internal static IEnumerable<OwnedObject> PhysicalObjects(GameState state) =>
+        (state.LootDeck?.DrawPile ?? []).Concat(state.LootDeck?.DiscardPile ?? [])
+            .Concat(state.GroundObjects.Select(g => g.Object)).Concat(state.Units.SelectMany(u => u.Inventory))
+            .Concat(state.Storages.SelectMany(s => s.Contents));
+
     internal static void ValidateDrop(UnitType type)
     {
         void Require(bool valid, string path, string message)
@@ -197,14 +202,16 @@ internal static class LootRules
     internal static void Validate(GameState state)
     {
         EquipmentCatalog.Validate(state.EquipmentTypes);
+        StorageRules.ValidateStructure(state.Storages);
+        if (state.Storages.Any(s => s.SideId is { } side && !state.Objectives.Any(o => o.SideId == side)))
+            throw new ArgumentException("A Side-owned Storage requires a known Side.");
+        if (state.GroundObjects.Any(g => g is null || g.Object is null))
+            throw new ArgumentException("Known ground objects require an object card.");
         AbilityContent.ValidateState(state);
         if (state.LootMarkers.Count > (state.LootDeck?.DrawPile.Count ?? 0))
             throw new ArgumentException("Every unopened Loot marker requires an available draw card.");
         foreach (var type in state.Types) ValidateDrop(type);
-        if (state.GroundObjects.Any(g => g is null || g.Object is null))
-            throw new ArgumentException("Known ground objects require an object card.");
-        var objects = (state.LootDeck?.DrawPile ?? []).Concat(state.LootDeck?.DiscardPile ?? [])
-            .Concat(state.GroundObjects.Select(g => g.Object)).Concat(state.Units.SelectMany(u => u.Inventory)).ToArray();
+        var objects = PhysicalObjects(state).ToArray();
         if (objects.Any(o => o is null || string.IsNullOrWhiteSpace(o.Id) || !Enum.IsDefined(o.Kind) || o.ItemTypeId is not null && o.EquipmentTypeId is not null) ||
             objects.Select(o => o.Id).Distinct(StringComparer.Ordinal).Count() != objects.Length)
             throw new ArgumentException("Object cards require unique identities and supported kinds.");
@@ -213,6 +220,8 @@ internal static class LootRules
             ValidateCardProvenance(state, obj);
             _ = state.ObjectContent(obj);
         }
+        if (state.Storages.SelectMany(s => s.Contents).Any(o => state.ObjectContent(o).Category == LootCategory.Immediate))
+            throw new ArgumentException("Storage accepts physical carried objects.");
         if (state.LootMarkers.Any(m => m is null || string.IsNullOrWhiteSpace(m.Id) || m.Position is null ||
                 !MovementRules.Inside(state.Physical.Board, m.Position)) ||
             state.LootMarkers.Select(m => m.Id).Distinct(StringComparer.Ordinal).Count() != state.LootMarkers.Count)

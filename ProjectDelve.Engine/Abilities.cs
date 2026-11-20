@@ -37,6 +37,7 @@ public sealed record AbilityUsage(int? MaxUses = null);
 [JsonDerivedType(typeof(TargetUnitAttackMechanic), "targetUnitAttack")]
 [JsonDerivedType(typeof(WaypointSlotMachine), "waypointSlotMachine")]
 [JsonDerivedType(typeof(TryOpenDoor), "tryOpenDoor")]
+[JsonDerivedType(typeof(TryRepossessRandomEquipment), "tryRepossessRandomEquipment")]
 [JsonDerivedType(typeof(BreakObject), "breakObject")]
 [JsonDerivedType(typeof(BreakAdjacentObjects), "breakAdjacentObjects")]
 [JsonDerivedType(typeof(DefeatSelf), "defeatSelf")]
@@ -52,6 +53,10 @@ public sealed record AbilityUsage(int? MaxUses = null);
 [JsonDerivedType(typeof(Operate), "operate")]
 [JsonDerivedType(typeof(OpenDoor), "openDoor")]
 public abstract record AbilityMechanic;
+public sealed record TryRepossessRandomEquipment([property: JsonRequired] int SuccessCount,
+    [property: JsonRequired] string DestinationStorageId) : AbilityMechanic;
+public sealed record RepossessionContinuation(string UnitId, string TargetId, int SuccessCount,
+    string DestinationStorageId, string ActionId, AbilitySourceReference AbilitySource, int TargetingRange = 1);
 public sealed record Amphibious : AbilityMechanic;
 public sealed record MovementCapabilityGrant(ImmutableArray<string> Kinds) : AbilityMechanic;
 public sealed record RevealDistance([property: JsonRequired] int Distance) : AbilityMechanic;
@@ -144,6 +149,7 @@ public static class AbilityContent
             Validate(state.Types[index].LocalAbilities, AbilitySourceKind.Unit, $"unitTypes[{index}].localAbilities");
             ValidateReferences(state.Types[index].LocalAbilities, state.Types, $"unitTypes[{index}].localAbilities");
         }
+        RepossessionRules.ValidateStorageReferences(state);
         foreach (var unit in state.Units)
         {
             var type = state.UnitConfiguration(unit);
@@ -152,8 +158,7 @@ public static class AbilityContent
             if (unit.AbilityUseCounts is null || unit.AbilityUseCounts.Any(pair => !limited.TryGetValue(pair.Key, out var max) || pair.Value < 0 || pair.Value > max))
                 throw new ArgumentException("Ability use counters must match the Unit's limited Abilities.");
         }
-        var objects = (state.LootDeck?.DrawPile ?? []).Concat(state.LootDeck?.DiscardPile ?? [])
-            .Concat(state.GroundObjects.Select(ground => ground?.Object)).Concat(state.Units.SelectMany(unit => unit.Inventory));
+        var objects = LootRules.PhysicalObjects(state);
         foreach (var obj in objects)
         {
             if (obj is null || obj.AbilityUseCounts is null)

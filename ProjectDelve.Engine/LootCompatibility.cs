@@ -29,7 +29,9 @@ internal static class LootCompatibility
         var canonicalIds = (baseDefinitions ?? LootCardCatalog.All).Select(d => d.Id).ToHashSet(StringComparer.Ordinal);
         var explicitIds = (source.Loot?.Composition ?? []).OfType<LootCardQuantity>().Select(row => row.LootCardId)
             .Concat(source.Units.OfType<UnitPlacement>().SelectMany(unit => unit.Inventory ?? []).OfType<OwnedObject>().Select(obj => obj.LootCardId))
-            .Concat((source.GroundObjects ?? []).OfType<GroundObject>().Select(ground => ground.Object?.LootCardId)).OfType<string>();
+            .Concat((source.GroundObjects ?? []).OfType<GroundObject>().Select(ground => ground.Object?.LootCardId))
+            .Concat((source.Storages ?? []).OfType<Storage>().Where(s => !s.Contents.IsDefault)
+                .SelectMany(s => s.Contents).Select(obj => obj?.LootCardId)).OfType<string>();
         // An otherwise unresolved authored reference must not accidentally become
         // valid merely because an internal alias happens to use that spelling.
         var used = local.Where(d => d is not null).Select(d => d.Id).Concat(canonicalIds).Concat(explicitIds).ToHashSet(StringComparer.Ordinal);
@@ -53,7 +55,8 @@ internal static class LootCompatibility
             } : source.Loot,
             Units = source.Units.Select(unit => unit is not null && unit.Inventory is { } inventory
                 ? unit with { Inventory = inventory.Select(Object).ToList() } : unit!).ToList(),
-            GroundObjects = source.GroundObjects?.Select(ground => ground is null ? ground! : ground with { Object = Object(ground.Object) }).ToList()
+            GroundObjects = source.GroundObjects?.Select(ground => ground is null ? ground! : ground with { Object = Object(ground.Object) }).ToList(),
+            Storages = source.Storages?.Select(s => s is null || s.Contents.IsDefault ? s! : s with { Contents = [.. s.Contents.Select(Object)] }).ToList()
         };
     }
 

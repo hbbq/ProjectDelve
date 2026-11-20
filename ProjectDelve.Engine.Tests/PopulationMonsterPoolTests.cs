@@ -30,7 +30,7 @@ public sealed class PopulationMonsterPoolTests
         Assert.DoesNotContain(pool, p => p.UnitTypeId == DemolitionImp);
         Assert.DoesNotContain(HeroesVsMonsters.Pool, p => p.UnitTypeId == DemolitionImp);
         Assert.Equal(HeroesVsMonsters.Pool.Where(p => p.UnitTypeId != UnitTypeIds.Shaman).Select(p => p.UnitTypeId),
-            pool.Select(p => p.UnitTypeId));
+            pool.Where(p => p.UnitTypeId != UnitTypeIds.Paul).Select(p => p.UnitTypeId));
     }
 
     [Fact]

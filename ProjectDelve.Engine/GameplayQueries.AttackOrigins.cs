@@ -27,15 +27,20 @@ internal sealed partial class GameplayQueries
         // Fireball has an indirect target set. Positional RNG modifiers can change
         // range after relocating, including when leaving a negative aura. Retain
         // exhaustive evaluation for either case rather than guessing an upper bound.
+        var exhaustive = abilities.Any(ability => ability.Definition.Mechanic is FireballMechanic) ||
+            HasPositionalRangeModifiers();
+        return new(targets, range, exhaustive);
+    });
+
+    private bool HasPositionalRangeModifiers()
+    {
         static bool ChangesAdjacentRange(LocalAbilityDefinition ability) =>
             ability.Timing == AbilityTiming.Passive &&
             ability.Mechanic is AdjacentUnitsStatModifiersMechanic adjacent &&
             adjacent.Modifiers.Any(modifier => modifier.Stat == Stat.Rng);
-        var exhaustive = abilities.Any(ability => ability.Definition.Mechanic is FireballMechanic) ||
-            world.Units.Any(unit => world.UnitConfiguration(unit).LocalAbilities.Any(ChangesAdjacentRange) ||
+        return world.Units.Any(unit => world.UnitConfiguration(unit).LocalAbilities.Any(ChangesAdjacentRange) ||
                 world.Equipped(unit).Any(gear => gear.LocalAbilities.Any(ChangesAdjacentRange)));
-        return new(targets, range, exhaustive);
-    });
+    }
 
     private ImmutableArray<string> KnownAttackTargets(string unitId) => AttackOriginsFor(unitId).Targets;
 
@@ -49,13 +54,17 @@ internal sealed partial class GameplayQueries
         var targets = targeted
             ? context.Targets.Where(id => id == targetId)
             : context.Targets;
-        var targetCells = targets.SelectMany(OccupiedCellsOf).ToArray();
-        if (targetCells.Length == 0) return [];
+        return RangeOriginCandidates(unitId, targets.SelectMany(OccupiedCellsOf).ToArray(), context.Range, context.Exhaustive);
+    }
+
+    private IEnumerable<Cell> RangeOriginCandidates(string unitId, IReadOnlyList<Cell> targetCells, int range, bool exhaustive)
+    {
+        if (targetCells.Count == 0) return [];
         var board = world.Physical.Board;
-        if (context.Exhaustive)
+        if (exhaustive)
             return Enumerable.Range(0, board.Height).SelectMany(y =>
                 Enumerable.Range(0, board.Width).Select(x => new Cell(x, y)));
-        if (context.Range <= 0) return [];
+        if (range <= 0) return [];
 
         // A qualifying occupied-Cell pair implies anchor = target + displacement
         // - actor footprint offset. Union those anchors without inspecting terrain,
@@ -68,14 +77,14 @@ internal sealed partial class GameplayQueries
         {
             var centerX = (long)target.X - offset.X;
             var centerY = (long)target.Y - offset.Y;
-            var minY = Math.Max(0L, centerY - context.Range);
-            var maxY = Math.Min(board.Height - 1L, centerY + context.Range);
+            var minY = Math.Max(0L, centerY - range);
+            var maxY = Math.Min(board.Height - 1L, centerY + range);
             for (var y = minY; y <= maxY; y++)
             {
                 var dy = Math.Abs(y - centerY);
                 // RNG 1 is eight-neighbor Melee, including when another available
                 // Attack supplies a larger bound. Distance zero is harmless excess.
-                var horizontal = Math.Max(context.Range - dy, dy <= 1 ? 1 : 0);
+                var horizontal = Math.Max(range - dy, dy <= 1 ? 1 : 0);
                 var minX = Math.Max(0L, centerX - horizontal);
                 var maxX = Math.Min(board.Width - 1L, centerX + horizontal);
                 for (var x = minX; x <= maxX; x++) origins.Add(new((int)x, (int)y));

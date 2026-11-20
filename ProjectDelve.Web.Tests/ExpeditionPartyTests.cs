@@ -141,6 +141,56 @@ public sealed class ExpeditionPartyTests
     }
 
     [Fact]
+    public void DepartingMemberReturnsWhileDroppedCardsStayBehindAndSeizedGearKeepsItsUses()
+    {
+        var content = Content();
+        var founder = Heroes[0];
+        content = content with { Units = [.. content.Units.Select(t => t.Id == founder.TypeId ? t with {
+            LocalAbilities = t.LocalAbilities.Add(new("collect", "Collect", AbilityTiming.Action,
+                new TryRepossessRandomEquipment(6, StorageRules.RepossessedEquipmentId))) } : t)] };
+        var terrain = Terrain() with
+        {
+            Units = [new(UnitTypeIds.Goblin, "opposition", new(1, 2), UnitId: "carrier") {
+                Inventory = [new("loot-card-1", "test-summon-bell") { LootCardId = "test-bell-card",
+                    AbilityUseCounts = ImmutableDictionary<string, int>.Empty.Add("summon", 2) }] }],
+            LootUnitOverrides = new() { [UnitTypeIds.Goblin] = new(CanHaveEquipment: true) }
+        };
+        var ready = ExpeditionParty.Prepare(terrain, content, Exit, Heroes, null);
+        var index = ready.Units.FindIndex(u => u.UnitId == founder.InstanceId);
+        ready.Units[index] = ready.Units[index] with { Inventory = [new("dropped", LootCardKind.SecondWind)] };
+        var state = GameEngine.CreateGame(ready, content);
+        var actor = state.Units.Single(u => u.Id == founder.InstanceId);
+        state.Round = 1; state.CurrentUnitId = actor.Id; state.ActiveToken = actor.Token;
+        state.ResolvingTokenUnitIds = [actor.Id];
+        state.MoveDone = true;
+        var dice = new Dice();
+        var active = GameEngine.RefreshChoices(state, dice, false).State;
+        var collect = active.Pending!.Candidates.Single(c => c.Ability?.Key == "collect");
+        var attempt = GameEngine.Advance(active, new Choice(collect.Key), dice, false);
+        var departed = GameEngine.Advance(attempt.State, new Choice("roll-dice"), dice, false).State;
+        GameEngine.ValidateRestoredState(departed);
+        Assert.Contains(actor.Id, departed.Party!.MemberIds);
+        Assert.DoesNotContain(actor.Id, departed.DefeatedUnitIds);
+        Assert.DoesNotContain(departed.Physical.Figures, f => f.Id == actor.Id);
+        Assert.Equal("dropped", Assert.Single(departed.GroundObjects).Object.Id);
+        var latest = content with {
+            Equipment = content.Equipment.RemoveAll(e => e.Id == "test-summon-bell"),
+            LootCards = content.LootCards.RemoveAll(c => c.Id == "test-bell-card") };
+        var resolved = ExpeditionParty.ResolveContent(latest, departed, Heroes);
+        var next = GameEngine.CreateGame(ExpeditionParty.Prepare(Terrain(), resolved, Exit, Heroes, departed), resolved);
+        var returned = next.Units.Single(u => u.Id == actor.Id);
+        Assert.Empty(returned.Inventory);
+        Assert.True(returned.CurrentHp > 0);
+        Assert.Contains(next.Physical.Figures, f => f.Id == actor.Id);
+        Assert.Empty(next.GroundObjects);
+        var seized = Assert.Single(Assert.Single(next.Storages).Contents);
+        Assert.Equal("loot-card-1", seized.Id);
+        Assert.Equal("test-bell-card", seized.LootCardId);
+        Assert.Equal(2, seized.AbilityUseCounts["summon"]);
+        Assert.Contains(resolved.Equipment, e => e.Id == seized.EquipmentTypeId);
+    }
+
+    [Fact]
     public void IncompatibleCurrentOwnershipAndRetargetedProvenanceFailWithoutDroppingGear()
     {
         var content = Content(); var previous = Previous(content);

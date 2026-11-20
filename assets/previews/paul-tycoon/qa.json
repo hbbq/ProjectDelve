@@ -1,0 +1,113 @@
+{
+  "date": "2026-11-20",
+  "browser": "Microsoft Edge",
+  "runner": "Protected browser QA dispatcher on the isolated port-5081 host",
+  "viewport": {
+    "desktop": [
+      1440,
+      1000
+    ],
+    "narrow": [
+      600,
+      850
+    ]
+  },
+  "tabletop": {
+    "captures": [
+      "normal.png",
+      "close.png",
+      "narrow.png"
+    ],
+    "readyModels": 2,
+    "baseContactMargin": {
+      "paul-type": 0.1073065187725532,
+      "tycoon-type": 0.0389717663083754
+    }
+  },
+  "movementFrames": {
+    "paul": 17,
+    "tycoon": 19
+  },
+  "fogOfWar": {
+    "revealPaul": {
+      "initiallyLoaded": [
+        "tycoon.glb"
+      ],
+      "loadedAfterMove": [
+        "tycoon.glb",
+        "paul.glb"
+      ]
+    },
+    "revealTycoon": {
+      "initiallyLoaded": [
+        "paul.glb"
+      ],
+      "loadedAfterMove": [
+        "paul.glb",
+        "tycoon.glb"
+      ]
+    }
+  },
+  "inspections": {
+    "tabletop": {
+      "directory": ".playwright-cli/browser-qa/inspection-nFDtVe",
+      "consoleErrors": 0,
+      "failedRequests": 0
+    },
+    "content": {
+      "directory": ".playwright-cli/browser-qa/inspection-1fBc7i",
+      "consoleErrors": 0,
+      "failedRequests": 0
+    },
+    "designerAndPlaytest": {
+      "directory": ".playwright-cli/browser-qa/inspection-yemiQe",
+      "consoleErrors": 0,
+      "failedRequests": 0
+    },
+    "paulMovement": {
+      "directory": ".playwright-cli/browser-qa/inspection-nL8CB9",
+      "consoleErrors": 0,
+      "failedRequests": 0
+    },
+    "tycoonMovement": {
+      "directory": ".playwright-cli/browser-qa/inspection-D2UxPD",
+      "consoleErrors": 0,
+      "failedRequests": 0
+    },
+    "lyingAndUpright": {
+      "directory": ".playwright-cli/browser-qa/inspection-brRAvi",
+      "consoleErrors": 0,
+      "failedRequests": 0
+    },
+    "revealPaul": {
+      "directory": ".playwright-cli/browser-qa/inspection-vJMTey",
+      "consoleErrors": 0,
+      "failedRequests": 0
+    },
+    "revealTycoon": {
+      "directory": ".playwright-cli/browser-qa/inspection-AkLG4s",
+      "consoleErrors": 0,
+      "failedRequests": 0
+    },
+    "paulHeading": {
+      "directory": ".playwright-cli/browser-qa/inspection-GWootX",
+      "consoleErrors": 0,
+      "failedRequests": 0
+    },
+    "tycoonHeading": {
+      "directory": ".playwright-cli/browser-qa/inspection-nMi97e",
+      "consoleErrors": 0,
+      "failedRequests": 0
+    }
+  },
+  "movementFacing": {
+    "paul": [
+      "east.png",
+      "south.png"
+    ],
+    "tycoon": [
+      "east.png",
+      "south.png"
+    ]
+  }
+}

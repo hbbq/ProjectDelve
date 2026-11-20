@@ -18,6 +18,10 @@ public sealed class UnitVisualCatalogTests
         var publishedTypes = new CanonicalContent(Path.Combine(root, "ProjectDelve.Web/Content/Canonical")).Bundle.Units;
         var units = catalog.GetProperty("units").EnumerateArray().ToArray();
         var ids = units.Select(u => u.GetProperty("typeId").GetString()).ToArray();
+        var paul = Assert.Single(units, u => u.GetProperty("typeId").GetString() == UnitTypeIds.Paul);
+        var tycoon = Assert.Single(units, u => u.GetProperty("typeId").GetString() == UnitTypeIds.Tycoon);
+        Assert.Equal("paul/v1", paul.GetProperty("model").GetString());
+        Assert.Equal("tycoon/v1", tycoon.GetProperty("model").GetString());
         Assert.Equal(ids.Length, ids.Distinct().Count());
         Assert.All(ids, id => Assert.Contains(publishedTypes, t => t.Id == id));
         var constants = typeof(UnitTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).Where(f => f.IsLiteral && f.FieldType == typeof(string)).Select(f => (string)f.GetRawConstantValue()!);

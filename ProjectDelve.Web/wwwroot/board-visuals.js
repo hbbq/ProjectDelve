@@ -53,6 +53,16 @@ export const boardVisuals = {
     Rail: { baseTerrain: "Gravel", tracks: Object.fromEntries(["straight", "curve", "tee", "cross"].map(shape => [shape, `./art/railway/${shape}.svg`])) }
   },
   unit: {
+    "paul-type": { image: "./art/units/paul.webp",
+      references: [
+        { label: "Full-body reference", image: "./art/units/paul/reference/full-body.webp" },
+        { label: "Character sheet", image: "./art/units/paul/reference/character-sheet.webp" }
+      ] },
+    "tycoon-type": { image: "./art/units/tycoon.webp",
+      references: [
+        { label: "Full-body reference", image: "./art/units/tycoon/reference/full-body.webp" },
+        { label: "Character sheet", image: "./art/units/tycoon/reference/character-sheet.webp" }
+      ] },
     "beastmaster-type": { image: "./art/units/beastmaster.webp" },
     "jackalope-type": { image: "./art/units/jackalope.webp" },
     "giant-toad-type": { image: "./art/units/giant-toad.webp" },

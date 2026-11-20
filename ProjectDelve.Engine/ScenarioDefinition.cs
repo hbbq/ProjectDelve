@@ -22,6 +22,8 @@ public sealed record ScenarioDefinition
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<string>? AdditionalSideIds { get; init; }
     public List<GroundObject>? GroundObjects { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<Storage>? Storages { get; init; }
     // Local definitions resolve with canonical content within this scenario/game only.
     public List<EquipmentDefinition>? EquipmentTypes { get; init; }
     public List<ItemDefinition>? ItemTypes { get; init; }

@@ -33,6 +33,11 @@ public static partial class GameEngine
 
             switch (ability.Definition.Mechanic)
             {
+                case TryRepossessRandomEquipment:
+                    var repossessFrom = state.Physical.Figures.Single(f => f.Id == unit.Id).Position;
+                    foreach (var target in state.Units.Where(target => RepossessionRules.CanTarget(state, unit.Id, repossessFrom, target.Id)))
+                        yield return Bind(new($"{ability.CandidatePrefix}:{target.Id}", TargetId: target.Id));
+                    break;
                 case BreakObject:
                     foreach (var target in BreakObjectRules.Targets(state, FootprintGeometry.OccupiedCells(state, unit.Id)))
                         yield return Bind(new($"{ability.CandidatePrefix}:{target.Key}") { BreakTarget = target });
@@ -140,12 +145,20 @@ public static partial class GameEngine
     private static void ResolveAbility(GameState state, DecisionRequest request, Candidate choice, ResolutionEvents events)
     {
         var ability = choice.Ability!;
+        // A posture cost can suppress the Equipment that put this target in range.
+        var targetingRange = ability.Definition.Mechanic is TryRepossessRandomEquipment
+            ? state.EffectiveRngOf(request.UnitId!) : 0;
+        CommitAbilityInvocation(state, request.UnitId!, ability, events);
         // Modifier/extra-Action events expose the resulting activation state,
         // preserving their existing event-time snapshots.
         if (ability.Definition.Mechanic is not (SelfModifiersMechanic or ExtraActionsMechanic or SelfExtraMovesMechanic or ReshapeRoom or RevealDistance))
             EmitActionUsed(request, choice.Key, events);
         switch (ability.Definition.Mechanic)
         {
+            case TryRepossessRandomEquipment repossess:
+                state.RepossessionInProgress = new(request.UnitId!, choice.TargetId!, repossess.SuccessCount,
+                    repossess.DestinationStorageId, ability.ActionId, ability.SourceReference, targetingRange);
+                break;
             case BreakObject:
                 BeginBreak(state, request.UnitId!, ability, [choice.BreakTarget!], false, events);
                 break;

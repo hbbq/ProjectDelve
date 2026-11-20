@@ -42,6 +42,11 @@ public static class ContentDescriptions
             case MoveAfterAttack move: Number("maxSteps", move.MaxSteps); break;
             case RunRails rails: Number("steps", rails.Steps); break;
             case TryOpenDoor door: Number("successCount", door.SuccessCount); break;
+            case TryRepossessRandomEquipment repossess:
+                Number("successCount", repossess.SuccessCount);
+                values["destinationStorageId"] = repossess.DestinationStorageId == StorageRules.RepossessedEquipmentId
+                    ? StorageRules.RepossessedEquipmentName : repossess.DestinationStorageId;
+                break;
             case BreakObject broken: Number("successThreshold", broken.SuccessThreshold); break;
             case BreakAdjacentObjects broken: Number("successThreshold", broken.SuccessThreshold); break;
             case Displace displace: Number("maxMove", displace.MaxMove); break;

@@ -794,6 +794,17 @@ public static class BrowserProjection
                 role = OutcomeRole.DoorAttempt;
                 description = $"{name(e.UnitId)} tried door {CellLabel(e.Door!.A)} ↔ {CellLabel(e.Door.B)}: D6 {e.DieRoll}, {e.SuccessCount}/6 → {(e.Succeeded == true ? "success" : "failed; door stays closed")} (Action consumed)";
                 break;
+            case "EquipmentRepossessionAttemptResolved":
+                var attemptText = e.UnitId is null ? $"Repossession attempt against {name(e.TargetId)}" :
+                    $"{name(e.UnitId)} tried to repossess Equipment from {name(e.TargetId)}: D6 {e.DieRoll}, {e.SuccessCount}/6";
+                description = attemptText + "; " +
+                    (e.Succeeded == true ? e.RepossessedEquipmentId is { } objectId
+                        ? $"success; {e.RepossessedEquipmentName} ({objectId}) moved to Storage"
+                        : "success; Equipment moved to Storage" : "failed; Action consumed");
+                break;
+            case "UnitRemoved":
+                description = $"{name(e.UnitId)} left play";
+                break;
             case "ObjectBreakResolved":
             case "AdjacentObjectsBreakResolved":
                 description = $"{subject}: " + string.Join("; ", e.BreakOutcomes.Select(outcome =>

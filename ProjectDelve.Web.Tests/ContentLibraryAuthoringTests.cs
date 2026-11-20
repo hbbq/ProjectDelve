@@ -21,6 +21,22 @@ public sealed class ContentLibraryAuthoringTests : IDisposable
     private static ContentEditorRequest Edit(object value, string family = "equipment", string? existing = null)
         => new(family, JsonSerializer.SerializeToElement(value, value.GetType(), Json), existing);
 
+    [Theory]
+    [InlineData(0)] [InlineData(2)] [InlineData(6)]
+    public void RepossessionUsesTypedDesignerPayloadAndAuthoredDescription(int successes)
+    {
+        var gear = new EquipmentDefinition("custom-repossessor", "Custom Repossessor")
+        {
+            LocalAbilities = [new("collect", "Collect", AbilityTiming.Action,
+                new TryRepossessRandomEquipment(successes, StorageRules.RepossessedEquipmentId))]
+        };
+        var preview = ContentLibraryAuthoring.Validate(Store, new(new(Empty(), 0), Edit(gear)));
+        Assert.True(preview.Valid); Assert.Empty(preview.Diagnostics);
+        var ability = Assert.Single(preview.Entry!.Abilities);
+        Assert.Contains($"{successes} of 6 faces", ability.Description);
+        Assert.Contains(StorageRules.RepossessedEquipmentName, ability.Description);
+    }
+
     [Fact]
     public void DefinitionPreviewAndPackageInspectionDoNotPersistCandidatesOrCreateScenarios()
     {

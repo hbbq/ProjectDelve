@@ -16,6 +16,41 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
     private readonly string root = Path.Combine(Path.GetTempPath(), "project-delve-expedition-" + Guid.NewGuid().ToString("N"));
 
     [Fact]
+    public void StorageAcrossSaveAndRegionHandoffRetainsExactCardAndReservesItsIdentity()
+    {
+        var store = new ExpeditionStore(root, "stored-property");
+        ScenarioDefinition Board(ulong seed, ExpeditionRegionPlan plan, ContentBundle content)
+        {
+            var board = OpenBoard(seed, plan, content);
+            if (plan.Region != ExpeditionWorld.Initial(seed).Region)
+                return board with { Loot = new() { Composition = [new(LootCardKind.SecondWind, 2)] } };
+            return board with
+            {
+                AdditionalSideIds = ["absent-next-region"],
+                Storages = [
+                    new(StorageRules.RepossessedEquipmentId, "Repossessed Equipment Storage", null,
+                        [new("loot-card-1", "lucky-boots") { Level = 2,
+                            AbilityUseCounts = ImmutableDictionary<string, int>.Empty.Add("second-step", 1) }]),
+                    new("side-locker", "Locker", "absent-next-region", [new("stored-item") { ItemTypeId = "second-wind" }])]
+            };
+        }
+        var runner = ExpeditionRunner.Create(store, WorldSeed, ContentBundle.Canonical, Board);
+        runner.Save();
+        var resumed = ExpeditionRunner.Open(store, ContentBundle.Canonical, Board);
+        var initial = JsonSerializer.Serialize(resumed.Snapshot().Storages);
+        FinishOpenBoard(resumed);
+        var receipt = resumed.Continue(resumed.Region.TransitionId);
+        Assert.Equal(receipt, resumed.Continue(receipt.Id));
+        var next = ExpeditionRunner.Open(store, ContentBundle.Canonical, Board).Snapshot();
+        Assert.Equal(initial, JsonSerializer.Serialize(next.Storages));
+        Assert.Equal(new[] { "loot-card-2", "loot-card-3" }, next.LootDeck!.DrawPile.Select(o => o.Id));
+        Assert.DoesNotContain(next.Units.SelectMany(u => u.Inventory), o => o.Id == "loot-card-1");
+        Assert.DoesNotContain(next.GroundObjects, o => o.Object.Id == "loot-card-1");
+        Assert.Equal("absent-next-region", next.Storages.Single(s => s.StorageId == "side-locker").SideId);
+        GameEngine.ValidateRestoredState(next);
+    }
+
+    [Fact]
     public void MaterializedRegionWithUnpricedLevelsResumesItsSavedDefinitionsAndRefreshesAtTheNextHandoff()
     {
         const string id = "unpriced-levels";

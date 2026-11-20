@@ -2,15 +2,17 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const root=path.resolve(__dirname,'..'),read=p=>fs.readFileSync(path.join(root,p)),hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 const expected=require('./fixtures/miniatures/final-batch.json');
 function views(bytes){const length=bytes.readUInt32LE(12),j=JSON.parse(bytes.subarray(20,20+length)),b=bytes.subarray(28+length);return {j,geometry:j.bufferViews.filter((_,i)=>!j.images.some(m=>m.bufferView===i)).map(v=>b.subarray(v.byteOffset??0,(v.byteOffset??0)+v.byteLength))};}
-test('final five preserve exact originals, geometry and reviewed dimensions with reproducible exports',async()=>{
+test('reviewed miniatures preserve exact originals, geometry and dimensions with reproducible exports',async()=>{
  const {prepare}=require('../tools/prepare-unit-model.cjs'),{inspect}=require('../tools/inspect-glb.cjs');
  const {validateUnitVisualCatalog,resolveUnitModel}=await import(pathToFileURL(path.join(root,'ProjectDelve.Web/wwwroot/unit-visuals.js')));
- const disk=JSON.parse(read('ProjectDelve.Web/wwwroot/art/models/unit-visuals.json')),catalog=validateUnitVisualCatalog(disk,disk.units.map(u=>({unitTypeId:u.typeId,cellSpan:u.typeId==='red-dragon-type'?2:1})));
- assert.deepEqual(disk.units.filter(u=>!u.model).map(u=>u.typeId),['tycoon-type']);
- assert.equal(resolveUnitModel(catalog,'tycoon-type',1),null);
+ const disk=JSON.parse(read('ProjectDelve.Web/wwwroot/art/models/unit-visuals.json'));
+ const unmodeledType='fixture-unmodeled-type';
+ disk.units.push({typeId:unmodeledType,targetHeight:.8,maximumRadius:.3,baseRadius:.27});
+ const catalog=validateUnitVisualCatalog(disk,disk.units.map(u=>({unitTypeId:u.typeId,cellSpan:u.typeId==='red-dragon-type'?2:1})));
+ assert.equal(resolveUnitModel(catalog,unmodeledType,1),null);
  for(const [slug,e] of Object.entries(expected)){
   const p=JSON.parse(read(`assets/source/models/units/${slug}/provenance.json`)),u=catalog.units[slug+'-type'],d=resolveUnitModel(catalog,u.typeId,1),source=read(p.original.path),runtime=read(p.runtime.path);
-  assert.deepEqual([u.targetHeight,u.maximumRadius,u.baseRadius],e.dimensions);assert.equal(d.maxTextureDimension,1024);assert.equal(resolveUnitModel(catalog,u.typeId,2),null);
+  assert.deepEqual([u.targetHeight,u.maximumRadius,u.baseRadius],e.dimensions);assert.equal(d.id,`${slug}/v1`);assert.equal(d.maxTextureDimension,1024);assert.equal(resolveUnitModel(catalog,u.typeId,2),null);
   assert.equal(p.status,'approved-production');assert.equal(p.plan,'Pro');assert.ok(p.planEvidence);assert.equal(p.commerciallyCleared,true);assert.equal(p.redistributionRightsConfirmed,true);
   for(const ref of [p.projectPortraitReference,...p.projectConceptReferences])assert.ok(read(ref).length);
   assert.equal(hash(source),e.sourceSha256);assert.equal(hash(runtime),e.runtimeSha256);assert.equal(p.original.sha256,e.sourceSha256);assert.equal(p.runtime.sha256,e.runtimeSha256);
@@ -18,7 +20,14 @@ test('final five preserve exact originals, geometry and reviewed dimensions with
   assert.deepEqual(prepare(source,e.sourceSha256,p.preparation),runtime);assert.equal(p.validation.source.errors,0);assert.equal(p.validation.runtime.errors,0);
   const a=views(source),b=views(runtime);assert.deepEqual(a.geometry,b.geometry);for(const key of ['accessors','materials','meshes','textures','samplers'])assert.deepEqual(a.j[key],b.j[key]);
   assert.deepEqual(b.j.nodes.slice(0,a.j.nodes.length),a.j.nodes);
-  if(e.rotationYDegrees){assert.equal(b.j.nodes.length,a.j.nodes.length+1);const wrapper=b.j.nodes.at(-1);assert.deepEqual(wrapper.children,a.j.scenes[0].nodes);assert.ok(Math.abs(wrapper.rotation[1]-Math.SQRT1_2)<1e-12);}
+  if(e.rotationYDegrees){
+   assert.equal(b.j.nodes.length,a.j.nodes.length+1);
+   const wrapper=b.j.nodes.at(-1),halfAngle=e.rotationYDegrees*Math.PI/360;
+   assert.deepEqual(wrapper.children,a.j.scenes[0].nodes);
+   assert.deepEqual(b.j.scenes[0].nodes,[a.j.nodes.length]);
+   assert.ok(Math.abs(wrapper.rotation[1]-Math.sin(halfAngle))<1e-12);
+   assert.ok(Math.abs(wrapper.rotation[3]-Math.cos(halfAngle))<1e-12);
+  }
   else assert.deepEqual(a.j.nodes,b.j.nodes);
   const info=await inspect(path.join(root,p.runtime.path),u.targetHeight);assert.equal(info.triangles,e.triangles);assert.equal(info.primitives,1);assert.equal(info.materials.length,1);assert.equal(info.finite,true);assert.ok(info.normalization.maximumRadius<=u.maximumRadius);assert.ok(info.images.every(i=>i.width===1024&&i.height===1024));assert.equal(info.images.length,3);assert.deepEqual(info.externalResources,[]);assert.deepEqual(info.extensionsUsed,[]);
   assert.equal(fs.existsSync(path.join(root,`assets/import/models/${slug}.glb`)),false);

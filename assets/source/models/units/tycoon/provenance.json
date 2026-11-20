@@ -1,0 +1,366 @@
+{
+  "schemaVersion": 1,
+  "status": "approved-production",
+  "generator": "Tripo",
+  "generationModel": "unknown",
+  "plan": "Pro",
+  "planEvidence": "On 2026-11-20, the owner confirmed that the exact supplied paul.glb and tycoon.glb were generated under paid Tripo Pro and cleared for Project Delve commercial use and redistribution.",
+  "generationDate": "unknown",
+  "generationSettings": "unknown",
+  "exportSettings": "unknown",
+  "savedLicenseOrExportRecord": "not supplied",
+  "projectPortraitReference": "assets/source/units/tycoon.png",
+  "projectConceptReferences": [
+    "assets/source/units/tycoon/reference/full-body.png",
+    "assets/source/units/tycoon/reference/character-sheet.png"
+  ],
+  "portraitUsedAsGenerationInput": "unknown",
+  "fullBodyUsedAsGenerationInput": "unknown",
+  "commerciallyCleared": true,
+  "redistributionRightsConfirmed": true,
+  "original": {
+    "path": "assets/source/models/units/tycoon/original.glb",
+    "sha256": "f00aa7a582c8eb7d65a9efe4501782108c33fc9a6f2bfc71ea0bef3911b79d32",
+    "bytes": 2493864,
+    "preservedUnchanged": true
+  },
+  "runtime": {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/tycoon/v1/tycoon.glb",
+    "sha256": "6a96dc09286ed364c056140816f6a0e95079d959d54dcb64f8a87ae1e09c3a50",
+    "bytes": 1537888
+  },
+  "rightsReview": {
+    "date": "2026-11-20",
+    "termsLastUpdated": "2026-11-13",
+    "sources": [
+      "https://www.tripo3d.ai/terms"
+    ],
+    "basis": "Tripo Studio Terms §5.2.2 cover commercial use, modification and distribution of paid outputs, subject to the terms, applicable law and third-party rights. The owner confirmed paid Pro generation and commercial redistribution for these exact two exports.",
+    "repositoryPolicy": "Preserve the source byte-for-byte outside wwwroot. The project distributes the prepared runtime. No separate public asset license is assigned."
+  },
+  "preparation": {
+    "tool": "tools/prepare-unit-model.cjs",
+    "version": 1,
+    "node": "v22.23.2",
+    "textureLimit": 1024,
+    "rotationYDegrees": 0,
+    "python": "3.14.7",
+    "pillow": "13.0.0",
+    "zlib": "1.3.1.zlib-ng",
+    "steps": [
+      "Strip unused source extension declarations and record source SHA-256.",
+      "Resize three embedded maps from 2048 to 1024 with Pillow LANCZOS and lossless PNG compression.",
+      "Ground-center and uniformly normalize to 0.80 Cell at runtime on the procedural Side base."
+    ],
+    "orientation": "Retain the source yaw. Eastward and southward Moves in Edge confirm that the figure faces its direction of travel. The starting pose uses a randomized yaw and was the basis for the earlier 180 degree correction."
+  },
+  "validation": {
+    "validator": "Khronos glTF Validator",
+    "version": "2.0.0-dev.3.10",
+    "source": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "sourceReport": "assets/source/models/units/tycoon/validation-source.json",
+    "runtime": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "runtimeReport": "assets/source/models/units/tycoon/validation-runtime.json",
+    "warning": "The normal maps use runtime-generated tangents. Preparation removes unused source extension declarations, including FB_ngon_encoding."
+  },
+  "visualReview": "The figure retains its single yellow plastic color, molded detail, gloss and cane. The contact envelope fits the existing base with 0.03897 Cell margin, slightly below the 0.04 Cell advisory target. The mesh has no integrated base.",
+  "import": {
+    "inboxPath": "assets/import/models/tycoon.glb",
+    "sha256BeforeMove": "f00aa7a582c8eb7d65a9efe4501782108c33fc9a6f2bfc71ea0bef3911b79d32",
+    "sha256AfterMove": "f00aa7a582c8eb7d65a9efe4501782108c33fc9a6f2bfc71ea0bef3911b79d32"
+  },
+  "inspection": {
+    "file": "assets/source/models/units/tycoon/original.glb",
+    "bytes": 2493864,
+    "sha256": "f00aa7a582c8eb7d65a9efe4501782108c33fc9a6f2bfc71ea0bef3911b79d32",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo"
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 1984
+      },
+      {
+        "type": 5130562,
+        "length": 2491852
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9954,
+    "materials": [
+      {
+        "name": "tripo_material_20699062-1bbf-4e40-9a67-845c59912257",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bytes": 304018,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "818ea95f1c1f15636b8acf134db01735587d75ffd49b0597c9d99a6189de9bf0"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bytes": 132629,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "d505e9c9e520b78bfb645280e0cabf844a1e472b27e8145318d61755289f4c45"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 1731175,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "63cb31c0980a6bb06369ad2ac92aeef931c6936c6489d8cdca59cf5ad5c78252"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_20699062-1bbf-4e40-9a67-845c59912257",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [
+      "KHR_materials_volume",
+      "FB_ngon_encoding"
+    ],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.31134033203125,
+        0,
+        -0.2283020317554474
+      ],
+      "max": [
+        0.31134033203125,
+        1.000030517578125,
+        0.2283020317554474
+      ],
+      "dimensions": [
+        0.6226806640625,
+        1.000030517578125,
+        0.4566040635108948
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.8,
+      "scale": 0.7999755866825353,
+      "maximumRadius": 0.2891118784226717,
+      "contact": {
+        "radius": 0.23102823369162462,
+        "minX": -0.20602398608440906,
+        "maxX": 0.14325735880328969,
+        "minZ": -0.06348681418604474,
+        "maxZ": 0.1430864536604718,
+        "bandHeight": 0.05999999999999999,
+        "samples": 1088
+      },
+      "dimensions": [
+        0.49812932954926914,
+        0.8,
+        0.36527210358875767
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "runtimeInspection": {
+    "file": "ProjectDelve.Web/wwwroot/art/models/units/tycoon/v1/tycoon.glb",
+    "bytes": 1537888,
+    "sha256": "6a96dc09286ed364c056140816f6a0e95079d959d54dcb64f8a87ae1e09c3a50",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo",
+      "extras": {
+        "preparation": "ProjectDelve core static GLB v1",
+        "sourceSha256": "f00aa7a582c8eb7d65a9efe4501782108c33fc9a6f2bfc71ea0bef3911b79d32",
+        "runtimeTextureLimit": 1024
+      }
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2076
+      },
+      {
+        "type": 5130562,
+        "length": 1535784
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9954,
+    "materials": [
+      {
+        "name": "tripo_material_20699062-1bbf-4e40-9a67-845c59912257",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/png",
+        "bytes": 495868,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "121f2a0a33a07e85e3c4ba4776401388358d27b6350c49fd20fb1a2b9f74315f"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/png",
+        "bytes": 148544,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "4ee6fbde1645749a0ce1334b80848f4a6322c52cd6812b3ab41d7c9da49c2a18"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 567348,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "5080d1064512701d5db4c8240ae0606976e8b7f6b635c8dd9bc88d13753a86c2"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_20699062-1bbf-4e40-9a67-845c59912257",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.31134033203125,
+        0,
+        -0.2283020317554474
+      ],
+      "max": [
+        0.31134033203125,
+        1.000030517578125,
+        0.2283020317554474
+      ],
+      "dimensions": [
+        0.6226806640625,
+        1.000030517578125,
+        0.4566040635108948
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.8,
+      "scale": 0.7999755866825353,
+      "maximumRadius": 0.2891118784226717,
+      "contact": {
+        "radius": 0.23102823369162462,
+        "minX": -0.20602398608440906,
+        "maxX": 0.14325735880328969,
+        "minZ": -0.06348681418604474,
+        "maxZ": 0.1430864536604718,
+        "bandHeight": 0.05999999999999999,
+        "samples": 1088
+      },
+      "dimensions": [
+        0.49812932954926914,
+        0.8,
+        0.36527210358875767
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "compatibility": {
+    "targetHeight": 0.8,
+    "maximumRadius": 0.3,
+    "baseRadius": 0.27,
+    "measuredMaximumRadius": 0.2891118784226717,
+    "contact": {
+      "radius": 0.23102823369162462,
+      "minX": -0.20602398608440906,
+      "maxX": 0.14325735880328969,
+      "minZ": -0.06348681418604474,
+      "maxZ": 0.1430864536604718,
+      "bandHeight": 0.05999999999999999,
+      "samples": 1088
+    },
+    "base": {
+      "radius": 0.27,
+      "maximumRadius": 0.45,
+      "requestedRadius": 0.27,
+      "requiredRadius": 0.2710282336916246,
+      "margin": 0.0389717663083754,
+      "shortfall": 0.0010282336916245804,
+      "fitsContact": false,
+      "warning": "Estimated contact envelope lacks the target foot margin"
+    },
+    "logicalFootprint": "unchanged"
+  }
+}

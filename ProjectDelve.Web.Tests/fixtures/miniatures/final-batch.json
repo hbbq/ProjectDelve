@@ -53,5 +53,19 @@
     "sourceSha256": "ff1dac86418b6ecbe4e06a8509355707d76b3fae7500e70d62091e03530cfe67",
     "runtimeSha256": "20a684f1b7a1821560378d0a0a25c019c8663720637f5a29ec9c7691f286fbdb",
     "rotationYDegrees": 0
+  },
+  "paul": {
+    "dimensions": [0.8, 0.30, 0.27],
+    "triangles": 9598,
+    "sourceSha256": "d4197581192c911d861a0c9708349eda2b0a35ce6c34b260d7d278deba4e0950",
+    "runtimeSha256": "d95b76d5ec0ec51f3ea0b44a02c0e22f85aa7ede7677f4618ca878433d5c2f90",
+    "rotationYDegrees": 0
+  },
+  "tycoon": {
+    "dimensions": [0.8, 0.30, 0.27],
+    "triangles": 9954,
+    "sourceSha256": "f00aa7a582c8eb7d65a9efe4501782108c33fc9a6f2bfc71ea0bef3911b79d32",
+    "runtimeSha256": "6a96dc09286ed364c056140816f6a0e95079d959d54dcb64f8a87ae1e09c3a50",
+    "rotationYDegrees": 0
   }
 }

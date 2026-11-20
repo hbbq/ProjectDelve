@@ -183,7 +183,8 @@ public sealed class PopulationV2Tests
     [Fact]
     public void DensePlacementValidatesEveryCellAndInternalEdgeOfLargeFootprints()
     {
-        var content = ContentBundle.Canonical(); var pool = HeroesVsMonsters.Pool.Select(p => p.UnitTypeId).ToHashSet();
+        var content = ContentBundle.Canonical();
+        var pool = PopulationComposition.Pool(content.Units.Select(t => t.Id)).Select(p => p.UnitTypeId).ToHashSet();
         content = content with { Units = [.. content.Units.Select(t => pool.Contains(t.Id) ? t with { Footprint = Footprint.TwoByTwo } : t)] };
         var world = WorldGenerator.Generate(Recipe(width: 40, height: 35), content);
         Assert.NotEmpty(world.Definition.Units); var state = GameEngine.CreateGame(world.Definition, content);

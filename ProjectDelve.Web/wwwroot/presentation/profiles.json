@@ -26,6 +26,7 @@
     { "id": "targetUnitAttack", "name": "Target Unit Attack", "cursor": "attack" },
     { "id": "waypointSlotMachine", "name": "Waypoint Slot Machine" },
     { "id": "tryOpenDoor", "name": "Try Open Door", "cursor": "open-door" },
+    { "id": "tryRepossessRandomEquipment", "name": "Try Repossess Random Equipment" },
     { "id": "breakObject", "name": "Break Object", "cursor": "break" },
     { "id": "breakAdjacentObjects", "name": "Break Adjacent Objects", "cursor": "break" },
     { "id": "defeatSelf", "name": "Defeat Self" },

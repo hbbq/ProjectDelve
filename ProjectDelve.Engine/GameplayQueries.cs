@@ -5,6 +5,10 @@ namespace ProjectDelve.Engine;
 
 public interface IGameplayQueries
 {
+    bool HasFailedRepossessionThisActivation(string unitId) => false;
+    IReadOnlyList<string> KnownEquippedHostileUnitIds(string unitId) => throw new NotSupportedException();
+    int? DistanceToRepossessionPositionFrom(string unitId, Cell position, string targetId,
+        bool closedDoorsTraversable = false) => throw new NotSupportedException();
     string? PreferredBeaconChoice(DecisionRequest request) => null;
     string? SummonerOf(string unitId) => throw new NotSupportedException();
     IReadOnlyList<string> KnownFriendlyUnitIds(string unitId) => throw new NotSupportedException();

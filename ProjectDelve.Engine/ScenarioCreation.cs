@@ -213,6 +213,7 @@ internal static class ScenarioCreation
             ResourceDefinitions = [.. catalog.Resources], ActivationTypeOrder = [.. definition.UnitTypeIds],
             LootMarkers = [.. definition.LootMarkers ?? []], GroundObjects = [.. definition.GroundObjects ?? []],
             SideCredits = credits.Balances, CreditsPiles = credits.Piles,
+            Storages = StorageRules.Create(definition.Storages),
             Physical = new(new Board(board.Width, board.Height, board.Edges.Select(e => new Edge(e.Position,
                 e.Direction == EdgeDirection.Right ? new(e.Position.X + 1, e.Position.Y) : new(e.Position.X, e.Position.Y + 1),
                 e.Kind)).ToList(), terrainTypes) { Terrain = terrain, Machines = [.. definition.Machines ?? []] }, []),
@@ -233,7 +234,8 @@ internal static class ScenarioCreation
         }
         catch (ArgumentException error) { throw ScenarioValidationContext.At(error, "worldEffects.composition"); }
         var reservedObjectIds = definition.Units.SelectMany(unit => unit.Inventory ?? []).OfType<OwnedObject>().Select(obj => obj.Id)
-            .Concat((definition.GroundObjects ?? []).OfType<GroundObject>().Select(ground => ground.Object).OfType<OwnedObject>().Select(obj => obj.Id));
+            .Concat((definition.GroundObjects ?? []).OfType<GroundObject>().Select(ground => ground.Object).OfType<OwnedObject>().Select(obj => obj.Id))
+            .Concat(state.Storages.SelectMany(s => s.Contents).Select(obj => obj.Id));
         state.LootDeck.DrawPile = (definition.Loot ?? new LootSettings()).ResolveObjects(state.LootCardDefinitions, reservedObjectIds);
         for (var index = 0; index < (definition.Resources?.Count ?? 0); index++)
         {

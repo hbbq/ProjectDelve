@@ -107,6 +107,7 @@ public static class UnitAuthoring
     private static Entry Pattern(MovementPattern pattern) => new UpdateEntry(t => t with { MovementPattern = pattern });
 
     public static TryOpenDoor TryOpenDoor(int successes) => new(successes);
+    public static TryRepossessRandomEquipment TryRepossessRandomEquipment(int successCount, string destinationStorageId) => new(successCount, destinationStorageId);
     public static BreakObject BreakObject(int successThreshold) => new(successThreshold);
     public static BreakAdjacentObjects BreakAdjacentObjects(int successThreshold) => new(successThreshold);
     public static DefeatSelf DefeatSelf() => new();

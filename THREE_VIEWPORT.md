@@ -2435,3 +2435,36 @@ scene disposal; rotor references are removed with the record. `animatedBeacons`
 in viewport diagnostics reports the current visible animation count. Node tests
 exercise shared frame scheduling, offscreen pause, projection removal, mode
 support, owned resource disposal and scene replacement.
+
+## Paul and The Tycoon
+
+The production catalog registers `paul/v1` and `tycoon/v1` against `paul-type`
+and `tycoon-type`. Both use the existing 1x1 footprint, 0.80 Cell model height,
+0.30 Cell maximum model radius and 0.27 Cell procedural base. The Tripo inbox
+importer archived the owner-supplied originals byte-for-byte. The runtime exports
+use three 1024 px core PBR maps and retain the source yaw. Known eastward and
+southward Moves verify facing independently of the randomized starting pose.
+Asset-specific Pro confirmation and both Khronos reports are recorded
+with each original. [Paul provenance](assets/source/models/units/paul/provenance.json)
+· [The Tycoon provenance](assets/source/models/units/tycoon/provenance.json)
+
+| Unit | Triangles | Primitives | Normalized radius | Base contact margin |
+| --- | ---: | ---: | ---: | ---: |
+| Paul | 9,598 | 1 | 0.19530 Cell | 0.10731 Cell |
+| The Tycoon | 9,954 | 1 | 0.28911 Cell | 0.03897 Cell |
+
+Both source and runtime variants passed Khronos validation with zero errors and
+an advisory about generated tangents. Paul's folder and vest markings are visible
+at close zoom. Lettering is small at gameplay zoom. The Tycoon keeps its yellow
+plastic finish and fits its procedural base with 0.00103 Cell less than the
+advisory contact margin of 0.04 Cell.
+
+Isolated Edge checks covered picking and Unit cards, rigid movement and facing,
+Lying and standing up, and both Fog of War reveals. Each hidden enemy's GLB
+loaded only after entering observation. Designer brushes and inspectors, Content
+portraits, and Enhanced 2D in a Designer-launched Playtest used the same
+registered artwork at desktop and narrow sizes. The capture reports recorded zero
+console errors and failed requests. [Normal zoom](assets/previews/paul-tycoon/normal.png)
+· [Close zoom](assets/previews/paul-tycoon/close.png)
+· [Narrow viewport](assets/previews/paul-tycoon/narrow.png)
+· [Browser evidence](assets/previews/paul-tycoon/qa.json)

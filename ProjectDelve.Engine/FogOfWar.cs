@@ -34,8 +34,13 @@ public static class FogOfWar
         if (copy.MachineInteraction is { } interaction && side is not null && interaction.SideId != side)
             copy.MachineInteraction = null;
         copy.Pending = ObserveDecision(state, side, copy.Pending);
+        // Resolution continuations belong to the authoritative checkpoint only.
+        copy.RepossessionInProgress = null;
+        copy.RepossessionFailedThisActivation = false;
         // Unopened card identities are never presentation data, including without FoW.
         copy.LootDeck = null;
+        // Full-table debugging can inspect holdings only in a game without FoW.
+        if (side is not null || state.FogOfWarSides.Count > 0) copy.Storages.Clear();
         copy.ActivationTypeOrder = null;
         // Only revealed World Card definitions belong to an observation. Keep the
         // physical pile here for count projection; transport removes its identities.
@@ -157,6 +162,17 @@ public static class FogOfWar
 
     public static RulesEvent? ObserveEvent(GameState state, string? side, RulesEvent e)
     {
+        // A public attempt never publishes the private Storage or physical card.
+        if (e.Kind == "EquipmentRepossessionAttemptResolved")
+        {
+            var seesTarget = e.TargetId is { } targetId && IsUnitObservable(state, side, targetId);
+            e = e with
+            {
+                ObjectCard = null, StorageId = null,
+                RepossessedEquipmentId = seesTarget ? e.RepossessedEquipmentId : null,
+                RepossessedEquipmentName = seesTarget ? e.RepossessedEquipmentName : null
+            };
+        }
         if (side is not null && side != e.SideId && e.PaidServiceId is not null)
             e = e with { PaidServiceId = null, PaidServiceCost = null, PurchasedItemId = null, PurchasedItemTypeId = null, CreditsAmount = null };
         if (side is not null && side != e.SideId && e.RecruitedUnitId is not null)
@@ -173,7 +189,9 @@ public static class FogOfWar
             { BreakOutcomes = e.BreakOutcomes.Select(o => o with { BeforeVisibleSideIds = [] }).ToImmutableArray(), BreakSourceVisibleSideIds = [] };
         var isBreak = e.Kind is "ObjectBreakResolved" or "AdjacentObjectsBreakResolved";
         bool Known(string? id) => id is not null && (!isBreak || id != e.SourceUnitId || e.BreakSourceVisibleSideIds.Contains(side!)) && (IsUnitObservable(state, side, id) ||
-            e.DefeatContext is { } defeat && defeat.Unit.Id == id && defeat.OccupiedCells.Any(c => IsExplored(state, side, c)));
+            e.DefeatContext is { } defeat && defeat.Unit.Id == id && defeat.OccupiedCells.Any(c => IsExplored(state, side, c)) ||
+            (e.Kind is "UnitRemoved" or "EquipmentRepossessionAttemptResolved") && e.UnitId == id && e.Cell is { } departure &&
+                FootprintGeometry.OccupiedCells(state, id, departure).Any(c => IsExplored(state, side, c)));
         var unit = Known(e.UnitId); var target = Known(e.TargetId);
         var breakOutcomes = e.BreakOutcomes.Where(o => o.BeforeVisibleSideIds.Contains(side!) ||
                 (o.Target.Cell is { } breakCell ? IsExplored(state, side, breakCell) : o.Target.Edge is { } edge && IsEdgeObservable(state, side, edge)))
@@ -220,6 +238,7 @@ public static class FogOfWar
                 state.ResolvingTokenUnitIds.Contains(u.Id) && Known(u.Id)),
             "MovementCompleted" or "UnitRepositioned" or "MovementObserved" => unit || path?.Count > 0 || segments?.Count > 0,
             "PlacesSwapped" => unit || target,
+            "EquipmentRepossessionAttemptResolved" => unit || target,
             "DoorOpened" or "DoorClosed" or "DoorOpeningAttemptResolved" => door,
             "AttackStarted" => attack is not null,
             "AttackResolved" => unit || target || result is { Targets.IsEmpty: false },
@@ -231,6 +250,8 @@ public static class FogOfWar
             _ => unit // Existing local abilities, resources, posture, creation and lifecycle events.
         };
         if (!observable) return null;
+        if (e.Kind == "EquipmentRepossessionAttemptResolved" && !unit)
+            e = e with { ActionId = null, SuccessCount = null, DieRoll = null };
         return e with { Kind = fragmentedMovement ? "MovementObserved" : e.Kind,
             BreakOutcomes = breakOutcomes,
             BreakSourceVisibleSideIds = [],

@@ -6,6 +6,19 @@ public static partial class MechanicCatalog
 {
     private static partial IEnumerable<MechanicRegistration> AbilityRegistrations()
     {
+        var repossessionSuccess = new MechanicParameter("successCount", MechanicParameterKind.Integer) { Minimum = 0, Maximum = 6 };
+        var storageId = new MechanicParameter("destinationStorageId", MechanicParameterKind.String);
+        yield return MechanicRegistration.Create<TryRepossessRandomEquipment>(AbilityContract(
+            "tryRepossessRandomEquipment", "Try Repossess Random Equipment", [MechanicTiming.Action], MechanicContext.ActingUnit,
+            new(MechanicTargetSelection.Unit, "One observable living enemy carrying eligible Equipment within the acting Unit's effective RNG and LOS."),
+            "Choose an enemy within this Unit's RNG and line of sight carrying Equipment it can lose while remaining on its Cell. Roll a d6 with {successCount} of 6 faces marked as successes. On success, move one such Equipment card at random to {destinationStorageId}. This Unit then drops its remaining Items and Equipment on its anchor Cell and leaves play.",
+            ["successCount", "destinationStorageId"], ["range", "lineOfSight", "equipment", "storage", "dice"])
+            with { Parameters = [repossessionSuccess, storageId] }, (payload, path, errors) =>
+            {
+                MechanicChecks.Integer(errors, repossessionSuccess, payload.SuccessCount, path + ".successCount");
+                if (string.IsNullOrWhiteSpace(payload.DestinationStorageId))
+                    MechanicChecks.Error(errors, path + ".destinationStorageId", "required", "A destination Storage ID is required.");
+            });
         var threshold = new MechanicParameter("successThreshold", MechanicParameterKind.Integer) { Minimum = 1, Maximum = 6 };
         yield return MechanicRegistration.Create<BreakObject>(AbilityContract("breakObject", "Break Object",
             [MechanicTiming.Action, MechanicTiming.BonusAction], MechanicContext.ActingUnit,

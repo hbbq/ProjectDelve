@@ -308,6 +308,17 @@ internal static class ApproachRules
 // This validates the hypothetical placement, not reachability or phase eligibility.
 internal static class HypotheticalPosition
 {
+    // Position-dependent passives must see the same placement as targeting geometry.
+    internal static GameState WithUnitAt(GameState state, string unitId, Cell from)
+    {
+        var index = state.Physical.Figures.FindIndex(f => f.Id == unitId);
+        var figure = state.Physical.Figures[index];
+        if (figure.Position == from) return state;
+        var copy = state.Copy();
+        copy.Physical.Figures[index] = figure with { Position = from };
+        return copy;
+    }
+
     internal static void Validate(GameState state, string unitId, Cell from, MovementTraversal? occupancy = null)
     {
         var unit = state.Units.Single(u => u.Id == unitId);

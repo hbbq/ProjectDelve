@@ -201,7 +201,7 @@ public static partial class GameEngine
     {
         ArgumentNullException.ThrowIfNull(state);
         if (state.AttackInProgress is not null || state.AttackAwaitingConsequences is not null ||
-            state.BreakInProgress is not null || state.DoorInProgress is not null ||
+            state.BreakInProgress is not null || state.DoorInProgress is not null || state.RepossessionInProgress is not null ||
             state.PendingDefeatEffects.Count != 0 || state.CleavePending || state.MoveAfterAttackAllowance is not null ||
             state.MachineInteraction is not null)
             throw new InvalidOperationException("Finish the resolving sequence before changing an instance's Level.");

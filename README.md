@@ -257,6 +257,10 @@ The miniature is `ProjectDelve.Web/wwwroot/art/models/units/demolition-imp/v1/de
 
 [Asset QA evidence](assets/previews/demolition-imp/qa.json) includes Content/Designer, desktop/narrow Enhanced 2D, miniature detail/relative scale and hidden-enemy FoW captures. All 402 pre-existing source files and the supplied GLB were verified unchanged. Quick Play identity/transport is covered by the existing Demolition Imp integration tests. Full .NET and client suites pass; the broader Python artwork suite retains an unrelated railway SVG byte-reproduction failure (embedded PNG/profile encoding differences). No terrain assets or generator code were changed.
 
+#### Paul and The Tycoon
+
+`paul-type` and `tycoon-type` share their registered portraits across gameplay, Designer and Content. Both portraits are square crops of the supplied full-body images. Paul's 480 px crop starts at `(250, -40)` with the top edge extended into the extra space. The Tycoon's 840 px crop starts at `(96, 0)`. Run `python tools/prepare-artwork.py --unit paul` or `python tools/prepare-artwork.py --unit tycoon` to export the corresponding 512 px sRGB portrait, both reference WebPs and the circular token preview. [Paul portrait preview](assets/previews/unit-paul.png) · [The Tycoon portrait preview](assets/previews/unit-tycoon.png) · [Miniature import and review](THREE_VIEWPORT.md#paul-and-the-tycoon)
+
 Catalog examples (portraits, Stone Floor and Edges are shipped):
 
 ```js

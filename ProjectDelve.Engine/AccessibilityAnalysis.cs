@@ -188,7 +188,7 @@ public sealed class AccessibilityAnalysis
         var upright = actor is null || options.Mode != AccessibilityMode.ActualMove && options.AssumeUpright || snapshot!.IsUpright(id);
         var canMove = upright && (options.Mode != AccessibilityMode.ActualMove || actor is null ||
             snapshot!.CurrentUnitId == id && !snapshot.IsCompleted && !snapshot.CleavePending &&
-            snapshot.BreakInProgress is null && snapshot.DoorInProgress is null && snapshot.AttackInProgress is null &&
+            snapshot.BreakInProgress is null && snapshot.DoorInProgress is null && snapshot.RepossessionInProgress is null && snapshot.AttackInProgress is null &&
             snapshot.Pending?.Kind != DecisionKind.RollDice && !snapshot.CompletedUnitIds.Contains(id) &&
             (!snapshot.MoveDone || snapshot.MoveAfterAttackAllowance is not null));
         if (options.Mode == AccessibilityMode.ActualMove && actor is not null && snapshot!.Physical.Figures.Single(f => f.Id == id).Position != from)
