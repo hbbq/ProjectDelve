@@ -386,7 +386,7 @@ export function mountContentBrowser(root, options = {}) {
     }
     function appendConfiguration(container, configuration) {
       if (configuration.level > 1) container.append(node('p', configuration.upgradeCost == null
-        ? 'Unavailable for purchase at an Equipment Station.'
+        ? 'Unavailable for purchase at a DelveMart.'
         : `Upgrade cost: ${configuration.upgradeCost} Credits`));
       for (const group of configuration.sections ?? []) if (group.fields?.length) container.append(contentGroup(group.title, fields(group.fields)));
       if (configuration.abilities?.length) container.append(section(`Owned abilities \u00b7 ${configuration.abilities.length}`, ...configuration.abilities.map(renderAbility)));

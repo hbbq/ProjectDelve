@@ -212,7 +212,7 @@ public static class BrowserProjection
     }
 
     public static IReadOnlyList<MachineDisplay> Machines(GameState state) => state.Physical.Board.Machines.Select(m =>
-        new MachineDisplay(m.Id, m.Position, m.Type.Name,
+        new MachineDisplay(m.Id, m.Position, m.Type.DisplayName,
             m.Type.Operation.Description +
                 (m.RemainingUsesTotal is { } total ? $". {total} total uses remaining" : "") +
                 (m.Type.Operation.MaxUsesPerSide is { } max ? $". Maximum {max} use(s) per Side" : "") +
@@ -424,7 +424,7 @@ public static class BrowserProjection
             {
                 _ when request.Kind == DecisionKind.MachineInteraction => "Cancel",
                 _ when c.Action is UnitAction.PickupResource or UnitAction.GiveResource or UnitAction.Operate =>
-                    $"{entry!.Name} ({entry.Category})" + (c.MachineId is not null ? $" to {state.Physical.Board.Machines.Single(m => m.Id == c.MachineId).Type.Name} ({c.MachineId})" : c.TargetId is null ? "" : $" to {name(c.TargetId)}") +
+                    $"{entry!.Name} ({entry.Category})" + (c.MachineId is not null ? $" to {state.Physical.Board.Machines.Single(m => m.Id == c.MachineId).Type.DisplayName} ({c.MachineId})" : c.TargetId is null ? "" : $" to {name(c.TargetId)}") +
                     (c.Destination is null ? "" : $" from ({c.Destination.X},{c.Destination.Y})"),
                 _ when c.Ability is { } grant => $"{grant.Definition.Name} ({grant.CardEntry().Category})" +
                     (c.TargetId is not null && c.Destination is not null ? $" → {name(c.TargetId)} to ({c.Destination.X},{c.Destination.Y})" :
@@ -709,8 +709,7 @@ public static class BrowserProjection
                         : $"{name(e.UnitId)} paid {e.PaidServiceCost} Credits for {service.Name} at {operated.Type.Name}";
                     break;
                 }
-                if (state.Physical.Board.Machines.Any(machine =>
-                    machine.Id == e.MachineId && machine.Type.Operation.EquipmentStation is not null))
+                if (operated?.Type.Operation.EquipmentStation is not null)
                 {
                     var changes = new List<string>();
                     if (e.RecruitedUnitId is { } recruit)
@@ -724,7 +723,7 @@ public static class BrowserProjection
                             .Concat(e.EquipmentUpgrades.Select(o => $"{o.TargetId} to Level {o.NextLevel}"));
                         changes.Add($"upgraded {string.Join(", ", targets)} for {e.UpgradeCost} Credits");
                     }
-                    description = changes.Count == 0 ? $"{name(e.UnitId)} operated the Equipment Station"
+                    description = changes.Count == 0 ? $"{name(e.UnitId)} operated {operated.Type.DisplayName}"
                         : $"{name(e.UnitId)}: {string.Join(", ", changes)}";
                     break;
                 }

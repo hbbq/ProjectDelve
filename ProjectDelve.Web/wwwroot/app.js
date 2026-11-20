@@ -563,6 +563,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     const node = cells.get(cellKey(machine.position));
     if (!node) continue;
     node.classList.add("machine-cell");
+    if (machine.typeId === 'equipment-station') node.classList.add('storefront-cell');
     const art = objectNode("machine", machine.typeId, machine.id, "machine-art");
     const visual = applyBoardVisual(art, "machine", machine.typeId);
     if (visual.baseTerrain) applyBoardVisual(node, "terrain", visual.baseTerrain, {
@@ -570,6 +571,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
       x: machine.position.x, y: machine.position.y });
     art.setAttribute("aria-hidden", "true"); node.append(art);
     const labels = text("span", ""); labels.className = "machine-labels";
+    if (machine.typeId === 'equipment-station') labels.dataset.defaultName = String(machine.name === 'DelveMart');
     labels.append(text("span", machine.name));
     labels.append(text("small", machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`));
     for (const stored of machine.resourceStorage)

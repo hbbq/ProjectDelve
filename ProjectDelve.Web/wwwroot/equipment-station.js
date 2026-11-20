@@ -8,7 +8,7 @@ export function mountEquipmentStation({ getView, request, command, ready, visibl
   };
   const dialog = el('dialog', null, 'equipment-station'); dialog.id = 'equipment-station-dialog';
   dialog.setAttribute('aria-labelledby', 'equipment-station-title');
-  const title = el('h2', 'Equipment Station'); title.id = 'equipment-station-title'; title.tabIndex = -1;
+  const title = el('h2', 'DelveMart'); title.id = 'equipment-station-title'; title.tabIndex = -1;
   const intro = el('p', 'Give objects to recipients, mark them for sale or choose upgrades. Confirm applies all changes together and spends one Operate Action, its Ability use and Costs. Cancel is free.');
   const credits = el('p', null, 'station-credits'); credits.id = 'equipment-station-credits'; credits.setAttribute('aria-live', 'polite');
   const sales = el('section', null, 'station-sales'); sales.id = 'equipment-station-sales'; sales.setAttribute('aria-label', 'Objects marked for sale');
@@ -68,7 +68,7 @@ export function mountEquipmentStation({ getView, request, command, ready, visibl
       const response = await request('/machine/recruitment/preview', { ...boundary, recruitTypeId: typeId });
       if (ticket !== recruitTicket) return;
       if (response.sessionId !== boundary.sessionId || response.decisionId !== boundary.decisionId || response.revision !== boundary.expectedRevision)
-        throw new Error('The Station changed. Reopen recruitment for a fresh preview.');
+        throw new Error('The DelveMart changed. Reopen recruitment for a fresh preview.');
       recruitQuote = response.preview;
     } catch (error) { if (ticket === recruitTicket) recruitError = error.message; }
     if (ticket === recruitTicket) render();

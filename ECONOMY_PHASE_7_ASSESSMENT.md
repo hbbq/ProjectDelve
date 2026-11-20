@@ -34,7 +34,7 @@ The default-profile corpus contains 30 full regions: all five seeds above at reg
 
 The accepted DelveCare is seed 42, index 4. Meteor-O-Mat appears at seed 17/index 0 and seed 77341/indices 3 and 5. Seed 42/index 1 omits DelveCare because no legal pad was found in the bounded search. Independent local-seed checks over 0–1199 request DelveCare 87 times (7.25%) and Meteor-O-Mat 93 times (7.75%). These finite samples do not replace the configured 1/12 probability.
 
-A preliminary 5 × 5 pad placed only one of the same five requests. The final 3 × 3 ring increases actual availability while retaining the occupied-access and unchanged-content guarantees. Arrival Equipment Stations and their separate additional-Station policy are unchanged.
+A preliminary 5 × 5 pad placed only one of the same five requests. The final 3 × 3 ring increases actual availability while retaining the occupied-access and unchanged-content guarantees. Arrival DelveMarts and their separate additional-Station policy are unchanged.
 
 ## Gameplay income
 

@@ -16,13 +16,13 @@ The physical tabletop game is the source of truth. The digital implementation ex
 
 Vision and neutral Machine mechanics, source identity and occupancy are described in [Vision and Machines](VISION_AND_MACHINES.md). The [V1 implementation report](VISION_NEUTRAL_V1_IMPLEMENTATION.md) records tests, benchmarks and Edge QA.
 
-To try selling and redistributing Equipment and Items, open **Scenarios → Equipment Station Workshop → Play scenario**, then choose **Start round → Stay → Operate** and select the Station. Sell one of the two Second Wind Items for 2 Credits, or also give the Barbarian's Lucky Boots to the Cleric on the same Confirm. The Rogue still needs the Swim Tube to stay on Water. [Workshop guide and DELVE1 import](VISION_AND_MACHINES.md#play-the-workshop)
+To try selling and redistributing Equipment and Items, open **Scenarios → DelveMart Workshop → Play scenario**, then choose **Start round → Stay → Operate** and select the Station. Sell one of the two Second Wind Items for 2 Credits, or also give the Barbarian's Lucky Boots to the Cleric on the same Confirm. The Rogue still needs the Swim Tube to stay on Water. [Workshop guide and DELVE1 import](VISION_AND_MACHINES.md#play-the-workshop)
 
 To try Levels, place a Barbarian in **Designer**, select **Initial Unit Level → Level 2**, and choose **Test scenario**. It starts at 6 HP and can use Friendly Swap as a Bonus Action. Giving it Level 2 Lucky Boots in its initial inventory raises its starting HP to 7. [Levels and Effective Max HP](ECONOMY_PHASE_4.md)
 
-To buy those Levels during play, open the Equipment Station Workshop with its starting 34 Credits. Select both upgrades and sell a Second Wind to cover the final 2 Credits. One Confirm upgrades the Barbarian and that physical pair of Boots, heals the Barbarian to 7 HP and leaves zero Credits. [Paid upgrades](ECONOMY_PHASE_5.md)
+To buy those Levels during play, open the DelveMart Workshop with its starting 34 Credits. Select both upgrades and sell a Second Wind to cover the final 2 Credits. One Confirm upgrades the Barbarian and that physical pair of Boots, heals the Barbarian to 7 HP and leaves zero Credits. [Paid upgrades](ECONOMY_PHASE_5.md)
 
-In an Expedition, save 75 Credits and choose **Recruit** at an Equipment Station to add The Tycoon as the sixth Party member. The preview shows the spawn Cell before you spend the Action. The Tycoon immediately counts toward the two-member Exit objective and travels with the Party. [Recruitment and Party rules](ECONOMY_PHASE_6.md)
+In an Expedition, save 75 Credits and choose **Recruit** at a DelveMart to add The Tycoon as the sixth Party member. The preview shows the spawn Cell before you spend the Action. The Tycoon immediately counts toward the two-member Exit objective and travels with the Party. [Recruitment and Party rules](ECONOMY_PHASE_6.md)
 
 At **DelveCare**, the operator can spend 10 Credits for up to 2 HP or 50 Credits for full HP. **Meteor-O-Mat** sells the operator a Last Resort Fireball for 15 Credits. Open either Machine with Operate to see what the service will do before spending the Action. Both can appear as optional Expedition discoveries or be placed in Scenario Designer. [Paid Machines and early Expedition income](ECONOMY_PHASE_7.md)
 

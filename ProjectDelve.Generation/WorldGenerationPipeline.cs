@@ -328,7 +328,7 @@ public static class WorldGenerationPipeline
                                 deploymentResult.Status == HeroDeploymentStatus.InsufficientSpace ? WorldGenerationFailureKind.InsufficientDeployment : WorldGenerationFailureKind.ConstructionInvariantViolation);
                     context.Deployment = deploymentResult.Deployment!;
                     expedition?.ProtectEndpoints(deploymentBoard);
-                    if (expedition?.StationsEnabled == true)
+                    if (expedition?.ArrivalStationEnabled == true)
                         ExpeditionStationGenerator.EstablishArrival(context, deploymentBoard);
                     context.Completion = new(deploymentBoard, context.Deployment, Enumerable.Range(0, context.Samples.Length),
                         initialLocations: expedition?.RequiredLocations, expeditionEndpoints: expedition?.EndpointIndices.ToHashSet());
@@ -471,7 +471,7 @@ public static class WorldGenerationPipeline
             var outpostDoors = ExpeditionGeometryPlan.OutpostDoorCells(context.Sites).ToArray();
             if (expedition is not null && !expedition.HasOccupiedAccess(finalState, context.Deployment!, outpostDoors))
                 throw new PlayReadyGenerationException(plan, "final-materialization", context.ConstructionBoard!.Revision,
-                    expedition.StationsEnabled ? "Initial population disconnects required Expedition deployment, seam, exit-pad, Door or Station operating access."
+                    expedition.StationsEnabled ? "Initial population disconnects required Expedition deployment, seam, exit-pad, Door or DelveMart operating access."
                         : outpostDoors.Length == 0 ? "Initial population disconnects ordinary Expedition deployment, seam or exit-pad access."
                         : "Initial population disconnects required Expedition access, including the outpost gate or guardhouse Door.",
                     context.MandatoryRepair);

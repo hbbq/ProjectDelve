@@ -94,7 +94,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   const lighting=createTabletopLighting({scene,root:controls.root,invalidate:()=>{shadowDirty=true;invalidate();}});
   const surfaces=createTabletopSurfaces();
   const tabletopMarks=createTabletopMarks();
-  const physical=createTabletopVisuals({material,physicalMaterial:lighting.material,glyph,plane,artwork,geometries});
+  const physical=createTabletopVisuals({material,physicalMaterial:lighting.material,glyph,storefrontSign,plane,artwork,geometries});
   const models=createModelCache({...modelCacheOptions,textureAnisotropy,registerMaterial:lighting.modelMaterial,resolveMaterial:lighting.resolve,onChange(entry){pendingModels.add(entry);bodiesDirty=true;commitBodies();}});
   const representationLabel=document.createElement('label'),representationSelect=document.createElement('select');
   representationLabel.textContent='Units ';representationSelect.id='three-unit-representation';representationSelect.setAttribute('aria-label','Unit representation');
@@ -166,6 +166,20 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     }
     const texture=new THREE.CanvasTexture(bitmap);texture.colorSpace=THREE.SRGBColorSpace;
     const m=new THREE.MeshBasicMaterial({map:texture,transparent:true,depthWrite:false});glyphs.set(key,m);return m;
+  }
+  function storefrontSign(stacked){
+    const key=stacked?'storefront:roof':'storefront:front';
+    if(glyphs.has(key))return glyphs.get(key);
+    // Fixed-size synchronous canvas textures avoid SVG intrinsic-size and GPU
+    // upload differences. The existing glyph cache owns and disposes both.
+    const bitmap=document.createElement('canvas');bitmap.width=stacked?256:512;bitmap.height=stacked?192:80;
+    const ctx=bitmap.getContext('2d');ctx.fillStyle='#fff0cf';ctx.fillRect(0,0,bitmap.width,bitmap.height);
+    ctx.fillStyle='#185f60';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`900 ${stacked?76:62}px Arial,sans-serif`;
+    if(stacked){ctx.fillText('DELVE',128,51,226);ctx.fillText('MART',128,140,226);}
+    else ctx.fillText('DELVE MART',256,43,480);
+    const texture=new THREE.CanvasTexture(bitmap);texture.colorSpace=THREE.SRGBColorSpace;
+    texture.anisotropy=textureAnisotropy;
+    const m=new THREE.MeshBasicMaterial({map:texture,toneMapped:false});glyphs.set(key,m);return m;
   }
   function plane(m,x,z,w=1,h=1,height=0,rotation=0,geometry=geometries.plane){
     const mesh=new THREE.Mesh(geometry,m);mesh.rotation.x=-Math.PI/2;mesh.position.set(x,height,z);mesh.scale.set(w,h,1);
@@ -567,6 +581,17 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     if(continuous)invalidate();
   }
   function overlayBounds(){const overlay=host.querySelector('#board-overlays'),r=overlay?.getBoundingClientRect(),b=host.getBoundingClientRect();return r?.width&&r?.height?[{x:r.left-b.left,y:r.top-b.top,w:r.width,h:r.height}]:[];}
+  function storefrontLabelBounds(){
+    // Only the observed store's roof and fascia reserve space. Both cardboard
+    // and miniature Unit labels use this same projected obstacle layout.
+    if(controls.cutaway?.checked)return [];
+    return (frame.presentation.machines??[]).filter(m=>m.typeId==='equipment-station').flatMap(m=>{
+      const points=[.49,.615].flatMap(height=>[.04,.96].flatMap(dx=>[.08,.96].map(dy=>cameraControl.screen({x:m.position.x+dx,y:m.position.y+dy,height}))));
+      if(points.some(p=>p.behind))return [];
+      const x=Math.min(...points.map(p=>p.x)),y=Math.min(...points.map(p=>p.y));
+      return [{x,y,w:Math.max(...points.map(p=>p.x))-x,h:Math.max(...points.map(p=>p.y))-y}];
+    });
+  }
   function updateTabletopLabels(){
     const size=cameraControl.size,candidates=[];
     for(const[id,label]of labelNodes){
@@ -597,7 +622,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       const obstacle={...bodyRect,x:bodyRect.x+bodyRect.w*.15,w:bodyRect.w*.7};
       candidates.push({id,x:Math.max(4,Math.min(size.width-4,p.x)),y:Math.max(detailed?50:35,p.y-3),width:bodyRect.h<16&&!priority?0:compact?compactWidth:width,height:detailed?39:24,compactWidth:detailed?undefined:compactWidth,priority,bodyRect:obstacle,compact});
     }
-    const layout=layoutTabletopLabels(candidates,size,overlayBounds());
+    const layout=layoutTabletopLabels(candidates,size,[...overlayBounds(),...storefrontLabelBounds()]);
     for(const entry of candidates){const label=labelNodes.get(entry.id),p=layout.get(entry.id);label.hidden=!p||p.hidden;if(label.hidden)continue;
       const compact=entry.compact||p.compact;
       label.dataset.compact=String(compact);label.dataset.expanded=String(entry.height>24&&!compact);
@@ -651,7 +676,22 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     }else coordinates?.remove();
     // Machine labels remain available at useful scales and in the logical focus label.
     let machines=labels.querySelector('.three-machine-labels');if(!machines){machines=document.createElement('div');machines.className='three-machine-labels';labels.append(machines);}machines.replaceChildren();
-    if(pose.scale>=45)for(const m of frame.presentation.machines??[]){const p=cameraControl.screen({x:m.position.x+.5,y:m.position.y+.75,height:presentation==='tabletop'?.4:0});if(p.x<0||p.y<0||p.x>size.width||p.y>size.height)continue;const label=document.createElement('span');label.style.left=`${p.x}px`;label.style.top=`${p.y}px`;label.style.maxWidth=`${pose.scale*.94}px`;label.textContent=`${m.name} · ${m.ownerSide??'Public'}${(m.resourceStorage??[]).map(r=>` · ${r.name} ${r.quantity}/${r.capacity}`).join('')}`;machines.append(label);}
+    if(pose.scale>=45)for(const m of frame.presentation.machines??[]){
+      const storefront = m.typeId === 'equipment-station' && !(presentation === 'tabletop' && controls.cutaway?.checked);
+      const captionHeight = storefront ? .015 : .4;
+      const p = cameraControl.screen({x: m.position.x + .5, y: m.position.y + (storefront ? .98 : .75),
+        height: presentation === 'tabletop' ? captionHeight : 0});
+      if(p.x<0||p.y<0||p.x>size.width||p.y>size.height)continue;
+      const label=document.createElement('span');label.style.left=`${p.x}px`;label.style.top=`${p.y}px`;label.style.maxWidth=`${pose.scale*.94}px`;
+      const description=`${m.name} · ${m.ownerSide??'Public'}${(m.resourceStorage??[]).map(r=>` · ${r.name} ${r.quantity}/${r.capacity}`).join('')}`;
+      if (storefront) {
+        label.className = 'storefront-caption';
+        label.title = description;
+        label.setAttribute('aria-label', description);
+      }
+      label.textContent = storefront && m.name === 'DelveMart' ? (m.ownerSide ?? 'Public') : description;
+      machines.append(label);
+    }
     let items=labels.querySelector('.three-item-indicators');if(!items){items=document.createElement('div');items.className='three-item-indicators';labels.append(items);}items.replaceChildren();
     if(presentation==='tabletop'&&pose.scale>=28)for(const object of [...frame.state.resources??[],...frame.state.cellMarkers??[]]){
       if(!frame.state.physical.figures.some(f=>(frame.presentation.figures?.[f.id]?.occupiedCells??[f.position]).some(c=>boardCellKey(c)===boardCellKey(object.position))))continue;

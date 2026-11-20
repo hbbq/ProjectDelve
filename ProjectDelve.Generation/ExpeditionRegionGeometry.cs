@@ -25,6 +25,8 @@ public static class ExpeditionRegionGeometry
         var expedition = new ExpeditionGeometryPlan(recipe.Window, recipe.HeroCapacity, entrySeam, exitSeam, exitArea, localSeed)
         {
             StationsEnabled = profile?.StationVersion == ExpeditionWorldProfile.CurrentStationVersion,
+            ArrivalStationEnabled = profile?.StationVersion == ExpeditionWorldProfile.CurrentStationVersion &&
+                (recipe.Window.OffsetX != 0 || recipe.Window.OffsetY != 0),
             EconomyEnabled = profile?.EconomyVersion == ExpeditionWorldProfile.CurrentEconomyVersion,
             CreditsSettings = profile?.CreditsVersion == ExpeditionWorldProfile.CurrentCreditsVersion ? profile.CreditsSettings : null,
             Introduction = ExpeditionPopulationIntroduction.For(profile, recipe.Window)
@@ -71,6 +73,7 @@ internal sealed class ExpeditionGeometryPlan
 {
     internal ExpeditionPopulationIntroduction? Introduction { get; init; }
     internal bool StationsEnabled { get; init; }
+    internal bool ArrivalStationEnabled { get; init; }
     internal bool EconomyEnabled { get; init; }
     internal ExpeditionCreditsSettings? CreditsSettings { get; init; }
     internal ulong LocalSeed { get; }

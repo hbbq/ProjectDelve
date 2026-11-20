@@ -46,7 +46,7 @@ Amphibious permits Water traversal and occupancy while retaining terrain
 restrictions, Edges, figures, Machines, footprint and FoW checks. Phase permits
 its established traversal but still requires a normally legal endpoint. Combined
 Phase and Amphibious can therefore end on otherwise legal Water, including
-remaining there while Lying. The Equipment Station checks the resulting occupancy before transferring or selling an object that grants a movement capability.
+remaining there while Lying. The DelveMart checks the resulting occupancy before transferring or selling an object that grants a movement capability.
 
 ## Machine declarations and operation
 
@@ -91,7 +91,9 @@ Choose **Operate**, then DelveCare or Meteor-O-Mat. The service panel shows the 
 
 The Engine binds each purchase to the opening Operate source and recalculates the offer on Confirm. Browser commands contain the service ID and decision binding. Only the operating Side and full-information table see its accounting. The board and Unit card update through the existing events and observations. [Engine rules](CONSTRAINTS.md#paid-machine-services) · [Authoring](CONTENT_DESIGNER.md#paid-machine-placement)
 
-## Equipment Station interaction
+## DelveMart interaction
+
+Look for the turquoise storefront with the coral roof trim and the **DELVE MART** sign. It occupies one Cell. The board caption identifies its owner or marks it Public.
 
 `PendingMachineInteraction` captures the Machine, operator, operating Side,
 and source-bound Operate candidate. Its typed Station payload records the
@@ -140,13 +142,13 @@ requests a fresh Engine preview of the saved allocation.
 
 ### Recruit a Party member
 
-During an Expedition, choose **Recruit** in the Equipment Station. The panel shows Party size, capacity and available Credits. Select a Type to see its Level 1 stats, Abilities, price and proposed spawn Cell. The Engine reports blocked routes, unaffordable prices, a full Party and Unique conflicts. **Confirm recruitment** spends one Action and pays the opening Operate source. **Back to Manage** returns to the provisional inventory proposal. For a sale to finance recruitment, it must first be confirmed in a separate operation. **Save draft** preserves a selected recruit in an Expedition checkpoint and resume requests a fresh quote.
+During an Expedition, choose **Recruit** in the DelveMart. The panel shows Party size, capacity and available Credits. Select a Type to see its Level 1 stats, Abilities, price and proposed spawn Cell. The Engine reports blocked routes, unaffordable prices, a full Party and Unique conflicts. **Confirm recruitment** spends one Action and pays the opening Operate source. **Back to Manage** returns to the provisional inventory proposal. For a sale to finance recruitment, it must first be confirmed in a separate operation. **Save draft** preserves a selected recruit in an Expedition checkpoint and resume requests a fresh quote.
 
 ### Play the workshop
 
-Open **Scenarios**, find **Equipment Station Workshop** and select **Play
+Open **Scenarios**, find **DelveMart Workshop** and select **Play
 scenario**. It is also in the **Test Scenarios** campaign. Choose **Start
-round**, **Stay**, **Operate**, then the Equipment Station target. The
+round**, **Stay**, **Operate**, then the DelveMart target. The
 Barbarian is the only awake Unit. All four friendly Units participate.
 
 - The Heroes start with 34 Credits. Upgrading only the Barbarian costs 24 and leaves 10. Upgrading only the Barbarian's Lucky Boots costs 12 and leaves 22. To buy both in one Action, sell either Second Wind for 2. The resulting balance is zero. Restart the workshop to try another combination.

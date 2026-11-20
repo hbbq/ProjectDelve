@@ -6,6 +6,26 @@ const vm = require("node:vm");
 
 const source = name => fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", name), "utf8");
 
+test('Designer previews the shared DelveMart storefront while preserving Machine identity, selection and custom names', () => {
+  const h=harness(),definition=structuredClone(designerSetup);
+  definition.units=[];definition.agency=[];
+  definition.machines=[{id:'fixture-mart',position:{x:2,y:2},type:{id:'equipment-station',name:'Equipment Station',operation:{equipmentStation:{}}},storedResources:[]}];
+  h.editor.draft.replace(definition);h.editor.render();
+  const node=h.cell(2,2),image=node.querySelectorAll('.designer-machine-art')[0];
+  assert.equal(image.src,'./art/machines/delve-mart.svg');assert.equal(image.alt,'');
+  assert.ok(node.classList.contains('designer-storefront'));
+  assert.match(node.textContent,/DelveMart/);assert.match(node.title,/DelveMart/);
+  assert.match(node.attributes['aria-label'],/DelveMart/);
+  h.editor.setTool('Select');h.down(node);
+  assert.ok(h.cell(2,2).classList.contains('editor-selected'));
+  assert.match(h.editor.ui.properties.textContent,/DelveMart/);assert.match(h.editor.ui.placements.textContent,/DelveMart/);
+  assert.equal(h.editor.draft.snapshot().machines[0].type.name,'Equipment Station','display does not rewrite imported content');
+  h.editor.draft.definition.machines[0].type.name='Custom Corner Store';h.editor.render();
+  assert.match(h.cell(2,2).textContent,/Custom Corner Store/);
+  assert.equal(h.cell(2,2).querySelectorAll('.designer-machine-art').length,1);
+  image.listeners.error();assert.equal(image.hidden,true);assert.equal(node.classList.contains('designer-storefront'),false,'failed art restores visible text');
+});
+
 test('Designer setup inspector shows stable declarations and exact-revision server checks clear after painting', async () => {
   const h = harness(async () => ({valid:true,errors:[],playReady:{status:'Valid',valid:true,diagnostics:[]}}));
   const d = h.editor.draft;

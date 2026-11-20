@@ -3,7 +3,7 @@ using ProjectDelve.Engine;
 
 namespace ProjectDelve.Generation;
 
-/// <summary>ExpeditionStations1: protected arrival access plus one rare standalone opportunity.</summary>
+/// <summary>ExpeditionStations1: protected arrival access after region zero plus one rare standalone opportunity.</summary>
 internal static class ExpeditionStationGenerator
 {
     internal const string ArrivalId = ExpeditionRegionGeometry.ArrivalStationId;
@@ -21,7 +21,7 @@ internal static class ExpeditionStationGenerator
                 Math.Abs(p.Actor / board.Width - p.Station / board.Width))
             .ThenBy(p => p.Station).ThenBy(p => p.Actor).ToArray();
         if (candidates.Length == 0)
-            throw new InvalidOperationException("Expedition arrival has no Station position outside its deployment and endpoints.");
+            throw new InvalidOperationException("Expedition arrival has no DelveMart position outside its deployment and endpoints.");
         var chosen = candidates[0];
         const string id = ArrivalId;
         var draft = board.BeginDraft(new(0, 0, board.Width, board.Height), id, new(maxWork: 1000));
@@ -38,7 +38,7 @@ internal static class ExpeditionStationGenerator
         context.Deployment = deployment with { PlacementOrder = deployment.PlacementOrder
             .Where(i => i != chosen.Actor).Prepend(chosen.Actor).ToImmutableArray() };
         context.PopulationProtectedAreas.Add(GeneratedArea.From(id, pad, board.Width));
-        context.Construction.Add(new(id, "expedition", "Equipment Station", id,
+        context.Construction.Add(new(id, "expedition", MachineTypes.EquipmentStation.Name, id,
             new(chosen.Station % board.Width, chosen.Station / board.Width, 1, 1), patch.TerrainChanges, patch.EdgeChanges));
     }
 
@@ -67,7 +67,7 @@ internal static class ExpeditionStationGenerator
             draft.PlaceMachine(new(id, new(x, y), MachineTypes.EquipmentStation));
             var patch = draft.BuildPatch();
             if (!context.Completion!.TryPublish(patch, id + "/candidate-" + attempt, step.Id, out _)) continue;
-            context.Construction.Add(new(id, "expedition", "Equipment Station", id,
+            context.Construction.Add(new(id, "expedition", MachineTypes.EquipmentStation.Name, id,
                 new(x, y, 1, 1), patch.TerrainChanges, patch.EdgeChanges));
             return;
         }

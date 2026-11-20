@@ -31,6 +31,8 @@ public sealed class ExpeditionPopulationCompatibilityTests
         var previous = Generate(plan, legacy);
         var scenario = current.Materialize();
         var oldScenario = previous.Materialize();
+        Assert.NotEmpty(oldScenario.Units);
+        Assert.NotEmpty(scenario.Units);
         Assert.Equal(JsonSerializer.Serialize(oldScenario.Board), JsonSerializer.Serialize(scenario.Board));
         // The final Setup also registers Loot, whose legal locations depend on occupation.
         static string Geography(ScenarioSetup setup) => JsonSerializer.Serialize(new
@@ -42,7 +44,10 @@ public sealed class ExpeditionPopulationCompatibilityTests
         Assert.Equal(JsonSerializer.Serialize(oldScenario.Machines), JsonSerializer.Serialize(scenario.Machines));
         Assert.Equal(JsonSerializer.Serialize(previous.Sites), JsonSerializer.Serialize(current.Sites));
         Assert.Equal(JsonSerializer.Serialize(previous.Routes), JsonSerializer.Serialize(current.Routes));
-        Assert.NotEmpty(scenario.Machines!);
+        if (index == 0)
+            Assert.DoesNotContain(scenario.Machines ?? [], machine => machine.Id == ExpeditionRegionGeometry.ArrivalStationId);
+        else
+            Assert.Contains(scenario.Machines!, machine => machine.Id == ExpeditionRegionGeometry.ArrivalStationId);
         var state = GameEngine.CreateGame(scenario, content);
         Assert.True(PlayReadyScenarioSetup.Validate(scenario, state).Valid);
         Assert.True(current.Expedition!.HasOccupiedAccess(state, current.Deployment!,

@@ -7,6 +7,23 @@ namespace ProjectDelve.Web.Tests;
 
 public sealed class ExpeditionStationIntegrationTests
 {
+    [Theory]
+    [InlineData("Equipment Station", "DelveMart")]
+    [InlineData("Guild Outfitter", "Guild Outfitter")]
+    public void ImportedStationShowsItsCurrentNameAndRetainsItsAuthoredDefinition(string storedName, string displayName)
+    {
+        var scenario = Scenario.Define(Scenario.Map(3, 1),
+            [Scenario.Group(UnitTypeIds.Wizard, "blue", ControllerKind.Human, Scenario.At(0, 0))]) with
+        {
+            Machines = [new("shop", new(1, 0), MachineTypes.EquipmentStation with { Name = storedName })]
+        };
+        var imported = ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(scenario));
+        var machine = Assert.Single(BrowserProjection.Machines(GameEngine.CreateGame(imported)));
+        Assert.Equal("equipment-station", machine.TypeId);
+        Assert.Equal(displayName, machine.Name);
+        Assert.Equal(storedName, Assert.Single(imported.Machines!).Type.Name);
+    }
+
     [Fact]
     public void RefreshedOperateSourceCanChangeOriginalOperatorWithoutChangingPhysicalIdentities()
     {
@@ -21,7 +38,7 @@ public sealed class ExpeditionStationIntegrationTests
             : type).ToImmutableArray() };
         var settings = ExpeditionWorld.Configure(17, new(new(0, 0, 60, 60), new(0, 0, 0),
             Civilization: new(Enabled: false), Routes: new(Enabled: false), Population: new(PopulationDensity.Off)));
-        var plan = ExpeditionWorld.Initial(17);
+        var plan = ExpeditionWorld.Next(17, ExpeditionWorld.Initial(17));
         var geometry = ExpeditionWorld.Generate(plan, content, settings, ExpeditionWorldProfile.Create(settings.NaturalTerrain));
         var scenario = ExpeditionParty.Prepare(geometry, content, plan.ExitArea, ExpeditionParty.Originals, null);
         var state = GameEngine.CreateGame(scenario, content);
@@ -46,35 +63,61 @@ public sealed class ExpeditionStationIntegrationTests
         }).ToImmutableArray() };
         var settings = ExpeditionWorld.Configure(17, new(new(0, 0, 60, 60), new(0, 0, 0),
             Civilization: new(Enabled: false), Routes: new(Enabled: false), Population: new(PopulationDensity.Off)));
-        var plan = ExpeditionWorld.Initial(17);
+        var plan = ExpeditionWorld.Next(17, ExpeditionWorld.Initial(17));
         var geometry = ExpeditionWorld.Generate(plan, content, settings, ExpeditionWorldProfile.Create(settings.NaturalTerrain));
         Assert.Contains("cannot immediately Operate", Assert.Throws<ArgumentException>(() =>
             ExpeditionParty.Prepare(geometry, content, plan.ExitArea, ExpeditionParty.Originals, null)).Message);
     }
 
+    [Fact]
+    public void OpeningWithoutGuaranteedStationDoesNotRequireAnImmediatelyUsableOperateSource()
+    {
+        const ulong seed = 17;
+        var content = ContentBundle.Canonical();
+        content = content with { Units = content.Units.Select(type =>
+            ExpeditionParty.Originals.Any(hero => hero.TypeId == type.Id)
+                ? type with { LocalAbilities = type.LocalAbilities.Where(ability => ability.Mechanic is not Operate).ToImmutableArray() }
+                : type).ToImmutableArray() };
+        var settings = ExpeditionWorld.Configure(seed, new(new(0, 0, 60, 60), new(0, 0, 0),
+            Civilization: new(Enabled: false), Routes: new(Enabled: false), Population: new(PopulationDensity.Off)));
+        var plan = ExpeditionWorld.Initial(seed);
+        var geometry = ExpeditionWorld.Generate(plan, content, settings, ExpeditionWorldProfile.Create(settings.NaturalTerrain));
+        Assert.DoesNotContain(geometry.Machines ?? [], machine => machine.Id == ExpeditionRegionGeometry.ArrivalStationId);
+        var scenario = ExpeditionParty.Prepare(geometry, content, plan.ExitArea, ExpeditionParty.Originals, null);
+        var state = GameEngine.CreateGame(scenario, content);
+        Assert.Equal(ExpeditionParty.Originals.Count, state.Units.Count);
+        Assert.All(state.Physical.Figures, figure => Assert.Contains(figure.Position, geometry.Setup!.Deployment.Cells));
+    }
+
     [Theory]
     [InlineData(17)]
     [InlineData(42)]
-    public void EveryNewRegionPlacesHeroStationOperableBeforeAnyMoveAndKeepsPopulationAccess(int seed)
+    public void OnlySuccessorRegionsGuaranteeHeroStationOperableBeforeAnyMoveAndKeepPopulationAccess(int seed)
     {
         var content = ContentBundle.Canonical();
         var settings = ExpeditionWorld.Configure((ulong)seed);
         var profile = ExpeditionWorldProfile.Create(settings.NaturalTerrain);
         var plan = ExpeditionWorld.Initial((ulong)seed);
-        for (var visit = 0; visit < 2; visit++, plan = ExpeditionWorld.Next((ulong)seed, plan))
+        for (var visit = 0; visit < 3; visit++, plan = ExpeditionWorld.Next((ulong)seed, plan))
         {
             var context = ExpeditionRegionGeometry.Execute(ExpeditionWorld.RecipeFor(plan, settings),
                 plan.EntrySeam, plan.ExitSeam, plan.ExitArea, plan.LocalSeed, content, profile: profile).Context;
             var geometry = context.Materialize();
             var scenario = ExpeditionParty.Prepare(geometry, content, plan.ExitArea, ExpeditionParty.Originals, null);
             var state = GameEngine.CreateGame(scenario, content);
-            var station = Assert.Single(state.Physical.Board.Machines,
-                machine => machine.Id == ExpeditionRegionGeometry.ArrivalStationId);
-            Assert.Equal(ExpeditionParty.SideId, station.OwnerSide);
             Assert.All(state.Physical.Board.Machines.Where(m => m.Id == ExpeditionRegionGeometry.AdditionalStationId),
                 machine => Assert.Null(machine.OwnerSide));
             Assert.True(context.Expedition!.HasOccupiedAccess(GameEngine.CreateGame(geometry, content), context.Deployment!,
                 ExpeditionGeometryPlan.OutpostDoorCells(context.Sites)));
+            if (visit == 0)
+            {
+                Assert.DoesNotContain(state.Physical.Board.Machines,
+                    machine => machine.Id == ExpeditionRegionGeometry.ArrivalStationId);
+                continue;
+            }
+            var station = Assert.Single(state.Physical.Board.Machines,
+                machine => machine.Id == ExpeditionRegionGeometry.ArrivalStationId);
+            Assert.Equal(ExpeditionParty.SideId, station.OwnerSide);
             var operatorId = ExpeditionParty.Originals[0].InstanceId;
             var actor = state.Units.Single(u => u.Id == operatorId);
             state.Round = 1; state.RoundComplete = false; state.ActiveToken = actor.Token;

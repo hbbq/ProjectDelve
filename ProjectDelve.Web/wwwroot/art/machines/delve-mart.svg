@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>DelveMart convenience store</title>
+  <!-- Original miniature storefront; matching the shared Tabletop palette. -->
+  <path fill="#111f2633" d="m19 203 156 34 66-49-157-33z"/>
+  <path fill="#b4b8ac" d="m13 187 164 34 68-45v17l-68 46-164-35z"/>
+  <path fill="#fff0cf" d="m24 95 149 31v89L24 184z"/>
+  <path fill="#dfd3b3" d="m173 126 60-40v89l-60 40z"/>
+  <path fill="#32b5ac" d="m24 169 149 31v15L24 184z"/>
+  <path fill="#ed806b" d="m15 81 153 32 73-45v22l-73 46L15 104z"/>
+  <path fill="#fff0cf" d="m15 81 72-43 154 30-73 45z"/>
+  <path fill="#dfd3b3" d="m31 79 58-33 134 25-57 34z"/>
+  <path fill="#32b5ac" d="m15 91 153 32v29L15 120z"/>
+  <g fill="#264d61" stroke="#32b5ac" stroke-width="5" stroke-linejoin="round">
+    <path d="m33 132 42 9v37l-42-9z"/>
+    <path d="m119 150 40 8v37l-40-8z"/>
+    <path d="m86 143 22 5v52l-22-5z"/>
+    <path d="m185 140 34-22v38l-34 23z"/>
+  </g>
+  <g fill="none" stroke="#a4e3dc" stroke-width="3">
+    <path d="m41 141 0 19m86 0v19m66-32v18"/>
+  </g>
+  <g fill="none" stroke="#fff0cf" stroke-width="3">
+    <path d="m33 158 42 9m44 9 40 8m-59-18v10m102-52v38"/>
+  </g>
+  <path fill="#fff0cf" d="m80 197 33 7-8 6-33-7z"/>
+  <text x="27" y="113" fill="#fff0cf" font-family="Arial,sans-serif" font-weight="900" font-size="19" textLength="129" lengthAdjust="spacingAndGlyphs" transform="skewY(12)">DELVE MART</text>
+</svg>

@@ -44,7 +44,7 @@ public sealed class ExpeditionEconomyAssessment(ITestOutputHelper output)
                         .Select(g => new { g.Key.Kind, g.Key.Amount, Count = g.Count() }).ToArray(),
                     RequestedCare = ExpeditionEconomyGenerator.Requests(plan.LocalSeed, "delvecare"),
                     RequestedMeteor = ExpeditionEconomyGenerator.Requests(plan.LocalSeed, "meteor-o-mat"),
-                    Placed = scenario.Machines!.Where(m => m.Type.Operation.PaidServices is not null).Select(m => m.Type.Id).ToArray(),
+                    Placed = (scenario.Machines ?? []).Where(m => m.Type.Operation.PaidServices is not null).Select(m => m.Type.Id).ToArray(),
                     Omissions = context.Completion!.Diagnostics.Where(d => d.ProducerId == "expedition-economy" && d.Status == CompletionStatus.Omitted)
                         .Select(d => new { d.CandidateId, d.Detail }).ToArray() });
             }
@@ -192,7 +192,7 @@ public sealed class ExpeditionEconomyAssessment(ITestOutputHelper output)
         }
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         File.WriteAllText(path, JsonSerializer.Serialize(new { ContentRevision = published.Snapshot.Revision,
-            Policy = "Scavenge and engage discovered enemies until round 8; liquidate at arrival Station until round 12; then exit. Attack/heal first; prioritize board Credits; standard enemy automation. Stop on completion, Party defeat, or 40-round/3200-decision cap.", Rows = rows }, new JsonSerializerOptions { WriteIndented = true }));
+            Policy = "Scavenge and engage discovered enemies until round 8; liquidate at discovered DelveMarts until round 12 when available; then exit. Attack/heal first; prioritize board Credits; standard enemy automation. Stop on completion, Party defeat, or 40-round/3200-decision cap.", Rows = rows }, new JsonSerializerOptions { WriteIndented = true }));
     }
 
     // Collection always empties the Cell. Its first pickup contains every opening
@@ -262,16 +262,19 @@ public sealed class ExpeditionEconomyAssessment(ITestOutputHelper output)
         if (pickup is not null) return pickup;
         var hasSales = state.Units.Where(u => u.SideId == ExpeditionParty.SideId).SelectMany(u => u.Inventory)
             .Any(o => Value(state, o.Id) is > 0);
-        var station = state.Physical.Board.Machines.Single(m => m.Id == ExpeditionRegionGeometry.ArrivalStationId);
-        var selling = state.Round is >= 8 and <= 12 && hasSales;
-        var operate = selling ? request.Candidates.FirstOrDefault(c => c.Action == UnitAction.Operate && c.MachineId == station.Id) : null;
+        var stations = state.Physical.Board.Machines.Where(m => m.Type.Operation.EquipmentStation is not null &&
+            (m.OwnerSide is null || m.OwnerSide == ExpeditionParty.SideId) &&
+            FogOfWar.IsExplored(state, ExpeditionParty.SideId, m.Position)).ToArray();
+        var selling = state.Round is >= 8 and <= 12 && hasSales && stations.Length > 0;
+        var operate = selling ? request.Candidates.FirstOrDefault(c => c.Action == UnitAction.Operate &&
+            stations.Any(station => station.Id == c.MachineId)) : null;
         if (operate is not null) return operate;
         var scavenging = state.LootMarkers.Select(m => m.Position).Concat(state.Units.Where(u => u.SideId != ExpeditionParty.SideId &&
                 u.CurrentHp > 0 && state.Physical.Figures.Any(f => f.Id == u.Id))
             .SelectMany(u => FootprintGeometry.OccupiedCells(state, u.Id))
             .Where(c => FogOfWar.IsExplored(state, ExpeditionParty.SideId, c))
             .SelectMany(c => graph.GetValueOrDefault(c) ?? []));
-        IEnumerable<Cell> targets = selling ? MachineGeometry.PotentialOperatingPositions(state.Physical.Board, station) :
+        IEnumerable<Cell> targets = selling ? stations.SelectMany(station => MachineGeometry.PotentialOperatingPositions(state.Physical.Board, station)) :
             state.CreditsPiles.Count > 0 ? state.CreditsPiles.Select(p => p.Position) :
             state.Round < 8 && scavenging.Any() ? scavenging :
             from y in Enumerable.Range(exit.Y, exit.H) from x in Enumerable.Range(exit.X, exit.W) select new Cell(x, y);

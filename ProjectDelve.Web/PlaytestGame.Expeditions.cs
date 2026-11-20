@@ -47,7 +47,7 @@ public sealed partial class PlaytestGame
         {
             RequireMachineDecision(request.DecisionId);
             if (stable.Result.State.MachineInteraction!.EquipmentStation is null)
-                throw Error(409, "An Equipment draft or recruit selection requires an Equipment Station.");
+                throw Error(409, "An Equipment draft or recruit selection requires a DelveMart.");
             if (request.RecruitTypeId is not null && stable.Result.State.Party?.SideId != stable.Result.State.MachineInteraction!.SideId)
                 throw Error(403, "Only the Expedition Party's Side can save a recruitment selection.");
         }

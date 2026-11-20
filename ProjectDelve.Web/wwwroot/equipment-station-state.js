@@ -16,7 +16,7 @@ export function createStationDraft({ preview, changed = () => {} }) {
       const response = await preview({ ...requested, ...(useSaved ? {} : { allocation: copy(allocation) }) });
       if (ticket !== generation || identity(boundary) !== identity(requested) || boundary.expectedRevision !== requested.expectedRevision) return;
       if (response.sessionId !== requested.sessionId || response.decisionId !== requested.decisionId || response.revision !== requested.expectedRevision)
-        throw new Error('The Station changed. Retry the preview.');
+        throw new Error('The DelveMart changed. Retry the preview.');
       if (useSaved) {
         allocation = copy(response.savedDraft ?? opening);
         savedRecruitTypeId = response.savedRecruitTypeId ?? null;

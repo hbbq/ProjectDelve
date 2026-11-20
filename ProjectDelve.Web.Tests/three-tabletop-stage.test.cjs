@@ -1,6 +1,31 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),path=require('node:path'),{pathToFileURL}=require('node:url');
 const at=name=>import(pathToFileURL(path.resolve(__dirname,'../ProjectDelve.Web/wwwroot',name)).href);
 
+test('DelveMart is a compact storefront with shared primitives and signs for front and overhead cameras',async()=>{
+  const T=await at('vendor/three/0.180.0/build/three.module.js'),{createTabletopVisuals}=await at('three-tabletop.js');
+  const geometries={plane:new T.PlaneGeometry(1,1)},materials=new Map(),signs=[];
+  const material=color=>{if(!materials.has(color))materials.set(color,new T.MeshBasicMaterial({color}));return materials.get(color);};
+  const plane=(m,x,z,w,h,y)=>{const n=new T.Mesh(geometries.plane,m);n.rotation.x=-Math.PI/2;n.scale.set(w,h,1);n.position.set(x,y,z);return n;};
+  const storefrontSign=stacked=>{signs.push(stacked);return material('#fff0cf');};
+  const visuals=createTabletopVisuals({material,plane,storefrontSign,geometries});
+  const machine={id:'fixture-station',typeId:'equipment-station',position:{x:2,y:3},ownerSide:null};
+  const before=JSON.stringify(machine),store=visuals.machine(machine,{}),count=materials.size;
+  assert.equal(JSON.stringify(machine),before,'presentation leaves the physical Machine unchanged');
+  assert.equal(store.name,'delvemart-storefront');
+  const bounds=new T.Box3().setFromObject(store);
+  assert.ok(bounds.min.x>2&&bounds.max.x<3&&bounds.min.z>3&&bounds.max.z<4,'every mesh fits the one-Cell footprint');
+  assert.ok(bounds.max.y<.7,'low flat roof preserves the board view');
+  assert.equal(store.getObjectByName('storefront-sign').rotation.x,0);
+  assert.equal(store.getObjectByName('storefront-roof-sign').rotation.x,-Math.PI/2);
+  assert.deepEqual(signs,[false,true],'the facade uses the single-line sign and the roof uses the stacked sign');
+  assert.ok(store.getObjectByName('storefront-roof-sign').scale.y>.5,'roof lettering occupies most of the roof depth');
+  const repeat=visuals.machine({...machine,id:'another',position:{x:0,y:0}},{});
+  assert.equal(materials.size,count,'repeat stores reuse finishes');
+  assert.equal(repeat.children[0].geometry,store.children[0].geometry);
+  assert.ok(store.children.length<35,'store uses a small set of primitive meshes');
+  for(const m of materials.values())m.dispose();for(const g of Object.values(geometries))g.dispose();
+});
+
 test('rock meets wall height with textured exposed sides and no hidden-neighbour skirts',async()=>{
   const T=await at('vendor/three/0.180.0/build/three.module.js'),{createTabletopVisuals,tabletopDimensions}=await at('three-tabletop.js');
   const geometries={plane:new T.PlaneGeometry(1,1)},materials=[];

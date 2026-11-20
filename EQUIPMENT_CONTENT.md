@@ -22,9 +22,9 @@ Lucky Boots Level 2 grant +2 MOV, +1 maximum HP and Second Step, a once-per-game
 
 Each additional Equipment Level can set `UpgradeCost` in C# or `"upgradeCost": 12` in JSON. The Station quotes this price to advance a retained physical instance by one Level. A blank price leaves the Level available for initial placement and restoration. Explicit zero enables a free purchase during a normal Station Confirm. Level 2 Lucky Boots cost 12 Credits. Their resale value remains 4 Credits at either Level.
 
-## Equipment Station Sell Value
+## DelveMart Sell Value
 
-Set `SellValue` in C# or `"sellValue": 4` in a JSON Equipment or Item Type to price one physical copy. Omit the property for an unsellable Type. Explicit zero permits a sale for zero Credits. The typed field participates in content validation, saved definitions and content digests. Copies with different remaining uses have the same price. [Station workflow and workshop](VISION_AND_MACHINES.md#equipment-station-interaction)
+Set `SellValue` in C# or `"sellValue": 4` in a JSON Equipment or Item Type to price one physical copy. Omit the property for an unsellable Type. Explicit zero permits a sale for zero Credits. The typed field participates in content validation, saved definitions and content digests. Copies with different remaining uses have the same price. [Station workflow and workshop](VISION_AND_MACHINES.md#delvemart-interaction)
 
 ## Adding canonical Equipment
 

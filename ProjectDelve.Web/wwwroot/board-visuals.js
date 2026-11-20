@@ -102,7 +102,7 @@ export const boardVisuals = {
     default: { fill: "#566776", detail: "linear-gradient(135deg, #c8bb8d, #3b4955 45%, #182b36)", glyph: "⚙" },
     "diamond-press": { image: "./art/machines/diamond-press.webp", baseTerrain: "StoneFloor" },
     "slot-machine": { image: "./art/machines/slot-machine.webp", baseTerrain: "StoneFloor" },
-    "equipment-station": { fill: "#986b44", detail: "linear-gradient(135deg, #563d31, #ae8455 65%, #d3ad69)", glyph: "\u2692", baseTerrain: "StoneFloor" },
+    "equipment-station": { image: "./art/machines/delve-mart.svg", fill: "#32b5ac", detail: "linear-gradient(#ed806b 0 20%, #fff0cf 20% 80%, #32b5ac 80%)", glyph: "DM", baseTerrain: "StoneFloor" },
     "beacon": { fill: "#aaa797", detail: "radial-gradient(circle, #fff0a8 0 18%, #57645f 20% 38%, #b1ac99 40% 63%, transparent 65%)", glyph: "\u2600", baseTerrain: "StoneFloor" }
   },
   cellMarker: {
@@ -129,6 +129,10 @@ export const boardVisuals = {
 
 // Resolve presentation from the displayed board's catalog, never from Designer
 // or a global mutable registry. Callers mask unexplored Cells before using this.
+export function machineDisplayName(type) {
+  return type?.id === 'equipment-station' && type.name === 'Equipment Station' ? 'DelveMart' : type?.name;
+}
+
 export function terrainDisplay(board, tile) {
   const definition = tile?.typeId != null
     ? board.terrainTypes?.find(type => type.id === tile.typeId)

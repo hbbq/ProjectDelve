@@ -22,9 +22,9 @@ Unit definitions expose optional **Default Controller**, intrinsic **Amphibious*
 
 Units expose **Base Movement Capabilities**, defaulting to `land`; use `water` alone for a water-only Unit. The **Movement Capability Grant** mechanic adds one or more kinds through unlimited Passive Unit or Equipment Abilities. Both it and Amphibious remain effective while Lying. Lists accept additional normalized movement kinds without Engine branches. Terrain categories do not grant movement. Validate & preview and inspection use the same typed definitions as scenario-local JSON, Workspace and canonical C# content. Current runtime snapshots require terrain content version 3; unsupported development snapshots are rejected instead of silently guessing permissions.
 
-### Equipment Station Sell Value
+### DelveMart Sell Value
 
-On an Equipment or Single Use Item definition, **Equipment Station sale → Sell Value (Credits)** accepts whole numbers from 0 through 2,147,483,647. Leave it blank to make the Type unsellable. Enter 0 to allow permanent removal for zero Credits. Validate and save the definition to include the field in the scenario, its DELVE1 export and playtest. Undo, redo and draft recovery retain this distinction. [Equipment content](EQUIPMENT_CONTENT.md#equipment-station-sell-value)
+On an Equipment or Single Use Item definition, **DelveMart sale → Sell Value (Credits)** accepts whole numbers from 0 through 2,147,483,647. Leave it blank to make the Type unsellable. Enter 0 to allow permanent removal for zero Credits. Validate and save the definition to include the field in the scenario, its DELVE1 export and playtest. Undo, redo and draft recovery retain this distinction. [Equipment content](EQUIPMENT_CONTENT.md#delvemart-sell-value)
 
 ### Ability Costs
 
@@ -76,10 +76,10 @@ In Scenario Designer choose **Machines**, select **DelveCare** or **Meteor-O-Mat
 
 ## Authoring and inspecting Levels
 
-The **Expedition recruitment** section on a Unit Type's Level 1 editor sets the Type-wide `recruitmentCost` in Credits. Leave it blank for a Type that cannot be recruited. Enter 0 to allow free recruitment through a normal Station Action. The price is part of the saved definition and its content identity. Choosing The Tycoon in an ordinary Scenario Designer still places an ordinary Unit. Party membership comes from the Expedition roster. [Party rules](CONSTRAINTS.md#equipment-station-recruitment)
+The **Expedition recruitment** section on a Unit Type's Level 1 editor sets the Type-wide `recruitmentCost` in Credits. Leave it blank for a Type that cannot be recruited. Enter 0 to allow free recruitment through a normal Station Action. The price is part of the saved definition and its content identity. Choosing The Tycoon in an ordinary Scenario Designer still places an ordinary Unit. Party membership comes from the Expedition roster. [Party rules](CONSTRAINTS.md#delvemart-recruitment)
 
 In **Content**, select a Unit or Equipment Type and choose a Level to inspect its complete configuration. Use **Create Copy** or edit an existing local definition. **Add next Level** starts an independent editable copy of the previous Level's fields. Set the stats, modifiers, Abilities, timing and uses for that Level. Shared Type fields such as identity and Sell Value are edited once. **Validate & preview** checks the entire Type and shows the selected Level. Saving uses the same workspace or Scenario definition as other content edits.
 
 In the Scenario Designer select a placed Unit to set its **Initial Unit Level**. Select the Level of each initial inventory or ground Equipment instance independently. Save, recover, undo, export to DELVE1 or playtest using the ordinary Scenario controls. The Engine validates the selected Levels and initial HP against the entire loadout.
 
-On an additional Unit or Equipment Level, set the **upgrade cost** to offer that destination at an Equipment Station. The field accepts whole Credits from 0 through 2,147,483,647. An empty field permits direct placement at the Level but removes the Station offer. Enter 0 for a free advance that still takes the Station Action. The Level inspector shows the authored price. Validate and save to include it in the Type's content identity and scenario exports. [Workshop examples](VISION_AND_MACHINES.md#play-the-workshop)
+On an additional Unit or Equipment Level, set the **upgrade cost** to offer that destination at a DelveMart. The field accepts whole Credits from 0 through 2,147,483,647. An empty field permits direct placement at the Level but removes the Station offer. Enter 0 for a free advance that still takes the Station Action. The Level inspector shows the authored price. Validate and save to include it in the Type's content identity and scenario exports. [Workshop examples](VISION_AND_MACHINES.md#play-the-workshop)

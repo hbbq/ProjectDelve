@@ -2,7 +2,7 @@ import { DesignerDraft, DesignerRequests, DesignerHistory, draftDocument, readDr
 import { renderSetupOverlay, renderSetupInspector, setupStatusText } from "./setup-overlays.js";
 import { styleSide } from "./side-colors.js";
 import { prepareCover } from "./cover-upload.js";
-import { boardVisuals, terrainLayers } from "./board-visuals.js";
+import { boardVisuals, terrainLayers, machineDisplayName } from "./board-visuals.js";
 
 const element = (tag, value = "") => {
   const node = document.createElement(tag); node.textContent = value;
@@ -633,13 +633,20 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     for (const [index, machine] of (draft.definition.machines ?? []).entries()) {
       if (!sameCell(machine.position, cell)) continue;
       node.classList.add("machine-cell");
-      node.append(element("span", machine.type.name));
+      const imageSource = machine.type.id === 'equipment-station' ? boardVisuals.machine[machine.type.id]?.image : null;
+      if (imageSource) {
+        node.classList.add('designer-storefront');
+        const image = element('img'); image.className = 'designer-machine-art';
+        image.alt = ''; image.draggable = false; image.src = imageSource;
+        image.addEventListener('error', () => { image.hidden = true; node.classList.remove('designer-storefront'); }); node.append(image);
+      }
+      node.append(element("span", machineDisplayName(machine.type)));
       node.append(element("small", machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`));
       for (const capacity of machine.type.storage?.capacities ?? []) {
         const quantity = machine.storedResources?.find(row => row.type.id === capacity.type.id)?.quantity ?? 0;
         node.append(element("small", `${capacity.type.name}: ${quantity}/${capacity.capacity}`));
       }
-      node.title += ` · ${machine.type.name} (${machine.id}) - ${machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`}`;
+      node.title += ` · ${machineDisplayName(machine.type)} (${machine.id}) - ${machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`}`;
       node.setAttribute("aria-label", node.title);
       if (selection?.kind === "machine" && selection.key === draft.machineKeys[index]) node.classList.add("editor-selected");
     }
@@ -810,7 +817,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     } else if (selection.kind === "machine") {
       const key = selection.key, machine = draft.definition.machines?.[draft.machineKeys.indexOf(key)];
       if (!machine) { selection = null; renderProperties(); return; }
-      form.append(element("p", machine.type.name));
+      form.append(element("p", machineDisplayName(machine.type)));
       const id = field(form, "Machine ID", machine.id);
       const sides = [...new Set([...draft.definition.units, ...draft.definition.agency].map(row => row.sideId))];
       const ownerEntries = [{ value: "", label: "None / Public" }, ...sides.map(value => ({ value, label: value }))];
@@ -1002,7 +1009,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   }
   function machineLabel(index) {
     const machine = draft.definition.machines[index];
-    return `${machine.type.name} (${machine.id}) - ${machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`} · (${machine.position.x}, ${machine.position.y})`;
+    return `${machineDisplayName(machine.type)} (${machine.id}) - ${machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`} · (${machine.position.x}, ${machine.position.y})`;
   }
   function objectiveEditor(side, current, sides) {
     const form = editorForm(`objective:${side}`);

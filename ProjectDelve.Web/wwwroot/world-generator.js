@@ -1,7 +1,7 @@
 import { renderSetupOverlay, renderSetupInspector, setupStatusText, showFinalSetup } from "./setup-overlays.js";
 import { GeneratorSession } from "./generator-state.js";
 import { worldConfigurationCode, worldConfigurationFromCode, constructionPreview, constructionRange, worldSettingSummaries, worldResultSummary } from "./world-generator-state.js";
-import { applyBoardVisual, terrainDisplay } from "./board-visuals.js";
+import { applyBoardVisual, machineDisplayName, terrainDisplay } from "./board-visuals.js";
 
 const byId = id => document.getElementById(`world-generator-${id}`);
 const dialog = document.getElementById("world-generator");
@@ -270,7 +270,7 @@ function renderPreview() {
       marker.dataset.machineId = machine.id;
       Object.assign(marker.style, { position: "absolute", inset: "0", display: "grid", placeItems: "center", color: "#fff2a8", background: "#252438bb", fontWeight: "bold", pointerEvents: "none" });
       node.append(marker);
-      node.title += `\nMachine ${machine.type.name} (${machine.id}); ${machine.ownerSide ?? "neutral"}; blocks movement, LOS and vision`;
+      node.title += `\nMachine ${machineDisplayName(machine.type)} (${machine.id}); ${machine.ownerSide ?? "neutral"}; blocks movement, LOS and vision`;
     }
     counts.set(display.name, (counts.get(display.name) ?? 0) + 1); fragment.append(node);
   }

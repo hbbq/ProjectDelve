@@ -41,7 +41,9 @@ public sealed class ExpeditionEconomyGenerationTests
         var machine = Assert.Single(definition.Machines!, m => m.Type.Id == typeId);
         Assert.Null(machine.OwnerSide);
         var previous = legacy.Context.Materialize();
-        Assert.Equal(ScenarioDefinitionJson.ToJson(previous), ScenarioDefinitionJson.ToJson(definition with
+        // An opening with no optional Machines serializes its absent collection as null.
+        // Normalize only that representation when removing the service stage's Machines.
+        Assert.Equal(ScenarioDefinitionJson.ToJson(previous with { Machines = previous.Machines ?? [] }), ScenarioDefinitionJson.ToJson(definition with
         { Machines = definition.Machines!.Where(m => m.Type.Operation.PaidServices is null).ToList(), Setup = previous.Setup }));
         Assert.Equal(System.Text.Json.JsonSerializer.Serialize(previous.Setup!.Deployment),
             System.Text.Json.JsonSerializer.Serialize(definition.Setup!.Deployment));
@@ -77,7 +79,7 @@ public sealed class ExpeditionEconomyGenerationTests
         var current = ExpeditionRegionGeometry.Execute(recipe, new(0, 30), new(59, 20), new(57, 19, 2, 3), seed, Content, profile: profile);
         var legacy = ExpeditionRegionGeometry.Generate(recipe, new(0, 30), new(59, 20), new(57, 19, 2, 3), seed,
             Content, profile with { EconomyVersion = null });
-        Assert.DoesNotContain(current.Context.Materialize().Machines!, m => m.Type.Operation.PaidServices is not null);
+        Assert.DoesNotContain(current.Context.Materialize().Machines ?? [], m => m.Type.Operation.PaidServices is not null);
         Assert.Contains(current.Context.Completion!.Diagnostics, d => d.CandidateId == "expedition/meteor-o-mat" && d.Status == CompletionStatus.Omitted);
         Assert.Equal(ScenarioDefinitionJson.ToJson(legacy), ScenarioDefinitionJson.ToJson(current.Context.Materialize()));
     }
@@ -90,7 +92,7 @@ public sealed class ExpeditionEconomyGenerationTests
         var context = ExpeditionRegionGeometry.Execute(Recipe, new(0, 30), new(59, 20), new(57, 19, 2, 3), seed,
             Content with { Items = [.. Content.Items.Where(t => t.Id != "last-resort-fireball")] },
             profile: ExpeditionWorldProfile.Create(Recipe.NaturalTerrain)).Context;
-        Assert.DoesNotContain(context.Materialize().Machines!, m => m.Type.Id == "meteor-o-mat");
+        Assert.DoesNotContain(context.Materialize().Machines ?? [], m => m.Type.Id == "meteor-o-mat");
         Assert.Contains(context.Completion!.Diagnostics, d => d.CandidateId == "expedition/meteor-o-mat" &&
             d.Status == CompletionStatus.Omitted && d.Detail!.Contains("Item Type"));
     }

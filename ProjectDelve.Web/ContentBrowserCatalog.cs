@@ -290,7 +290,7 @@ public static class ContentBrowserCatalog
                 if (items.Any(i => i.Id == item)) refs = refs.Append(Reference(service.Name, "items", item));
                 else summary += $" Item Type '{item}' is unavailable in this catalog.";
             }
-            entries.Add(Entry("machines", type.Id, type.Name, type, MachineTypes.All.Contains(type) ? "canonical" :
+            entries.Add(Entry("machines", type.Id, type.DisplayName, type, MachineTypes.All.Contains(type) ? "canonical" :
                 MachineTypes.All.Any(row => row.Id == type.Id) ? "scenario-override" : "scenario-local",
                 summary, references: refs));
         }

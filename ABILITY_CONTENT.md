@@ -205,7 +205,7 @@ The top-level Unit or Equipment definition describes Level 1. Each entry in `add
 
 The Level 2 Barbarian's Friendly Swap uses a Bonus Action and its Rage has three uses. Authors may place the Barbarian at Level 2, or players can advance one at a Station for 24 Credits. An upgraded Unit heals to its final Effective Max HP, including any Equipment received or upgraded on the same Confirm.
 
-The opening Operate source pays its use and ordinary Costs once. If the source advances a Level in that Confirm, a retained limited Operate with the same local key shows the one use spent on this operation. For example, a limited `crank` retained with two Uses ends at 1/2. Replacing it with `console` with two Uses starts `console` at 2/2. Other Ability counters on that upgraded source start full. [Station rules](CONSTRAINTS.md#equipment-station)
+The opening Operate source pays its use and ordinary Costs once. If the source advances a Level in that Confirm, a retained limited Operate with the same local key shows the one use spent on this operation. For example, a limited `crank` retained with two Uses ends at 1/2. Replacing it with `console` with two Uses starts `console` at 2/2. Other Ability counters on that upgraded source start full. [Station rules](CONSTRAINTS.md#delvemart)
 
 ## Operate at a paid Machine
 

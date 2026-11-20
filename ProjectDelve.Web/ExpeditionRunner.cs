@@ -121,11 +121,11 @@ public sealed class ExpeditionRunner
         lock (gate)
         {
             if (equipmentDraft is not null && current.State.MachineInteraction?.EquipmentStation is null)
-                throw new ExpeditionInputException("An Equipment draft requires a pending Equipment Station.");
+                throw new ExpeditionInputException("An Equipment draft requires a pending DelveMart.");
             if (recruitmentDraft is not null &&
                 (string.IsNullOrWhiteSpace(recruitmentDraft) || equipmentDraft is not null ||
                  current.State.MachineInteraction is not { EquipmentStation: not null } station || current.State.Party?.SideId != station.SideId))
-                throw new ExpeditionInputException("A recruitment draft requires its Party's pending Station and cannot include Equipment changes.");
+                throw new ExpeditionInputException("A recruitment draft requires its Party's pending DelveMart and cannot include Equipment changes.");
             if (equipmentDraft is not null) CommitCheckpoint(current with { EquipmentDraft = equipmentDraft, RecruitmentTypeId = null });
             else if (recruitmentDraft is not null) CommitCheckpoint(current with { RecruitmentTypeId = recruitmentDraft, EquipmentDraft = null });
             else if (dirty) CommitCheckpoint(current);

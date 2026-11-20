@@ -20,7 +20,7 @@ public sealed class ExpeditionStationGenerationTests
     public void ArrivalStationHasImmediateGeometricAccessWithoutConsumingDeploymentOrEndpoints(
         int forest, int water, int rock, int edge, int capacity)
     {
-        var recipe = Recipe(new(forest, water, rock)) with { HeroCapacity = capacity };
+        var recipe = Recipe(new(forest, water, rock)) with { HeroCapacity = capacity, Window = new(60, 0, 60, 60) };
         Cell[] entries = [new(0, 30), new(30, 0), new(59, 30), new(30, 59)];
         Cell[] exits = [new(59, 20), new(20, 59), new(0, 20), new(20, 0)];
         ObjectiveArea[] pads = [new(57, 19, 2, 3), new(19, 57, 3, 2), new(1, 19, 2, 3), new(19, 1, 3, 2)];
@@ -51,26 +51,63 @@ public sealed class ExpeditionStationGenerationTests
     }
 
     [Fact]
-    public void OptionalOpportunityIsRareDeterministicAndUsesCompletionSafeOpenPads()
+    public void InitialRegionOmitsGuaranteedStationWhileEverySuccessorDirectionRetainsIt()
+    {
+        var localSeed = Enumerable.Range(0, 1200).Select(i => (ulong)i)
+            .First(i => !ExpeditionStationGenerator.RequestsAdditional(i));
+        var recipe = Recipe(new(0, 0, 0));
+        foreach (var (x, y) in new[] { (0, 0), (60, 0), (-60, 0), (0, 60), (0, -60), (120, -60) })
+        {
+            var regional = recipe with { Window = new(x, y, 60, 60) };
+            var context = ExpeditionRegionGeometry.Execute(regional, new(0, 30), new(59, 20), new(57, 19, 2, 3),
+                localSeed, Content, profile: ExpeditionWorldProfile.Create(recipe.NaturalTerrain)).Context;
+            var definition = context.Materialize();
+            var stations = (definition.Machines ?? []).Where(m => m.Type.Operation.EquipmentStation is not null);
+            if (x == 0 && y == 0)
+            {
+                Assert.Empty(stations);
+                Assert.DoesNotContain(context.Construction, c => c.Id == ExpeditionStationGenerator.ArrivalId);
+                Assert.DoesNotContain(context.PopulationProtectedAreas, a => a.Id == ExpeditionStationGenerator.ArrivalId);
+            }
+            else Assert.Equal(ExpeditionStationGenerator.ArrivalId, Assert.Single(stations).Id);
+            var state = GameEngine.CreateGame(definition, Content);
+            Assert.True(PlayReadyScenarioSetup.Validate(definition, state).Valid);
+            Assert.True(context.Expedition!.HasOccupiedAccess(state, context.Deployment!));
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(60)]
+    public void OptionalOpportunityIsRareDeterministicAndUsesCompletionSafeOpenPads(int offsetX)
     {
         var requests = Enumerable.Range(0, 1200).Select(i => (ulong)i)
             .Where(ExpeditionStationGenerator.RequestsAdditional).ToArray();
         Assert.InRange(requests.Length, 65, 140);
-        var recipe = Recipe(new(0, 0, 0));
+        Assert.Equal(new ulong[] { 5, 11 }, requests.Take(2));
+        var recipe = Recipe(new(0, 0, 0)) with { Window = new(offsetX, 0, 60, 60) };
         foreach (var localSeed in requests.Take(2))
         {
             var context = ExpeditionRegionGeometry.Execute(recipe, new(0, 30), new(59, 20), new(57, 19, 2, 3),
                 localSeed, Content, profile: ExpeditionWorldProfile.Create(recipe.NaturalTerrain)).Context;
             var station = Assert.Single(context.Materialize().Machines!, m => m.Id == ExpeditionStationGenerator.AdditionalId);
+            // Pin the placement stream where the first candidate in the opening is legal.
+            if (offsetX == 0)
+                Assert.Equal(localSeed == 5 ? new Cell(32, 6) : new Cell(43, 36), station.Position);
             var board = context.ConstructionBoard!;
             Assert.False(board.IsReserved(station.Position.Y * 60 + station.Position.X));
             Assert.False(board.IsRouteCorridor(station.Position.Y * 60 + station.Position.X));
             Assert.True(context.Expedition!.HasOccupiedAccess(GameEngine.CreateGame(context.Materialize()), context.Deployment!));
+            var repeat = ExpeditionRegionGeometry.Generate(recipe, new(0, 30), new(59, 20), new(57, 19, 2, 3),
+                localSeed, Content, ExpeditionWorldProfile.Create(recipe.NaturalTerrain));
+            Assert.Equal(ScenarioDefinitionJson.ToJson(context.Materialize()), ScenarioDefinitionJson.ToJson(repeat));
         }
         var noRequest = Enumerable.Range(0, 1200).Select(i => (ulong)i).First(i => !ExpeditionStationGenerator.RequestsAdditional(i));
         var noExtra = ExpeditionRegionGeometry.Generate(recipe, new(0, 30), new(59, 20), new(57, 19, 2, 3),
             noRequest, Content, ExpeditionWorldProfile.Create(recipe.NaturalTerrain));
-        Assert.Single(noExtra.Machines!, m => m.Type.Operation.EquipmentStation is not null);
+        if (offsetX == 0) Assert.DoesNotContain(noExtra.Machines ?? [], m => m.Type.Operation.EquipmentStation is not null);
+        else Assert.Equal(ExpeditionStationGenerator.ArrivalId,
+            Assert.Single(noExtra.Machines!, m => m.Type.Operation.EquipmentStation is not null).Id);
     }
 
     [Fact]

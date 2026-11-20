@@ -1,6 +1,6 @@
 # Economy Phase 5 — Paid Station upgrades
 
-An Equipment Station accepts an upgrade-only proposal or any combination of transfers, sales and upgrades. One successful Confirm spends one Action. The operator can reset or cancel the draft for free. [Equipment Station rules](CONSTRAINTS.md#equipment-station)
+A DelveMart accepts an upgrade-only proposal or any combination of transfers, sales and upgrades. One successful Confirm spends one Action. The operator can reset or cancel the draft for free. [DelveMart rules](CONSTRAINTS.md#delvemart)
 
 ## Prices and physical targets
 
@@ -31,7 +31,7 @@ An Expedition checkpoint can retain an unfinished proposal, including one that c
 
 ## Browser verification
 
-The real Edge walkthrough started each purchase from the Equipment Station Workshop. The desktop and narrow views agreed with the Engine preview after Confirm.
+The real Edge walkthrough started each purchase from the DelveMart Workshop. The desktop and narrow views agreed with the Engine preview after Confirm.
 
 | Operation | Final Credits | Observed result |
 | --- | ---: | --- |

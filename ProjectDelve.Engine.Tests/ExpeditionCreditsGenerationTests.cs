@@ -40,7 +40,8 @@ public sealed class ExpeditionCreditsGenerationTests(ITestOutputHelper output)
     [Fact]
     public void PopulatedConstructedRegionPreservesEarlierGenerationEndToEnd()
     {
-        var recipe = new WorldGenerationRecipe(new(0, 0, 60, 60), new(), 17, new(), new(), new(), new());
+        // Exercise all earlier stages, including the guaranteed successor DelveMart.
+        var recipe = new WorldGenerationRecipe(new(60, 0, 60, 60), new(), 17, new(), new(), new(), new());
         var profile = ExpeditionWorldProfile.Create(recipe.NaturalTerrain);
         WorldGenerationContext Generate(ExpeditionWorldProfile p) => ExpeditionRegionGeometry.Execute(recipe,
             new(0, 30), new(59, 20), new(57, 19, 2, 3), 17, Content, profile: p).Context;

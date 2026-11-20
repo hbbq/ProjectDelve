@@ -1,6 +1,6 @@
-# Selling at Equipment Stations
+# Selling at DelveMarts
 
-One Station Confirm can sell physical Equipment and Items, redistribute retained objects, or do both. It spends one Operate Action. A sale transfers Credits directly to the operator's Side. Cancel returns to the activation with the original inventories, balance and Action. [Station rules](CONSTRAINTS.md#equipment-station)
+One Station Confirm can sell physical Equipment and Items, redistribute retained objects, or do both. It spends one Operate Action. A sale transfers Credits directly to the operator's Side. Cancel returns to the activation with the original inventories, balance and Action. [Station rules](CONSTRAINTS.md#delvemart)
 
 ## Prices for playtesting
 
@@ -10,11 +10,11 @@ One Station Confirm can sell physical Equipment and Items, redistribute retained
 | Swim Tube | Equipment | 3 Credits |
 | Second Wind | Single Use Item | 2 Credits |
 
-These are provisional prices for Expedition playtesting. The other shipped Types have no price. A scenario author can set `sellValue` on an Equipment or Item Type. Omission makes the Type unsellable. An explicit zero permits removing the object for zero Credits. Each copy has the same price even if its uses are exhausted. The property is omitted from serialized definitions when absent, preserving historical payloads and digests. A configured value participates in content identity and travels through Designer save, recovery, playtest and DELVE1. [Content Designer](CONTENT_DESIGNER.md#equipment-station-sell-value) · [Equipment roster](ProjectDelve.Engine/EquipmentRoster.cs) · [Item roster](ProjectDelve.Engine/ItemRoster.cs)
+These are provisional prices for Expedition playtesting. The other shipped Types have no price. A scenario author can set `sellValue` on an Equipment or Item Type. Omission makes the Type unsellable. An explicit zero permits removing the object for zero Credits. Each copy has the same price even if its uses are exhausted. The property is omitted from serialized definitions when absent, preserving historical payloads and digests. A configured value participates in content identity and travels through Designer save, recovery, playtest and DELVE1. [Content Designer](CONTENT_DESIGNER.md#delvemart-sell-value) · [Equipment roster](ProjectDelve.Engine/EquipmentRoster.cs) · [Item roster](ProjectDelve.Engine/ItemRoster.cs)
 
 ## What Confirm does
 
-The existing pending Operate records the eligible Units and their opening inventory. The draft assigns each physical ID to a final owner or lists it in `soldObjectIds`. Ground objects and other Sides' inventories are outside the pool. A retained owner change or a sale is sufficient to Confirm. The browser displays the Engine's current balance, proceeds and resulting balance and sends only object IDs and ownership choices. [Station API and editor](VISION_AND_MACHINES.md#equipment-station-interaction)
+The existing pending Operate records the eligible Units and their opening inventory. The draft assigns each physical ID to a final owner or lists it in `soldObjectIds`. Ground objects and other Sides' inventories are outside the pool. A retained owner change or a sale is sufficient to Confirm. The browser displays the Engine's current balance, proceeds and resulting balance and sends only object IDs and ownership choices. [Station API and editor](VISION_AND_MACHINES.md#delvemart-interaction)
 
 Confirm rebinds the invoking Ability, revalidates the pool, resolves current Type prices, and checks ownership, duplicate Equipment Types, live footprint occupancy and Credits headroom. The Engine sums proceeds using 64-bit arithmetic and checks that the operating Side can still collect all outstanding piles. It then applies Operate accounting, the final inventories and the balance on a copy. Sold instances leave play, including objects originally drawn as Loot. A Single Use Item that opened the Station stays reserved for ordinary consumption. Equipment that opened it can be transferred or sold after its use and Costs are paid. A rejected draft spends nothing and can be edited. [Engine implementation](ProjectDelve.Engine/EquipmentStation.cs)
 

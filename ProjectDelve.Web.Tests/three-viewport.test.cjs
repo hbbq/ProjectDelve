@@ -100,16 +100,36 @@ test('mixed-water surfaces share fixed artwork in flat and tabletop without rais
   }finally{h.cleanup();}
 });
 
-test('tabletop displays a one-Cell equipment rack at the projected Station position', async () => {
+test('tabletop displays a one-Cell DelveMart at the projected Machine position and removes it from hidden observations', async () => {
   const f = fixture();
-  f.presentation.machines = [{ id:'workshop', typeId:'equipment-station', name:'Equipment Station',
+  f.presentation.machines = [{ id:'workshop', typeId:'equipment-station', name:'DelveMart',
     position:{ x:3, y:2 }, ownerSide:'heroes', resourceStorage:[] }];
   const h = await harness(f);
   try {
     h.viewport.setPresentation('tabletop'); h.viewport.settle(); h.flush();
-    const rack = h.rendered.at(-1).scene.getObjectByName('equipment-station-rack');
-    assert.ok(rack);
-    assert.deepEqual(rack.position.toArray(), [3.5, 0, 2.5]);
+    const scene=h.rendered.at(-1).scene,store = scene.getObjectByName('delvemart-storefront');
+    assert.ok(store);
+    assert.deepEqual(store.position.toArray(), [3.5, 0, 2.5]);
+    assert.ok(store.getObjectByName('storefront-sign'));
+    const roofPrint=store.getObjectByName('storefront-roof-sign').material;
+    assert.deepEqual([roofPrint.map.image.width,roofPrint.map.image.height],[256,192]);
+    assert.equal(roofPrint.toneMapped,false);
+    const caption=h.host.querySelector('.storefront-caption');
+    assert.equal(caption.textContent,'heroes','owner remains visible without repeating the printed store name');
+    assert.equal(caption.attributes['aria-label'],'DelveMart · heroes');
+    assert.equal(caption.title,'DelveMart · heroes');
+    const captionPoint=h.viewport.project({x:3.5,y:2.98,height:.015});
+    assert.ok(Math.abs(parseFloat(caption.style.top)-captionPoint.y)<1);
+    const bounds=new h.THREE.Box3().setFromObject(store);
+    assert.ok(bounds.min.x>=3&&bounds.max.x<=4&&bounds.min.z>=2&&bounds.max.z<=3);
+    // Machine visibility arrives from the authoritative observed publication.
+    // Replacing it must remove the complete model, including both signs.
+    const hidden=structuredClone(f);hidden.presentation.machines=[];
+    h.viewport.renderFrame(hidden);h.viewport.settle();h.flush();
+    assert.equal(scene.getObjectByName('delvemart-storefront'),undefined);
+    assert.equal(scene.getObjectByName('storefront-sign'),undefined);
+    h.viewport.renderFrame(f);h.viewport.settle();h.flush();
+    assert.ok(scene.getObjectByName('delvemart-storefront'));
     assert.deepEqual(h.failures, []);
   } finally { h.cleanup(); }
 });
@@ -443,7 +463,7 @@ class Element {
   getBoundingClientRect(){return{left:0,top:0,width:this.clientWidth,height:this.clientHeight};}
   addEventListener(type,fn,options={}){(this.listeners[type]??=[]).push(fn);options.signal?.addEventListener('abort',()=>{this.listeners[type]=this.listeners[type].filter(f=>f!==fn);},{once:true});}
   emit(type,event={}){for(const fn of this.listeners[type]??[])fn({type,target:this,preventDefault(){},...event});}
-  getContext(){return{clearRect(){},strokeText(){},fillText(){}};}
+  getContext(){return{clearRect(){},fillRect(){},strokeText(){},fillText(){}};}
   setPointerCapture(id){this.capture=id;}
   hasPointerCapture(id){return this.capture===id;}
   releasePointerCapture(){this.capture=null;}
@@ -1906,6 +1926,27 @@ test('Tabletop and Flat figures display each same-Type Unit at its projected Lev
       assert.match(other.title, /Level 1/);
     }
   } finally { h.cleanup(); }
+});
+
+test('DelveMart roof and fascia avoid neighbouring Unit plaques at narrow and desktop scales',async()=>{
+  const f=fixture();f.state.physical.figures=f.state.physical.figures.slice(0,1);f.state.physical.figures[0].posture='Upright';f.state.units=f.state.units.slice(0,1);
+  f.presentation.machines=[{id:'fixture-mart',typeId:'equipment-station',name:'DelveMart',position:{x:3,y:2},ownerSide:'blue',resourceStorage:[]}];
+  const h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');
+    for(const width of [390,900])for(const representation of ['cardboard','miniatures']){
+      h.host.clientWidth=width;h.host.clientHeight=600;h.viewport.setRepresentation(representation);
+      h.viewport.camera.manual({...h.viewport.camera.current(),x:3,y:3,scale:width===390?52:90,tilt:38,yaw:0});
+      h.viewport.showInteraction({focusedUnitId:'hero',candidates:[]});h.viewport.settle();h.flush();
+      const label=h.host.querySelector('.three-labels').children.find(n=>n.dataset.unitId==='hero');
+      assert.equal(label.hidden,false,'focused Unit keeps a readable plaque');assert.equal(label.dataset.important,'true');
+      assert.equal(label.children[0].textContent,'3/5');
+      const rect={x:parseFloat(label.style.left),y:parseFloat(label.style.top),w:parseFloat(label.style.width),h:parseFloat(label.style.height)};
+      const points=[.49,.615].flatMap(height=>[.04,.96].flatMap(dx=>[.08,.96].map(dy=>h.viewport.project({x:3+dx,y:2+dy,height}))));
+      const roof={left:Math.min(...points.map(p=>p.x)),right:Math.max(...points.map(p=>p.x)),top:Math.min(...points.map(p=>p.y)),bottom:Math.max(...points.map(p=>p.y))};
+      assert.ok(rect.x+rect.w<=roof.left||rect.x>=roof.right||rect.y+rect.h<=roof.top||rect.y>=roof.bottom,'plaque leaves store signage visible');
+    }
+    assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
 });
 
 test('Tabletop important labels retain HP, Side, posture and combat role and Flat labels restore their original text',async()=>{

@@ -693,6 +693,42 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
         Assert.Equal(ScenarioDefinitionJson.ToJson(reopened.Scenario), ScenarioDefinitionJson.ToJson(resumed.Scenario));
     }
 
+    [Fact]
+    public void GeneratedOpeningResumesWithoutArrivalStationAndSuccessorResumesWithItsStation()
+    {
+        const string id = "opening-station-boundary";
+        const ulong seed = 17;
+        var settings = new WorldGenerationRecipe(new(0, 0, 60, 60), new(0, 0, 0),
+            Civilization: new(Enabled: false), Routes: new(Enabled: false), Population: new(PopulationDensity.Off));
+        var runner = ExpeditionRunner.Create(root, id, seed, generationSettings: settings);
+        Assert.DoesNotContain(runner.Snapshot().Physical.Board.Machines,
+            m => m.Id == ExpeditionRegionGeometry.ArrivalStationId);
+        runner.StartRound();
+        var saved = runner.Save();
+        var store = new ExpeditionStore(root, id);
+        var checkpoint = store.ReadCheckpoint(saved.ActiveCheckpoint);
+        var resumed = ExpeditionRunner.Open(root, id);
+        Assert.Equal(ScenarioDefinitionJson.ToJson(runner.Scenario), ScenarioDefinitionJson.ToJson(resumed.Scenario));
+        Assert.Equal(JsonSerializer.Serialize(runner.Snapshot()), JsonSerializer.Serialize(resumed.Snapshot()));
+        Assert.Equal(checkpoint.GameplayRandomState, store.ReadCheckpoint(resumed.Head.ActiveCheckpoint).GameplayRandomState);
+        FinishOpenBoard(resumed, new(resumed.Snapshot(), [], resumed.Snapshot().Pending), maxSteps: 3200);
+        var transition = resumed.Region.TransitionId;
+        var sourceBytes = File.ReadAllBytes(CheckpointPath(resumed.Head.ActiveCheckpoint, id));
+        var receipt = resumed.Continue(transition);
+        Assert.Equal(receipt, resumed.Continue(transition));
+        Assert.Equal(sourceBytes, File.ReadAllBytes(CheckpointPath(receipt.Source, id)));
+        Assert.DoesNotContain(store.ReadCheckpoint(receipt.Source).Scenario.Machines ?? [],
+            m => m.Id == ExpeditionRegionGeometry.ArrivalStationId);
+        var successor = Assert.Single(resumed.Snapshot().Physical.Board.Machines,
+            m => m.Id == ExpeditionRegionGeometry.ArrivalStationId);
+        Assert.Equal(ExpeditionParty.SideId, successor.OwnerSide);
+        Assert.Contains(resumed.Scenario.Setup!.Deployment.PlacementOrder[0],
+            MachineGeometry.PotentialOperatingPositions(resumed.Snapshot().Physical.Board, successor));
+        var reopened = ExpeditionRunner.Open(root, id);
+        Assert.Equal(ScenarioDefinitionJson.ToJson(resumed.Scenario), ScenarioDefinitionJson.ToJson(reopened.Scenario));
+        Assert.Equal(JsonSerializer.Serialize(resumed.StartRound()), JsonSerializer.Serialize(reopened.StartRound()));
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
@@ -1088,13 +1124,13 @@ public sealed class ExpeditionPersistenceTests(ITestOutputHelper output) : IDisp
     private static string Pass(DecisionRequest request) => request.Candidates.FirstOrDefault(candidate =>
         candidate.Kind is ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn)?.Key ?? request.Candidates[0].Key;
 
-    private static void FinishOpenBoard(ExpeditionRunner runner, EngineResult? started = null)
+    private static void FinishOpenBoard(ExpeditionRunner runner, EngineResult? started = null, int maxSteps = 180)
     {
         var last = started ?? runner.StartRound();
         var area = runner.Region.ExitArea;
         var originals = runner.Head.OriginalHeroIds.Take(2).ToArray();
         var targets = new[] { new Cell(area.X, area.Y), new Cell(area.X + 1, area.Y) };
-        for (var step = 0; step < 180 && !last.State.IsCompleted; step++)
+        for (var step = 0; step < maxSteps && !last.State.IsCompleted; step++)
         {
             if (last.NextInput is not { } request) { last = runner.StartRound(); continue; }
             var index = Array.IndexOf(originals, request.UnitId);

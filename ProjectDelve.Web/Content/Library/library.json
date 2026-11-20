@@ -3,8 +3,8 @@
   "scenarios": [
     {
       "id": "equipment-station-workshop",
-      "name": "Equipment Station Workshop",
-      "revision": 3,
+      "name": "DelveMart Workshop",
+      "revision": 4,
       "coverArt": null,
       "definition": {
         "board": {
@@ -22,7 +22,7 @@
         },
         "machines": [
           { "id": "workshop", "position": { "x": 3, "y": 2 }, "ownerSide": "heroes",
-            "type": { "id": "equipment-station", "name": "Equipment Station", "storage": null,
+            "type": { "id": "equipment-station", "name": "DelveMart", "storage": null,
               "operation": { "costs": [], "equipmentStation": {} } } }
         ],
         "sideCredits": { "heroes": 34 },

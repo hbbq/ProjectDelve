@@ -181,7 +181,7 @@ internal static class ExpeditionParty
             if (GameEngine.CanOperateMachineWithAction(candidateState, hero.UnitId!, ExpeditionRegionGeometry.ArrivalStationId))
                 return candidate;
         }
-        throw new ArgumentException("Expedition refreshed Party cannot immediately Operate the arrival Equipment Station from a legal deployment placement.");
+        throw new ArgumentException("Expedition refreshed Party cannot immediately Operate the arrival DelveMart from a legal deployment placement.");
     }
 
     private static void ValidateRoster(IReadOnlyList<ExpeditionHero> heroes, GameState? previous)

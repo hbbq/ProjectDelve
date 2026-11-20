@@ -107,7 +107,7 @@ test('Level inspector distinguishes an unpriced destination from explicit free a
     assert.doesNotMatch(h.byId('content-detail').textContent, /Upgrade cost|Unavailable for purchase/);
     h.change('content-inspect-level', '2');
     const text = h.byId('content-detail').textContent;
-    if (price == null) assert.match(text, /Unavailable for purchase at an Equipment Station/);
+    if (price == null) assert.match(text, /Unavailable for purchase at a DelveMart/);
     else assert.match(text, new RegExp(`Upgrade cost: ${price} Credits`));
   }
 });

@@ -16,7 +16,7 @@ export function rockBoundaryMask(x,y,kindAt){
 
 // Concrete visual bodies, not Units or rules. A future model body can supply the
 // same group/bounds/anchor without owning identity, footprint, choices or cards.
-export function createTabletopVisuals({material,physicalMaterial=(color,vertexColors=true)=>material(color,null,false,vertexColors),glyph,plane,artwork,geometries}) {
+export function createTabletopVisuals({material,physicalMaterial=(color,vertexColors=true)=>material(color,null,false,vertexColors),glyph,storefrontSign,plane,artwork,geometries}) {
   Object.assign(geometries,{
     box:new THREE.BoxGeometry(1,1,1),
     cylinder:new THREE.CylinderGeometry(1,1,1,24,1,true),
@@ -286,25 +286,41 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
   function machine(m,visual){
     const group=new THREE.Group(),x=m.position.x+.5,z=m.position.y+.5;
     if(m.typeId==='equipment-station'){
-      // A freestanding quartermaster's rack, all inside its one-Cell base.
-      group.name='equipment-station-rack';
+      // A tiny original convenience store, wholly inside its one-Cell base.
+      // Shared primitive geometry/materials keep repeated stores inexpensive.
+      group.name='delvemart-storefront';
       group.position.set(x,0,z);
-      const oak='#996c42',iron='#474e52',brass='#e8b659';
-      const band=m.ownerSide?`hsl(${sideHue(m.ownerSide)},65%,65%)`:brass;
-      box(group,band,0,.045,0,.9,.09,.76);
-      for(const px of [-.33,.33]){
-        box(group,iron,px,.38,-.17,.075,.66,.09);
-        box(group,oak,px,.19,.22,.09,.28,.09);
+      const cream='#fff0cf',turquoise='#32b5ac',coral='#ed806b',glass='#264d61';
+      const band=m.ownerSide?`hsl(${sideHue(m.ownerSide)},65%,65%)`:'#b4b8ac';
+      box(group,band,0,.025,0,.94,.05,.90);
+      box(group,cream,0,.29,-.025,.84,.50,.73);
+      box(group,turquoise,0,.12,.347,.85,.11,.035);
+      // Two broad display windows flank the glass entrance on the front (+Z).
+      for(const px of [-.265,.265]){
+        box(group,turquoise,px,.315,.350,.265,.29,.025);
+        box(group,glass,px,.32,.368,.225,.245,.018);
+        box(group,'#a4e3dc',px-.055,.35,.380,.018,.15,.008);
+        box(group,cream,px,.242,.382,.225,.018,.008);
       }
-      box(group,oak,0,.69,-.17,.81,.10,.13);
-      box(group,oak,0,.30,.045,.85,.085,.55);
-      for(const px of [-.19,-.02]){
-        box(group,'#d5d9ce',px,.50,-.07,.052,.31,.03);
-        box(group,brass,px,.635,-.07,.125,.035,.045);
-        box(group,iron,px,.71,-.07,.038,.12,.045);
+      box(group,turquoise,0,.262,.359,.18,.37,.035);
+      box(group,glass,0,.273,.382,.135,.30,.015);
+      box(group,cream,.044,.25,.397,.017,.065,.012);
+      box(group,cream,0,.063,.401,.24,.035,.12);
+      // A side window also reads when the camera orbits the board.
+      for(const side of [-1,1]){
+        box(group,turquoise,side*.427,.315,-.04,.016,.26,.39);
+        box(group,glass,side*.438,.32,-.04,.012,.22,.345);
+        box(group,cream,side*.447,.32,-.04,.008,.22,.018);
       }
-      mesh(group,geometries.gem,brass,.20,.49,-.02,.14,.19,.05);
-      mesh(group,geometries.gem,band,.20,.50,.015,.105,.14,.04);
+      // Flat roof with a coral parapet and a shallow turquoise sign fascia.
+      box(group,coral,0,.555,-.025,.91,.075,.80);
+      box(group,cream,0,.596,-.025,.80,.014,.69);
+      box(group,turquoise,0,.515,.395,.91,.15,.11);
+      const sign=plane(storefrontSign(false),0,0,.80,.12,0);
+      sign.rotation.set(0,0,0);sign.position.set(0,.52,.453);sign.name='storefront-sign';group.add(sign);
+      // Roof print keeps the name legible from a steep normal board camera.
+      const roofSign=plane(storefrontSign(true),0,-.025,.72,.57,.607);
+      roofSign.name='storefront-roof-sign';group.add(roofSign);
       return group;
     }
     if(m.typeId==='beacon'){

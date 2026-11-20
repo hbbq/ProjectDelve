@@ -277,7 +277,7 @@ export function mountContentEditor(root, options) {
       const path = [...state.levelPath, 'upgradeCost'];
       const cost = input('number', state.get(path), value => set(path, value === '' ? undefined : Number(value)));
       cost.id = 'content-editor-upgrade-cost'; cost.min = 0; cost.max = 2147483647; cost.step = 1;
-      group.append(field('Upgrade cost (Credits)', cost, path, 'Leave blank to keep this Level unavailable for purchase. Zero offers a free upgrade that still uses the Station Action.'));
+      group.append(field('Upgrade cost (Credits)', cost, path, 'Leave blank to keep this Level unavailable for purchase. Zero offers a free upgrade that still uses the Operate Action.'));
     }
     form.append(group);
   }
@@ -297,7 +297,7 @@ export function mountContentEditor(root, options) {
     if (state.level === 1 && ['equipment', 'items'].includes(state.family)) {
       const sellValue = input('number', state.definition.sellValue, value => set(['sellValue'], value === '' ? null : Number(value)));
       sellValue.id = 'content-editor-sell-value'; sellValue.min = 0; sellValue.step = 1;
-      form.append(group('Equipment Station sale', field('Sell Value (Credits)', sellValue, ['sellValue'], 'Leave blank to make this Type unsellable. Zero allows a sale for no Credits.')));
+      form.append(group('DelveMart sale', field('Sell Value (Credits)', sellValue, ['sellValue'], 'Leave blank to make this Type unsellable. Zero allows a sale for no Credits.')));
     }
     if (state.family !== 'items') renderModifiers();
     const section = group(state.family === 'items' ? 'Abilities' : `Level ${state.level} Abilities`, text(state.family === 'items' ? 'Each declaration owns its name, timing and mechanic. Use consumes one physical Item; choose an Ability when using an Item with multiple Abilities.' : 'Each declaration owns its name, timing and mechanic. Passive modifiers and capabilities use this same list.'));
@@ -368,7 +368,7 @@ export function mountContentEditor(root, options) {
     const price = input('number', state.definition.recruitmentCost, value => set(['recruitmentCost'], value === '' ? null : Number(value)));
     price.id = 'content-editor-recruitment-cost'; price.min = 0; price.max = 2147483647; price.step = 1;
     form.append(group('Expedition recruitment', field('Recruitment cost (Credits)', price, ['recruitmentCost'],
-      'Leave blank to omit this Type from Station recruitment. Enter 0 for a free recruit.')));
+      'Leave blank to omit this Type from DelveMart recruitment. Enter 0 for a free recruit.')));
   }
   function renderTerrain() {
     const section = group('Terrain', text('The Engine validates these properties and resolves assembly components.'));
@@ -451,7 +451,7 @@ export function mountContentEditor(root, options) {
     if (!level && entry.summary) container.append(node('p', '', entry.summary));
     if (level) container.append(node('h5', '', `Level ${level.level}`));
     if (level?.level > 1) container.append(text(level.upgradeCost == null
-      ? 'Unavailable for purchase at an Equipment Station.'
+      ? 'Unavailable for purchase at a DelveMart.'
       : `Upgrade cost: ${level.upgradeCost} Credits`));
     for (const ability of (level ?? entry).abilities ?? []) {
       const card = node('div', 'ce-preview-ability'); card.append(node('strong', '', ability.name), text(`${contentLabel(ability.timing)} · ${contentUsage(ability.usage)} · ${ability.key}`), node('p', '', ability.description)); container.append(card);

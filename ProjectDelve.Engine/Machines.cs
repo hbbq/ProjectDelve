@@ -34,6 +34,9 @@ public sealed record MachineType(string Id, string Name,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] ResourceStorage? Storage, MachineOperation Operation)
 {
     public string? RequiredTerrainTypeId { get; init; }
+    // Checkpoints and scenario imports retain the authored name in their serialized definition.
+    [JsonIgnore] public string DisplayName => Id == MachineTypes.EquipmentStation.Id && Name == "Equipment Station"
+        ? MachineTypes.EquipmentStation.Name : Name;
 }
 public sealed record Machine(string Id, Cell Position, MachineType Type)
 {
@@ -55,7 +58,7 @@ public static class MachineTypes
         new([new(ResourceTypes.Fruit, 3)]), new([new(ResourceTypes.Fruit, 3)], null) { OutputTable = RacingSlotTable.Table });
     public static MachineType Beacon { get; } = new("beacon", "Beacon", null,
         new([]) { Reveal = new(15), MaxUsesPerSide = 1 }) { RequiredTerrainTypeId = "stone-floor" };
-    public static MachineType EquipmentStation { get; } = new("equipment-station", "Equipment Station", null,
+    public static MachineType EquipmentStation { get; } = new("equipment-station", "DelveMart", null,
         new([]) { EquipmentStation = new() });
     public static MachineType DelveCare { get; } = new("delvecare", "DelveCare", null,
         new([]) { PaidServices = new([new("minor-treatment", "Minor Treatment", 10, HealAmount: 2),

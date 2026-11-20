@@ -128,7 +128,7 @@ public static partial class GameEngine
     {
         if (state.IsCompleted || state.RoundComplete || state.Round <= 0 || state.MachineInteraction is not { } interaction ||
             state.Pending?.Kind != DecisionKind.MachineInteraction || state.CurrentUnitId != interaction.OperatorId)
-            throw new InvalidOperationException("No Equipment Station interaction is pending.");
+            throw new InvalidOperationException("No DelveMart interaction is pending.");
         var actor = state.Units.SingleOrDefault(u => u.Id == interaction.OperatorId);
         var operation = interaction.Operation;
         if (state.AttackInProgress is not null || state.DoorInProgress is not null || state.BreakInProgress is not null ||
@@ -149,7 +149,7 @@ public static partial class GameEngine
         if (canonical is null || !FogOfWar.Allows(state, actor.SideId, canonical))
             throw new InvalidOperationException("Machine operation is unavailable.");
         var units = EquipmentStationUnits(state, interaction.SideId);
-        var payload = interaction.EquipmentStation ?? throw new InvalidOperationException("The Station payload is required.");
+        var payload = interaction.EquipmentStation ?? throw new InvalidOperationException("The DelveMart payload is required.");
         var original = units.SelectMany(u => u.Inventory.Where(o => Transferable(state, o) && o.Id != interaction.ReservedConsumptionObjectId)
             .Select(o => new EquipmentAssignment(o.Id, u.Id))).OrderBy(a => a.ObjectId, StringComparer.Ordinal).ToArray();
         if (payload.EligibleUnitIds.IsDefault || !payload.EligibleUnitIds.SequenceEqual(units.Select(u => u.Id)) ||
@@ -160,10 +160,10 @@ public static partial class GameEngine
             !payload.OriginalAllocation.Assignments.OrderBy(a => a.ObjectId, StringComparer.Ordinal).SequenceEqual(original) ||
             state.Pending.MachineInteraction is not { } pending || pending.MachineId != interaction.MachineId ||
             pending.OperatorId != interaction.OperatorId || pending.SideId != interaction.SideId)
-            throw new InvalidOperationException("The pending Equipment Station roster is stale or invalid.");
+            throw new InvalidOperationException("The pending DelveMart roster is stale or invalid.");
         if (payload.EligibleUpgradeUnitIds is { } upgradeIds &&
             (upgradeIds.IsDefault || !upgradeIds.SequenceEqual(EquipmentStationUpgradeUnits(state, interaction.SideId).Select(u => u.Id))))
-            throw new InvalidOperationException("The pending Equipment Station upgrade roster is stale or invalid.");
+            throw new InvalidOperationException("The pending DelveMart upgrade roster is stale or invalid.");
         interaction = interaction with { Operation = canonical };
         return interaction;
     }
@@ -227,7 +227,7 @@ public static partial class GameEngine
         void Reject(string code, string message, string? objectId = null, string? unitId = null) =>
             diagnostics.Add(new(code, message, objectId, unitId));
         if (requested.IsDefault || sold.IsDefault || upgradedUnits.IsDefault || upgradedEquipment.IsDefault)
-            Reject("invalid-allocation", "A complete Station proposal is required.");
+            Reject("invalid-allocation", "A complete DelveMart proposal is required.");
         else
         {
             var assignedIds = new HashSet<string>(StringComparer.Ordinal);
@@ -425,10 +425,10 @@ public static partial class GameEngine
     private sealed class StationAccountingRandom : IRandomProvider
     {
         public static StationAccountingRandom Instance { get; } = new();
-        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => throw new InvalidOperationException("Station settlement cannot draw tokens.");
-        public AttackFace RollAttackDie() => throw new InvalidOperationException("Station settlement cannot roll dice.");
-        public DefenceFace RollDefenceDie() => throw new InvalidOperationException("Station settlement cannot roll dice.");
-        public int RollD6() => throw new InvalidOperationException("Station settlement cannot roll dice.");
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => throw new InvalidOperationException("DelveMart settlement cannot draw tokens.");
+        public AttackFace RollAttackDie() => throw new InvalidOperationException("DelveMart settlement cannot roll dice.");
+        public DefenceFace RollDefenceDie() => throw new InvalidOperationException("DelveMart settlement cannot roll dice.");
+        public int RollD6() => throw new InvalidOperationException("DelveMart settlement cannot roll dice.");
     }
 
     private static ImmutableArray<OwnedObject> AllocateStationInventory(GameState state, Unit unit,

@@ -1,6 +1,6 @@
 # Economy Phase 6 — Recruitment, the Expedition Party and The Tycoon
 
-At an Equipment Station, the Expedition Party's Side can recruit The Tycoon for **75 Credits**. Recruitment has its own Confirm. It spends one Action, pays the opening Operate source, deducts the price and gives the Party a permanent new member. Cancel is free. Inventory sales can fund a later recruitment after the sale has been confirmed. [Rules](CONSTRAINTS.md#equipment-station-recruitment) · [Station controls](VISION_AND_MACHINES.md#recruit-a-party-member)
+At a DelveMart, the Expedition Party's Side can recruit The Tycoon for **75 Credits**. Recruitment has its own Confirm. It spends one Action, pays the opening Operate source, deducts the price and gives the Party a permanent new member. Cancel is free. Inventory sales can fund a later recruitment after the sale has been confirmed. [Rules](CONSTRAINTS.md#delvemart-recruitment) · [Station controls](VISION_AND_MACHINES.md#recruit-a-party-member)
 
 ## Content and placement
 

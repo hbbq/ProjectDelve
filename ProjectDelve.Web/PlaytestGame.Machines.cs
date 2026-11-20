@@ -56,7 +56,7 @@ public sealed partial class PlaytestGame
             throw Error(409, "The game is still resolving.");
         RequireMachineDecision(requestedDecisionId);
         if (stable.Result.State.MachineInteraction!.EquipmentStation is null)
-            throw Error(409, "An Equipment Station is required for that preview.");
+            throw Error(409, "A DelveMart is required for that preview.");
     }
 
     // The browser represents the host's current viewing Side when FoW is enabled.

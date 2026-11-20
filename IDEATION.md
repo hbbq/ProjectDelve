@@ -50,7 +50,7 @@ These are **inspiration, not preferred recurring proposals**. Invent new combina
 
 ## Machines, subscenarios, and the larger game
 
-Actively explore **new Machines and interactive locations** as a recurring ideation direction. An Operate action might perform an immediate effect, open a focused interactive view (for example Equipment Station, Trading Post, Upgrade Station, Crafting Station, or Vehicle Workshop), or launch a playable **subscenario**. Do not assume every Machine must fit a simple one-step action.
+Actively explore **new Machines and interactive locations** as a recurring ideation direction. An Operate action might perform an immediate effect, open a focused interactive view (for example DelveMart, Trading Post, Upgrade Station, Crafting Station, or Vehicle Workshop), or launch a playable **subscenario**. Do not assume every Machine must fit a simple one-step action.
 
 A subscenario uses the **same Delve Engine and core rules**, even when its Units, terrain, objectives, and genre differ radically. Explore caves, shops, chess-like tactical scenarios, kart racing, resource logistics, factory operation, and warfare. Consider how the parent scenario pauses, what Units and objects enter, what comes back, what happens on defeat, and what rewards or changes carry over. These are idea prompts, **not claims that generic subscenario transitions already exist**. Favor a concrete scenario experiment and the smallest missing rule over a speculative universal framework.
 

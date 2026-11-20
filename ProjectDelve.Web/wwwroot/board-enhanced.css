@@ -222,6 +222,15 @@
   bottom: 2%; left: 2%; right: 2%; z-index: 1; pointer-events: none;
   background: #18232cdd; border-radius: 3px; line-height: 1.1;
 }
+#board[data-view="enhanced"] .storefront-cell:has(.object-artwork) .machine-art { height: 82%; }
+#board[data-view="enhanced"] .storefront-cell .machine-labels {
+  display: block !important; bottom: 1%; line-height: 1.1; padding: 1px 0;
+  font: clamp(7px, calc(var(--cell-size) * .12), 10px)/1.1 system-ui;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#board[data-view="enhanced"] .storefront-cell .machine-labels > * { display: inline; font: inherit; }
+#board[data-view="enhanced"] .storefront-cell .machine-labels > span::after { content: ' · '; }
+#board[data-view="enhanced"] .storefront-cell .machine-labels[data-default-name="true"] > span { display: none; }
 /* Specific token appearance must not mask shared playback feedback. */
 #board[data-view="enhanced"] .figure.attack-source { box-shadow: 0 0 0 4px #7edfe6; }
 #board[data-view="enhanced"] .figure.attack-target { outline: 3px solid #ffad8e; outline-offset: 3px; }

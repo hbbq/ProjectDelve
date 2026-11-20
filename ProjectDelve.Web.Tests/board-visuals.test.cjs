@@ -6,6 +6,18 @@ const vm = require("node:vm");
 const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/board-visuals.js"), "utf8").replace(/^export /gm, "");
 const catalog = () => { const context = vm.createContext({}); vm.runInContext(script, context); return code => vm.runInContext(code, context); };
 
+test('DelveMart flat views share a local storefront asset and preserve custom Machine names', () => {
+  const run=catalog();
+  const visual=JSON.parse(run('JSON.stringify(boardVisuals.machine["equipment-station"])'));
+  assert.equal(visual.baseTerrain,'StoneFloor');
+  assert.equal(visual.image,'./art/machines/delve-mart.svg');
+  const asset=fs.readFileSync(path.join(__dirname,'../ProjectDelve.Web/wwwroot',visual.image),'utf8');
+  assert.match(asset,/DELVE MART/);assert.match(asset,/#32b5ac/);assert.match(asset,/#ed806b/);assert.match(asset,/#fff0cf/);
+  assert.ok(Buffer.byteLength(asset)<4096,'flat renderer asset stays lightweight');
+  for(const [id,name,expected]of [['equipment-station','Equipment Station','DelveMart'],['equipment-station','Camp Supply','Camp Supply'],['another','Equipment Station','Equipment Station']])
+    assert.equal(run(`machineDisplayName(${JSON.stringify({id,name})})`),expected);
+});
+
 test('mixed water is one fixed surface with twelve deterministic appearances and no connectivity layer', () => {
   const run = catalog(), reload = catalog();
   for (const [id, recipe] of [['wet-grass','WetGrass'],['rocky-water','RockyWater'],['stepping-stones','SteppingStones']]) {

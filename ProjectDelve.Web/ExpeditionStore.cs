@@ -137,7 +137,7 @@ internal sealed class ExpeditionStore
              checkpoint.State.MachineInteraction is not { EquipmentStation: not null } interaction ||
              checkpoint.State.Pending?.Kind != DecisionKind.MachineInteraction ||
              checkpoint.State.Party?.SideId != interaction.SideId))
-            throw new InvalidDataException("A recruitment draft requires its Party's pending Station and cannot include Equipment changes.");
+            throw new InvalidDataException("A recruitment draft requires its Party's pending DelveMart and cannot include Equipment changes.");
     }
 
     internal void ReplaceHead(ExpeditionHead? expected, ExpeditionHead next)
